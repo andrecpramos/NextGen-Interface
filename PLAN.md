@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-04**.
+**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ · WP-04 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-05** (trace) or **WP-07** (domain).
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -82,12 +82,14 @@ verified on disk.
 | 4 · Navigation (AI controls routing) | required | ✅ **Built** — `NavigationEngine`, routes generated from the registry |
 | 5 · Knowledge (domain intelligence) | required | ⛔ Not built |
 
+**Persistence** (not an AI layer, but everything above needs it): ✅ `packages/data` — schema, migrations, the fixed query set, undo journal, seeded fixtures.
+
 ### Tech stack
 
 | Blueprint proposed | Decision | Why |
 |---|---|---|
 | Flutter + Riverpod + GoRouter | ❌ **Rejected** | [ADR-006](.ai/decisions/ADR-006.md) — no Dart experience; TS monorepo instead |
-| Drift / Isar | ❌ **Rejected** | [ADR-007](.ai/decisions/ADR-007.md) — Drizzle; SQLite reasoning kept |
+| Drift / Isar | ❌ **Rejected** | [ADR-007](.ai/decisions/ADR-007.md) — Drizzle; SQLite reasoning kept. **Built in WP-04**, on `node:sqlite` |
 | Local-first, no backend | ⚠️ **Amended** | [ADR-008](.ai/decisions/ADR-008.md) — backend exists, device stays source of truth |
 | llama.cpp / ONNX inference | ✅ Accepted, ⛔ not built | via Ollama / llama.rn / WebGPU |
 | Whisper STT + Piper TTS | ✅ Accepted, ⛔ not built | |
@@ -128,7 +130,9 @@ NextGen_Interface/
 │   ├── domain-finance/        27 capability defs        ◐ registry only
 │   │   ├── src/capabilities.ts  20 capabilities + 7 declared limits
 │   │   └── generated/         routes.json · golden.generated.jsonl
-│   ├── data/                  5 lines                  ⬜ scaffold
+│   ├── data/                  TypeScript, strict        ✅ IMPLEMENTED
+│   │   └── src/               money · schema/{spec,sqlite,postgres} · migrate
+│   │                          repositories · query-engine · undo · fixtures · 43 tests
 │   └── ui/                    5 lines                  ⬜ scaffold
 ├── services/api/              4 lines                  ⬜ empty by design (ADR-008)
 ├── infrastructure/            dirs only
@@ -440,33 +444,51 @@ between encoders.
 
 ---
 
-### WP-04 · `data` — Drizzle schema + migrations
+### WP-04 · `data` — schema, migrations, query engine ✅ **COMPLETE — 2026-08-29**
 
 **Goal:** Persistence for the finance domain, per [ADR-007](.ai/decisions/ADR-007.md).
 
-**Depends on:** WP-03 ✅ — **unblocked, this is the next work package.**
+**Built:** `Account`, `Transaction`, `Category` (tree), `Budget`, `TurnTrace`,
+`DataRef` and `undo_journal`; repositories behind the interfaces the domain declares;
+the fixed query set; the undo journal; and seeded fixtures. 43 tests.
 
-**Build** — entity model is already specified in
-[.ai/sdlc/design.md](.ai/sdlc/design.md):
-`Account`, `Transaction`, `Category` (tree, `parentId`), `Budget`, `TurnTrace`, `DataRef`
+**[ADR-010](.ai/decisions/ADR-010.md) — money, finally decided.** WP-02 left three
+`DECISION OWED` items; this closes them:
 
-0. **Decide the money semantics WP-02 surfaced** — does a negative amount exist, or is
-   sign carried by category? What happens when an utterance names two currencies?
-   `resolveMoney` currently drops the sign and picks the first currency, both silently,
-   both pinned by `DECISION OWED` tests in `slots.test.ts`.
-1. Drizzle schema targeting SQLite; same definitions must compile for Postgres
-2. Migrations via Drizzle Kit + **a migration test from every prior schema**
-3. Repository implementations behind interfaces the domain declares
-4. `QueryEngine` implementation — the fixed parameterised query set
-5. Recursive CTE for category roll-up (food ⊇ groceries + restaurants + coffee)
-6. Seeded fixtures: ~500 synthetic transactions over 18 months, **fixed seed**
+- `amountMinor` is a **signed** integer minor unit. Negative leaves the account. The
+  alternative — magnitude plus a direction column — makes every aggregate a `CASE`, and
+  the one thing that must never be wrong is a sum.
+- **The parser keeps returning an unsigned magnitude, and that is now correct on
+  purpose.** "twenty euros" and "minus twenty euros" both mean the quantity 20; direction
+  belongs to the capability. What was wrong was that it was silent about it.
+- **Currency mismatch is refused, never converted.** A rate has a date and a source, and
+  a wrong one silently corrupts every historical aggregate that touched it.
 
-**Acceptance**
-- `amountMinor` is `integer` everywhere; a `real`/`float` money column fails review
-- All timestamps UTC
-- Category roll-up returns correct aggregates against fixtures
-- Migration from v1→v2 preserves all rows; failure restores backup
-- **No real financial data in fixtures, including your own**
+**A real bug, found by writing the test:** `fromMajorUnits` computed
+`Math.round(value * 100)`. `1.005 * 100` is `100.49999999999999`, so it returned a
+cent short — and `+ Number.EPSILON` does not save it, because EPSILON is relative to 1
+while the error is at the scale of 100. It now parses the decimal **string** digit by
+digit. Passing a *number* still yields whatever the float already holds (`1.005` → 100,
+because the literal genuinely is 1.00499999999999989 before the function sees it); both
+behaviours are pinned by tests and the README says to pass strings.
+
+**Same definitions, both dialects.** The entity model is written once in
+`schema/spec.ts`; `sqlite.ts` and `postgres.ts` are built from it and a parity test
+asserts table-for-table and column-for-column agreement. Money is `integer` in SQLite
+and `bigint` in Postgres — Postgres `integer` is 32-bit and would overflow at ~21
+million in a two-decimal currency.
+
+**Acceptance — met**
+
+- `amountMinor` is `integer` everywhere, asserted **structurally** against the schema
+  rather than by review ✅
+- All timestamps UTC — the repository refuses a non-`Z` timestamp ✅
+- Category roll-up correct against fixtures, including a **three-level** tree that a
+  two-level join would silently under-report, and excluding refunds from "spending" ✅
+- Migration from every prior version preserves all rows; a failing migration leaves the
+  database at the last good version, and the file path restores from backup ✅
+- No real financial data in fixtures — all generated from a fixed seed, invented
+  merchants ✅
 
 ---
 
@@ -620,7 +642,7 @@ Audio **never persisted** past transcription. Mic state unmistakable in the UI.
 ```
 WP-01 (1B model)  ─── ✅ DONE 2026-08-29 — qwen2.5:1.5b selected
    │
-WP-02 (TS port) ✅ ─ WP-03 (capability + dispatch) ✅ ┬─ WP-04 (data) ─┬─ WP-07 (domain)
+WP-02 (TS port) ✅ ─ WP-03 (capability + dispatch) ✅ ┬─ WP-04 (data) ✅ ┬ WP-07 (domain)
    │                         │                     │                │
    └── WP-06 (inference) ────┘                     └─ WP-05 (trace) ┘
                                                             │
