@@ -13,13 +13,15 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "registry:build": "pnpm --filter @nextgen/domain-finance registry:build",
+    "registry:check": "pnpm --filter @nextgen/domain-finance registry:build -- --check",
     "router:eval": "pnpm --filter @nextgen/core-intent eval",
-    "router:calibrate": "pnpm --filter @nextgen/core-intent calibrate",
-    "router:inspect": "pnpm --filter @nextgen/core-intent inspect",
-    "clean": "pnpm -r exec rm -rf dist node_modules .turbo",
     "router:baseline": "pnpm --filter @nextgen/core-intent eval:baseline",
     "router:floor": "pnpm --filter @nextgen/core-intent eval:floor",
-    "router:compare": "pnpm --filter @nextgen/core-intent compare"
+    "router:calibrate": "pnpm --filter @nextgen/core-intent calibrate",
+    "router:inspect": "pnpm --filter @nextgen/core-intent inspect",
+    "router:compare": "pnpm --filter @nextgen/core-intent compare",
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",

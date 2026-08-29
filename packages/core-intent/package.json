@@ -20,6 +20,8 @@
     "calibrate": "node eval/calibrate.js --embedder=ollama --defer-oos",
     "inspect": "node eval/inspect.js --embedder=ollama"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@nextgen/core-capability": "workspace:*"
+  },
   "devDependencies": {}
 }

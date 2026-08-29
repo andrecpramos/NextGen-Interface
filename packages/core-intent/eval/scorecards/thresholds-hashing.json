@@ -1,121 +1,122 @@
 {
   "embedder": "hashing",
-  "calibratedAt": "2026-08-29T21:51:27.975Z",
+  "calibratedAt": "2026-08-29T22:09:49.574Z",
   "constraints": {
     "PRECISION_FLOOR": 0.95,
     "OOS_FLOOR": 0,
     "AMBIG_FLOOR": 0.95
   },
   "recommended": {
-    "tauHigh": 0.205,
-    "delta": 0.09,
+    "tauHigh": 0.185,
+    "delta": 0.08,
     "tauFloor": 0,
-    "acceptRate": 0.4066666666666667,
-    "precision": 0.9672131147540983,
+    "acceptRate": 0.41333333333333333,
+    "precision": 0.9516129032258065,
     "oosRate": 0,
     "ambigRate": 0.9666666666666667,
-    "stage1Rate": 0.07
+    "stage1Rate": 0.08,
+    "boundaryMargin": 0.105
   },
   "alternatives": [
     {
-      "tauHigh": 0.205,
-      "delta": 0.09,
+      "tauHigh": 0.185,
+      "delta": 0.08,
       "tauFloor": 0,
-      "acceptRate": 0.4066666666666667,
-      "precision": 0.9672131147540983,
+      "acceptRate": 0.41333333333333333,
+      "precision": 0.9516129032258065,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.218,
-      "delta": 0.09,
-      "tauFloor": 0,
-      "acceptRate": 0.4,
-      "precision": 0.9666666666666667,
-      "oosRate": 0,
-      "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
-    },
-    {
-      "tauHigh": 0.231,
+      "tauHigh": 0.185,
       "delta": 0.09,
       "tauFloor": 0,
       "acceptRate": 0.4,
       "precision": 0.9666666666666667,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.165,
-      "delta": 0.1,
+      "tauHigh": 0.198,
+      "delta": 0.08,
       "tauFloor": 0,
-      "acceptRate": 0.3933333333333333,
-      "precision": 0.9830508474576272,
+      "acceptRate": 0.4,
+      "precision": 0.9666666666666667,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.178,
-      "delta": 0.1,
-      "tauFloor": 0,
-      "acceptRate": 0.3933333333333333,
-      "precision": 0.9830508474576272,
-      "oosRate": 0,
-      "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
-    },
-    {
-      "tauHigh": 0.191,
-      "delta": 0.1,
-      "tauFloor": 0,
-      "acceptRate": 0.3933333333333333,
-      "precision": 0.9830508474576272,
-      "oosRate": 0,
-      "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
-    },
-    {
-      "tauHigh": 0.244,
+      "tauHigh": 0.198,
       "delta": 0.09,
       "tauFloor": 0,
       "acceptRate": 0.3933333333333333,
       "precision": 0.9661016949152542,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.165,
-      "delta": 0.11,
+      "tauHigh": 0.211,
+      "delta": 0.08,
       "tauFloor": 0,
       "acceptRate": 0.38666666666666666,
-      "precision": 0.9827586206896551,
+      "precision": 0.9655172413793104,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.178,
-      "delta": 0.11,
+      "tauHigh": 0.16,
+      "delta": 0.1,
       "tauFloor": 0,
-      "acceptRate": 0.38666666666666666,
-      "precision": 0.9827586206896551,
+      "acceptRate": 0.38,
+      "precision": 0.9824561403508771,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.191,
-      "delta": 0.11,
+      "tauHigh": 0.173,
+      "delta": 0.1,
       "tauFloor": 0,
-      "acceptRate": 0.38666666666666666,
-      "precision": 0.9827586206896551,
+      "acceptRate": 0.38,
+      "precision": 0.9824561403508771,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
+    },
+    {
+      "tauHigh": 0.185,
+      "delta": 0.1,
+      "tauFloor": 0,
+      "acceptRate": 0.38,
+      "precision": 0.9824561403508771,
+      "oosRate": 0,
+      "ambigRate": 1,
+      "stage1Rate": 0.08
+    },
+    {
+      "tauHigh": 0.211,
+      "delta": 0.09,
+      "tauFloor": 0,
+      "acceptRate": 0.38,
+      "precision": 0.9649122807017544,
+      "oosRate": 0,
+      "ambigRate": 0.9666666666666667,
+      "stage1Rate": 0.08
+    },
+    {
+      "tauHigh": 0.224,
+      "delta": 0.08,
+      "tauFloor": 0,
+      "acceptRate": 0.38,
+      "precision": 0.9649122807017544,
+      "oosRate": 0,
+      "ambigRate": 0.9666666666666667,
+      "stage1Rate": 0.08
     }
   ]
 }

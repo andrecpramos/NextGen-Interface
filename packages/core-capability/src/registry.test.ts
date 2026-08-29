@@ -1,0 +1,244 @@
+import { describe, expect, it } from 'vitest';
+
+import { defineBoundary, defineCapability, defineRegistry } from './define.ts';
+import { validateRegistry } from './validate.ts';
+import { capabilityDocument, generateGoldenEntries, generateRouteTable } from './codegen.ts';
+import { isCapabilityKind, isExecutableKind } from './types.ts';
+import type { Capability, RegistryFile } from './types.ts';
+
+const ex = (n: number) => Array.from({ length: n }, (_, i) => `phrasing number ${i + 1}`);
+
+const ok = (over: Partial<Parameters<typeof defineCapability>[0]> = {}) =>
+  defineCapability({
+    id: 'transactions.list',
+    kind: 'navigate',
+    route: '/transactions',
+    title: 'Transactions',
+    description: 'Browse and filter the full list of recorded transactions',
+    examples: ex(3),
+    ...over,
+  } as Parameters<typeof defineCapability>[0]);
+
+const registryOf = (...capabilities: Capability[]): RegistryFile =>
+  defineRegistry({ capabilities, enums: { Category: { values: ['food'] } } });
+
+const rules = (r: RegistryFile) => validateRegistry(r).errors.map((e) => e.rule);
+
+describe('validateRegistry — a valid registry', () => {
+  it('accepts a well-formed capability', () => {
+    expect(validateRegistry(registryOf(ok())).ok).toBe(true);
+  });
+
+  it('accepts a well-formed boundary entry', () => {
+    const b = defineBoundary({
+      id: 'unsupported.move_money',
+      title: 'Moving real money',
+      description: 'Paying, sending or transferring real money to another person',
+      examples: ex(3),
+      refusal: "I can record transactions, but I can't move real money.",
+    });
+    expect(validateRegistry(registryOf(ok(), b)).ok).toBe(true);
+  });
+});
+
+describe('validateRegistry — the ≥3 examples rule', () => {
+  // The rule WP-03 requires CI to enforce. Examples are the retrieval document,
+  // the few-shot pool and the test fixtures, so two of them is under-specified
+  // in three places at once.
+  it('fails a capability with fewer than three examples', () => {
+    for (const n of [0, 1, 2]) {
+      expect(rules(registryOf(ok({ examples: ex(n) })))).toContain('examples-min');
+    }
+  });
+
+  it('passes at exactly three', () => {
+    expect(rules(registryOf(ok({ examples: ex(3) })))).not.toContain('examples-min');
+  });
+
+  it('rejects an empty example rather than counting it', () => {
+    expect(rules(registryOf(ok({ examples: ['a real one', '', '   '] })))).toContain('example-empty');
+  });
+});
+
+describe('validateRegistry — ADR-004 fail-closed', () => {
+  it('rejects a missing kind', () => {
+    const broken = { ...ok(), kind: '' } as Capability;
+    expect(rules(registryOf(broken))).toContain('kind-required');
+  });
+
+  it('rejects an unknown kind rather than guessing the nearest', () => {
+    for (const kind of ['reed', 'admin', 'READ', 'query']) {
+      expect(rules(registryOf({ ...ok(), kind } as Capability))).toContain('kind-known');
+    }
+  });
+
+  it('recognises exactly the five declared kinds', () => {
+    for (const k of ['navigate', 'read', 'write', 'destructive', 'unsupported']) {
+      expect(isCapabilityKind(k)).toBe(true);
+    }
+    expect(isCapabilityKind('admin')).toBe(false);
+  });
+
+  it('treats only the four executable kinds as executable', () => {
+    expect(isExecutableKind('unsupported')).toBe(false);
+    for (const k of ['navigate', 'read', 'write', 'destructive']) {
+      expect(isExecutableKind(k)).toBe(true);
+    }
+  });
+});
+
+describe('validateRegistry — duplicate triggers', () => {
+  it('rejects the same trigger on two capabilities', () => {
+    // Stage 1 takes the first registration, so the second capability silently
+    // becomes unreachable by phrase. Silent is the problem.
+    const a = ok({ id: 'transactions.list', triggers: ['transactions'] });
+    const b = ok({ id: 'transactions.search', route: '/search', triggers: ['transactions'] });
+    expect(rules(registryOf(a, b))).toContain('trigger-unique');
+  });
+
+  it('allows a capability to repeat its own trigger', () => {
+    expect(rules(registryOf(ok({ triggers: ['transactions', 'transactions'] })))).not.toContain('trigger-unique');
+  });
+
+  it('compares triggers case-insensitively', () => {
+    const a = ok({ id: 'a.one', triggers: ['Budget'] });
+    const b = ok({ id: 'b.two', route: '/b', triggers: ['budget'] });
+    expect(rules(registryOf(a, b))).toContain('trigger-unique');
+  });
+});
+
+describe('validateRegistry — route and param coherence', () => {
+  it('rejects a path parameter the capability never declares', () => {
+    expect(rules(registryOf(ok({ id: 'budget.detail', route: '/budget/:id' })))).toContain('route-param-declared');
+  });
+
+  it('rejects a path parameter that is declared but optional', () => {
+    const c = ok({ id: 'budget.detail', route: '/budget/:id', params: { id: { type: 'string' } } });
+    expect(rules(registryOf(c))).toContain('route-param-required');
+  });
+
+  it('accepts a required path parameter', () => {
+    const c = ok({ id: 'budget.detail', route: '/budget/:id', params: { id: { type: 'string', required: true } } });
+    expect(rules(registryOf(c))).not.toContain('route-param-declared');
+  });
+
+  it('rejects a param naming an enum the registry does not declare', () => {
+    const c = ok({ params: { category: { type: 'enum:Nonexistent' } } });
+    expect(rules(registryOf(c))).toContain('param-enum-declared');
+  });
+
+  it('rejects a missing route on an executable capability', () => {
+    expect(rules(registryOf({ ...ok(), route: null } as Capability))).toContain('route-required');
+  });
+
+  it('rejects duplicate ids', () => {
+    expect(rules(registryOf(ok(), ok()))).toContain('id-unique');
+  });
+});
+
+describe('validateRegistry — boundary entries', () => {
+  const b = (over: Partial<Capability>) =>
+    ({
+      id: 'unsupported.thing', kind: 'unsupported', route: null, title: 'Thing',
+      description: 'A thing this application deliberately does not do at all',
+      params: {}, examples: ex(3), refusal: 'Not something I do.', ...over,
+    }) as Capability;
+
+  it('requires a refusal message', () => {
+    const noRefusal = { ...b({}) } as Capability & { refusal?: string };
+    delete noRefusal.refusal;
+    expect(rules(registryOf(ok(), noRefusal))).toContain('boundary-refusal');
+  });
+
+  it('rejects a boundary entry that declares a route', () => {
+    // A refusal with a route is a refusal you can navigate to.
+    expect(rules(registryOf(ok(), b({ route: '/somewhere' })))).toContain('boundary-no-route');
+  });
+
+  it('rejects a boundary entry that declares params', () => {
+    expect(rules(registryOf(ok(), b({ params: { x: { type: 'string' } } })))).toContain('boundary-no-params');
+  });
+
+  it('rejects a refusal message on an executable capability', () => {
+    expect(rules(registryOf(ok({ }) as Capability & { refusal?: string }))).not.toContain('refusal-misplaced');
+    const weird = { ...ok(), refusal: 'nope' } as Capability;
+    expect(rules(registryOf(weird))).toContain('refusal-misplaced');
+  });
+});
+
+describe('capabilityDocument — the retrieval text', () => {
+  it('joins title, description, triggers and example phrasings', () => {
+    const c = ok({ triggers: ['transactions'], examples: ['show my transactions', 'b', 'c'] });
+    expect(capabilityDocument(c)).toBe(
+      'Transactions. Browse and filter the full list of recorded transactions. transactions. show my transactions. b. c',
+    );
+  });
+
+  it('reads the `say` field of a rich example, not the object', () => {
+    const c = ok({ examples: [{ say: 'show my transactions', expect: { route: '/transactions' } }, 'b', 'c'] });
+    expect(capabilityDocument(c)).toContain('show my transactions');
+    expect(capabilityDocument(c)).not.toContain('route');
+  });
+
+  it('produces identical text for the two example forms', () => {
+    // This is what lets examples gain `expect` blocks without shifting every
+    // stage-2 score and invalidating the committed scorecards.
+    const plain = ok({ examples: ['a', 'b', 'c'] });
+    const rich = ok({ examples: [{ say: 'a' }, { say: 'b' }, { say: 'c' }] });
+    expect(capabilityDocument(plain)).toBe(capabilityDocument(rich));
+  });
+});
+
+describe('generateRouteTable', () => {
+  it('emits one entry per executable capability', () => {
+    const table = generateRouteTable(registryOf(ok()));
+    expect(table).toHaveLength(1);
+    expect(table[0]).toMatchObject({ capabilityId: 'transactions.list', route: '/transactions' });
+  });
+
+  it('never emits a route for a declared limit', () => {
+    const boundary = defineBoundary({
+      id: 'unsupported.thing', title: 'Thing',
+      description: 'Something this application deliberately does not do',
+      examples: ex(3), refusal: 'Not something I do.',
+    });
+    const table = generateRouteTable(registryOf(ok(), boundary));
+    expect(table.map((r) => r.capabilityId)).toEqual(['transactions.list']);
+  });
+});
+
+describe('generateGoldenEntries — examples as fixtures', () => {
+  it('emits an entry only for examples carrying an expectation', () => {
+    const c = ok({
+      examples: [
+        { say: 'show last month', expect: { params: { from: '2026-07-01' }, maxStage: 'embedding' } },
+        'a bare phrasing',
+        'another',
+      ],
+    });
+    const entries = generateGoldenEntries(registryOf(c));
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      utterance: 'show last month',
+      expect: { outcome: 'execute', capability: 'transactions.list', maxStage: 'embedding' },
+    });
+  });
+
+  it('marks a write example as requiring confirmation', () => {
+    const c = ok({
+      id: 'transaction.create', kind: 'write', route: '/transactions/new',
+      examples: [{ say: 'add 20 for coffee', expect: {} }, 'b', 'c'],
+    });
+    expect(generateGoldenEntries(registryOf(c))[0]?.expect).toMatchObject({ requiresConfirmation: true });
+  });
+
+  it('expects a refusal from a boundary example', () => {
+    const b = defineBoundary({
+      id: 'unsupported.thing', title: 'Thing',
+      description: 'Something this application deliberately does not do',
+      examples: [{ say: 'do the thing', expect: {} }, 'b', 'c'],
+      refusal: 'Not something I do.',
+    });
+    expect(generateGoldenEntries(registryOf(ok(), b))[0]?.expect).toMatchObject({ outcome: 'out_of_scope' });
+  });
+});

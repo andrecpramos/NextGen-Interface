@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { capabilityDocument } from '@nextgen/core-capability';
 import { normalize } from './text.ts';
 import { buildEnumIndex } from './slots.ts';
+import { similarityAudit as audit } from '@nextgen/core-capability';
 import type { Capability, Embedder, EnumIndex, Registry, RegistryFile, Vector } from './types.ts';
 
 /**
@@ -40,12 +42,10 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
   }
 
   // --- stage 2 documents.
-  // Description carries the semantics; triggers and examples carry the phrasing
-  // users actually produce. Examples are weighted in by inclusion, which is why
-  // coding-standards.md requires at least three per capability.
-  const documents = capabilities.map((cap) =>
-    [cap.title, cap.description, ...(cap.triggers ?? []), ...(cap.examples ?? [])].join('. '),
-  );
+  // Built by core-capability, not here. Codegen precomputes the embedding index
+  // from the same function, so the vectors shipped with a build and the vectors
+  // computed at runtime cannot describe different text.
+  const documents = capabilities.map(capabilityDocument);
 
   embedder.fit?.(documents);
   const vectors = await embedder.embedAll(documents);
@@ -58,34 +58,21 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
     documents,
     vectors,
     enums,
+    boundaryIds: new Set(capabilities.filter((c) => c.kind === 'unsupported').map((c) => c.id)),
   };
 }
 
-export interface SimilarPair {
-  readonly a: string;
-  readonly b: string;
-  readonly score: number;
-}
-
 /**
- * Registry health: capability pairs whose documents sit close together in
- * embedding space. These are the pairs that will steal each other's stage-2
- * margin as the registry grows (maintenance.md). Run it whenever accuracy dips.
+ * Registry health, re-exported from `core-capability`, which owns it now: it is
+ * a property of how capabilities are *written*, so it belongs to the contract
+ * and must be runnable at build time, not only where an evaluator runs.
  */
+export type { SimilarPair } from '@nextgen/core-capability';
+
 export function similarityAudit(
   registry: Registry,
   cosine: (a: Vector, b: Vector) => number,
   threshold = 0.55,
-): SimilarPair[] {
-  const pairs: SimilarPair[] = [];
-  const { capabilities, vectors } = registry;
-  for (let i = 0; i < capabilities.length; i++) {
-    for (let j = i + 1; j < capabilities.length; j++) {
-      const score = cosine(vectors[i]!, vectors[j]!);
-      if (score >= threshold) {
-        pairs.push({ a: capabilities[i]!.id, b: capabilities[j]!.id, score });
-      }
-    }
-  }
-  return pairs.sort((x, y) => y.score - x.score);
+) {
+  return audit(registry.capabilities.map((c) => c.id), registry.vectors, cosine, threshold);
 }

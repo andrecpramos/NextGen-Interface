@@ -9,6 +9,7 @@ import {
 } from './config.ts';
 import {
   isCapabilityKind,
+  isExecutableKind,
   mergeParams,
   modelParams,
   NO_MODEL_PARAMS,
@@ -120,6 +121,16 @@ export async function route(
   if (hit) {
     trace.candidates = [{ capabilityId: hit.capabilityId, score: hit.score }];
     trace.notes.push(`stage1 matched "${hit.matched}"`);
+
+    // A trigger on a declared limit is as decisive as any other trigger, and
+    // cheaper than every stage below it (ADR-009).
+    if (registry.boundaryIds.has(hit.capabilityId)) {
+      trace.capabilityId = hit.capabilityId;
+      trace.decidedAt = STAGE.DETERMINISTIC;
+      trace.kind = 'unsupported';
+      trace.notes.push('declared limit — the application does not do this');
+      return finish(OUTCOME.OUT_OF_SCOPE);
+    }
     const result = settle(hit.capabilityId, STAGE.DETERMINISTIC);
     // A stage-1 phrase match that leaves required slots empty is not a failure
     // of stage 1 — it identified the capability correctly. Let stage 3 try to
@@ -135,6 +146,19 @@ export async function route(
   trace.candidates = s2.candidates;
   trace.margin = s2.margin;
   trace.topScore = s2.top.score;
+
+  if (s2.decision === 'refuse' && s2.boundaryId) {
+    // Retrieved, not judged: no model was consulted, so this behaves the same on
+    // a 1B model as on an 8B one. That is the entire point of ADR-009.
+    trace.capabilityId = s2.boundaryId;
+    trace.decidedAt = STAGE.EMBEDDING;
+    trace.kind = 'unsupported';
+    trace.notes.push(
+      `declared limit "${s2.boundaryId}" led the best capability by ` +
+        `${(s2.boundaryMargin ?? 0).toFixed(3)} (>= ${thresholds.boundaryMargin})`,
+    );
+    return finish(OUTCOME.OUT_OF_SCOPE);
+  }
 
   if (s2.decision === 'out_of_scope') {
     trace.decidedAt = STAGE.EMBEDDING;
@@ -185,8 +209,12 @@ export async function route(
   // confidence it reads is self-reported and close to constant. Keep it — it is
   // correct policy and free — but it is no longer the thing standing between a
   // weak signal and a write. See FINDINGS Finding 8.
+  // `isExecutableKind` rather than `isCapabilityKind`: a declared limit has no
+  // confidence at which it would be allowed to run, and stage 3 is never offered
+  // one anyway. tsc enforces the distinction — TAU_ACT_BY_KIND is keyed by
+  // ExecutableKind, so indexing it with a possible 'unsupported' does not compile.
   const proposedKind = s3.capabilityId !== null ? registry.byId.get(s3.capabilityId)?.kind : undefined;
-  const tauAct = proposedKind !== undefined && isCapabilityKind(proposedKind)
+  const tauAct = proposedKind !== undefined && isExecutableKind(proposedKind)
     ? TAU_ACT_BY_KIND[proposedKind]
     : thresholds.tauAct ?? TAU_ACT_DEFAULT;
 

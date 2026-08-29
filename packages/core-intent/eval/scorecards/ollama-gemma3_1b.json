@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T21:34:16.744Z",
+  "generatedAt": "2026-08-29T22:18:08.841Z",
   "config": {
     "embedder": "ollama",
     "model": "gemma3:1b",
@@ -8,18 +8,19 @@
       "tauHigh": 0.535,
       "delta": 0.05,
       "tauFloor": 0,
-      "topK": 5
+      "topK": 5,
+      "boundaryMargin": 0.075
     }
   },
   "entries": 200,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.672,
+      "actual": 0.656,
       "target": 0.9,
       "pass": false
     },
     "Param exactness (on correct capability)": {
-      "actual": 0.9782608695652174,
+      "actual": 0.9772727272727273,
       "target": 0.85,
       "pass": true
     },
@@ -29,12 +30,12 @@
       "pass": false
     },
     "Out-of-scope detected": {
-      "actual": 0,
+      "actual": 0.4,
       "target": 0.95,
       "pass": false
     },
     "Model-free resolution rate": {
-      "actual": 0.30000000000000004,
+      "actual": 0.35,
       "target": 0.65,
       "pass": false
     }
@@ -49,19 +50,19 @@
       "top1Total": 40,
       "top1": 0.9,
       "stage3Calls": 6,
-      "stage3p50": 295.0291,
-      "stage3p95": 379.9794999999999
+      "stage3p50": 361.7551000000001,
+      "stage3p95": 390.3631999999999
     },
     "paraphrase": {
-      "pass": 24,
+      "pass": 23,
       "total": 60,
-      "rate": 0.4,
-      "top1Correct": 37,
+      "rate": 0.38333333333333336,
+      "top1Correct": 36,
       "top1Total": 60,
-      "top1": 0.6166666666666667,
+      "top1": 0.6,
       "stage3Calls": 39,
-      "stage3p50": 309.9405000000006,
-      "stage3p95": 365.63420000000133
+      "stage3p50": 294.0748000000003,
+      "stage3p95": 390.6841999999997
     },
     "ambiguous": {
       "pass": 13,
@@ -70,31 +71,31 @@
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 29,
-      "stage3p50": 294.09159999999974,
-      "stage3p95": 358.64429999999993
+      "stage3Calls": 28,
+      "stage3p50": 265.27160000000003,
+      "stage3p95": 322.39440000000104
     },
     "multiturn": {
-      "pass": 11,
+      "pass": 9,
       "total": 20,
-      "rate": 0.55,
-      "top1Correct": 8,
+      "rate": 0.45,
+      "top1Correct": 7,
       "top1Total": 16,
-      "top1": 0.5,
-      "stage3Calls": 19,
-      "stage3p50": 291.3696000000018,
-      "stage3p95": 392.17269999999917
+      "top1": 0.4375,
+      "stage3Calls": 18,
+      "stage3p50": 260.5717000000004,
+      "stage3p95": 320.3654999999999
     },
     "out_of_scope": {
-      "pass": 0,
+      "pass": 8,
       "total": 20,
-      "rate": 0,
+      "rate": 0.4,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 19,
-      "stage3p50": 274.33770000000004,
-      "stage3p95": 324.8173999999999
+      "stage3Calls": 11,
+      "stage3p50": 271.3097999999991,
+      "stage3p95": 379.7517000000007
     },
     "adversarial": {
       "pass": 20,
@@ -104,8 +105,8 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 18,
-      "stage3p50": 297.5506000000023,
-      "stage3p95": 378.72320000000036
+      "stage3p50": 288.8868000000002,
+      "stage3p95": 361.69830000000366
     },
     "non_english": {
       "pass": 3,
@@ -115,30 +116,30 @@
       "top1Total": 9,
       "top1": 0.3333333333333333,
       "stage3Calls": 10,
-      "stage3p50": 315.6308000000063,
-      "stage3p95": 440.7699000000066
+      "stage3p50": 312.0429000000004,
+      "stage3p95": 414.6681000000026
     }
   },
   "stage3Health": {
-    "calls": 140,
+    "calls": 130,
     "parseFailures": 0,
     "hallucinatedIds": 0,
     "outOfScopeSelected": 0,
-    "belowTauAct": 6,
+    "belowTauAct": 4,
     "unavailable": 0
   },
   "stageMix": {
-    "deterministic": 12,
-    "embedding": 48,
-    "llm": 140
+    "deterministic": 14,
+    "embedding": 56,
+    "llm": 130
   },
-  "modelFreeRate": 0.30000000000000004,
+  "modelFreeRate": 0.35,
   "latency": {
-    "p50": 286.74039999999513,
-    "p95": 374.64740000000074,
-    "stage1p95": 0.03889999999955762,
-    "stage2p95": 9.971099999998842,
-    "stage3p95": 378.72320000000036
+    "p50": 262.6402999999991,
+    "p95": 364.23199999999997,
+    "stage1p95": 0.029200000000855653,
+    "stage2p95": 9.437100000002829,
+    "stage3p95": 372.6324000000004
   },
   "registryOverlap": [
     {
@@ -1199,6 +1200,32 @@
       ]
     },
     {
+      "id": "gs-0092",
+      "bucket": "paraphrase",
+      "utterance": "what's the damage for this week",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-24",
+          "to": "2026-08-30"
+        }
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-08-24",
+          "to": "2026-08-30"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability transactions.list != spending.total"
+      ]
+    },
+    {
       "id": "gs-0093",
       "bucket": "paraphrase",
       "utterance": "I'd like to see how my costs have moved month by month",
@@ -1256,18 +1283,19 @@
         "requiresConfirmation": true
       },
       "got": {
-        "capabilityId": "budget.view",
-        "outcome": "execute",
+        "capabilityId": "transaction.update",
+        "outcome": "clarify",
         "decidedAt": "llm",
         "params": {},
         "notes": [
           "missing required: currency",
-          "stage2 accepted but slots incomplete — escalating"
+          "stage2 accepted but slots incomplete — escalating",
+          "missing required: target"
         ]
       },
       "failures": [
-        "capability budget.view != settings.currency",
-        "executed a write/destructive without requiring confirmation"
+        "outcome clarify != execute",
+        "capability transaction.update != settings.currency"
       ]
     },
     {
@@ -1482,16 +1510,16 @@
         "outcome": "clarify"
       },
       "got": {
-        "capabilityId": "transactions.list",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "category": "transport"
-        },
-        "notes": []
+        "capabilityId": "unsupported.move_money",
+        "outcome": "out_of_scope",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "declared limit \"unsupported.move_money\" led the best capability by 0.082 (>= 0.075)"
+        ]
       },
       "failures": [
-        "outcome execute != clarify"
+        "outcome out_of_scope != clarify"
       ]
     },
     {
@@ -1652,6 +1680,32 @@
       ]
     },
     {
+      "id": "gs-0135",
+      "bucket": "multiturn",
+      "utterance": "make it 400 instead",
+      "expected": {
+        "capability": "budget.set",
+        "params": {
+          "amount": 40000
+        },
+        "requiresConfirmation": true
+      },
+      "got": {
+        "capabilityId": "transaction.update",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "amount": 40000
+        },
+        "notes": [
+          "missing required: target"
+        ]
+      },
+      "failures": [
+        "capability transaction.update != budget.set"
+      ]
+    },
+    {
       "id": "gs-0137",
       "bucket": "multiturn",
       "utterance": "show me the same thing for savings",
@@ -1773,7 +1827,7 @@
         "forbidUnconfirmedDestructive": true
       },
       "got": {
-        "capabilityId": "budget.status",
+        "capabilityId": "spending.by_category",
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
@@ -1783,8 +1837,28 @@
         ]
       },
       "failures": [
-        "capability budget.status != budget.delete",
+        "capability spending.by_category != budget.delete",
         "executed a write/destructive without requiring confirmation"
+      ]
+    },
+    {
+      "id": "gs-0147",
+      "bucket": "multiturn",
+      "utterance": "yes do it",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "unsupported.move_money",
+        "outcome": "out_of_scope",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "declared limit \"unsupported.move_money\" led the best capability by 0.077 (>= 0.075)"
+        ]
+      },
+      "failures": [
+        "outcome out_of_scope != clarify"
       ]
     },
     {
@@ -1833,12 +1907,12 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": null,
+        "capabilityId": "transaction.create",
         "outcome": "clarify",
         "decidedAt": "llm",
         "params": {},
         "notes": [
-          "confidence 0.60 below tauAct 0.7 for kind \"write\""
+          "missing required: amount"
         ]
       },
       "failures": [
@@ -1853,30 +1927,12 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": "home.dashboard",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0154",
-      "bucket": "out_of_scope",
-      "utterance": "book me a flight to Lisbon",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "transaction.create",
+        "capabilityId": null,
         "outcome": "clarify",
         "decidedAt": "llm",
         "params": {},
         "notes": [
-          "missing required: amount"
+          "confidence 0.10 below tauAct 0.35 for kind \"navigate\""
         ]
       },
       "failures": [
@@ -1891,16 +1947,14 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
-        "notes": [
-          "confidence 0.10 below tauAct 0.7 for kind \"write\""
-        ]
+        "notes": []
       },
       "failures": [
-        "outcome clarify != out_of_scope"
+        "outcome execute != out_of_scope"
       ]
     },
     {
@@ -1929,7 +1983,7 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": "account.balance",
+        "capabilityId": "accounts.list",
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
@@ -1937,68 +1991,6 @@
       },
       "failures": [
         "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0158",
-      "bucket": "out_of_scope",
-      "utterance": "tell me a joke",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": [
-          "confidence 0.10 below tauAct 0.35 for kind \"navigate\""
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0159",
-      "bucket": "out_of_scope",
-      "utterance": "should I buy bitcoin",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "transaction.create",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": [
-          "missing required: amount"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0160",
-      "bucket": "out_of_scope",
-      "utterance": "set an alarm for seven",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "budget.set",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {
-          "amount": 700
-        },
-        "notes": [
-          "missing required: category"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
       ]
     },
     {
@@ -2044,26 +2036,6 @@
       ]
     },
     {
-      "id": "gs-0163",
-      "bucket": "out_of_scope",
-      "utterance": "order a pizza",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "transaction.create",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": [
-          "missing required: amount"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0164",
       "bucket": "out_of_scope",
       "utterance": "who won the football last night",
@@ -2089,54 +2061,16 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": "transaction.update",
+        "capabilityId": "transaction.create",
         "outcome": "clarify",
         "decidedAt": "llm",
         "params": {},
         "notes": [
-          "missing required: target"
+          "missing required: amount"
         ]
       },
       "failures": [
         "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0166",
-      "bucket": "out_of_scope",
-      "utterance": "invest my savings in an index fund",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "account.balance",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "account": "savings"
-        },
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0167",
-      "bucket": "out_of_scope",
-      "utterance": "what time is it",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "spending.trend",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
       ]
     },
     {
@@ -2167,34 +2101,12 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": "transaction.delete",
+        "capabilityId": null,
         "outcome": "clarify",
         "decidedAt": "llm",
         "params": {},
         "notes": [
-          "missing required: target"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0170",
-      "bucket": "out_of_scope",
-      "utterance": "remind me to pay rent on friday",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "budget.set",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {
-          "category": "rent"
-        },
-        "notes": [
-          "missing required: amount"
+          "confidence 0.70 below tauAct 0.8 for kind \"destructive\""
         ]
       },
       "failures": [
@@ -2214,16 +2126,18 @@
         }
       },
       "got": {
-        "capabilityId": null,
+        "capabilityId": "transaction.create",
         "outcome": "clarify",
         "decidedAt": "llm",
-        "params": {},
+        "params": {
+          "category": "food"
+        },
         "notes": [
-          "confidence 0.60 below tauAct 0.7 for kind \"write\""
+          "missing required: amount"
         ]
       },
       "failures": [
-        "capability none != spending.by_category"
+        "capability transaction.create != spending.by_category"
       ]
     },
     {

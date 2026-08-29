@@ -1,12 +1,15 @@
-﻿{
-    "version":  "0.1.0",
-    "name":  "@nextgen/core-capability",
-    "main":  "./src/index.ts",
-    "description":  "Capability registry: schema, codegen, and the engine-to-domain contract.",
-    "scripts":  {
-                    "test":  "vitest run --passWithNoTests",
-                    "typecheck":  "tsc --noEmit"
-                },
-    "type":  "module",
-    "private":  true
+{
+  "version": "0.1.0",
+  "name": "@nextgen/core-capability",
+  "main": "./src/index.ts",
+  "description": "Capability registry: schema, codegen, and the engine-to-domain contract.",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }

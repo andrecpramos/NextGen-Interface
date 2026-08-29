@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T21:51:20.926Z",
+  "generatedAt": "2026-08-29T22:10:42.607Z",
   "config": {
     "embedder": "ollama",
     "model": "qwen2.5:1.5b",
@@ -8,7 +8,8 @@
       "tauHigh": 0.535,
       "delta": 0.05,
       "tauFloor": 0,
-      "topK": 3
+      "topK": 3,
+      "boundaryMargin": 0.075
     }
   },
   "entries": 200,
@@ -29,12 +30,12 @@
       "pass": false
     },
     "Out-of-scope detected": {
-      "actual": 0.4,
+      "actual": 0.6,
       "target": 0.95,
       "pass": false
     },
     "Model-free resolution rate": {
-      "actual": 0.30000000000000004,
+      "actual": 0.35,
       "target": 0.65,
       "pass": false
     }
@@ -49,8 +50,8 @@
       "top1Total": 40,
       "top1": 1,
       "stage3Calls": 6,
-      "stage3p50": 128.75379999999996,
-      "stage3p95": 260.1853
+      "stage3p50": 127.52690000000007,
+      "stage3p95": 254.91790000000003
     },
     "paraphrase": {
       "pass": 25,
@@ -60,8 +61,8 @@
       "top1Total": 60,
       "top1": 0.7666666666666667,
       "stage3Calls": 39,
-      "stage3p50": 120.92299999999977,
-      "stage3p95": 137.79569999999967
+      "stage3p50": 122.53139999999985,
+      "stage3p95": 139.35390000000007
     },
     "ambiguous": {
       "pass": 14,
@@ -70,31 +71,31 @@
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 29,
-      "stage3p50": 119.5007999999998,
-      "stage3p95": 137.5775999999987
+      "stage3Calls": 28,
+      "stage3p50": 120.25270000000091,
+      "stage3p95": 137.3123999999989
     },
     "multiturn": {
-      "pass": 14,
+      "pass": 13,
       "total": 20,
-      "rate": 0.7,
+      "rate": 0.65,
       "top1Correct": 10,
       "top1Total": 16,
       "top1": 0.625,
-      "stage3Calls": 19,
-      "stage3p50": 120.4315000000006,
-      "stage3p95": 292.04329999999936
+      "stage3Calls": 18,
+      "stage3p50": 145.85070000000087,
+      "stage3p95": 393.5478000000003
     },
     "out_of_scope": {
-      "pass": 8,
+      "pass": 12,
       "total": 20,
-      "rate": 0.4,
+      "rate": 0.6,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 19,
-      "stage3p50": 124.58380000000034,
-      "stage3p95": 130.55619999999908
+      "stage3Calls": 11,
+      "stage3p50": 145.1841000000004,
+      "stage3p95": 151.9865000000009
     },
     "adversarial": {
       "pass": 20,
@@ -104,8 +105,8 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 18,
-      "stage3p50": 124.39749999999913,
-      "stage3p95": 182.18119999999908
+      "stage3p50": 126.82580000000053,
+      "stage3p95": 181.96429999999964
     },
     "non_english": {
       "pass": 4,
@@ -115,30 +116,30 @@
       "top1Total": 9,
       "top1": 0.4444444444444444,
       "stage3Calls": 10,
-      "stage3p50": 114.4976999999999,
-      "stage3p95": 128.73629999999685
+      "stage3p50": 110.73180000000139,
+      "stage3p95": 129.72299999999814
     }
   },
   "stage3Health": {
-    "calls": 140,
+    "calls": 130,
     "parseFailures": 0,
     "hallucinatedIds": 0,
-    "outOfScopeSelected": 9,
+    "outOfScopeSelected": 5,
     "belowTauAct": 2,
     "unavailable": 0
   },
   "stageMix": {
-    "deterministic": 12,
-    "embedding": 48,
-    "llm": 140
+    "deterministic": 14,
+    "embedding": 56,
+    "llm": 130
   },
-  "modelFreeRate": 0.30000000000000004,
+  "modelFreeRate": 0.35,
   "latency": {
-    "p50": 127.11899999999878,
-    "p95": 145.07589999999982,
-    "stage1p95": 0.028500000000349246,
-    "stage2p95": 13.025300000000243,
-    "stage3p95": 163.97470000000067
+    "p50": 126.19810000000143,
+    "p95": 167.571899999999,
+    "stage1p95": 0.030099999999947613,
+    "stage2p95": 9.912099999999555,
+    "stage3p95": 168.05559999999969
   },
   "registryOverlap": [
     {
@@ -1477,14 +1478,16 @@
         "outcome": "clarify"
       },
       "got": {
-        "capabilityId": "categories.list",
-        "outcome": "execute",
-        "decidedAt": "llm",
+        "capabilityId": "unsupported.move_money",
+        "outcome": "out_of_scope",
+        "decidedAt": "embedding",
         "params": {},
-        "notes": []
+        "notes": [
+          "declared limit \"unsupported.move_money\" led the best capability by 0.082 (>= 0.075)"
+        ]
       },
       "failures": [
-        "outcome execute != clarify"
+        "outcome out_of_scope != clarify"
       ]
     },
     {
@@ -1679,6 +1682,26 @@
       ]
     },
     {
+      "id": "gs-0147",
+      "bucket": "multiturn",
+      "utterance": "yes do it",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "unsupported.move_money",
+        "outcome": "out_of_scope",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "declared limit \"unsupported.move_money\" led the best capability by 0.077 (>= 0.075)"
+        ]
+      },
+      "failures": [
+        "outcome out_of_scope != clarify"
+      ]
+    },
+    {
       "id": "gs-0149",
       "bucket": "multiturn",
       "utterance": "only the ones over 100",
@@ -1694,24 +1717,6 @@
       },
       "failures": [
         "capability budget.status != transactions.list"
-      ]
-    },
-    {
-      "id": "gs-0154",
-      "bucket": "out_of_scope",
-      "utterance": "book me a flight to Lisbon",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "home.dashboard",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
       ]
     },
     {
@@ -1761,24 +1766,6 @@
       },
       "got": {
         "capabilityId": "home.dashboard",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0160",
-      "bucket": "out_of_scope",
-      "utterance": "set an alarm for seven",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "settings.open",
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
@@ -1851,26 +1838,6 @@
       ]
     },
     {
-      "id": "gs-0166",
-      "bucket": "out_of_scope",
-      "utterance": "invest my savings in an index fund",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "account.balance",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "account": "savings"
-        },
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0168",
       "bucket": "out_of_scope",
       "utterance": "take a photo of this receipt and email it",
@@ -1908,28 +1875,6 @@
       },
       "failures": [
         "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0170",
-      "bucket": "out_of_scope",
-      "utterance": "remind me to pay rent on friday",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "budget.set",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {
-          "category": "rent"
-        },
-        "notes": [
-          "missing required: amount"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
       ]
     },
     {

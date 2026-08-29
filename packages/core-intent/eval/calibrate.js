@@ -189,9 +189,73 @@ console.log(`  tauFloor: ${best.tauFloor}`);
 console.log(`\n  stage 1 alone resolves ${(best.stage1Rate * 100).toFixed(1)}% of all turns`);
 console.log(`  stage 2 accepts ${(best.acceptRate * 100).toFixed(1)}% of routable turns at ${(best.precision * 100).toFixed(1)}% precision\n`);
 
+let boundaryMargin = null;
+
+// ---------------------------------------------------------------------------
+// boundaryMargin (ADR-009)
+//
+// A declared limit describes a whole CLASS of requests, so it is broad by
+// construction and attracts weak matches that belong elsewhere. This sweeps how
+// decisively it must beat the best real capability before the turn is refused.
+//
+// Like every other threshold here it is an artefact of the ENCODER, not a
+// constant — carrying the nomic-embed-text value onto the TF-IDF encoder costs
+// real accuracy, which is Finding 1 all over again.
+//
+// The objective is asymmetric on purpose: refusing a real request is worse than
+// failing to catch an off-domain one. A missed refusal wastes a turn; a wrong
+// refusal tells the user the app cannot do something it demonstrably can.
+const boundaryIds = new Set(
+  registry.capabilities.filter((c) => c.kind === 'unsupported').map((c) => c.id),
+);
+
+if (boundaryIds.size > 0) {
+  const rows = scored.map((s) => {
+    const supported = s.all.filter((c) => !boundaryIds.has(c.capabilityId));
+    const boundary = s.all.filter((c) => boundaryIds.has(c.capabilityId));
+    return {
+      bucket: s.bucket,
+      expected: s.expected,
+      lead: (boundary[0]?.score ?? -Infinity) - (supported[0]?.score ?? 0),
+      stage1Boundary: s.stage1Hit ? boundaryIds.has(s.stage1Hit) : false,
+    };
+  });
+
+  const oos = rows.filter((r) => r.bucket === 'out_of_scope');
+  const routable = rows.filter((r) => r.expected);
+
+  console.log('');
+  console.log('  boundaryMargin sweep');
+  console.log('    margin   OOS caught   in-domain wrongly refused');
+
+  let bestBoundary = null;
+  for (let m = 0; m <= 0.3001; m += 0.005) {
+    const margin = Math.round(m * 1000) / 1000;
+    const caught = oos.filter((r) => r.stage1Boundary || r.lead >= margin).length;
+    const refused = routable.filter((r) => r.stage1Boundary || r.lead >= margin).length;
+    if (margin * 1000 % 25 === 0) {
+      console.log(
+        `    ${margin.toFixed(3)}    ${String(caught).padStart(2)}/${oos.length}  ${((100 * caught) / (oos.length || 1)).toFixed(1).padStart(5)}%   ${refused}`,
+      );
+    }
+    // Hard constraint: never refuse an in-domain turn. Then maximise recall.
+    if (refused === 0 && (!bestBoundary || caught > bestBoundary.caught)) bestBoundary = { margin, caught, refused };
+  }
+
+  if (bestBoundary) {
+    console.log('');
+    console.log(`    RECOMMENDED boundaryMargin = ${bestBoundary.margin.toFixed(3)}`);
+    console.log(`      out-of-scope caught  ${bestBoundary.caught}/${oos.length}  ${((100 * bestBoundary.caught) / (oos.length || 1)).toFixed(1)}%  with zero false refusals`);
+    boundaryMargin = bestBoundary.margin;
+  } else {
+    console.log('    no margin avoids refusing an in-domain turn — widen the boundary descriptions');
+  }
+}
+
 mkdirSync(join(HERE, 'scorecards'), { recursive: true });
 writeFileSync(
   join(HERE, 'scorecards', `thresholds-${embedderKind}.json`),
-  JSON.stringify({ embedder: embedder.name, calibratedAt: new Date().toISOString(), constraints: { PRECISION_FLOOR, OOS_FLOOR, AMBIG_FLOOR }, recommended: best, alternatives: feasible.slice(0, 10) }, null, 2),
+  JSON.stringify({ embedder: embedder.name, calibratedAt: new Date().toISOString(), constraints: { PRECISION_FLOOR, OOS_FLOOR, AMBIG_FLOOR }, recommended: { ...best, boundaryMargin }, alternatives: feasible.slice(0, 10) }, null, 2),
 );
+
 console.log(`  written â†’ eval/scorecards/thresholds-${embedderKind}.json\n`);

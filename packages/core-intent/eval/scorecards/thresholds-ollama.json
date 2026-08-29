@@ -1,51 +1,52 @@
 {
   "embedder": "ollama:nomic-embed-text",
-  "calibratedAt": "2026-08-29T11:51:56.702Z",
+  "calibratedAt": "2026-08-29T22:09:59.473Z",
   "constraints": {
     "PRECISION_FLOOR": 0.95,
     "OOS_FLOOR": 0,
     "AMBIG_FLOOR": 0.95
   },
   "recommended": {
-    "tauHigh": 0.535,
+    "tauHigh": 0.538,
     "delta": 0.05,
     "tauFloor": 0,
     "acceptRate": 0.4533333333333333,
     "precision": 0.9558823529411765,
     "oosRate": 0,
     "ambigRate": 0.9666666666666667,
-    "stage1Rate": 0.07
+    "stage1Rate": 0.08,
+    "boundaryMargin": 0.075
   },
   "alternatives": [
     {
-      "tauHigh": 0.535,
+      "tauHigh": 0.538,
       "delta": 0.05,
       "tauFloor": 0,
       "acceptRate": 0.4533333333333333,
       "precision": 0.9558823529411765,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.548,
+      "tauHigh": 0.55,
       "delta": 0.05,
       "tauFloor": 0,
       "acceptRate": 0.44666666666666666,
       "precision": 0.9552238805970149,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.56,
+      "tauHigh": 0.561,
       "delta": 0.05,
       "tauFloor": 0,
       "acceptRate": 0.4266666666666667,
       "precision": 0.953125,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
       "tauHigh": 0.573,
@@ -55,7 +56,7 @@
       "precision": 0.9523809523809523,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
       "tauHigh": 0.585,
@@ -65,7 +66,7 @@
       "precision": 0.9516129032258065,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
       "tauHigh": 0.597,
@@ -75,47 +76,47 @@
       "precision": 0.9508196721311475,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.671,
+      "tauHigh": 0.609,
+      "delta": 0.05,
+      "tauFloor": 0,
+      "acceptRate": 0.4,
+      "precision": 0.95,
+      "oosRate": 0,
+      "ambigRate": 0.9666666666666667,
+      "stage1Rate": 0.08
+    },
+    {
+      "tauHigh": 0.668,
       "delta": 0.04,
       "tauFloor": 0,
       "acceptRate": 0.37333333333333335,
       "precision": 0.9642857142857143,
       "oosRate": 0,
       "ambigRate": 1,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.535,
+      "tauHigh": 0.538,
       "delta": 0.06,
       "tauFloor": 0,
       "acceptRate": 0.36,
       "precision": 0.9814814814814815,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     },
     {
-      "tauHigh": 0.548,
+      "tauHigh": 0.55,
       "delta": 0.06,
       "tauFloor": 0,
       "acceptRate": 0.36,
       "precision": 0.9814814814814815,
       "oosRate": 0,
       "ambigRate": 0.9666666666666667,
-      "stage1Rate": 0.07
-    },
-    {
-      "tauHigh": 0.659,
-      "delta": 0.05,
-      "tauFloor": 0,
-      "acceptRate": 0.35333333333333333,
-      "precision": 0.9622641509433962,
-      "oosRate": 0,
-      "ambigRate": 1,
-      "stage1Rate": 0.07
+      "stage1Rate": 0.08
     }
   ]
 }

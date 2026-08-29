@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T21:32:14.711Z",
+  "generatedAt": "2026-08-29T22:13:34.189Z",
   "config": {
     "embedder": "ollama",
     "model": "llama3.1:8b",
@@ -8,7 +8,8 @@
       "tauHigh": 0.535,
       "delta": 0.05,
       "tauFloor": 0,
-      "topK": 5
+      "topK": 5,
+      "boundaryMargin": 0.075
     }
   },
   "entries": 200,
@@ -34,7 +35,7 @@
       "pass": false
     },
     "Model-free resolution rate": {
-      "actual": 0.30000000000000004,
+      "actual": 0.35,
       "target": 0.65,
       "pass": false
     }
@@ -49,8 +50,8 @@
       "top1Total": 40,
       "top1": 1,
       "stage3Calls": 6,
-      "stage3p50": 922.3678,
-      "stage3p95": 959.3313999999998
+      "stage3p50": 1112.0274000000002,
+      "stage3p95": 1190.4822999999997
     },
     "paraphrase": {
       "pass": 30,
@@ -60,8 +61,8 @@
       "top1Total": 60,
       "top1": 0.8333333333333334,
       "stage3Calls": 39,
-      "stage3p50": 726.3742999999995,
-      "stage3p95": 2330.777000000002
+      "stage3p50": 875.0482999999986,
+      "stage3p95": 2578.3444999999992
     },
     "ambiguous": {
       "pass": 14,
@@ -70,9 +71,9 @@
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 29,
-      "stage3p50": 402.3296000000046,
-      "stage3p95": 680.3597000000009
+      "stage3Calls": 28,
+      "stage3p50": 488.4085999999952,
+      "stage3p95": 800.1802000000025
     },
     "multiturn": {
       "pass": 12,
@@ -81,9 +82,9 @@
       "top1Correct": 9,
       "top1Total": 16,
       "top1": 0.5625,
-      "stage3Calls": 19,
-      "stage3p50": 583.3529999999955,
-      "stage3p95": 3024.2661000000007
+      "stage3Calls": 18,
+      "stage3p50": 706.7337000000043,
+      "stage3p95": 3519.436400000006
     },
     "out_of_scope": {
       "pass": 17,
@@ -92,9 +93,9 @@
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 19,
-      "stage3p50": 344.1076999999932,
-      "stage3p95": 777.2242999999871
+      "stage3Calls": 11,
+      "stage3p50": 383.7667999999976,
+      "stage3p95": 894.2307000000001
     },
     "adversarial": {
       "pass": 20,
@@ -104,8 +105,8 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 18,
-      "stage3p50": 445.777700000006,
-      "stage3p95": 929.0865999999951
+      "stage3p50": 522.7933000000048,
+      "stage3p95": 1193.8949999999895
     },
     "non_english": {
       "pass": 4,
@@ -115,30 +116,30 @@
       "top1Total": 9,
       "top1": 0.4444444444444444,
       "stage3Calls": 10,
-      "stage3p50": 663.3031999999948,
-      "stage3p95": 923.4869000000035
+      "stage3p50": 748.6833999999944,
+      "stage3p95": 1110.0062999999936
     }
   },
   "stage3Health": {
-    "calls": 140,
+    "calls": 130,
     "parseFailures": 1,
     "hallucinatedIds": 0,
-    "outOfScopeSelected": 25,
+    "outOfScopeSelected": 15,
     "belowTauAct": 22,
     "unavailable": 0
   },
   "stageMix": {
-    "deterministic": 12,
-    "embedding": 48,
-    "llm": 140
+    "deterministic": 14,
+    "embedding": 56,
+    "llm": 130
   },
-  "modelFreeRate": 0.30000000000000004,
+  "modelFreeRate": 0.35,
   "latency": {
-    "p50": 395.46489999999903,
-    "p95": 940.6155999999901,
-    "stage1p95": 0.0294000000003507,
-    "stage2p95": 10.223500000007334,
-    "stage3p95": 959.3313999999998
+    "p50": 451.0097999999998,
+    "p95": 1167.6973000000003,
+    "stage1p95": 0.03770000000076834,
+    "stage2p95": 10.940600000001723,
+    "stage3p95": 1192.8559000000023
   },
   "registryOverlap": [
     {
@@ -1348,12 +1349,12 @@
         "outcome": "clarify"
       },
       "got": {
-        "capabilityId": null,
+        "capabilityId": "unsupported.move_money",
         "outcome": "out_of_scope",
-        "decidedAt": "llm",
+        "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "stage3 judged this outside the application domain"
+          "declared limit \"unsupported.move_money\" led the best capability by 0.082 (>= 0.075)"
         ]
       },
       "failures": [
@@ -1603,12 +1604,12 @@
         "outcome": "clarify"
       },
       "got": {
-        "capabilityId": null,
+        "capabilityId": "unsupported.move_money",
         "outcome": "out_of_scope",
-        "decidedAt": "llm",
+        "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "stage3 judged this outside the application domain"
+          "declared limit \"unsupported.move_money\" led the best capability by 0.077 (>= 0.075)"
         ]
       },
       "failures": [

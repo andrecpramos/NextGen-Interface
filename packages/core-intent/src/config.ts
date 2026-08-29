@@ -1,4 +1,4 @@
-import type { CapabilityKind } from './types.ts';
+import type { ExecutableKind } from './types.ts';
 
 // Router thresholds.
 //
@@ -20,6 +20,18 @@ export interface Thresholds {
   readonly tauFloor: number;
   /** How many candidates stage 3 may choose between. A property of the MODEL. */
   readonly topK: number;
+  /**
+   * How decisively a declared limit must beat the best real capability before
+   * the turn is refused (ADR-009).
+   *
+   * A boundary entry describes a whole class of requests ("moving real money"),
+   * so it is broad by construction and will attract weak matches that belong
+   * elsewhere. At 0 it catches 80% of out-of-scope input but wrongly refuses 10
+   * in-domain turns; the calibrated point refuses none. Refusing a real request
+   * is the expensive error — it tells the user the app cannot do something it
+   * can — so this is constrained, not traded off.
+   */
+  readonly boundaryMargin: number;
   /** Fallback confidence bar, used only when the kind is unknown. */
   readonly tauAct?: number;
 }
@@ -38,19 +50,22 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
   //
   // WP-01 UPDATE: that deferral does not survive a smaller model. gemma3:1b
   // never emits the sentinel and qwen2.5:1.5b catches 30–40% of out-of-scope
-  // input, against 85% on llama3.1:8b (FINDINGS Finding 7). So neither stage
-  // detects out-of-scope on target hardware, and a replacement mechanism is
-  // owed by WP-03. Do NOT raise tauFloor here to paper over it — calibration
-  // showed there is no operating point, and a hand-set floor would only trade
-  // the failure for a worse one.
-  hashing: { tauHigh: 0.231, delta: 0.09, tauFloor: 0, topK: 5 },
+  // input, against 85% on llama3.1:8b (FINDINGS Finding 7).
+  //
+  // ADR-009 answers it, and NOT by raising tauFloor — measurement over five
+  // features (top score, margin, mean, entropy, spread) confirmed there is no
+  // operating point, because the classes are genuinely interleaved: "transfer
+  // 500 to my brother" scores 0.500 while the in-domain "no not that one"
+  // scores 0.363. The fix is that the registry now DECLARES the application's
+  // limits, so out-of-scope is retrieved rather than judged. See boundaryMargin.
+  hashing: { tauHigh: 0.231, delta: 0.09, tauFloor: 0, topK: 5, boundaryMargin: 0.105 },
 
   // nomic-embed-text, calibrated 2026-08-29 with --defer-oos.
   // Accepts 45.3% of routable turns at 95.6% precision.
   // Note how much lower tauHigh and delta sit than the values a reasonable
   // person would guess (0.62 / 0.08) — guessing them disabled stage 2 entirely
   // on the first run. Always calibrate.
-  ollama: { tauHigh: 0.535, delta: 0.05, tauFloor: 0, topK: 5 },
+  ollama: { tauHigh: 0.535, delta: 0.05, tauFloor: 0, topK: 5, boundaryMargin: 0.075 },
 };
 
 /** Sentinel the model may return to mean "none of these capabilities". */
@@ -78,7 +93,10 @@ export const OUT_OF_SCOPE_ID = '__out_of_scope__';
  * or agreement between the stage-2 top candidate and the stage-3 selection.
  * Until then, treat this as defence in depth, not as the safety mechanism.
  */
-export const TAU_ACT_BY_KIND: Readonly<Record<CapabilityKind, number>> = {
+// Keyed by ExecutableKind, not CapabilityKind: `unsupported` never executes, so
+// there is no confidence at which it would be allowed to. Making that a type
+// error is cheaper than remembering it.
+export const TAU_ACT_BY_KIND: Readonly<Record<ExecutableKind, number>> = {
   navigate: 0.35,
   read: 0.45,
   write: 0.70,

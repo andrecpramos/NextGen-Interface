@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T21:56:43.089Z",
+  "generatedAt": "2026-08-29T22:19:22.668Z",
   "config": {
     "embedder": "hashing",
     "model": null,
@@ -8,18 +8,19 @@
       "tauHigh": 0.231,
       "delta": 0.09,
       "tauFloor": 0,
-      "topK": 5
+      "topK": 5,
+      "boundaryMargin": 0.105
     }
   },
   "entries": 200,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.432,
+      "actual": 0.408,
       "target": 0.9,
       "pass": false
     },
     "Param exactness (on correct capability)": {
-      "actual": 0.9615384615384616,
+      "actual": 1,
       "target": 0.85,
       "pass": true
     },
@@ -29,7 +30,7 @@
       "pass": true
     },
     "Out-of-scope detected": {
-      "actual": 0,
+      "actual": 0.35,
       "target": 0.95,
       "pass": false
     },
@@ -53,12 +54,12 @@
       "stage3p95": null
     },
     "paraphrase": {
-      "pass": 12,
+      "pass": 10,
       "total": 60,
-      "rate": 0.2,
-      "top1Correct": 15,
+      "rate": 0.16666666666666666,
+      "top1Correct": 13,
       "top1Total": 60,
-      "top1": 0.25,
+      "top1": 0.21666666666666667,
       "stage3Calls": 0,
       "stage3p50": null,
       "stage3p95": null
@@ -86,9 +87,9 @@
       "stage3p95": null
     },
     "out_of_scope": {
-      "pass": 0,
+      "pass": 7,
       "total": 20,
-      "rate": 0,
+      "rate": 0.35,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
@@ -111,9 +112,9 @@
       "pass": 1,
       "total": 10,
       "rate": 0.1,
-      "top1Correct": 1,
+      "top1Correct": 0,
       "top1Total": 9,
-      "top1": 0.1111111111111111,
+      "top1": 0,
       "stage3Calls": 0,
       "stage3p50": null,
       "stage3p95": null
@@ -128,15 +129,15 @@
     "unavailable": 0
   },
   "stageMix": {
-    "deterministic": 14,
-    "embedding": 186
+    "deterministic": 16,
+    "embedding": 184
   },
   "modelFreeRate": 1,
   "latency": {
-    "p50": 0.069500000000005,
-    "p95": 0.19899999999999807,
-    "stage1p95": 0.016500000000000625,
-    "stage2p95": 0.11250000000001137,
+    "p50": 0.11400000000000432,
+    "p95": 0.22800000000000864,
+    "stage1p95": 0.015399999999999636,
+    "stage2p95": 0.20410000000001105,
     "stage3p95": null
   },
   "registryOverlap": [],
@@ -733,6 +734,29 @@
       ]
     },
     {
+      "id": "gs-0070",
+      "bucket": "paraphrase",
+      "utterance": "I want everything exported so I can open it in excel",
+      "expected": {
+        "outcome": "execute",
+        "capability": "export.data",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute",
+        "capability none != export.data"
+      ]
+    },
+    {
       "id": "gs-0071",
       "bucket": "paraphrase",
       "utterance": "jump back to the main screen",
@@ -1133,6 +1157,33 @@
       "failures": [
         "outcome clarify != execute",
         "capability none != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0088",
+      "bucket": "paraphrase",
+      "utterance": "give me the total for August",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-01",
+          "to": "2026-08-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute",
+        "capability none != spending.total"
       ]
     },
     {
@@ -1816,24 +1867,6 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": "accounts.list",
-        "outcome": "execute",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0153",
-      "bucket": "out_of_scope",
-      "utterance": "play some music",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
         "capabilityId": null,
         "outcome": "clarify",
         "decidedAt": "embedding",
@@ -1847,9 +1880,9 @@
       ]
     },
     {
-      "id": "gs-0154",
+      "id": "gs-0153",
       "bucket": "out_of_scope",
-      "utterance": "book me a flight to Lisbon",
+      "utterance": "play some music",
       "expected": {
         "outcome": "out_of_scope"
       },
@@ -1887,26 +1920,6 @@
       ]
     },
     {
-      "id": "gs-0156",
-      "bucket": "out_of_scope",
-      "utterance": "transfer 500 to my brother",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0157",
       "bucket": "out_of_scope",
       "utterance": "call mum",
@@ -1927,49 +1940,9 @@
       ]
     },
     {
-      "id": "gs-0158",
-      "bucket": "out_of_scope",
-      "utterance": "tell me a joke",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0159",
       "bucket": "out_of_scope",
       "utterance": "should I buy bitcoin",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0160",
-      "bucket": "out_of_scope",
-      "utterance": "set an alarm for seven",
       "expected": {
         "outcome": "out_of_scope"
       },
@@ -2010,26 +1983,6 @@
       "id": "gs-0162",
       "bucket": "out_of_scope",
       "utterance": "what's my credit score",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0163",
-      "bucket": "out_of_scope",
-      "utterance": "order a pizza",
       "expected": {
         "outcome": "out_of_scope"
       },
@@ -2107,49 +2060,9 @@
       ]
     },
     {
-      "id": "gs-0167",
-      "bucket": "out_of_scope",
-      "utterance": "what time is it",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0168",
       "bucket": "out_of_scope",
       "utterance": "take a photo of this receipt and email it",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0169",
-      "bucket": "out_of_scope",
-      "utterance": "cancel my netflix subscription for me",
       "expected": {
         "outcome": "out_of_scope"
       },
@@ -2350,14 +2263,16 @@
         }
       },
       "got": {
-        "capabilityId": "spending.total",
-        "outcome": "execute",
+        "capabilityId": null,
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
-        "notes": []
+        "notes": [
+          "stage3 disabled"
+        ]
       },
       "failures": [
-        "params {} missing {\"from\":\"2026-08-01\",\"to\":\"2026-08-31\"}"
+        "capability none != spending.total"
       ]
     },
     {

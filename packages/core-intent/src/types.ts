@@ -18,67 +18,33 @@
 // ---------------------------------------------------------------- registry --
 
 /**
- * The four kinds the dispatcher policy table is defined over (ADR-004).
- * Anything else is unclassified and must be refused, never defaulted.
+ * The registry vocabulary has ONE definition, and it lives in
+ * `@nextgen/core-capability`. It is re-exported here so that consumers of the
+ * router get a complete type surface, but this package does not own it — a
+ * router that defines its own idea of what a capability is, is a router that
+ * will one day disagree with the thing generating the routes.
  */
-export type CapabilityKind = 'navigate' | 'read' | 'write' | 'destructive';
+export {
+  isCapabilityKind,
+  isExecutableKind,
+  exampleText,
+  type Capability,
+  type CapabilityExample,
+  type CapabilityKind,
+  type EnumDefinition,
+  type ExecutableKind,
+  type ParamSpec,
+  type ParamType,
+  type RegistryFile,
+} from '@nextgen/core-capability';
 
-const CAPABILITY_KINDS: readonly string[] = ['navigate', 'read', 'write', 'destructive'];
-
-/**
- * Narrowing guard for `kind`.
- *
- * This is deliberately a runtime check and not just a type. The registry is
- * loaded from JSON — it is data, not source — so `kind` arrives as an
- * unvalidated string. Typing it as `CapabilityKind` at the boundary would make
- * the ADR-004 "unclassified → refuse" path look like dead code to the compiler
- * and delete the very check the rule requires.
- */
-export function isCapabilityKind(kind: string): kind is CapabilityKind {
-  return CAPABILITY_KINDS.includes(kind);
-}
-
-/** `enum:Category` refers to an enum declared in the registry's `enums` block. */
-export type ParamType = 'date' | 'money' | 'number' | 'string' | `enum:${string}`;
-
-export interface ParamSpec {
-  readonly type: ParamType;
-  readonly required?: boolean;
-}
-
-/**
- * A capability as it appears in the registry.
- *
- * `kind` is `string`, not `CapabilityKind`, and that is the point: this shape
- * describes untrusted JSON. Narrow it with `isCapabilityKind` before acting.
- */
-export interface Capability {
-  readonly id: string;
-  readonly kind: string;
-  readonly route: string;
-  readonly title: string;
-  readonly description: string;
-  readonly triggers?: readonly string[];
-  readonly params?: Readonly<Record<string, ParamSpec>>;
-  readonly examples?: readonly string[];
-}
-
-export interface EnumDefinition {
-  readonly tree?: Readonly<Record<string, readonly string[]>>;
-  readonly values?: readonly string[];
-  readonly aliases?: Readonly<Record<string, readonly string[]>>;
-}
+import { isCapabilityKind } from '@nextgen/core-capability';
+import type { Capability } from '@nextgen/core-capability';
 
 /** Surface form → canonical value, plus leaf → parent for category roll-up. */
 export interface EnumIndex {
   readonly index: Map<string, string>;
   readonly rollup: Map<string, string>;
-}
-
-export interface RegistryFile {
-  readonly schemaVersion: number;
-  readonly capabilities: readonly Capability[];
-  readonly enums?: Readonly<Record<string, EnumDefinition>>;
 }
 
 /** A loaded registry: the file plus everything the stages precompute from it. */
@@ -90,6 +56,8 @@ export interface Registry {
   readonly documents: readonly string[];
   readonly vectors: readonly Vector[];
   readonly enums: Readonly<Record<string, EnumIndex>>;
+  /** Ids of the declared limits (ADR-009). Precomputed; consulted on every turn. */
+  readonly boundaryIds: ReadonlySet<string>;
 }
 
 // --------------------------------------------------------------- embedding --
@@ -299,8 +267,16 @@ export function toOutcome(trace: TurnTrace, registry: Registry): Outcome {
   }
 
   switch (kind) {
+    case 'unsupported':
+      // A declared limit, not a failure to understand. The refusal is authored
+      // in the registry alongside the thing being refused, so the user is told
+      // what the app *does* do rather than just being turned away (ADR-009).
+      return {
+        type: 'out_of_scope',
+        reason: cap!.refusal ?? 'That is outside what this application does.',
+      };
     case 'navigate':
-      return { type: 'navigate', route: cap!.route, params: trace.params };
+      return { type: 'navigate', route: cap!.route!, params: trace.params };
     case 'read':
       return { type: 'answer', capabilityId: trace.capabilityId, params: trace.params };
     case 'write':

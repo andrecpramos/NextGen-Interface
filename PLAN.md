@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01 ✅ · WP-02 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-03**.
+**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-04**.
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -47,6 +47,8 @@ or package boundaries — breaking them is a defect, not a style choice.
 | 10 | Every new capability ships with **≥3 examples** and golden-set entries. | [.ai/coding-standards.md](.ai/coding-standards.md) |
 | 11 | Deterministic slot values **always win** over model-extracted ones. | §6, learned the hard way |
 | 12 | A routing bug is not fixed until it is a **permanent golden-set entry**. | [.ai/sdlc/testing.md](.ai/sdlc/testing.md) |
+| 13 | The application's **limits are declared in the registry**, not left to the model to infer. | [ADR-009](.ai/decisions/ADR-009.md) |
+| 14 | Thresholds are **calibrated per encoder**, never hand-set and never copied between encoders. | Findings 1 and 11 — cost accuracy three times |
 
 ---
 
@@ -76,8 +78,8 @@ verified on disk.
 |---|---|---|
 | 1 · Conversation (voice, text, history) | required | ⛔ **Not built** |
 | 2 · Intent Recognition | required | ✅ **Built & measured at 1B** — `packages/core-intent` |
-| 3 · Action (intent → execution) | required | ⛔ **Not built — no package exists yet** |
-| 4 · Navigation (AI controls routing) | required | ⛔ **Not built — no package exists yet** |
+| 3 · Action (intent → execution) | required | ◐ **Dispatcher + policy built** — `core-dispatch`; query/undo impls in WP-04 |
+| 4 · Navigation (AI controls routing) | required | ✅ **Built** — `NavigationEngine`, routes generated from the registry |
 | 5 · Knowledge (domain intelligence) | required | ⛔ Not built |
 
 ### Tech stack
@@ -90,7 +92,7 @@ verified on disk.
 | llama.cpp / ONNX inference | ✅ Accepted, ⛔ not built | via Ollama / llama.rn / WebGPU |
 | Whisper STT + Piper TTS | ✅ Accepted, ⛔ not built | |
 | Gemma 3 1B / Qwen 2.5 1.5B | ✅ **Tested — WP-01** | `qwen2.5:1.5b` selected; `gemma3:1b` rejected. [FINDINGS Part II](packages/core-intent/eval/FINDINGS.md) |
-| Registry-based AI navigation | ✅ Accepted, ⚠️ partially built | schema exists; codegen does not |
+| Registry-based AI navigation | ✅ **Built — WP-03** | `defineCapability()` + codegen; route and intent generated together |
 
 ### MVP roadmap
 
@@ -116,11 +118,16 @@ NextGen_Interface/
 │   │   ├── src/               types · cascade · stages · embedder · slots · text · config · registry
 │   │   ├── src/*.test.ts      42 unit tests (dates · money · enums · rules)
 │   │   └── eval/              200-entry golden set · evaluate · calibrate · inspect · compare · 9 scorecards
-│   ├── core-capability/       5 lines                  ⬜ scaffold
+│   ├── core-capability/       TypeScript, strict        ✅ IMPLEMENTED
+│   │   └── src/               types · define · validate · codegen · audit · 30 tests
+│   ├── core-dispatch/         TypeScript, strict        ✅ IMPLEMENTED (new, WP-03)
+│   │   └── src/               policy · dispatcher · engines · 26 tests
 │   ├── core-trace/            5 lines                  ⬜ scaffold
 │   ├── core-inference/        5 lines                  ⬜ scaffold
 │   ├── core-voice/            5 lines                  ⬜ scaffold
-│   ├── domain-finance/        5 lines                  ⬜ scaffold
+│   ├── domain-finance/        27 capability defs        ◐ registry only
+│   │   ├── src/capabilities.ts  20 capabilities + 7 declared limits
+│   │   └── generated/         routes.json · golden.generated.jsonl
 │   ├── data/                  5 lines                  ⬜ scaffold
 │   └── ui/                    5 lines                  ⬜ scaffold
 ├── services/api/              4 lines                  ⬜ empty by design (ADR-008)
@@ -134,9 +141,10 @@ NextGen_Interface/
 
 ### Known gaps in the scaffold itself
 
-1. **No package owns the dispatcher, action engine, navigation engine, or query
-   engine.** [architecture.md](.ai/architecture.md) specifies all four; the scaffold
-   has nowhere to put them. Fixed by **WP-03**.
+1. ~~**No package owns the dispatcher, action engine, navigation engine, or query
+   engine.**~~ ✅ **Fixed by WP-03** — `packages/core-dispatch` holds the ADR-004
+   policy table, `NavigationEngine`, and the `QueryEngine` / `UndoJournal`
+   interfaces. The query and undo implementations are WP-04.
 2. ~~**`core-intent` is JavaScript, not TypeScript.**~~ ✅ **Fixed by WP-02.** Ported
    under `strict` with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`;
    Rules 4, 5 and 11 are now compile errors rather than review items. The `eval/`
@@ -344,42 +352,91 @@ defines the money column) and **WP-07** (which defines what a transaction amount
 
 ---
 
-### WP-03 · `core-capability` — registry schema + codegen
+### WP-03 · `core-capability` + `core-dispatch` ✅ **COMPLETE — 2026-08-29**
 
-**Goal:** The contract between engine and domains. **Everything else depends on this.**
+**Goal:** The contract between engine and domains, and a home for the dispatcher.
 
-**Depends on:** WP-02 ✅ — **unblocked, this is the next work package.**
+**Built**
 
-**Also fixes scaffold gap #1** — this WP creates `packages/core-dispatch` for the
-dispatcher, action, navigation, and query engines, which currently have no home.
+- **`packages/core-capability`** — `defineCapability()` / `defineBoundary()` /
+  `defineRegistry()`; the registry validator; codegen; `similarityAudit()` promoted
+  here from `core-intent`. Depends on nothing else in the workspace.
+- **`packages/core-dispatch`** (new package, closes scaffold gap #1) — the ADR-004
+  policy table as code, `NavigationEngine`, and the `QueryEngine` / `UndoJournal`
+  interfaces WP-04 implements.
+- **`packages/domain-finance/src/capabilities.ts`** — the 20 finance capabilities as
+  real definitions, plus 7 declared limits. `pnpm registry:build` generates
+  `eval/registry.json`, `routes.json` and golden fixtures from it.
 
-**Build**
-1. `defineCapability()` — typed builder replacing Dart's `@Capability` annotation
-2. Registry loader + validator (fail loudly on: missing examples, unclassified kind,
-   duplicate triggers, route/param mismatch)
-3. **Codegen** producing, from one source:
-   - route table for the app router
-   - `capabilities.json` for the intent engine
-   - precomputed embedding index
-4. `similarityAudit()` promoted from `core-intent` — registry health check for CI
-5. **New package `core-dispatch`:** dispatcher with the ADR-004 policy table,
-   `NavigationEngine` (validates routes against registry), `QueryEngine` interface
-   (id + typed slots, never SQL), undo journal interface
-6. **Decide the out-of-scope mechanism and write the ADR** (WP-01 Finding 7). There is
-   currently no working out-of-scope detection on target hardware. Candidates: a fitted
-   stage-2 rejection classifier over (top score, margin, entropy) — Finding 2 only ever
-   tested a single scalar cut; a dedicated binary in-domain classifier at stage 2.5; or
-   accept misroutes and make recovery trivial in the UI. The 1.5B model's 151ms p95
-   leaves ample budget for a second pass.
+**One definition, four artefacts.** `capabilityDocument()` is the piece that matters:
+it is the exact text stage 2 embeds, and both the runtime loader and the codegen call
+it. Previously the loader built that string inline, so any precomputed embedding index
+would have had to reimplement it and hope.
 
-**Acceptance**
-- A capability defined in one place produces both a working route and a routable
-  intent — they cannot drift
-- Unclassified `kind` → dispatcher **refuses** (test this explicitly)
-- Out-of-scope ADR written, mechanism implemented, and measured on `qwen2.5:1.5b` —
-  not on the 8B, which is the mistake WP-01 caught
-- Registry validation runs in CI and fails on a capability with <3 examples
-- `eval/registry.json` regenerated from real definitions, golden set still passes
+**ADR-009 — out-of-scope is declared, not judged**
+
+This is the substantial part, and it closes the largest risk WP-01 opened.
+
+Before choosing, the obvious alternative was measured: Finding 2 had concluded "stage 2
+cannot detect out-of-scope" from *a single scalar cut on the top score*. Sweeping five
+features (top, margin, mean, entropy, spread) reached **20% recall** — the conclusion
+survives the stronger test, and the distributions show why it is not a matter of a
+better boundary:
+
+| Utterance | | Top score |
+|---|---|---|
+| "what's my credit score" | out of scope | **0.637** |
+| "transfer 500 to my brother" | out of scope | 0.500 |
+| "no not that one" | **in domain** | **0.363** |
+
+Out-of-scope requests to a finance app are mostly *about finance*. What separates the
+classes is not what the sentence is about — it is what the application does. Which
+[ADR-004](.ai/decisions/ADR-004.md) rule 3 already stated, in prose, where no code could
+read it.
+
+**So the registry declares it.** A new kind, `unsupported`, describes a class the app
+deliberately does not serve, with an authored refusal, no route and no params. It is
+retrieved by the same machinery as everything else, gated by a calibrated
+`boundaryMargin`. Out-of-scope becomes routing.
+
+| Stage-3 model | OOS before | after | contributed by the model |
+|---|---|---|---|
+| `llama3.1:8b` | 85% | 85% | large — its sentinel already worked |
+| `qwen2.5:1.5b` | 40% | **60%** | 20 points |
+| `gemma3:1b` | **0%** | **40%** | **none — entirely model-free** |
+
+**It helps in exact proportion to how badly the model fails**, which is the property
+that makes it safe to depend on. Nothing regressed: `direct` top-1 rose 97.5% → 100%,
+`paraphrase` 75.0% → 76.7%, model-free resolution 30% → 35%, safety violations still 0.
+
+⚠️ **Finding 1, for the third time.** `boundaryMargin` was first set to the value
+calibrated on `nomic-embed-text` and carried onto the TF-IDF encoder, costing 3.3
+points of paraphrase accuracy. Calibrated properly it is **0.105 for TF-IDF and 0.075
+for nomic** — `calibrate.js` now sweeps it. Do not hand-set it, and never copy one
+between encoders.
+
+**Acceptance — met**
+
+- A capability defined in one place produces a working route **and** a routable intent;
+  they are generated together and cannot drift ✅
+- Unclassified `kind` → dispatcher **refuses**, tested explicitly across empty,
+  misspelled and invented kinds, plus a test that it never defaults to `read` ✅
+- Registry validation runs in CI (`pnpm registry:check`) and **fails the build** on a
+  capability with <3 examples — verified by breaking one ✅
+- `eval/registry.json` regenerated from real definitions; all 20 original capabilities
+  round-trip with byte-identical retrieval documents ✅
+- 98 unit tests across the three packages; `pnpm -r typecheck` and `pnpm -r test` green ✅
+
+**Still owed**
+
+- The remaining 40–60% of out-of-scope input. Bounded by how well the boundary is
+  written, which is tractable — but widening `unsupported.general` against the golden
+  set would measure only how well it had been tuned against the golden set, so it was
+  deliberately not done.
+- Non-English still drifts toward the boundary entries. The margin holds it at zero
+  false refusals; the English-only registry is unchanged.
+- The precomputed embedding index has a generator but is not yet wired into the runtime
+  loader, which still embeds at startup.
 
 ---
 
@@ -387,7 +444,7 @@ dispatcher, action, navigation, and query engines, which currently have no home.
 
 **Goal:** Persistence for the finance domain, per [ADR-007](.ai/decisions/ADR-007.md).
 
-**Depends on:** WP-03
+**Depends on:** WP-03 ✅ — **unblocked, this is the next work package.**
 
 **Build** — entity model is already specified in
 [.ai/sdlc/design.md](.ai/sdlc/design.md):
@@ -563,7 +620,7 @@ Audio **never persisted** past transcription. Mic state unmistakable in the UI.
 ```
 WP-01 (1B model)  ─── ✅ DONE 2026-08-29 — qwen2.5:1.5b selected
    │
-WP-02 (TS port) ✅ ─ WP-03 (capability + dispatch) ─┬─ WP-04 (data) ─┬─ WP-07 (domain)
+WP-02 (TS port) ✅ ─ WP-03 (capability + dispatch) ✅ ┬─ WP-04 (data) ─┬─ WP-07 (domain)
    │                         │                     │                │
    └── WP-06 (inference) ────┘                     └─ WP-05 (trace) ┘
                                                             │
@@ -584,7 +641,7 @@ the architecture's real exam.
 | Risk | Severity | State |
 |---|---|---|
 | 1B model cannot route reliably | ~~fatal~~ | ✅ **CLOSED** — `qwen2.5:1.5b` 84% top-1 on realistic buckets, 151ms p95 (WP-01) |
-| **No out-of-scope detection on target hardware** | **high** | **OPEN — new.** Stage 2 can't (either encoder); stage 3 can't at 1B. Mechanism + ADR owed by WP-03 (Finding 7) |
+| No out-of-scope detection on target hardware | ~~high~~ | ✅ **CLOSED by [ADR-009](.ai/decisions/ADR-009.md)** — registry declares the app's limits; 0% → 40% on `gemma3:1b`, model-free. Residual: recall bounded by how well the boundary is written |
 | **`tauAct` reads a signal small models don't produce** | medium | **OPEN — new.** Gate held 15.7% of calls on 8B, 0.7% on 1.5B. Replace self-report with margin or stage-2/3 agreement (Finding 8) |
 | Golden-set gates are not run-to-run deterministic | medium | **OPEN — new.** 7/200 entries flipped between identical 8B runs at temp 0. WP-12 must gate on tolerances (Finding 10) |
 | Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate; mitigated by adapter interface. Desktop headroom is now large (151ms p95 at 1.5B), which helps but does not settle it |
@@ -602,6 +659,10 @@ the architecture's real exam.
 
 ```bash
 pnpm install
+
+# registry — one definition, four artefacts
+pnpm registry:build      # regenerate registry.json, routes.json, golden fixtures
+pnpm registry:check      # validate only; this is the CI gate
 
 # router
 pnpm router:inspect      # score distributions, recall@k — always look here first
@@ -658,7 +719,9 @@ Before marking anything complete:
 | How is a destructive action prevented? | [ADR-004](.ai/decisions/ADR-004.md) |
 | What did the router actually score, and why? | [eval/FINDINGS.md](packages/core-intent/eval/FINDINGS.md) |
 | Which stage-3 model, and why not the other one? | [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) · [ADR-003](.ai/decisions/ADR-003.md) |
-| Why is there no out-of-scope detection? | [FINDINGS.md Finding 7](packages/core-intent/eval/FINDINGS.md) — unresolved, owed by WP-03 |
+| How is out-of-scope actually detected? | [ADR-009](.ai/decisions/ADR-009.md) · [FINDINGS Finding 11](packages/core-intent/eval/FINDINGS.md) |
+| Where does policy get enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.ai/decisions/ADR-004.md) |
+| How do I add a capability? | [core-capability](packages/core-capability/README.md), then `pnpm registry:build` |
 | What are the numbered requirements? | [.ai/sdlc/requirements.md](.ai/sdlc/requirements.md) |
 | How do I test a non-deterministic router? | [.ai/testing.md](.ai/testing.md) |
 | What does the entity model look like? | [.ai/sdlc/design.md](.ai/sdlc/design.md) |

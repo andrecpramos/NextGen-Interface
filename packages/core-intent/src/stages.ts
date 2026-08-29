@@ -46,15 +46,20 @@ export function stage1(utterance: string, registry: Registry): Stage1Hit | null 
 
 // ------------------------------------------------------------- stage 2 ------
 
-export type Stage2Decision = 'accept' | 'escalate' | 'out_of_scope';
+export type Stage2Decision = 'accept' | 'escalate' | 'out_of_scope' | 'refuse';
 
 export interface Stage2Result {
+  /** Real capabilities only. Declared limits are never offered to stage 3. */
   readonly candidates: readonly Candidate[];
   readonly all: readonly Candidate[];
   readonly top: Candidate;
   readonly margin: number;
   readonly decision: Stage2Decision;
   readonly stage: Stage;
+  /** Set when `decision === 'refuse'`: the declared limit that matched. */
+  readonly boundaryId?: string;
+  /** How decisively it beat the best real capability. */
+  readonly boundaryMargin?: number;
 }
 
 /**
@@ -76,21 +81,41 @@ export async function stage2(
     .map((cap, i) => ({ capabilityId: cap.id, score: cosine(vec, registry.vectors[i]!) }))
     .sort((a, b) => b.score - a.score);
 
-  const top = scored[0]!;
-  const runnerUp = scored[1] ?? { capabilityId: '', score: 0 };
+  // Declared limits are ranked alongside real capabilities — same encoder, same
+  // documents, same cosine — but they are judged separately, because the two
+  // answer different questions: "which capability is this?" and "is this
+  // something the application does at all?" (ADR-009).
+  const supported = scored.filter((c) => !registry.boundaryIds.has(c.capabilityId));
+  const boundary = scored.filter((c) => registry.boundaryIds.has(c.capabilityId));
+
+  const top = supported[0] ?? scored[0]!;
+  const runnerUp = supported[1] ?? { capabilityId: '', score: 0 };
   const margin = top.score - runnerUp.score;
 
+  const bestBoundary = boundary[0];
+  const boundaryLead = bestBoundary ? bestBoundary.score - top.score : -Infinity;
+
   let decision: Stage2Decision = 'escalate';
-  if (top.score < thresholds.tauFloor) decision = 'out_of_scope';
-  else if (top.score >= thresholds.tauHigh && margin >= thresholds.delta) decision = 'accept';
+  if (bestBoundary && boundaryLead >= thresholds.boundaryMargin) {
+    // The application has said, in the registry, that it does not do this.
+    decision = 'refuse';
+  } else if (top.score < thresholds.tauFloor) {
+    decision = 'out_of_scope';
+  } else if (top.score >= thresholds.tauHigh && margin >= thresholds.delta) {
+    decision = 'accept';
+  }
 
   return {
-    candidates: scored.slice(0, thresholds.topK),
+    // Stage 3 sees real capabilities only. A refusal is not something the model
+    // should be able to choose: it has its own sentinel for "none of these", and
+    // giving it a second way to refuse only gives it a way to refuse wrongly.
+    candidates: supported.slice(0, thresholds.topK),
     all: scored,
     top,
     margin,
     decision,
     stage: STAGE.EMBEDDING,
+    ...(bestBoundary ? { boundaryId: bestBoundary.capabilityId, boundaryMargin: boundaryLead } : {}),
   };
 }
 

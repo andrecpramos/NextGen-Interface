@@ -20,9 +20,19 @@ importers:
 
   packages/core-capability: {}
 
+  packages/core-dispatch:
+    dependencies:
+      '@nextgen/core-capability':
+        specifier: workspace:*
+        version: link:../core-capability
+
   packages/core-inference: {}
 
-  packages/core-intent: {}
+  packages/core-intent:
+    dependencies:
+      '@nextgen/core-capability':
+        specifier: workspace:*
+        version: link:../core-capability
 
   packages/core-trace: {}
 
@@ -30,7 +40,11 @@ importers:
 
   packages/data: {}
 
-  packages/domain-finance: {}
+  packages/domain-finance:
+    dependencies:
+      '@nextgen/core-capability':
+        specifier: workspace:*
+        version: link:../core-capability
 
   packages/ui: {}
 

@@ -4,9 +4,10 @@
 **Stage 3 models:** `llama3.1:8b`, `qwen2.5:1.5b`, `gemma3:1b` via Ollama
 **Encoders:** TF-IDF (zero-dep) and `nomic-embed-text`
 
-> Part I below is the original 8B harness run. **Part II is the WP-01 1B-class
-> validation** — read it before trusting any number in Part I as a statement about
-> phone-class inference. Two of Part I's conclusions do not survive it.
+> Part I is the original 8B harness run. **Part II is the WP-01 1B-class validation**
+> — read it before trusting any number in Part I as a statement about phone-class
+> inference; two of Part I's conclusions do not survive it. **Part III is WP-03**, which
+> closes the out-of-scope gap Part II opened.
 
 The spike exists to answer one question before any Flutter code is written
 ([ADR-003](../../../.ai/decisions/ADR-003.md)):
@@ -282,8 +283,11 @@ Only item 1 can invalidate the architecture. It should run first.
 - ~~**No 1B model has been tested at all.**~~ **Closed by WP-01 — see Part II.**
   Both `gemma3:1b` and `qwen2.5:1.5b` are now measured. The cascade survives; the
   out-of-scope sentinel and the confidence gate do not.
-- **Out-of-scope detection has no working mechanism on target hardware** (Finding 7).
-  This replaces the closed item above as the largest open architectural risk.
+- ~~**Out-of-scope detection has no working mechanism on target hardware**~~
+  **Closed by WP-03 / [ADR-009](../../../.ai/decisions/ADR-009.md) — see Part III.**
+  The registry now declares the application's limits, so out-of-scope is retrieved
+  rather than judged: 0% → 40% on `gemma3:1b`, entirely model-free. Recall is now
+  bounded by how well the boundary is written, which is a tractable problem.
 - **`tauAct` reads a signal small models do not produce** (Finding 8).
 - Non-English sits at 40%. The registry is English-only; Portuguese utterances match
   on shared tokens and little else. Either commit to multilingual triggers and a
@@ -559,3 +563,114 @@ structural. Neither blocks WP-02.
 
 1. Out-of-scope detection needs a model-independent mechanism (Finding 7) — new ADR.
 2. `tauAct` must stop reading self-reported confidence (Finding 8).
+
+---
+
+# Part III — WP-03: out-of-scope, answered
+
+**Date:** 2026-08-29 · Registry: **27 capabilities** (20 + 7 declared limits)
+
+Part II ended with the largest open architectural risk: there was no working
+out-of-scope detection on the hardware this ships to. Stage 2 could not do it with
+either encoder (Finding 2); stage 3 could not do it at 1B (Finding 7). This closes it.
+
+## Finding 11 — The classes are interleaved, so no threshold can separate them; the registry can
+
+Before choosing a mechanism, the obvious candidate was measured properly. Finding 2 had
+concluded "stage 2 cannot detect out-of-scope" from **a single scalar cut on the top
+score** — which is a much weaker test than the conclusion it was carrying.
+
+Five features were extracted for all 200 golden-set utterances against
+`nomic-embed-text` — top score, margin to runner-up, mean score, softmax entropy over
+the ranked list, and spread — and swept for the best rule at a budget of losing ≤2% of
+routable turns:
+
+| Rule | Out-of-scope recall |
+|---|---|
+| best single feature (`top`) | 15.0% |
+| best single feature (`mean`) | 20.0% |
+| best two-feature (`top` AND `margin`) | 20.0% |
+
+**Finding 2's conclusion survives a much stronger test.** And the distributions show it
+is not a matter of finding a better boundary — the classes are genuinely interleaved:
+
+| Utterance | Bucket | Top score |
+|---|---|---|
+| "what's my credit score" | out of scope | **0.637** |
+| "cancel my netflix subscription for me" | out of scope | 0.593 |
+| "transfer 500 to my brother" | out of scope | 0.500 |
+| "what about transport" | in domain (multiturn) | 0.414 |
+| "no not that one" | in domain (multiturn) | **0.363** |
+
+Out-of-scope requests to a finance app are mostly *about finance*. "Pay my electricity
+bill" is not off-topic — it is on-topic and unsupported. Meanwhile in-domain anaphora
+carries almost no semantic content at all. The thing separating the two classes is not
+what the sentence is about; it is **what the application does**.
+
+Which the application already knew. [ADR-004](../../../.ai/decisions/ADR-004.md) rule 3
+says it outright — "no payments, no transfers, no sending" — in prose, in an ADR, where
+no code could read it.
+
+**So the registry now declares it.** A new capability kind, `unsupported`, describes a
+class of requests the application deliberately does not serve, carrying a description,
+examples and an authored refusal — and no route and no params, enforced by the
+validator. Boundary entries are retrieved by exactly the same machinery as everything
+else, gated by a calibrated `boundaryMargin`. Out-of-scope stops being a judgement and
+becomes routing. Full reasoning in [ADR-009](../../../.ai/decisions/ADR-009.md).
+
+### The result, and the shape of it
+
+Seven boundary entries, written from the domain's declared limits and deliberately
+*not* from the failing test utterances:
+
+| Stage-3 model | OOS before | OOS after | contributed by the model |
+|---|---|---|---|
+| `llama3.1:8b` | 85% | 85% | large — its sentinel already worked |
+| `qwen2.5:1.5b` | 40% | **60%** | 20 points |
+| `gemma3:1b` | **0%** | **40%** | **none** |
+
+The shape is the point. **The mechanism helps in exact proportion to how badly the model
+fails.** On `gemma3:1b` — which never emits the sentinel, in 140 calls, three runs
+running — the entire 40% is model-free. On the 8B it adds nothing, because nothing was
+missing. It puts a floor under the worst case at no cost in the best case, which is what
+makes it safe to depend on.
+
+Nothing regressed; two things improved:
+
+| | before | after |
+|---|---|---|
+| Top-1, `direct` (`qwen2.5:1.5b`) | 97.5% | **100.0%** |
+| Top-1, `paraphrase` | 75.0% | **76.7%** |
+| Top-1, overall | 80.0% | 80.0% |
+| Param exactness | 98.2% | 98.2% |
+| Model-free resolution | 30.0% | **35.0%** |
+| Adversarial safety violations | 0 | 0 |
+| p95 latency | 151ms | 168ms |
+
+### Finding 1, for the third time
+
+The first `boundaryMargin` was set at 0.075 — the value calibrated on
+`nomic-embed-text` — and carried onto the TF-IDF encoder because it was sitting right
+there in the same table. Model-free out-of-scope went to 50%, and `paraphrase` top-1
+dropped from 25.0% to 21.7%.
+
+Calibrating it properly gives **0.105 for TF-IDF and 0.075 for `nomic-embed-text`**, and
+restores `paraphrase` and `ambiguous` exactly.
+
+That is the third time in this project that carrying a threshold across encoders has
+cost measurable accuracy, and the second time *this file* has recorded the lesson before
+the same mistake was made again. `boundaryMargin` is now swept by `calibrate.js` like
+every other threshold. **Do not hand-set it. Do not copy it between encoders.**
+
+### What this does not fix
+
+- **The remaining 40–60%.** "What is the capital of France" and "who won the football
+  last night" are caught by the 8B's sentinel and not by the boundary, because no
+  declared class covers general knowledge well. Widening `unsupported.general` is the
+  obvious lever and was **deliberately not pulled**: the boundary was written from the
+  domain's own limits, and tuning it against the golden set would measure nothing except
+  how well it had been tuned against the golden set.
+- **Non-English.** Portuguese in-domain utterances drift toward the boundary entries,
+  which are English like the rest of the registry. The calibrated margin holds this at
+  zero false refusals, but the underlying problem is unchanged and still owed a decision.
+- **The confidence gate** (Finding 8) is untouched and still open.
