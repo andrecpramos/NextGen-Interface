@@ -1,0 +1,7 @@
+﻿{
+    "private":  true,
+    "main":  "index.js",
+    "name":  "@nextgen/eslint-config",
+    "version":  "0.1.0",
+    "type":  "module"
+}

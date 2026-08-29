@@ -1,0 +1,22 @@
+{
+  "name": "nextgen-interface",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI-native application platform. Conversation is the interface; screens are what the AI drives.",
+  "packageManager": "pnpm@11.1.2",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "router:eval": "pnpm --filter @nextgen/core-intent eval",
+    "router:calibrate": "pnpm --filter @nextgen/core-intent calibrate",
+    "router:inspect": "pnpm --filter @nextgen/core-intent inspect",
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

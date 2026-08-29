@@ -1,0 +1,59 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# expo / react native
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# env & secrets — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+
+# local databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# model weights — distributed on demand, never in the repo (see .ai/deployment.md)
+models/
+*.gguf
+*.onnx
+*.bin
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# logs & coverage
+*.log
+npm-debug.log*
+coverage/
+.nyc_output/
+
+# supabase local
+infrastructure/supabase/.branches/
+infrastructure/supabase/.temp/
+
+# NOTE: eval/scorecards/ is intentionally NOT ignored.
+# Golden-set accuracy must be visible in the diff — see .ai/sdlc/testing.md.

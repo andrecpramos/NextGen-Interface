@@ -1,0 +1,12 @@
+﻿{
+    "version":  "0.1.0",
+    "name":  "@nextgen/core-trace",
+    "main":  "./src/index.ts",
+    "description":  "TurnTrace records. Explainability is a recorded structure, never model narration.",
+    "scripts":  {
+                    "test":  "vitest run --passWithNoTests",
+                    "typecheck":  "tsc --noEmit"
+                },
+    "type":  "module",
+    "private":  true
+}

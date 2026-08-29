@@ -1,0 +1,22 @@
+{
+  "name": "@nextgen/core-intent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Three-stage intent router: deterministic → embedding → constrained LLM. Domain-agnostic.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./config": "./src/config.js"
+  },
+  "scripts": {
+    "eval": "node eval/evaluate.js --embedder=ollama --model=llama3.1:8b",
+    "eval:floor": "node eval/evaluate.js --embedder=hashing --no-stage3",
+    "calibrate": "node eval/calibrate.js --embedder=ollama --defer-oos",
+    "inspect": "node eval/inspect.js --embedder=ollama",
+    "test": "node eval/evaluate.js --embedder=hashing --no-stage3",
+    "typecheck": "tsc --noEmit --allowJs --checkJs false src/*.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

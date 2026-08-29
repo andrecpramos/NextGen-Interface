@@ -1,0 +1,12 @@
+﻿{
+    "version":  "0.1.0",
+    "name":  "@nextgen/core-voice",
+    "main":  "./src/index.ts",
+    "description":  "STT and TTS adapters: Whisper for input, Piper for output.",
+    "scripts":  {
+                    "test":  "vitest run --passWithNoTests",
+                    "typecheck":  "tsc --noEmit"
+                },
+    "type":  "module",
+    "private":  true
+}

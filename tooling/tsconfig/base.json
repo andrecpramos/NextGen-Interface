@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+
+    "paths": {
+      "@nextgen/core-intent": ["./packages/core-intent/src/index.js"],
+      "@nextgen/core-capability": ["./packages/core-capability/src/index.ts"],
+      "@nextgen/core-trace": ["./packages/core-trace/src/index.ts"],
+      "@nextgen/core-inference": ["./packages/core-inference/src/index.ts"],
+      "@nextgen/core-voice": ["./packages/core-voice/src/index.ts"],
+      "@nextgen/domain-finance": ["./packages/domain-finance/src/index.ts"],
+      "@nextgen/data": ["./packages/data/src/index.ts"],
+      "@nextgen/ui": ["./packages/ui/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next", "build"]
+}

@@ -1,0 +1,12 @@
+﻿{
+    "version":  "0.1.0",
+    "name":  "@nextgen/domain-finance",
+    "main":  "./src/index.ts",
+    "description":  "Finance domain: entities, use cases, and capability registrations.",
+    "scripts":  {
+                    "test":  "vitest run --passWithNoTests",
+                    "typecheck":  "tsc --noEmit"
+                },
+    "type":  "module",
+    "private":  true
+}
