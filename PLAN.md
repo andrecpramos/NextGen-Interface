@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01 ✅ complete — see [§5](#5-measured-results--the-router). Next: **WP-02**.
+**Progress:** WP-01 ✅ · WP-02 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-03**.
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -112,8 +112,9 @@ NextGen_Interface/
 │   ├── mobile/                EMPTY
 │   └── desktop/               EMPTY
 ├── packages/
-│   ├── core-intent/           863 lines                ✅ IMPLEMENTED
-│   │   ├── src/               cascade · stages · embedder · slots · text · config · registry
+│   ├── core-intent/           TypeScript, strict        ✅ IMPLEMENTED
+│   │   ├── src/               types · cascade · stages · embedder · slots · text · config · registry
+│   │   ├── src/*.test.ts      42 unit tests (dates · money · enums · rules)
 │   │   └── eval/              200-entry golden set · evaluate · calibrate · inspect · compare · 9 scorecards
 │   ├── core-capability/       5 lines                  ⬜ scaffold
 │   ├── core-trace/            5 lines                  ⬜ scaffold
@@ -136,8 +137,12 @@ NextGen_Interface/
 1. **No package owns the dispatcher, action engine, navigation engine, or query
    engine.** [architecture.md](.ai/architecture.md) specifies all four; the scaffold
    has nowhere to put them. Fixed by **WP-03**.
-2. **`core-intent` is JavaScript, not TypeScript.** It works and is fully measured,
-   but it is the only untyped package. Fixed by **WP-02**.
+2. ~~**`core-intent` is JavaScript, not TypeScript.**~~ ✅ **Fixed by WP-02.** Ported
+   under `strict` with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`;
+   Rules 4, 5 and 11 are now compile errors rather than review items. The `eval/`
+   harness stays `.js` and imports the `.ts` sources directly via Node's native type
+   stripping, so there is still no build step between changing the router and
+   measuring it.
 3. **Several `.ai/` docs contain Dart examples** — `coding-standards.md`,
    `architecture.md`, `ui-guidelines.md`, and the agent briefs. The architecture they
    describe is language-neutral and correct; only the syntax is stale. Fixed by
@@ -261,34 +266,81 @@ not exact scorecard equality (Finding 10).
 
 ---
 
-### WP-02 · Port `core-intent` to TypeScript
+### WP-02 · Port `core-intent` to TypeScript ✅ **COMPLETE — 2026-08-29**
 
-**Goal:** The engine is the one untyped package. Types are the enforcement mechanism
-for Rules 2, 6, and 11.
+**Goal:** The engine was the one untyped package. Types are the enforcement mechanism
+for Rules 4, 5 and 11.
 
-**Depends on:** WP-01 ✅ — **unblocked, this is the next work package.**
+**Outcome:** ported under `strict`, `noUncheckedIndexedAccess` and
+`exactOptionalPropertyTypes`. `pnpm -r typecheck` and `pnpm -r test` are both green
+across all 11 workspace packages.
 
-**Steps**
-1. Rename `src/*.js` → `.ts`, add types
-2. Define the core types properly:
-   - `Utterance`, `ScreenContext`, `Outcome` (discriminated union:
-     `Navigate | Answer | Perform | Clarify | OutOfScope`)
-   - `Capability`, `ParamSpec`, `CapabilityKind`
-   - **`DeterministicParams` and `ModelParams` as distinct types** so they can only
-     merge one way — this makes Rule 11 a compile error instead of a code review
-3. **Stop typing stage-3 confidence as a usable score** (WP-01 Finding 8). Model
-   self-report is near-constant at 1B. Either name the field for what it is
-   (`selfReportedConfidence`) and gate on something else, or drop it from the gate
-   entirely. Do not let `number` imply "calibrated".
-4. Keep `eval/*.js` runnable throughout — the golden set is the regression net
-5. Add `vitest` unit tests for `slots.ts` (dates, money, enums) — currently untested
-   in isolation
+**The point of the exercise — three rules that are now compile errors**
 
-**Acceptance**
-- `pnpm --filter @nextgen/core-intent typecheck` passes with `strict`
-- `pnpm router:eval` produces **identical** scorecard numbers to before the port
-- Unit tests cover: month boundaries, leap years, DST, number words, currency
-  mismatch, negative amounts
+```
+error TS2345: Argument of type 'DeterministicParams' is not assignable to
+parameter of type 'ModelParams'.
+```
+
+That is what you get for writing the merge backwards. `mergeParams(model, deterministic)`
+takes two distinct nominal types, so **Rule 11 has exactly one spelling that compiles**.
+Verified by deliberately reintroducing the original bug — the one that cost 44 points of
+param exactness and passed review — and confirming it no longer builds.
+
+- **Rule 5** — `Capability.kind` is typed `string`, *not* `CapabilityKind`, because the
+  registry is data. Narrowing at the boundary would have made ADR-004's "unclassified →
+  refuse" path unreachable code and silently deleted the check. `isCapabilityKind()`
+  narrows at the point of use instead.
+- **Rule 4** — stage 3 returns a capability id only after a registry lookup; an unknown
+  id becomes `hallucinatedId` and can never become a route.
+
+**Also done**
+
+- `src/types.ts`: `Utterance`, `ScreenContext`, `Capability`, `ParamSpec`,
+  `CapabilityKind`, `TurnTrace`, and the `Outcome` discriminated union from
+  architecture.md (`Navigate | Answer | Perform | Clarify | OutOfScope`) with
+  `toOutcome()` as the single place the kind → outcome mapping is written down. The
+  dispatcher that consumes it is WP-03.
+- Stage-3 confidence renamed **`selfReportedConfidence`** throughout. It is not a
+  calibrated probability and at 1B it is nearly a constant (Finding 8); the type should
+  not imply otherwise.
+- 42 vitest unit tests for `slots.ts` — month boundaries, leap years, DST transitions,
+  ISO weeks, number words, currency, integer-minor-unit invariants, enum roll-up and
+  longest-match, plus Rules 5 and 11 directly.
+- `package.json`: `test` is now vitest, and the golden-set floor moved to `eval:floor`.
+  A `test` script that always exits 1 by design is a `test` script people stop reading.
+  **`pnpm router:eval` now defaults to `qwen2.5:1.5b --topk=3`** — the model WP-01
+  selected — with `router:baseline` keeping the 8B for comparison.
+
+**Acceptance — met**
+
+- `pnpm --filter @nextgen/core-intent typecheck` passes under `strict` ✅
+- `pnpm router:floor` produces a scorecard **byte-identical** to the pre-port run:
+  same gates, same buckets, same stage mix, all 96 failure records unchanged ✅
+- Stage-3 path re-verified on `qwen2.5:1.5b`: 80.0% top-1, 98.2% param exactness,
+  40.0% out-of-scope, 0 safety violations, 145ms p95 — every figure matching the
+  pre-port run within the ±1-entry noise band Finding 10 documents ✅
+
+> **On "identical scorecard numbers":** only `--embedder=hashing --no-stage3` is
+> genuinely deterministic, and that is the run used as the regression net. Any run that
+> invokes a model cannot be byte-compared — Finding 10 measured 7 of 200 entries
+> flipping between two identical 8B runs. Do not read a one-entry bucket change after a
+> refactor as a regression.
+
+**Three defects the unit tests found, all in `resolveMoney`, all left as decisions**
+
+Money semantics belong to the domain, not to a domain-agnostic router, so these are
+pinned by tests and marked `DECISION OWED` rather than fixed here:
+
+| Input | Result | Problem |
+|---|---|---|
+| `"-50"` | `+5000` | Leading minus silently dropped — a refund is indistinguishable from a charge |
+| `"minus 50 euros"` | `+5000` | `"minus"` is not a number word |
+| `"convert 50 euros to dollars"` | `EUR` | First currency wins by declaration order, with no signal to the caller |
+| `"12.345"` | `1234` | Truncated, not rounded |
+
+None is exercised by the golden set, which is why they survived. **Owed by WP-04** (which
+defines the money column) and **WP-07** (which defines what a transaction amount means).
 
 ---
 
@@ -296,7 +348,7 @@ for Rules 2, 6, and 11.
 
 **Goal:** The contract between engine and domains. **Everything else depends on this.**
 
-**Depends on:** WP-02
+**Depends on:** WP-02 ✅ — **unblocked, this is the next work package.**
 
 **Also fixes scaffold gap #1** — this WP creates `packages/core-dispatch` for the
 dispatcher, action, navigation, and query engines, which currently have no home.
@@ -341,6 +393,10 @@ dispatcher, action, navigation, and query engines, which currently have no home.
 [.ai/sdlc/design.md](.ai/sdlc/design.md):
 `Account`, `Transaction`, `Category` (tree, `parentId`), `Budget`, `TurnTrace`, `DataRef`
 
+0. **Decide the money semantics WP-02 surfaced** — does a negative amount exist, or is
+   sign carried by category? What happens when an utterance names two currencies?
+   `resolveMoney` currently drops the sign and picks the first currency, both silently,
+   both pinned by `DECISION OWED` tests in `slots.test.ts`.
 1. Drizzle schema targeting SQLite; same definitions must compile for Postgres
 2. Migrations via Drizzle Kit + **a migration test from every prior schema**
 3. Repository implementations behind interfaces the domain declares
@@ -507,7 +563,7 @@ Audio **never persisted** past transcription. Mic state unmistakable in the UI.
 ```
 WP-01 (1B model)  ─── ✅ DONE 2026-08-29 — qwen2.5:1.5b selected
    │
-WP-02 (TS port) ─── WP-03 (capability + dispatch) ─┬─ WP-04 (data) ─┬─ WP-07 (domain)
+WP-02 (TS port) ✅ ─ WP-03 (capability + dispatch) ─┬─ WP-04 (data) ─┬─ WP-07 (domain)
    │                         │                     │                │
    └── WP-06 (inference) ────┘                     └─ WP-05 (trace) ┘
                                                             │
@@ -550,7 +606,10 @@ pnpm install
 # router
 pnpm router:inspect      # score distributions, recall@k — always look here first
 pnpm router:calibrate    # threshold sweep — NEVER hand-tune thresholds
-pnpm router:eval         # full cascade vs golden set; exit 0 only if all gates pass
+pnpm router:eval         # full cascade on qwen2.5:1.5b --topk=3 (the selected model)
+pnpm router:baseline     # ditto on llama3.1:8b — the historical comparison point
+pnpm router:floor        # stages 1+2 only; the ONLY deterministic run, so the regression net
+pnpm router:compare      # side-by-side scorecards across models
 
 cd packages/core-intent
 node eval/evaluate.js --embedder=hashing --no-stage3       # model-free ceiling

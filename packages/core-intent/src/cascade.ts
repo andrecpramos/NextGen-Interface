@@ -1,6 +1,37 @@
-import { stage1, stage2, stage3 } from './stages.js';
-import { resolveSlots } from './slots.js';
-import { THRESHOLDS, STAGE, OUTCOME, OUT_OF_SCOPE_ID, TAU_ACT_BY_KIND, TAU_ACT_DEFAULT } from './config.js';
+import { stage1, stage2, stage3 } from './stages.ts';
+import { resolveSlots } from './slots.ts';
+import {
+  THRESHOLDS,
+  TAU_ACT_BY_KIND,
+  TAU_ACT_DEFAULT,
+  OUT_OF_SCOPE_ID,
+  type Thresholds,
+} from './config.ts';
+import {
+  isCapabilityKind,
+  mergeParams,
+  modelParams,
+  NO_MODEL_PARAMS,
+  OUTCOME,
+  STAGE,
+  type Embedder,
+  type ModelParams,
+  type Registry,
+  type RouterDecision,
+  type ScreenContext,
+  type SlotValue,
+  type Stage,
+  type TurnTrace,
+  type Utterance,
+} from './types.ts';
+
+export interface RouteDeps {
+  readonly registry: Registry;
+  readonly embedder: Embedder;
+  readonly thresholds?: Thresholds;
+  readonly useStage3?: boolean;
+  readonly model?: string | undefined;
+}
 
 /**
  * The cascade. Produces a TurnTrace with the same shape as the one in
@@ -8,11 +39,15 @@ import { THRESHOLDS, STAGE, OUTCOME, OUT_OF_SCOPE_ID, TAU_ACT_BY_KIND, TAU_ACT_D
  *
  * Ordering is the whole design: never spend a stage you do not need.
  */
-export async function route(utterance, ctx, deps) {
+export async function route(
+  utterance: Utterance,
+  ctx: ScreenContext,
+  deps: RouteDeps,
+): Promise<TurnTrace> {
   const { registry, embedder, thresholds = THRESHOLDS, useStage3 = true, model } = deps;
   const t0 = performance.now();
 
-  const trace = {
+  const trace: TurnTrace = {
     utterance,
     context: ctx,
     decidedAt: STAGE.NONE,
@@ -28,30 +63,38 @@ export async function route(utterance, ctx, deps) {
     notes: [],
   };
 
-  const finish = (outcome) => {
+  const finish = (outcome: RouterDecision): TurnTrace => {
     trace.outcome = outcome;
     trace.latency.total = performance.now() - t0;
     return trace;
   };
 
-  // Applies dispatcher policy (ADR-004) and the required-slot check. A capability
-  // whose required params are unresolved is not executable, however confident
-  // the router is about which capability it is.
-  const settle = (capabilityId, stage) => {
-    const cap = registry.byId.get(capabilityId);
+  /**
+   * Applies dispatcher policy (ADR-004) and the required-slot check. A capability
+   * whose required params are unresolved is not executable, however confident
+   * the router is about which capability it is.
+   *
+   * `fromModel` is the only route by which model-extracted params enter, and it
+   * can only ever lose to the deterministic ones — see `mergeParams`.
+   */
+  const settle = (capabilityId: string, stage: Stage, fromModel: ModelParams = NO_MODEL_PARAMS): TurnTrace => {
+    const cap = registry.byId.get(capabilityId)!;
     trace.capabilityId = capabilityId;
     trace.decidedAt = stage;
     trace.kind = cap.kind;
     trace.route = cap.route;
 
-    const { params, missing } = resolveSlots(cap, utterance, ctx, registry.enums);
-    // Deterministic resolution wins. Spread order matters and this one was
+    const { params: deterministic, missing } = resolveSlots(cap, utterance, ctx, registry.enums);
+
+    // Deterministic resolution wins. This used to be a spread, and it was
     // backwards on the first run: the model answered "last month" with
     // 2026-07-29..2026-08-29 (it counted 30 days back) and overwrote the
-    // correct 2026-07-01..2026-07-31 from the date grammar. That is the
-    // "model never computes a number the user sees" rule earning its place —
-    // as a spread order, not a slogan.
-    trace.params = { ...trace.params, ...params };
+    // correct 2026-07-01..2026-07-31 from the date grammar. One character of
+    // spread order was worth 44 points of param exactness.
+    //
+    // It is now a type error to get this wrong: `mergeParams` takes the two
+    // sides as distinct nominal types, so there is exactly one way to call it.
+    trace.params = mergeParams(fromModel, deterministic).values;
     trace.missing = missing.filter((m) => trace.params[m] === undefined);
 
     if (trace.missing.length > 0) {
@@ -60,7 +103,7 @@ export async function route(utterance, ctx, deps) {
     }
 
     // Unclassified fails closed — see ADR-004. Never default to read.
-    if (!['read', 'navigate', 'write', 'destructive'].includes(cap.kind)) {
+    if (!isCapabilityKind(cap.kind)) {
       trace.notes.push(`unclassified kind "${cap.kind}" — refusing`);
       return finish(OUTCOME.CLARIFY);
     }
@@ -119,13 +162,13 @@ export async function route(utterance, ctx, deps) {
     // Model unavailable is a normal case, not an exception path. Degrade to a
     // clarify built from what stage 2 already knows (sdlc/design.md).
     trace.decidedAt = STAGE.EMBEDDING;
-    trace.llmError = String(err.message || err);
+    trace.llmError = String(err instanceof Error ? err.message : err);
     trace.notes.push('stage3 unavailable — degraded to clarify');
     return finish(OUTCOME.CLARIFY);
   }
 
   trace.latency.stage3 = s3.latencyMs;
-  trace.confidence = s3.confidence;
+  trace.selfReportedConfidence = s3.selfReportedConfidence;
 
   if (s3.capabilityId === OUT_OF_SCOPE_ID) {
     trace.decidedAt = STAGE.LLM;
@@ -137,25 +180,31 @@ export async function route(utterance, ctx, deps) {
   if (s3.parseFailed) trace.notes.push('constrained decoding produced unparseable output');
 
   // The bar to act scales with what the action costs to get wrong.
-  const proposedKind = registry.byId.get(s3.capabilityId)?.kind;
-  const tauAct = TAU_ACT_BY_KIND[proposedKind] ?? thresholds.tauAct ?? TAU_ACT_DEFAULT;
+  //
+  // Caveat measured in WP-01: at 1B this gate almost never fires, because the
+  // confidence it reads is self-reported and close to constant. Keep it — it is
+  // correct policy and free — but it is no longer the thing standing between a
+  // weak signal and a write. See FINDINGS Finding 8.
+  const proposedKind = s3.capabilityId !== null ? registry.byId.get(s3.capabilityId)?.kind : undefined;
+  const tauAct = proposedKind !== undefined && isCapabilityKind(proposedKind)
+    ? TAU_ACT_BY_KIND[proposedKind]
+    : thresholds.tauAct ?? TAU_ACT_DEFAULT;
 
-  if (!s3.capabilityId || s3.confidence < tauAct) {
+  if (!s3.capabilityId || s3.selfReportedConfidence < tauAct) {
     trace.decidedAt = STAGE.LLM;
     trace.notes.push(
-      `confidence ${(s3.confidence ?? 0).toFixed(2)} below tauAct ${tauAct} for kind "${proposedKind}"`,
+      `confidence ${s3.selfReportedConfidence.toFixed(2)} below tauAct ${tauAct} for kind "${proposedKind}"`,
     );
     return finish(OUTCOME.CLARIFY);
   }
 
-  // Deterministic slots win over model-extracted ones, always. The model is a
-  // fallback for what the resolvers could not read, never an override.
-  const cap = registry.byId.get(s3.capabilityId);
-  const modelParams = {};
-  for (const [k, v] of Object.entries(s3.params || {})) {
-    if (cap.params?.[k] && v !== null && v !== '') modelParams[k] = v;
+  // Keep only params the capability actually declares. A model-supplied key the
+  // registry does not know about is dropped, not passed through (Rule 4).
+  const cap = registry.byId.get(s3.capabilityId)!;
+  const kept: Record<string, SlotValue> = {};
+  for (const [k, v] of Object.entries(s3.rawParams)) {
+    if (cap.params?.[k] && v !== null && v !== '') kept[k] = v;
   }
-  trace.params = modelParams;
 
-  return settle(s3.capabilityId, STAGE.LLM);
+  return settle(s3.capabilityId, STAGE.LLM, modelParams(kept));
 }

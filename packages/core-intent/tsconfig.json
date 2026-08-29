@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Node 25 strips types natively, so .ts files are executed directly and
+    // imports must name the real file — including from the .js eval harness.
+    // Nothing is compiled to run; tsc's only job here is to check.
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    // Type stripping cannot erase enums or namespaces. Fail at compile time
+    // rather than at `node eval/evaluate.js`.
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"]
+}

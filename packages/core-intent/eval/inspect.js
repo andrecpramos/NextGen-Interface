@@ -2,10 +2,10 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { makeEmbedder } from '../src/embedder.js';
-import { loadRegistry } from '../src/registry.js';
-import { stage2 } from '../src/stages.js';
-import { THRESHOLDS } from '../src/config.js';
+import { makeEmbedder } from '../src/embedder.ts';
+import { loadRegistry } from '../src/registry.ts';
+import { stage2 } from '../src/stages.ts';
+import { THRESHOLDS } from '../src/config.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 

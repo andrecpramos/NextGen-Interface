@@ -1,8 +1,17 @@
-import { normalize } from './text.js';
-import { cosine } from './embedder.js';
-import { OLLAMA, THRESHOLDS, STAGE, OUT_OF_SCOPE_ID } from './config.js';
+import { normalize } from './text.ts';
+import { cosine } from './embedder.ts';
+import { OLLAMA, THRESHOLDS, type Thresholds } from './config.ts';
+import { OUT_OF_SCOPE_ID } from './config.ts';
+import { STAGE, type Candidate, type Embedder, type Registry, type SlotValue, type Stage } from './types.ts';
 
 // ------------------------------------------------------------- stage 1 ------
+
+export interface Stage1Hit {
+  readonly capabilityId: string;
+  readonly score: number;
+  readonly stage: Stage;
+  readonly matched: string;
+}
 
 /**
  * Deterministic matching. Exact normalised utterance, or an utterance that is a
@@ -10,7 +19,7 @@ import { OLLAMA, THRESHOLDS, STAGE, OUT_OF_SCOPE_ID } from './config.js';
  *
  * Budget: <5ms. It is a Map lookup and a substring scan over ~70 phrases.
  */
-export function stage1(utterance, registry) {
+export function stage1(utterance: string, registry: Registry): Stage1Hit | null {
   const t = normalize(utterance);
 
   const exact = registry.triggerIndex.get(t);
@@ -19,7 +28,7 @@ export function stage1(utterance, registry) {
   }
 
   // Longest containing trigger wins — "set budget" must beat "budget".
-  let best = null;
+  let best: Stage1Hit | null = null;
   for (const [trigger, id] of registry.triggerIndex) {
     if (trigger.length < 4) continue; // too short to be safe as a substring
     if (t.includes(trigger) && (!best || trigger.length > best.matched.length)) {
@@ -37,6 +46,17 @@ export function stage1(utterance, registry) {
 
 // ------------------------------------------------------------- stage 2 ------
 
+export type Stage2Decision = 'accept' | 'escalate' | 'out_of_scope';
+
+export interface Stage2Result {
+  readonly candidates: readonly Candidate[];
+  readonly all: readonly Candidate[];
+  readonly top: Candidate;
+  readonly margin: number;
+  readonly decision: Stage2Decision;
+  readonly stage: Stage;
+}
+
 /**
  * Embedding retrieval. Returns the full ranked candidate list plus a decision.
  *
@@ -44,18 +64,23 @@ export function stage1(utterance, registry) {
  * runner-up is at 0.70 — those are two capabilities the registry has failed to
  * distinguish, and guessing between them is how you delete the wrong thing.
  */
-export async function stage2(utterance, registry, embedder, thresholds = THRESHOLDS) {
+export async function stage2(
+  utterance: string,
+  registry: Registry,
+  embedder: Embedder,
+  thresholds: Thresholds = THRESHOLDS,
+): Promise<Stage2Result> {
   const vec = await embedder.embed(utterance);
 
-  const scored = registry.capabilities
-    .map((cap, i) => ({ capabilityId: cap.id, score: cosine(vec, registry.vectors[i]) }))
+  const scored: Candidate[] = registry.capabilities
+    .map((cap, i) => ({ capabilityId: cap.id, score: cosine(vec, registry.vectors[i]!) }))
     .sort((a, b) => b.score - a.score);
 
-  const top = scored[0];
-  const runnerUp = scored[1] ?? { score: 0 };
+  const top = scored[0]!;
+  const runnerUp = scored[1] ?? { capabilityId: '', score: 0 };
   const margin = top.score - runnerUp.score;
 
-  let decision = 'escalate';
+  let decision: Stage2Decision = 'escalate';
   if (top.score < thresholds.tauFloor) decision = 'out_of_scope';
   else if (top.score >= thresholds.tauHigh && margin >= thresholds.delta) decision = 'accept';
 
@@ -71,6 +96,25 @@ export async function stage2(utterance, registry, embedder, thresholds = THRESHO
 
 // ------------------------------------------------------------- stage 3 ------
 
+export interface Stage3Result {
+  readonly capabilityId: string | null;
+  /**
+   * The model's own claim about how sure it is. Not calibrated, and at 1B not
+   * even informative — see TAU_ACT_BY_KIND in config.ts and FINDINGS Finding 8.
+   */
+  readonly selfReportedConfidence: number;
+  /** Raw, unfiltered. The caller validates every key against the registry. */
+  readonly rawParams: Readonly<Record<string, SlotValue>>;
+  readonly latencyMs: number;
+  readonly stage?: Stage;
+  readonly parseFailed?: boolean;
+  readonly hallucinatedId?: string;
+}
+
+interface Stage3Options {
+  readonly model?: string | undefined;
+}
+
 /**
  * Grammar-constrained selection among stage-2 candidates, plus slot filling for
  * whatever the deterministic resolvers could not fill.
@@ -80,19 +124,27 @@ export async function stage2(utterance, registry, embedder, thresholds = THRESHO
  *      latency and is the reason injected text cannot introduce a destructive
  *      capability into the choice set.
  *   2. Output is schema-constrained. Ollama's `format` is the equivalent of
- *      llama.cpp's GBNF grammar — it makes the JSON always parseable. It does
- *      NOT make it correct, which is what the confidence gate is for.
+ *      llama.cpp's GBNF grammar — it makes the JSON almost always parseable. It
+ *      does NOT make it correct, which is what the confidence gate is for, and
+ *      it does not make it *certain*: measured 0.7% parse failure on
+ *      llama3.1:8b, so the fallback below is mandatory, not defensive.
  */
-export async function stage3(utterance, candidates, registry, ctx, opts = {}) {
+export async function stage3(
+  utterance: string,
+  candidates: readonly Candidate[],
+  registry: Registry,
+  ctx: { readonly today: string; readonly route?: string },
+  opts: Stage3Options = {},
+): Promise<Stage3Result> {
   const model = opts.model || OLLAMA.chatModel;
 
   const menu = candidates.map(({ capabilityId }) => {
-    const cap = registry.byId.get(capabilityId);
+    const cap = registry.byId.get(capabilityId)!;
     return {
       id: cap.id,
       description: cap.description,
       params: Object.fromEntries(
-        Object.entries(cap.params || {}).map(([k, v]) => [k, v.type]),
+        Object.entries(cap.params ?? {}).map(([k, v]) => [k, v.type]),
       ),
     };
   });
@@ -101,6 +153,10 @@ export async function stage3(utterance, candidates, registry, ctx, opts = {}) {
   // first-class answer rather than a low-confidence guess. Stage 2 cannot make
   // this call on lexical evidence — "more" and "what time is it" score alike —
   // so domain membership is decided here, where it is a semantic judgement.
+  //
+  // WP-01 caveat: that only works if the model will actually pick it. gemma3:1b
+  // never does, across 140 calls (FINDINGS Finding 7). The mechanism below is
+  // correct and insufficient; do not assume out-of-scope input is caught here.
   const schema = {
     type: 'object',
     properties: {
@@ -156,40 +212,47 @@ export async function stage3(utterance, candidates, registry, ctx, opts = {}) {
     throw new Error(`chat failed (${res.status}): ${body}`);
   }
 
-  const json = await res.json();
+  const json = (await res.json()) as { message?: { content?: string } };
   const latencyMs = performance.now() - started;
 
-  let parsed;
+  let parsed: { capabilityId?: string; confidence?: number; params?: Record<string, SlotValue> };
   try {
-    parsed = JSON.parse(json.message.content);
+    parsed = JSON.parse(json.message?.content ?? '') as typeof parsed;
   } catch {
-    // With a schema set this should be unreachable. If it fires, the runtime
-    // is not honouring the constraint and that is a finding in itself.
-    return { capabilityId: null, confidence: 0, params: {}, latencyMs, parseFailed: true };
+    // Rare, not impossible — 1 in ~140 calls on llama3.1:8b. If the rate ever
+    // climbs, the runtime has stopped honouring the constraint and that is a
+    // finding in itself.
+    return { capabilityId: null, selfReportedConfidence: 0, rawParams: {}, latencyMs, parseFailed: true };
   }
+
+  const confidence = Math.max(0, Math.min(1, parsed.confidence ?? 0));
 
   if (parsed.capabilityId === OUT_OF_SCOPE_ID) {
     return {
       capabilityId: OUT_OF_SCOPE_ID,
-      confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0)),
-      params: {},
-      reasoning: parsed.reasoning,
+      selfReportedConfidence: confidence,
+      rawParams: {},
       latencyMs,
       stage: STAGE.LLM,
     };
   }
 
-  // Defence in depth: the schema enum should already prevent this, but a
+  // Rule 4, defence in depth: the schema enum should already prevent this, but a
   // model-produced id is untrusted input until the registry confirms it.
-  if (!registry.byId.has(parsed.capabilityId)) {
-    return { capabilityId: null, confidence: 0, params: {}, latencyMs, hallucinatedId: parsed.capabilityId };
+  if (parsed.capabilityId === undefined || !registry.byId.has(parsed.capabilityId)) {
+    return {
+      capabilityId: null,
+      selfReportedConfidence: 0,
+      rawParams: {},
+      latencyMs,
+      ...(parsed.capabilityId !== undefined ? { hallucinatedId: parsed.capabilityId } : {}),
+    };
   }
 
   return {
     capabilityId: parsed.capabilityId,
-    confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0)),
-    params: parsed.params || {},
-    reasoning: parsed.reasoning,
+    selfReportedConfidence: confidence,
+    rawParams: parsed.params ?? {},
     latencyMs,
     stage: STAGE.LLM,
   };

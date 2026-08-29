@@ -2,10 +2,10 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { makeEmbedder, cosine } from '../src/embedder.js';
-import { loadRegistry, similarityAudit } from '../src/registry.js';
-import { route } from '../src/cascade.js';
-import { thresholdsFor, OLLAMA, STAGE, OUTCOME } from '../src/config.js';
+import { makeEmbedder, cosine } from '../src/embedder.ts';
+import { loadRegistry, similarityAudit } from '../src/registry.ts';
+import { route } from '../src/cascade.ts';
+import { thresholdsFor, OLLAMA, STAGE, OUTCOME } from '../src/config.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 

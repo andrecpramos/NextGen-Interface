@@ -2,9 +2,9 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { makeEmbedder } from '../src/embedder.js';
-import { loadRegistry } from '../src/registry.js';
-import { stage1, stage2 } from '../src/stages.js';
+import { makeEmbedder } from '../src/embedder.ts';
+import { loadRegistry } from '../src/registry.ts';
+import { stage1, stage2 } from '../src/stages.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -194,4 +194,4 @@ writeFileSync(
   join(HERE, 'scorecards', `thresholds-${embedderKind}.json`),
   JSON.stringify({ embedder: embedder.name, calibratedAt: new Date().toISOString(), constraints: { PRECISION_FLOOR, OOS_FLOOR, AMBIG_FLOOR }, recommended: best, alternatives: feasible.slice(0, 10) }, null, 2),
 );
-console.log(`  written â†’ spike/scorecards/thresholds-${embedderKind}.json\n`);
+console.log(`  written â†’ eval/scorecards/thresholds-${embedderKind}.json\n`);

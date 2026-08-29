@@ -5,7 +5,7 @@ const PUNCT = /[^\p{L}\p{N}\s€$£%.,-]/gu;
 const COMBINING = /[̀-ͯ]/g;
 
 /** Lowercase, strip accents and punctuation, collapse whitespace. */
-export function normalize(text) {
+export function normalize(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
@@ -26,7 +26,7 @@ const STOP = new Set([
  * Crude suffix stripper. Not linguistically correct and not trying to be —
  * it exists so "spending"/"spend"/"spends" collide in the vocabulary.
  */
-export function stem(word) {
+export function stem(word: string): string {
   if (word.length <= 3) return word;
   for (const suffix of ['ing', 'ed', 'es', 's', 'ly']) {
     if (word.endsWith(suffix) && word.length - suffix.length >= 3) {
@@ -37,7 +37,7 @@ export function stem(word) {
 }
 
 /** Content words only, stemmed. */
-export function tokens(text) {
+export function tokens(text: string): string[] {
   return normalize(text)
     .split(' ')
     .filter((w) => w && !STOP.has(w))
@@ -45,15 +45,15 @@ export function tokens(text) {
 }
 
 /** Character n-grams over the normalised string — catches morphology the stemmer misses. */
-export function charGrams(text, n = 4) {
+export function charGrams(text: string, n = 4): string[] {
   const s = ` ${normalize(text)} `;
-  const out = [];
+  const out: string[] = [];
   for (let i = 0; i + n <= s.length; i++) out.push(s.slice(i, i + n));
   return out;
 }
 
 /** Word unigrams + bigrams + char 4-grams, namespaced so they cannot collide. */
-export function features(text) {
+export function features(text: string): string[] {
   const words = tokens(text);
   const out = words.map((w) => `w:${w}`);
   for (let i = 0; i + 1 < words.length; i++) out.push(`b:${words[i]}_${words[i + 1]}`);

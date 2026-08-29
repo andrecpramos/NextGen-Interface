@@ -5,7 +5,9 @@
   "type": "module",
   "description": "AI-native application platform. Conversation is the interface; screens are what the AI drives.",
   "packageManager": "pnpm@11.1.2",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "pnpm -r --filter './packages/**' build",
     "typecheck": "pnpm -r typecheck",
@@ -14,9 +16,14 @@
     "router:eval": "pnpm --filter @nextgen/core-intent eval",
     "router:calibrate": "pnpm --filter @nextgen/core-intent calibrate",
     "router:inspect": "pnpm --filter @nextgen/core-intent inspect",
-    "clean": "pnpm -r exec rm -rf dist node_modules .turbo"
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo",
+    "router:baseline": "pnpm --filter @nextgen/core-intent eval:baseline",
+    "router:floor": "pnpm --filter @nextgen/core-intent eval:floor",
+    "router:compare": "pnpm --filter @nextgen/core-intent compare"
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "@types/node": "^26.4.0",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.11"
   }
 }
