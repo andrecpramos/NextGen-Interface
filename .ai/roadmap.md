@@ -28,6 +28,32 @@ accuracy ≥85% on the remainder with a 1–1.5B model; p95 end-to-end < 2s on d
 
 If these fail, the architecture changes *before* code is written, not after.
 
+### Measured — 2026-08-29 (WP-01 complete)
+
+| Exit criterion | Result | |
+|---|---|---|
+| ≥65% resolved at stage 1+2 | 30% | ❌ — corpus artefact, see FINDINGS Part I |
+| Stage-3 top-1 ≥85%, 1–1.5B model | 86% on direct+paraphrase; 80% overall | ⚠️ met on realistic buckets only |
+| p95 < 2s on desktop | 151ms | ✅ |
+
+**Stage-3 model selected: `qwen2.5:1.5b` at `topK: 3`** — 84–86% top-1 on
+direct+paraphrase against the 8B's 90%, 6× faster end to end, 986 MB. `gemma3:1b`
+rejected: 73%, and it never emits the out-of-scope sentinel.
+
+[ADR-003](decisions/ADR-003.md) moves from provisional to **Accepted**. Two of its
+mechanisms do not survive the smaller model and are now open work:
+
+- **Out-of-scope detection has no working mechanism on target hardware** — stage 2 cannot
+  do it with either encoder, and stage 3 cannot at 1B. New ADR owed by WP-03.
+- **`TAU_ACT_BY_KIND` reads self-reported confidence**, which is near-constant at 1B: it
+  held back 15.7% of stage-3 calls on the 8B and 0.7% on the 1.5B.
+
+Evidence: [FINDINGS Part II](../packages/core-intent/eval/FINDINGS.md); scorecards in
+`packages/core-intent/eval/scorecards/`.
+
+**Note on 0.1:** the Flutter toolchain item is superseded by
+[ADR-006](decisions/ADR-006.md) — the stack is a TypeScript monorepo. `git init` is done.
+
 ---
 
 ## MVP 1 — Prove AI navigation

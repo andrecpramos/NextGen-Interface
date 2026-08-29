@@ -1,0 +1,2109 @@
+{
+  "generatedAt": "2026-08-29T21:30:40.447Z",
+  "config": {
+    "embedder": "ollama",
+    "model": "qwen2.5:1.5b",
+    "thresholds": {
+      "tauAct": 0.55,
+      "tauHigh": 0.535,
+      "delta": 0.05,
+      "tauFloor": 0,
+      "topK": 5
+    }
+  },
+  "entries": 200,
+  "gates": {
+    "Top-1 capability accuracy": {
+      "actual": 0.784,
+      "target": 0.9,
+      "pass": false
+    },
+    "Param exactness (on correct capability)": {
+      "actual": 0.9818181818181818,
+      "target": 0.85,
+      "pass": true
+    },
+    "Ambiguous â†’ clarify": {
+      "actual": 0.43333333333333335,
+      "target": 0.95,
+      "pass": false
+    },
+    "Out-of-scope detected": {
+      "actual": 0.3,
+      "target": 0.95,
+      "pass": false
+    },
+    "Model-free resolution rate": {
+      "actual": 0.30000000000000004,
+      "target": 0.65,
+      "pass": false
+    }
+  },
+  "safetyViolations": [],
+  "buckets": {
+    "direct": {
+      "pass": 34,
+      "total": 40,
+      "rate": 0.85,
+      "top1Correct": 39,
+      "top1Total": 40,
+      "top1": 0.975,
+      "stage3Calls": 6,
+      "stage3p50": 137.3565000000001,
+      "stage3p95": 262.0498
+    },
+    "paraphrase": {
+      "pass": 25,
+      "total": 60,
+      "rate": 0.4166666666666667,
+      "top1Correct": 45,
+      "top1Total": 60,
+      "top1": 0.75,
+      "stage3Calls": 39,
+      "stage3p50": 139.89719999999988,
+      "stage3p95": 157.50860000000011
+    },
+    "ambiguous": {
+      "pass": 13,
+      "total": 30,
+      "rate": 0.43333333333333335,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 29,
+      "stage3p50": 140.33159999999953,
+      "stage3p95": 165.2449000000015
+    },
+    "multiturn": {
+      "pass": 14,
+      "total": 20,
+      "rate": 0.7,
+      "top1Correct": 10,
+      "top1Total": 16,
+      "top1": 0.625,
+      "stage3Calls": 19,
+      "stage3p50": 144.1257999999998,
+      "stage3p95": 304.6732000000011
+    },
+    "out_of_scope": {
+      "pass": 6,
+      "total": 20,
+      "rate": 0.3,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 19,
+      "stage3p50": 144.74069999999847,
+      "stage3p95": 160.72969999999987
+    },
+    "adversarial": {
+      "pass": 20,
+      "total": 20,
+      "rate": 1,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 18,
+      "stage3p50": 141.59010000000126,
+      "stage3p95": 154.8005000000012
+    },
+    "non_english": {
+      "pass": 4,
+      "total": 10,
+      "rate": 0.4,
+      "top1Correct": 4,
+      "top1Total": 9,
+      "top1": 0.4444444444444444,
+      "stage3Calls": 10,
+      "stage3p50": 136.9992999999995,
+      "stage3p95": 148.82840000000215
+    }
+  },
+  "stage3Health": {
+    "calls": 140,
+    "parseFailures": 0,
+    "hallucinatedIds": 0,
+    "outOfScopeSelected": 7,
+    "belowTauAct": 1,
+    "unavailable": 0
+  },
+  "stageMix": {
+    "deterministic": 12,
+    "embedding": 48,
+    "llm": 140
+  },
+  "modelFreeRate": 0.30000000000000004,
+  "latency": {
+    "p50": 145.23919999999998,
+    "p95": 167.61830000000003,
+    "stage1p95": 0.030600000000049477,
+    "stage2p95": 9.984999999998763,
+    "stage3p95": 160.3758999999991
+  },
+  "registryOverlap": [
+    {
+      "a": "spending.total",
+      "b": "spending.by_category",
+      "score": 0.8311677589801568
+    },
+    {
+      "a": "budget.view",
+      "b": "budget.delete",
+      "score": 0.8021985853300552
+    },
+    {
+      "a": "budget.view",
+      "b": "budget.set",
+      "score": 0.8020072840178831
+    },
+    {
+      "a": "budget.set",
+      "b": "budget.delete",
+      "score": 0.7990823594775562
+    },
+    {
+      "a": "spending.by_category",
+      "b": "spending.trend",
+      "score": 0.7750610223048511
+    },
+    {
+      "a": "spending.trend",
+      "b": "budget.status",
+      "score": 0.7672299518889221
+    },
+    {
+      "a": "accounts.list",
+      "b": "account.create",
+      "score": 0.7600098815472686
+    },
+    {
+      "a": "spending.total",
+      "b": "budget.status",
+      "score": 0.7589713970313964
+    },
+    {
+      "a": "spending.total",
+      "b": "spending.trend",
+      "score": 0.7569013881543822
+    },
+    {
+      "a": "spending.by_category",
+      "b": "budget.status",
+      "score": 0.7414792835862796
+    },
+    {
+      "a": "home.dashboard",
+      "b": "budget.view",
+      "score": 0.7405915852777691
+    },
+    {
+      "a": "budget.view",
+      "b": "budget.status",
+      "score": 0.7327661736854403
+    },
+    {
+      "a": "transactions.list",
+      "b": "search.transactions",
+      "score": 0.7294140572676256
+    },
+    {
+      "a": "spending.by_category",
+      "b": "budget.view",
+      "score": 0.7275092210449945
+    },
+    {
+      "a": "transaction.update",
+      "b": "transaction.delete",
+      "score": 0.7265357535319521
+    },
+    {
+      "a": "transaction.create",
+      "b": "transaction.delete",
+      "score": 0.7262260704241498
+    },
+    {
+      "a": "transactions.list",
+      "b": "accounts.list",
+      "score": 0.7237255342861145
+    },
+    {
+      "a": "spending.by_category",
+      "b": "budget.set",
+      "score": 0.7231327223833067
+    },
+    {
+      "a": "transaction.create",
+      "b": "transaction.update",
+      "score": 0.7219930958425637
+    },
+    {
+      "a": "budget.view",
+      "b": "categories.list",
+      "score": 0.7214507075787187
+    }
+  ],
+  "failures": [
+    {
+      "id": "gs-0010",
+      "bucket": "direct",
+      "utterance": "how much did I spend on food last month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "food",
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability spending.total != spending.by_category",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0024",
+      "bucket": "direct",
+      "utterance": "add an expense of 45 for groceries",
+      "expected": {
+        "outcome": "execute",
+        "capability": "transaction.create",
+        "params": {
+          "amount": 4500,
+          "category": "groceries"
+        },
+        "requiresConfirmation": true,
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "amount": 4500,
+          "category": "groceries"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0026",
+      "bucket": "direct",
+      "utterance": "cap entertainment at 100",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.set",
+        "params": {
+          "category": "entertainment",
+          "amount": 10000
+        },
+        "requiresConfirmation": true,
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.set",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "entertainment",
+          "amount": 10000
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0028",
+      "bucket": "direct",
+      "utterance": "what did I spend on transport last month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "transport",
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "transport",
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0035",
+      "bucket": "direct",
+      "utterance": "am I on track this month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.status",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-08-01"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0037",
+      "bucket": "direct",
+      "utterance": "how much on restaurants this month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "restaurants",
+          "from": "2026-08-01",
+          "to": "2026-08-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "restaurants",
+          "from": "2026-08-01",
+          "to": "2026-08-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0041",
+      "bucket": "paraphrase",
+      "utterance": "where did all my money go last month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.trend",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability spending.trend != spending.by_category",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0042",
+      "bucket": "paraphrase",
+      "utterance": "what have I been spending my money on",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability spending.total != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0043",
+      "bucket": "paraphrase",
+      "utterance": "show me everything I bought this week",
+      "expected": {
+        "outcome": "execute",
+        "capability": "transactions.list",
+        "params": {
+          "from": "2026-08-24",
+          "to": "2026-08-30"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-08-24",
+          "to": "2026-08-30"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0044",
+      "bucket": "paraphrase",
+      "utterance": "I want to see my spending history",
+      "expected": {
+        "outcome": "execute",
+        "capability": "transactions.list",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0045",
+      "bucket": "paraphrase",
+      "utterance": "did I overspend on groceries",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.status",
+        "params": {
+          "category": "groceries"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "groceries"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability spending.by_category != budget.status",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0049",
+      "bucket": "paraphrase",
+      "utterance": "am I spending more than I did last month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.trend",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-07-01"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability budget.status != spending.trend",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0053",
+      "bucket": "paraphrase",
+      "utterance": "what were my total outgoings in July",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0054",
+      "bucket": "paraphrase",
+      "utterance": "give me a breakdown of where my money went",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0055",
+      "bucket": "paraphrase",
+      "utterance": "list what I've bought since March",
+      "expected": {
+        "outcome": "execute",
+        "capability": "transactions.list",
+        "params": {
+          "from": "2026-03-01",
+          "to": "2026-08-29"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-03-01",
+          "to": "2026-08-29"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0060",
+      "bucket": "paraphrase",
+      "utterance": "let me see the labels I use for my expenses",
+      "expected": {
+        "outcome": "execute",
+        "capability": "categories.list",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability spending.by_category != categories.list",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0061",
+      "bucket": "paraphrase",
+      "utterance": "what did the last seven days cost me",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-23",
+          "to": "2026-08-29"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-08-23",
+          "to": "2026-08-29"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0062",
+      "bucket": "paraphrase",
+      "utterance": "how much of my entertainment allowance have I used",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.status",
+        "params": {
+          "category": "entertainment"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "entertainment"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0063",
+      "bucket": "paraphrase",
+      "utterance": "show me the money I received last year",
+      "expected": {
+        "outcome": "execute",
+        "capability": "transactions.list",
+        "params": {
+          "category": "income",
+          "from": "2025-01-01",
+          "to": "2025-12-31"
+        }
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "embedding",
+        "params": {
+          "from": "2025-01-01",
+          "to": "2025-12-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability spending.total != transactions.list"
+      ]
+    },
+    {
+      "id": "gs-0066",
+      "bucket": "paraphrase",
+      "utterance": "bring up the screen with all my payments",
+      "expected": {
+        "outcome": "execute",
+        "capability": "transactions.list",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0068",
+      "bucket": "paraphrase",
+      "utterance": "compare my spending across the last six months",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.trend",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.trend",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0069",
+      "bucket": "paraphrase",
+      "utterance": "what's my grocery bill looking like this month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "groceries",
+          "from": "2026-08-01",
+          "to": "2026-08-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "groceries",
+          "from": "2026-08-01"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability budget.status != spending.by_category",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0072",
+      "bucket": "paraphrase",
+      "utterance": "how are my streaming subscriptions adding up",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "streaming"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.trend",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "streaming"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability spending.trend != spending.by_category",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0074",
+      "bucket": "paraphrase",
+      "utterance": "what have my utilities cost me this year",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "utilities",
+          "from": "2026-01-01",
+          "to": "2026-12-31"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "utilities",
+          "from": "2026-01-01",
+          "to": "2026-12-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0075",
+      "bucket": "paraphrase",
+      "utterance": "I need to change the app currency to dollars",
+      "expected": {
+        "outcome": "execute",
+        "capability": "settings.currency",
+        "requiresConfirmation": true
+      },
+      "got": {
+        "capabilityId": "settings.currency",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: currency",
+          "stage2 accepted but slots incomplete — escalating",
+          "missing required: currency"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute"
+      ]
+    },
+    {
+      "id": "gs-0076",
+      "bucket": "paraphrase",
+      "utterance": "add a new savings account",
+      "expected": {
+        "outcome": "execute",
+        "capability": "account.create",
+        "requiresConfirmation": true
+      },
+      "got": {
+        "capabilityId": "account.create",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "type": "savings"
+        },
+        "notes": [
+          "missing required: name",
+          "stage2 accepted but slots incomplete — escalating",
+          "missing required: name"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute"
+      ]
+    },
+    {
+      "id": "gs-0077",
+      "bucket": "paraphrase",
+      "utterance": "is my gym membership showing up in my expenses",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "gym"
+        }
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "gym"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability transactions.list != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0079",
+      "bucket": "paraphrase",
+      "utterance": "did I stay under my limits this month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.status",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-08-01"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0080",
+      "bucket": "paraphrase",
+      "utterance": "what does my electricity cost each month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "utilities"
+        }
+      },
+      "got": {
+        "capabilityId": "budget.set",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "category": "utilities"
+        },
+        "notes": [
+          "missing required: amount"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute",
+        "capability budget.set != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0082",
+      "bucket": "paraphrase",
+      "utterance": "how much cash went out in total last week",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-17",
+          "to": "2026-08-23"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-08-17",
+          "to": "2026-08-23",
+          "account": "cash"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0083",
+      "bucket": "paraphrase",
+      "utterance": "open up the place where I set spending limits",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.view",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.set",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: category, amount"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute",
+        "capability budget.set != budget.view",
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0084",
+      "bucket": "paraphrase",
+      "utterance": "what's my biggest expense category",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0087",
+      "bucket": "paraphrase",
+      "utterance": "how much did public transport cost me",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "public_transport"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "public_transport"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0089",
+      "bucket": "paraphrase",
+      "utterance": "what have I earned from freelance work",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "freelance"
+        }
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "category": "freelance"
+        },
+        "notes": [
+          "missing required: amount"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute",
+        "capability transaction.create != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0090",
+      "bucket": "paraphrase",
+      "utterance": "scrap the limit I set on shopping",
+      "expected": {
+        "outcome": "execute",
+        "capability": "budget.delete",
+        "params": {
+          "category": "shopping"
+        },
+        "requiresConfirmation": true,
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "budget.delete",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "shopping"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0091",
+      "bucket": "paraphrase",
+      "utterance": "pull up my spending on gadgets",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "electronics"
+        },
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "electronics"
+        },
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0092",
+      "bucket": "paraphrase",
+      "utterance": "what's the damage for this week",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-24",
+          "to": "2026-08-30"
+        }
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability home.dashboard != spending.total"
+      ]
+    },
+    {
+      "id": "gs-0093",
+      "bucket": "paraphrase",
+      "utterance": "I'd like to see how my costs have moved month by month",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.trend",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.trend",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "resolved at llm, expected <= embedding"
+      ]
+    },
+    {
+      "id": "gs-0097",
+      "bucket": "paraphrase",
+      "utterance": "show my insurance payments for this year",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "params": {
+          "category": "insurance",
+          "from": "2026-01-01",
+          "to": "2026-12-31"
+        }
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-01-01",
+          "to": "2026-12-31",
+          "category": "insurance"
+        },
+        "notes": []
+      },
+      "failures": [
+        "capability transactions.list != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0098",
+      "bucket": "paraphrase",
+      "utterance": "switch everything over to pounds",
+      "expected": {
+        "outcome": "execute",
+        "capability": "settings.currency",
+        "requiresConfirmation": true
+      },
+      "got": {
+        "capabilityId": "settings.currency",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: currency",
+          "stage2 accepted but slots incomplete — escalating",
+          "missing required: currency"
+        ]
+      },
+      "failures": [
+        "outcome clarify != execute"
+      ]
+    },
+    {
+      "id": "gs-0099",
+      "bucket": "paraphrase",
+      "utterance": "how much have I spent on books and games",
+      "expected": {
+        "outcome": "execute",
+        "capability": "spending.by_category",
+        "maxStage": "embedding"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability spending.total != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0101",
+      "bucket": "ambiguous",
+      "utterance": "budget",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "budget.view",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0105",
+      "bucket": "ambiguous",
+      "utterance": "how much",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "account.balance",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0106",
+      "bucket": "ambiguous",
+      "utterance": "spending",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0109",
+      "bucket": "ambiguous",
+      "utterance": "I spent some money on stuff",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0110",
+      "bucket": "ambiguous",
+      "utterance": "show me the numbers",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0111",
+      "bucket": "ambiguous",
+      "utterance": "account",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "account.balance",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0114",
+      "bucket": "ambiguous",
+      "utterance": "add 50",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "amount": 5000
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0115",
+      "bucket": "ambiguous",
+      "utterance": "what about last month",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0117",
+      "bucket": "ambiguous",
+      "utterance": "more",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0120",
+      "bucket": "ambiguous",
+      "utterance": "my finances",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0121",
+      "bucket": "ambiguous",
+      "utterance": "is that too much",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0122",
+      "bucket": "ambiguous",
+      "utterance": "transport",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "export.data",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0124",
+      "bucket": "ambiguous",
+      "utterance": "open it",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0125",
+      "bucket": "ambiguous",
+      "utterance": "I need to sort out my spending",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0127",
+      "bucket": "ambiguous",
+      "utterance": "give me a number",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "account.balance",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0128",
+      "bucket": "ambiguous",
+      "utterance": "the usual",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0129",
+      "bucket": "ambiguous",
+      "utterance": "something about groceries",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "embedding",
+        "params": {
+          "category": "groceries"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0134",
+      "bucket": "multiturn",
+      "utterance": "what about transport",
+      "expected": {
+        "capability": "spending.by_category",
+        "params": {
+          "category": "transport"
+        }
+      },
+      "got": {
+        "capabilityId": "search.transactions",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: query"
+        ]
+      },
+      "failures": [
+        "capability search.transactions != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0137",
+      "bucket": "multiturn",
+      "utterance": "show me the same thing for savings",
+      "expected": {
+        "capability": "account.balance",
+        "params": {
+          "account": "savings"
+        }
+      },
+      "got": {
+        "capabilityId": "spending.by_category",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability spending.by_category != account.balance"
+      ]
+    },
+    {
+      "id": "gs-0138",
+      "bucket": "multiturn",
+      "utterance": "now this week",
+      "expected": {
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-24",
+          "to": "2026-08-30"
+        }
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability home.dashboard != spending.total"
+      ]
+    },
+    {
+      "id": "gs-0141",
+      "bucket": "multiturn",
+      "utterance": "same for entertainment",
+      "expected": {
+        "capability": "budget.status",
+        "params": {
+          "category": "entertainment"
+        }
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "confidence 0.20 below tauAct 0.7 for kind \"write\""
+        ]
+      },
+      "failures": [
+        "capability none != budget.status"
+      ]
+    },
+    {
+      "id": "gs-0144",
+      "bucket": "multiturn",
+      "utterance": "and for coffee too",
+      "expected": {
+        "capability": "spending.by_category",
+        "params": {
+          "category": "coffee"
+        }
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "category": "coffee"
+        },
+        "notes": [
+          "missing required: amount"
+        ]
+      },
+      "failures": [
+        "capability transaction.create != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0149",
+      "bucket": "multiturn",
+      "utterance": "only the ones over 100",
+      "expected": {
+        "capability": "transactions.list"
+      },
+      "got": {
+        "capabilityId": "budget.status",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability budget.status != transactions.list"
+      ]
+    },
+    {
+      "id": "gs-0154",
+      "bucket": "out_of_scope",
+      "utterance": "book me a flight to Lisbon",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "export.data",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0156",
+      "bucket": "out_of_scope",
+      "utterance": "transfer 500 to my brother",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "transaction.delete",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: target"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0157",
+      "bucket": "out_of_scope",
+      "utterance": "call mum",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0159",
+      "bucket": "out_of_scope",
+      "utterance": "should I buy bitcoin",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "spending.trend",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0160",
+      "bucket": "out_of_scope",
+      "utterance": "set an alarm for seven",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "settings.open",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0161",
+      "bucket": "out_of_scope",
+      "utterance": "pay my electricity bill now",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "transaction.update",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "category": "utilities"
+        },
+        "notes": [
+          "missing required: target"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0162",
+      "bucket": "out_of_scope",
+      "utterance": "what's my credit score",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "account.balance",
+        "outcome": "execute",
+        "decidedAt": "embedding",
+        "params": {
+          "account": "credit_card"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0164",
+      "bucket": "out_of_scope",
+      "utterance": "who won the football last night",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0165",
+      "bucket": "out_of_scope",
+      "utterance": "translate this into Spanish",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "settings.currency",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: currency"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0166",
+      "bucket": "out_of_scope",
+      "utterance": "invest my savings in an index fund",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "account.balance",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "account": "savings"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0167",
+      "bucket": "out_of_scope",
+      "utterance": "what time is it",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "account.balance",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0168",
+      "bucket": "out_of_scope",
+      "utterance": "take a photo of this receipt and email it",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: amount"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0169",
+      "bucket": "out_of_scope",
+      "utterance": "cancel my netflix subscription for me",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "transaction.delete",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: target"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0170",
+      "bucket": "out_of_scope",
+      "utterance": "remind me to pay rent on friday",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "transactions.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "category": "rent"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0191",
+      "bucket": "non_english",
+      "utterance": "quanto gastei em comida no mes passado",
+      "expected": {
+        "capability": "spending.by_category",
+        "params": {
+          "category": "food",
+          "from": "2026-07-01",
+          "to": "2026-07-31"
+        }
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "category": "food"
+        },
+        "notes": [
+          "missing required: amount"
+        ]
+      },
+      "failures": [
+        "capability transaction.create != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0193",
+      "bucket": "non_english",
+      "utterance": "abrir definicoes",
+      "expected": {
+        "capability": "settings.open"
+      },
+      "got": {
+        "capabilityId": "budget.view",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability budget.view != settings.open"
+      ]
+    },
+    {
+      "id": "gs-0194",
+      "bucket": "non_english",
+      "utterance": "qual e o meu saldo",
+      "expected": {
+        "capability": "account.balance"
+      },
+      "got": {
+        "capabilityId": "transaction.create",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: amount"
+        ]
+      },
+      "failures": [
+        "capability transaction.create != account.balance"
+      ]
+    },
+    {
+      "id": "gs-0196",
+      "bucket": "non_english",
+      "utterance": "quanto gastei em transportes",
+      "expected": {
+        "capability": "spending.by_category",
+        "params": {
+          "category": "transport"
+        }
+      },
+      "got": {
+        "capabilityId": "transaction.update",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {
+          "category": "transport"
+        },
+        "notes": [
+          "missing required: target"
+        ]
+      },
+      "failures": [
+        "capability transaction.update != spending.by_category"
+      ]
+    },
+    {
+      "id": "gs-0197",
+      "bucket": "non_english",
+      "utterance": "mostrar os meus orcamentos",
+      "expected": {
+        "capability": "budget.view"
+      },
+      "got": {
+        "capabilityId": "home.dashboard",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "capability home.dashboard != budget.view"
+      ]
+    },
+    {
+      "id": "gs-0198",
+      "bucket": "non_english",
+      "utterance": "quanto gastei este mes no total",
+      "expected": {
+        "capability": "spending.total",
+        "params": {
+          "from": "2026-08-01",
+          "to": "2026-08-31"
+        }
+      },
+      "got": {
+        "capabilityId": "spending.total",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": []
+      },
+      "failures": [
+        "params {} missing {\"from\":\"2026-08-01\",\"to\":\"2026-08-31\"}"
+      ]
+    }
+  ]
+}

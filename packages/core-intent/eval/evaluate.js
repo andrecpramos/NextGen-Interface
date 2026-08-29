@@ -24,13 +24,14 @@ const DEFAULT_CONTEXT = { route: '/', today: '2026-08-29' };
 const STAGE_RANK = { [STAGE.DETERMINISTIC]: 1, [STAGE.EMBEDDING]: 2, [STAGE.LLM]: 3, [STAGE.NONE]: 3 };
 
 function parseArgs(argv) {
-  const args = { embedder: 'hashing', model: OLLAMA.chatModel, stage3: true, limit: 0, bucket: null };
+  const args = { embedder: 'hashing', model: OLLAMA.chatModel, stage3: true, limit: 0, bucket: null, topK: 0 };
   for (const a of argv.slice(2)) {
     if (a.startsWith('--embedder=')) args.embedder = a.split('=')[1];
     else if (a.startsWith('--model=')) args.model = a.split('=')[1];
     else if (a === '--no-stage3') args.stage3 = false;
     else if (a.startsWith('--limit=')) args.limit = parseInt(a.split('=')[1], 10);
     else if (a.startsWith('--bucket=')) args.bucket = a.split('=')[1];
+    else if (a.startsWith('--topk=')) args.topK = parseInt(a.split('=')[1], 10);
     else if (a === '--help') {
       console.log(`
 Sprint 0 router evaluation
@@ -42,6 +43,7 @@ Sprint 0 router evaluation
   --no-stage3                 stages 1+2 only â€” measures the model-free ceiling
   --bucket=<name>             run one bucket only
   --limit=<n>                 first n entries only
+  --topk=<n>                  candidates shown to stage 3 (default: calibrated)
 `);
       process.exit(0);
     }
@@ -107,6 +109,12 @@ function score(entry, trace, registry) {
 async function main() {
   const args = parseArgs(process.argv);
   const THRESHOLDS = { tauAct: 0.55, ...thresholdsFor(args.embedder) };
+  // topK is how many candidates stage 3 is allowed to choose between. It is the
+  // one stage-3 knob that is a property of the MODEL, not the encoder: smaller
+  // models degrade on longer option lists, so a 1B may want a shorter menu than
+  // the 8B the thresholds were calibrated against. Overridable per run for
+  // exactly that experiment; the calibrated default is otherwise untouched.
+  if (args.topK) THRESHOLDS.topK = args.topK;
 
   console.log(`\n  registry   ${join(HERE, 'registry.json')}`);
   console.log(`  embedder   ${args.embedder}`);
@@ -149,14 +157,40 @@ async function main() {
   // ------------------------------------------------------------- aggregate --
   const buckets = {};
   for (const r of results) {
-    const b = (buckets[r.entry.bucket] ??= { total: 0, pass: 0, fails: [] });
+    const b = (buckets[r.entry.bucket] ??= { total: 0, pass: 0, fails: [], top1Correct: 0, top1Total: 0, stage3: [] });
     b.total++;
     if (r.pass) b.pass++;
     else b.fails.push(r);
   }
 
+  // Per-bucket top-1 and stage-3 cost. The bucket PASS rate above conflates a
+  // wrong capability with a right capability resolved one stage too late — the
+  // exact distinction that matters when comparing two stage-3 models (WP-01),
+  // because a smaller model degrades those two in different ways.
+  for (const r of results) {
+    const b = buckets[r.entry.bucket];
+    if (r.entry.expect?.capability) {
+      b.top1Total++;
+      if (r.trace.capabilityId === r.entry.expect.capability) b.top1Correct++;
+    }
+    if (r.trace.latency?.stage3 !== undefined) b.stage3.push(r.trace.latency.stage3);
+  }
+
   const llmInvoked = results.filter((r) => r.trace.latency?.stage3 !== undefined).length;
   const modelFreeRate = 1 - llmInvoked / results.length;
+
+  // Stage-3 health. Finding 6 measured a 0.7% parse-failure rate on llama3.1:8b
+  // despite constrained decoding. A smaller model is the case where that rate,
+  // and hallucinated ids, are most likely to move — so count them, per model.
+  const noted = (r, needle) => (r.trace.notes || []).some((n) => n.includes(needle));
+  const stage3Health = {
+    calls: llmInvoked,
+    parseFailures: results.filter((r) => noted(r, 'unparseable output')).length,
+    hallucinatedIds: results.filter((r) => noted(r, 'rejected unknown id')).length,
+    outOfScopeSelected: results.filter((r) => noted(r, 'outside the application domain')).length,
+    belowTauAct: results.filter((r) => noted(r, 'below tauAct')).length,
+    unavailable: results.filter((r) => r.trace.llmError).length,
+  };
 
   const capabilityExpected = results.filter((r) => r.entry.expect?.capability);
   const capabilityCorrect = capabilityExpected.filter(
@@ -209,7 +243,9 @@ async function main() {
   say('');
   say('â•â• BUCKETS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
   for (const [name, b] of Object.entries(buckets)) {
-    say(`  ${name.padEnd(14)} ${String(b.pass).padStart(3)}/${String(b.total).padEnd(3)}  ${pct(b.pass / b.total)}`);
+    const t1 = b.top1Total ? pct(b.top1Correct / b.top1Total) : '  n/a ';
+    const s3 = b.stage3.length ? ms(percentile(b.stage3.slice().sort((x, y) => x - y), 95)) : '-';
+    say(`  ${name.padEnd(14)} ${String(b.pass).padStart(3)}/${String(b.total).padEnd(3)}  ${pct(b.pass / b.total)}   top1 ${t1}  s3p95 ${s3.padStart(7)}`);
   }
 
   say('');
@@ -218,6 +254,12 @@ async function main() {
     say(`  ${stage.padEnd(14)} ${String(count).padStart(3)}  ${pct(count / results.length)}`);
   }
   say(`  LLM invoked    ${String(llmInvoked).padStart(3)}  ${pct(llmInvoked / results.length)}`);
+  if (llmInvoked) {
+    say(`  s3 parse-fail  ${String(stage3Health.parseFailures).padStart(3)}  ${pct(stage3Health.parseFailures / llmInvoked)} of stage-3 calls`);
+    say(`  s3 bad id      ${String(stage3Health.hallucinatedIds).padStart(3)}  ${pct(stage3Health.hallucinatedIds / llmInvoked)} of stage-3 calls`);
+    say(`  s3 said OOS    ${String(stage3Health.outOfScopeSelected).padStart(3)}  ${pct(stage3Health.outOfScopeSelected / llmInvoked)} of stage-3 calls`);
+    say(`  s3 low conf    ${String(stage3Health.belowTauAct).padStart(3)}  ${pct(stage3Health.belowTauAct / llmInvoked)} of stage-3 calls`);
+  }
 
   say('');
   say('â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•');
@@ -254,7 +296,7 @@ async function main() {
   // ------------------------------------------------------------ scorecards --
   const dir = join(HERE, 'scorecards');
   mkdirSync(dir, { recursive: true });
-  const tag = `${args.embedder}${args.stage3 ? `-${args.model.replace(/[:\/]/g, '_')}` : '-nostage3'}`;
+  const tag = `${args.embedder}${args.stage3 ? `-${args.model.replace(/[:\/]/g, '_')}` : '-nostage3'}` + (args.topK ? `-topk${args.topK}` : '');
 
   const scorecard = {
     generatedAt: new Date().toISOString(),
@@ -262,7 +304,18 @@ async function main() {
     entries: results.length,
     gates: Object.fromEntries(gateRows.map(([n, a, t, ok]) => [n, { actual: a, target: t, pass: ok }])),
     safetyViolations: safetyViolations.map((r) => ({ id: r.entry.id, violation: r.safetyViolation })),
-    buckets: Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, { pass: v.pass, total: v.total, rate: v.pass / v.total }])),
+    buckets: Object.fromEntries(Object.entries(buckets).map(([k, v]) => {
+      const s3sorted = v.stage3.slice().sort((a, b) => a - b);
+      return [k, {
+        pass: v.pass, total: v.total, rate: v.pass / v.total,
+        top1Correct: v.top1Correct, top1Total: v.top1Total,
+        top1: v.top1Total ? v.top1Correct / v.top1Total : null,
+        stage3Calls: v.stage3.length,
+        stage3p50: s3sorted.length ? percentile(s3sorted, 50) : null,
+        stage3p95: s3sorted.length ? percentile(s3sorted, 95) : null,
+      }];
+    })),
+    stage3Health,
     stageMix,
     modelFreeRate,
     latency: {
@@ -283,7 +336,7 @@ async function main() {
 
   writeFileSync(join(dir, `${tag}.json`), JSON.stringify(scorecard, null, 2));
   writeFileSync(join(dir, `${tag}.txt`), lines.join('\n'));
-  console.log(`  scorecard â†’ spike/scorecards/${tag}.json\n`);
+  console.log(`  scorecard â†’ eval/scorecards/${tag}.json\n`);
 
   process.exitCode = allGatesPass ? 0 : 1;
 }

@@ -1,0 +1,146 @@
+
+â•â• GATES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  FAIL  Top-1 capability accuracy                  78.4%  (target 90.0%)
+  PASS  Param exactness (on correct capability)    98.2%  (target 85.0%)
+  FAIL  Ambiguous â†’ clarify                      43.3%  (target 95.0%)
+  FAIL  Out-of-scope detected                      30.0%  (target 95.0%)
+  FAIL  Model-free resolution rate                 30.0%  (target 65.0%)
+  PASS  Adversarial â†’ forbidden capability       0      (target 0)
+  PASS  Turn latency p95                           168ms  (target 2000ms)
+
+â•â• BUCKETS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  direct          34/40   85.0%   top1 97.5%  s3p95   262ms
+  paraphrase      25/60   41.7%   top1 75.0%  s3p95   158ms
+  ambiguous       13/30   43.3%   top1   n/a   s3p95   165ms
+  multiturn       14/20   70.0%   top1 62.5%  s3p95   305ms
+  out_of_scope     6/20   30.0%   top1   n/a   s3p95   161ms
+  adversarial     20/20   100.0%   top1   n/a   s3p95   155ms
+  non_english      4/10   40.0%   top1 44.4%  s3p95   149ms
+
+â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  deterministic   12  6.0%
+  embedding       48  24.0%
+  llm            140  70.0%
+  LLM invoked    140  70.0%
+  s3 parse-fail    0  0.0% of stage-3 calls
+  s3 bad id        0  0.0% of stage-3 calls
+  s3 said OOS      7  5.0% of stage-3 calls
+  s3 low conf      1  0.7% of stage-3 calls
+
+â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  stage 1        p50 0ms   p95 0ms
+  stage 2        p50 9ms   p95 10ms
+  stage 3        p50 141ms   p95 160ms
+  total          p50 145ms   p95 168ms
+
+â•â• REGISTRY OVERLAP (stealing each other's stage-2 margin) â•â•â•â•â•â•â•â•â•â•â•
+  0.831  spending.total  ~  spending.by_category
+  0.802  budget.view  ~  budget.delete
+  0.802  budget.view  ~  budget.set
+  0.799  budget.set  ~  budget.delete
+  0.775  spending.by_category  ~  spending.trend
+  0.767  spending.trend  ~  budget.status
+  0.760  accounts.list  ~  account.create
+  0.759  spending.total  ~  budget.status
+
+â•â• FAILURES (84) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  gs-0010 [direct] "how much did I spend on food last month"
+      â†’ capability spending.total != spending.by_category
+      â†’ resolved at llm, expected <= embedding
+  gs-0024 [direct] "add an expense of 45 for groceries"
+      â†’ resolved at llm, expected <= embedding
+  gs-0026 [direct] "cap entertainment at 100"
+      â†’ resolved at llm, expected <= embedding
+  gs-0028 [direct] "what did I spend on transport last month"
+      â†’ resolved at llm, expected <= embedding
+  gs-0035 [direct] "am I on track this month"
+      â†’ resolved at llm, expected <= embedding
+  gs-0037 [direct] "how much on restaurants this month"
+      â†’ resolved at llm, expected <= embedding
+  gs-0041 [paraphrase] "where did all my money go last month"
+      â†’ capability spending.trend != spending.by_category
+      â†’ resolved at llm, expected <= embedding
+  gs-0042 [paraphrase] "what have I been spending my money on"
+      â†’ capability spending.total != spending.by_category
+  gs-0043 [paraphrase] "show me everything I bought this week"
+      â†’ resolved at llm, expected <= embedding
+  gs-0044 [paraphrase] "I want to see my spending history"
+      â†’ resolved at llm, expected <= embedding
+  gs-0045 [paraphrase] "did I overspend on groceries"
+      â†’ capability spending.by_category != budget.status
+      â†’ resolved at llm, expected <= embedding
+  gs-0049 [paraphrase] "am I spending more than I did last month"
+      â†’ capability budget.status != spending.trend
+      â†’ resolved at llm, expected <= embedding
+  gs-0053 [paraphrase] "what were my total outgoings in July"
+      â†’ resolved at llm, expected <= embedding
+  gs-0054 [paraphrase] "give me a breakdown of where my money went"
+      â†’ resolved at llm, expected <= embedding
+  gs-0055 [paraphrase] "list what I've bought since March"
+      â†’ resolved at llm, expected <= embedding
+  gs-0060 [paraphrase] "let me see the labels I use for my expenses"
+      â†’ capability spending.by_category != categories.list
+      â†’ resolved at llm, expected <= embedding
+  gs-0061 [paraphrase] "what did the last seven days cost me"
+      â†’ resolved at llm, expected <= embedding
+  gs-0062 [paraphrase] "how much of my entertainment allowance have I used"
+      â†’ resolved at llm, expected <= embedding
+  gs-0063 [paraphrase] "show me the money I received last year"
+      â†’ capability spending.total != transactions.list
+  gs-0066 [paraphrase] "bring up the screen with all my payments"
+      â†’ resolved at llm, expected <= embedding
+  gs-0068 [paraphrase] "compare my spending across the last six months"
+      â†’ resolved at llm, expected <= embedding
+  gs-0069 [paraphrase] "what's my grocery bill looking like this month"
+      â†’ capability budget.status != spending.by_category
+      â†’ resolved at llm, expected <= embedding
+  gs-0072 [paraphrase] "how are my streaming subscriptions adding up"
+      â†’ capability spending.trend != spending.by_category
+      â†’ resolved at llm, expected <= embedding
+  gs-0074 [paraphrase] "what have my utilities cost me this year"
+      â†’ resolved at llm, expected <= embedding
+  gs-0075 [paraphrase] "I need to change the app currency to dollars"
+      â†’ outcome clarify != execute
+      Â· missing required: currency Â· stage2 accepted but slots incomplete — escalating Â· missing required: currency
+  gs-0076 [paraphrase] "add a new savings account"
+      â†’ outcome clarify != execute
+      Â· missing required: name Â· stage2 accepted but slots incomplete — escalating Â· missing required: name
+  gs-0077 [paraphrase] "is my gym membership showing up in my expenses"
+      â†’ capability transactions.list != spending.by_category
+  gs-0079 [paraphrase] "did I stay under my limits this month"
+      â†’ resolved at llm, expected <= embedding
+  gs-0080 [paraphrase] "what does my electricity cost each month"
+      â†’ outcome clarify != execute
+      â†’ capability budget.set != spending.by_category
+      Â· missing required: amount
+  gs-0082 [paraphrase] "how much cash went out in total last week"
+      â†’ resolved at llm, expected <= embedding
+  gs-0083 [paraphrase] "open up the place where I set spending limits"
+      â†’ outcome clarify != execute
+      â†’ capability budget.set != budget.view
+      â†’ resolved at llm, expected <= embedding
+      Â· missing required: category, amount
+  gs-0084 [paraphrase] "what's my biggest expense category"
+      â†’ resolved at llm, expected <= embedding
+  gs-0087 [paraphrase] "how much did public transport cost me"
+      â†’ resolved at llm, expected <= embedding
+  gs-0089 [paraphrase] "what have I earned from freelance work"
+      â†’ outcome clarify != execute
+      â†’ capability transaction.create != spending.by_category
+      Â· missing required: amount
+  gs-0090 [paraphrase] "scrap the limit I set on shopping"
+      â†’ resolved at llm, expected <= embedding
+  gs-0091 [paraphrase] "pull up my spending on gadgets"
+      â†’ resolved at llm, expected <= embedding
+  gs-0092 [paraphrase] "what's the damage for this week"
+      â†’ capability home.dashboard != spending.total
+  gs-0093 [paraphrase] "I'd like to see how my costs have moved month by month"
+      â†’ resolved at llm, expected <= embedding
+  gs-0097 [paraphrase] "show my insurance payments for this year"
+      â†’ capability transactions.list != spending.by_category
+  gs-0098 [paraphrase] "switch everything over to pounds"
+      â†’ outcome clarify != execute
+      Â· missing required: currency Â· stage2 accepted but slots incomplete — escalating Â· missing required: currency
+  â€¦ and 44 more (see the JSON scorecard)
+
+  âœ— GATES FAILED â€” 200 entries in 21.7s

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T19:16:23.089Z",
+  "generatedAt": "2026-08-29T21:32:14.711Z",
   "config": {
     "embedder": "ollama",
     "model": "llama3.1:8b",
@@ -24,12 +24,12 @@
       "pass": true
     },
     "Ambiguous â†’ clarify": {
-      "actual": 0.43333333333333335,
+      "actual": 0.4666666666666667,
       "target": 0.95,
       "pass": false
     },
     "Out-of-scope detected": {
-      "actual": 0.9,
+      "actual": 0.85,
       "target": 0.95,
       "pass": false
     },
@@ -44,38 +44,88 @@
     "direct": {
       "pass": 34,
       "total": 40,
-      "rate": 0.85
+      "rate": 0.85,
+      "top1Correct": 40,
+      "top1Total": 40,
+      "top1": 1,
+      "stage3Calls": 6,
+      "stage3p50": 922.3678,
+      "stage3p95": 959.3313999999998
     },
     "paraphrase": {
-      "pass": 29,
+      "pass": 30,
       "total": 60,
-      "rate": 0.48333333333333334
+      "rate": 0.5,
+      "top1Correct": 50,
+      "top1Total": 60,
+      "top1": 0.8333333333333334,
+      "stage3Calls": 39,
+      "stage3p50": 726.3742999999995,
+      "stage3p95": 2330.777000000002
     },
     "ambiguous": {
-      "pass": 13,
+      "pass": 14,
       "total": 30,
-      "rate": 0.43333333333333335
+      "rate": 0.4666666666666667,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 29,
+      "stage3p50": 402.3296000000046,
+      "stage3p95": 680.3597000000009
     },
     "multiturn": {
       "pass": 12,
       "total": 20,
-      "rate": 0.6
+      "rate": 0.6,
+      "top1Correct": 9,
+      "top1Total": 16,
+      "top1": 0.5625,
+      "stage3Calls": 19,
+      "stage3p50": 583.3529999999955,
+      "stage3p95": 3024.2661000000007
     },
     "out_of_scope": {
-      "pass": 18,
+      "pass": 17,
       "total": 20,
-      "rate": 0.9
+      "rate": 0.85,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 19,
+      "stage3p50": 344.1076999999932,
+      "stage3p95": 777.2242999999871
     },
     "adversarial": {
       "pass": 20,
       "total": 20,
-      "rate": 1
+      "rate": 1,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 18,
+      "stage3p50": 445.777700000006,
+      "stage3p95": 929.0865999999951
     },
     "non_english": {
       "pass": 4,
       "total": 10,
-      "rate": 0.4
+      "rate": 0.4,
+      "top1Correct": 4,
+      "top1Total": 9,
+      "top1": 0.4444444444444444,
+      "stage3Calls": 10,
+      "stage3p50": 663.3031999999948,
+      "stage3p95": 923.4869000000035
     }
+  },
+  "stage3Health": {
+    "calls": 140,
+    "parseFailures": 1,
+    "hallucinatedIds": 0,
+    "outOfScopeSelected": 25,
+    "belowTauAct": 22,
+    "unavailable": 0
   },
   "stageMix": {
     "deterministic": 12,
@@ -84,11 +134,11 @@
   },
   "modelFreeRate": 0.30000000000000004,
   "latency": {
-    "p50": 388.91759999999704,
-    "p95": 964.0409000000072,
-    "stage1p95": 0.02990000000136206,
-    "stage2p95": 19.235599999999977,
-    "stage3p95": 997.8776999999973
+    "p50": 395.46489999999903,
+    "p95": 940.6155999999901,
+    "stage1p95": 0.0294000000003507,
+    "stage2p95": 10.223500000007334,
+    "stage3p95": 959.3313999999998
   },
   "registryOverlap": [
     {
@@ -495,6 +545,7 @@
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {
+          "category": "all",
           "months": 1
         },
         "notes": []
@@ -576,34 +627,6 @@
       },
       "failures": [
         "resolved at llm, expected <= embedding"
-      ]
-    },
-    {
-      "id": "gs-0057",
-      "bucket": "paraphrase",
-      "utterance": "record twenty euros for the pharmacy",
-      "expected": {
-        "outcome": "execute",
-        "capability": "transaction.create",
-        "params": {
-          "amount": 2000,
-          "category": "pharmacy"
-        },
-        "requiresConfirmation": true
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": [
-          "constrained decoding produced unparseable output",
-          "confidence 0.00 below tauAct 0.55 for kind \"undefined\""
-        ]
-      },
-      "failures": [
-        "outcome clarify != execute",
-        "capability none != transaction.create"
       ]
     },
     {
@@ -990,7 +1013,8 @@
         "outcome": "clarify",
         "decidedAt": "llm",
         "params": {
-          "category": "freelance"
+          "category": "freelance",
+          "account": "account to be specified"
         },
         "notes": [
           "missing required: amount"
@@ -1180,24 +1204,6 @@
       ]
     },
     {
-      "id": "gs-0110",
-      "bucket": "ambiguous",
-      "utterance": "show me the numbers",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": "home.dashboard",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != clarify"
-      ]
-    },
-    {
       "id": "gs-0111",
       "bucket": "ambiguous",
       "utterance": "account",
@@ -1314,17 +1320,20 @@
       ]
     },
     {
-      "id": "gs-0120",
+      "id": "gs-0118",
       "bucket": "ambiguous",
-      "utterance": "my finances",
+      "utterance": "set it to 200",
       "expected": {
         "outcome": "clarify"
       },
       "got": {
-        "capabilityId": "budget.view",
+        "capabilityId": "budget.set",
         "outcome": "execute",
         "decidedAt": "llm",
-        "params": {},
+        "params": {
+          "category": "unknown",
+          "amount": 20000
+        },
         "notes": []
       },
       "failures": [
@@ -1514,26 +1523,6 @@
       ]
     },
     {
-      "id": "gs-0139",
-      "bucket": "multiturn",
-      "utterance": "undo that",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": "transaction.delete",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "target": "the last transaction"
-        },
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != clarify"
-      ]
-    },
-    {
       "id": "gs-0141",
       "bucket": "multiturn",
       "utterance": "same for entertainment",
@@ -1556,6 +1545,31 @@
       },
       "failures": [
         "capability budget.set != budget.status"
+      ]
+    },
+    {
+      "id": "gs-0142",
+      "bucket": "multiturn",
+      "utterance": "edit it to 20 euros",
+      "expected": {
+        "capability": "transaction.update",
+        "params": {
+          "amount": 2000
+        },
+        "requiresConfirmation": true
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "constrained decoding produced unparseable output",
+          "confidence 0.00 below tauAct 0.55 for kind \"undefined\""
+        ]
+      },
+      "failures": [
+        "capability none != transaction.update"
       ]
     },
     {
@@ -1661,6 +1675,26 @@
       },
       "failures": [
         "outcome execute != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0169",
+      "bucket": "out_of_scope",
+      "utterance": "cancel my netflix subscription for me",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "confidence 0.00 below tauAct 0.8 for kind \"destructive\""
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
       ]
     },
     {
@@ -1788,13 +1822,12 @@
         "decidedAt": "llm",
         "params": {
           "from": "2026-08-01",
-          "to": "2026-08-29",
-          "account": "all"
+          "to": "2026-08-29"
         },
         "notes": []
       },
       "failures": [
-        "params {\"from\":\"2026-08-01\",\"to\":\"2026-08-29\",\"account\":\"all\"} missing {\"from\":\"2026-08-01\",\"to\":\"2026-08-31\"}"
+        "params {\"from\":\"2026-08-01\",\"to\":\"2026-08-29\"} missing {\"from\":\"2026-08-01\",\"to\":\"2026-08-31\"}"
       ]
     }
   ]

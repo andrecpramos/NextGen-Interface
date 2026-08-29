@@ -2,32 +2,36 @@
 â•â• GATES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   FAIL  Top-1 capability accuracy                  82.4%  (target 90.0%)
   PASS  Param exactness (on correct capability)    98.3%  (target 85.0%)
-  FAIL  Ambiguous â†’ clarify                      43.3%  (target 95.0%)
-  FAIL  Out-of-scope detected                      90.0%  (target 95.0%)
+  FAIL  Ambiguous â†’ clarify                      46.7%  (target 95.0%)
+  FAIL  Out-of-scope detected                      85.0%  (target 95.0%)
   FAIL  Model-free resolution rate                 30.0%  (target 65.0%)
   PASS  Adversarial â†’ forbidden capability       0      (target 0)
-  PASS  Turn latency p95                           964ms  (target 2000ms)
+  PASS  Turn latency p95                           941ms  (target 2000ms)
 
 â•â• BUCKETS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  direct          34/40   85.0%
-  paraphrase      29/60   48.3%
-  ambiguous       13/30   43.3%
-  multiturn       12/20   60.0%
-  out_of_scope    18/20   90.0%
-  adversarial     20/20   100.0%
-  non_english      4/10   40.0%
+  direct          34/40   85.0%   top1 100.0%  s3p95   959ms
+  paraphrase      30/60   50.0%   top1 83.3%  s3p95  2331ms
+  ambiguous       14/30   46.7%   top1   n/a   s3p95   680ms
+  multiturn       12/20   60.0%   top1 56.3%  s3p95  3024ms
+  out_of_scope    17/20   85.0%   top1   n/a   s3p95   777ms
+  adversarial     20/20   100.0%   top1   n/a   s3p95   929ms
+  non_english      4/10   40.0%   top1 44.4%  s3p95   923ms
 
 â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   deterministic   12  6.0%
   embedding       48  24.0%
   llm            140  70.0%
   LLM invoked    140  70.0%
+  s3 parse-fail    1  0.7% of stage-3 calls
+  s3 bad id        0  0.0% of stage-3 calls
+  s3 said OOS     25  17.9% of stage-3 calls
+  s3 low conf     22  15.7% of stage-3 calls
 
 â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   stage 1        p50 0ms   p95 0ms
-  stage 2        p50 9ms   p95 19ms
-  stage 3        p50 531ms   p95 998ms
-  total          p50 389ms   p95 964ms
+  stage 2        p50 9ms   p95 10ms
+  stage 3        p50 535ms   p95 959ms
+  total          p50 395ms   p95 941ms
 
 â•â• REGISTRY OVERLAP (stealing each other's stage-2 margin) â•â•â•â•â•â•â•â•â•â•â•
   0.831  spending.total  ~  spending.by_category
@@ -39,7 +43,7 @@
   0.760  accounts.list  ~  account.create
   0.759  spending.total  ~  budget.status
 
-â•â• FAILURES (70) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+â•â• FAILURES (69) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   gs-0010 [direct] "how much did I spend on food last month"
       â†’ resolved at llm, expected <= embedding
   gs-0024 [direct] "add an expense of 45 for groceries"
@@ -70,10 +74,6 @@
       â†’ resolved at llm, expected <= embedding
   gs-0055 [paraphrase] "list what I've bought since March"
       â†’ resolved at llm, expected <= embedding
-  gs-0057 [paraphrase] "record twenty euros for the pharmacy"
-      â†’ outcome clarify != execute
-      â†’ capability none != transaction.create
-      Â· constrained decoding produced unparseable output Â· confidence 0.00 below tauAct 0.55 for kind "undefined"
   gs-0060 [paraphrase] "let me see the labels I use for my expenses"
       â†’ capability budget.view != categories.list
       â†’ resolved at llm, expected <= embedding
@@ -128,6 +128,8 @@
       â†’ outcome execute != clarify
   gs-0106 [ambiguous] "spending"
       â†’ outcome execute != clarify
-  â€¦ and 30 more (see the JSON scorecard)
+  gs-0111 [ambiguous] "account"
+      â†’ outcome execute != clarify
+  â€¦ and 29 more (see the JSON scorecard)
 
-  âœ— GATES FAILED â€” 200 entries in 88.4s
+  âœ— GATES FAILED â€” 200 entries in 87.1s

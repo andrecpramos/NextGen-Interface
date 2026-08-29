@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-29T11:37:47.664Z",
+  "generatedAt": "2026-08-29T21:43:17.250Z",
   "config": {
     "embedder": "hashing",
     "model": null,
@@ -7,7 +7,7 @@
       "tauAct": 0.55,
       "tauHigh": 0.231,
       "delta": 0.09,
-      "tauFloor": 0.218,
+      "tauFloor": 0,
       "topK": 5
     }
   },
@@ -23,15 +23,15 @@
       "target": 0.85,
       "pass": true
     },
-    "Ambiguous → clarify": {
-      "actual": 0.3333333333333333,
-      "target": 0.95,
-      "pass": false
-    },
-    "Out-of-scope detected": {
-      "actual": 0.95,
+    "Ambiguous â†’ clarify": {
+      "actual": 0.9666666666666667,
       "target": 0.95,
       "pass": true
+    },
+    "Out-of-scope detected": {
+      "actual": 0,
+      "target": 0.95,
+      "pass": false
     },
     "Model-free resolution rate": {
       "actual": 1,
@@ -44,38 +44,88 @@
     "direct": {
       "pass": 37,
       "total": 40,
-      "rate": 0.925
+      "rate": 0.925,
+      "top1Correct": 37,
+      "top1Total": 40,
+      "top1": 0.925,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     },
     "paraphrase": {
       "pass": 12,
       "total": 60,
-      "rate": 0.2
+      "rate": 0.2,
+      "top1Correct": 15,
+      "top1Total": 60,
+      "top1": 0.25,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     },
     "ambiguous": {
-      "pass": 10,
+      "pass": 29,
       "total": 30,
-      "rate": 0.3333333333333333
+      "rate": 0.9666666666666667,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     },
     "multiturn": {
-      "pass": 1,
+      "pass": 5,
       "total": 20,
-      "rate": 0.05
+      "rate": 0.25,
+      "top1Correct": 1,
+      "top1Total": 16,
+      "top1": 0.0625,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     },
     "out_of_scope": {
-      "pass": 19,
+      "pass": 0,
       "total": 20,
-      "rate": 0.95
+      "rate": 0,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     },
     "adversarial": {
       "pass": 20,
       "total": 20,
-      "rate": 1
+      "rate": 1,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     },
     "non_english": {
       "pass": 1,
       "total": 10,
-      "rate": 0.1
+      "rate": 0.1,
+      "top1Correct": 1,
+      "top1Total": 9,
+      "top1": 0.1111111111111111,
+      "stage3Calls": 0,
+      "stage3p50": null,
+      "stage3p95": null
     }
+  },
+  "stage3Health": {
+    "calls": 0,
+    "parseFailures": 0,
+    "hallucinatedIds": 0,
+    "outOfScopeSelected": 0,
+    "belowTauAct": 0,
+    "unavailable": 0
   },
   "stageMix": {
     "deterministic": 14,
@@ -83,10 +133,10 @@
   },
   "modelFreeRate": 1,
   "latency": {
-    "p50": 0.06790000000000163,
-    "p95": 0.2027000000000001,
-    "stage1p95": 0.016500000000000625,
-    "stage2p95": 0.15139999999999532,
+    "p50": 0.06799999999999784,
+    "p95": 0.19659999999999656,
+    "stage1p95": 0.019700000000000273,
+    "stage2p95": 0.14519999999999555,
     "stage3p95": null
   },
   "registryOverlap": [],
@@ -186,15 +236,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.217 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -213,15 +263,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.150 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transactions.list"
       ]
     },
@@ -289,15 +339,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.162 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != budget.set"
       ]
     },
@@ -316,15 +366,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.104 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -339,15 +389,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.183 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != settings.open"
       ]
     },
@@ -362,15 +412,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.125 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != export.data"
       ]
     },
@@ -389,15 +439,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.108 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transactions.list"
       ]
     },
@@ -439,15 +489,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.196 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -485,15 +535,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.156 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != categories.list"
       ]
     },
@@ -565,15 +615,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.165 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transactions.list"
       ]
     },
@@ -592,15 +642,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.191 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -642,15 +692,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.189 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transactions.list"
       ]
     },
@@ -670,15 +720,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.158 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -693,15 +743,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.151 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != home.dashboard"
       ]
     },
@@ -719,15 +769,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.158 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -746,15 +796,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.111 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -845,15 +895,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.129 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -872,15 +922,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.125 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transactions.list"
       ]
     },
@@ -895,15 +945,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.192 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != budget.status"
       ]
     },
@@ -920,15 +970,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.119 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -946,15 +996,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.154 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -992,15 +1042,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.178 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -1047,15 +1097,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.091 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -1098,15 +1148,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.217 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -1125,15 +1175,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.185 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != budget.delete"
       ]
     },
@@ -1151,15 +1201,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.210 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -1177,15 +1227,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.217 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.total"
       ]
     },
@@ -1200,15 +1250,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.146 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.trend"
       ]
     },
@@ -1226,15 +1276,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.177 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != budget.status"
       ]
     },
@@ -1253,15 +1303,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.113 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != transaction.create"
       ]
     },
@@ -1276,15 +1326,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.201 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != account.balance"
       ]
     },
@@ -1303,15 +1353,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.123 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
-        "outcome out_of_scope != execute",
+        "outcome clarify != execute",
         "capability none != spending.by_category"
       ]
     },
@@ -1381,266 +1431,6 @@
       ]
     },
     {
-      "id": "gs-0103",
-      "bucket": "ambiguous",
-      "utterance": "food",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.096 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0109",
-      "bucket": "ambiguous",
-      "utterance": "I spent some money on stuff",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.174 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0110",
-      "bucket": "ambiguous",
-      "utterance": "show me the numbers",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.160 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0112",
-      "bucket": "ambiguous",
-      "utterance": "can you help me with my money",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.108 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0113",
-      "bucket": "ambiguous",
-      "utterance": "limit",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.217 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0114",
-      "bucket": "ambiguous",
-      "utterance": "add 50",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.202 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0115",
-      "bucket": "ambiguous",
-      "utterance": "what about last month",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.154 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0116",
-      "bucket": "ambiguous",
-      "utterance": "fix that",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.192 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0117",
-      "bucket": "ambiguous",
-      "utterance": "more",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.154 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0118",
-      "bucket": "ambiguous",
-      "utterance": "set it to 200",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.155 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0120",
-      "bucket": "ambiguous",
-      "utterance": "my finances",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.112 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0121",
-      "bucket": "ambiguous",
-      "utterance": "is that too much",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.152 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0122",
-      "bucket": "ambiguous",
-      "utterance": "transport",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.168 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
       "id": "gs-0123",
       "bucket": "ambiguous",
       "utterance": "do the thing with the budget",
@@ -1656,126 +1446,6 @@
       },
       "failures": [
         "outcome execute != clarify"
-      ]
-    },
-    {
-      "id": "gs-0124",
-      "bucket": "ambiguous",
-      "utterance": "open it",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.162 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0126",
-      "bucket": "ambiguous",
-      "utterance": "update",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.074 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0127",
-      "bucket": "ambiguous",
-      "utterance": "give me a number",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.076 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0128",
-      "bucket": "ambiguous",
-      "utterance": "the usual",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.094 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0129",
-      "bucket": "ambiguous",
-      "utterance": "something about groceries",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.120 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0130",
-      "bucket": "ambiguous",
-      "utterance": "can you check",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.095 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
       ]
     },
     {
@@ -1813,11 +1483,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.167 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -1860,11 +1530,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.122 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -1884,11 +1554,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.047 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -1907,11 +1577,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.128 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -1931,55 +1601,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.158 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
         "capability none != spending.total"
-      ]
-    },
-    {
-      "id": "gs-0139",
-      "bucket": "multiturn",
-      "utterance": "undo that",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.095 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0140",
-      "bucket": "multiturn",
-      "utterance": "the other one",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.071 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
       ]
     },
     {
@@ -2018,11 +1648,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.216 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2038,11 +1668,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.113 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2061,11 +1691,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.110 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2103,55 +1733,15 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.159 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
         "capability none != spending.trend"
-      ]
-    },
-    {
-      "id": "gs-0147",
-      "bucket": "multiturn",
-      "utterance": "yes do it",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.129 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
-      ]
-    },
-    {
-      "id": "gs-0148",
-      "bucket": "multiturn",
-      "utterance": "no not that one",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "out_of_scope",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "top score 0.099 below floor 0.218"
-        ]
-      },
-      "failures": [
-        "outcome out_of_scope != clarify"
       ]
     },
     {
@@ -2163,11 +1753,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.112 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2187,15 +1777,35 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.113 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
         "capability none != budget.set"
+      ]
+    },
+    {
+      "id": "gs-0151",
+      "bucket": "out_of_scope",
+      "utterance": "what's the weather tomorrow",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
       ]
     },
     {
@@ -2217,6 +1827,366 @@
       ]
     },
     {
+      "id": "gs-0153",
+      "bucket": "out_of_scope",
+      "utterance": "play some music",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0154",
+      "bucket": "out_of_scope",
+      "utterance": "book me a flight to Lisbon",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0155",
+      "bucket": "out_of_scope",
+      "utterance": "what is the capital of France",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0156",
+      "bucket": "out_of_scope",
+      "utterance": "transfer 500 to my brother",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0157",
+      "bucket": "out_of_scope",
+      "utterance": "call mum",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0158",
+      "bucket": "out_of_scope",
+      "utterance": "tell me a joke",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0159",
+      "bucket": "out_of_scope",
+      "utterance": "should I buy bitcoin",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0160",
+      "bucket": "out_of_scope",
+      "utterance": "set an alarm for seven",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0161",
+      "bucket": "out_of_scope",
+      "utterance": "pay my electricity bill now",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0162",
+      "bucket": "out_of_scope",
+      "utterance": "what's my credit score",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0163",
+      "bucket": "out_of_scope",
+      "utterance": "order a pizza",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0164",
+      "bucket": "out_of_scope",
+      "utterance": "who won the football last night",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0165",
+      "bucket": "out_of_scope",
+      "utterance": "translate this into Spanish",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0166",
+      "bucket": "out_of_scope",
+      "utterance": "invest my savings in an index fund",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0167",
+      "bucket": "out_of_scope",
+      "utterance": "what time is it",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0168",
+      "bucket": "out_of_scope",
+      "utterance": "take a photo of this receipt and email it",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0169",
+      "bucket": "out_of_scope",
+      "utterance": "cancel my netflix subscription for me",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0170",
+      "bucket": "out_of_scope",
+      "utterance": "remind me to pay rent on friday",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
       "id": "gs-0191",
       "bucket": "non_english",
       "utterance": "quanto gastei em comida no mes passado",
@@ -2230,11 +2200,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.073 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2250,11 +2220,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.183 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2270,11 +2240,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.062 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2290,11 +2260,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.059 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2314,11 +2284,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.173 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2337,11 +2307,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.151 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2357,11 +2327,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.093 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [
@@ -2404,11 +2374,11 @@
       },
       "got": {
         "capabilityId": null,
-        "outcome": "out_of_scope",
+        "outcome": "clarify",
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "top score 0.113 below floor 0.218"
+          "stage3 disabled"
         ]
       },
       "failures": [

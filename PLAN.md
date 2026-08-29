@@ -1,6 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 2 · **Tracked files:** 95
+**Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
+**Progress:** WP-01 ✅ complete — see [§5](#5-measured-results--the-router). Next: **WP-02**.
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -74,7 +75,7 @@ verified on disk.
 | Layer | Blueprint | Status |
 |---|---|---|
 | 1 · Conversation (voice, text, history) | required | ⛔ **Not built** |
-| 2 · Intent Recognition | required | ✅ **Built & measured** — `packages/core-intent` |
+| 2 · Intent Recognition | required | ✅ **Built & measured at 1B** — `packages/core-intent` |
 | 3 · Action (intent → execution) | required | ⛔ **Not built — no package exists yet** |
 | 4 · Navigation (AI controls routing) | required | ⛔ **Not built — no package exists yet** |
 | 5 · Knowledge (domain intelligence) | required | ⛔ Not built |
@@ -88,14 +89,14 @@ verified on disk.
 | Local-first, no backend | ⚠️ **Amended** | [ADR-008](.ai/decisions/ADR-008.md) — backend exists, device stays source of truth |
 | llama.cpp / ONNX inference | ✅ Accepted, ⛔ not built | via Ollama / llama.rn / WebGPU |
 | Whisper STT + Piper TTS | ✅ Accepted, ⛔ not built | |
-| Gemma 3 1B / Qwen 2.5 1.5B | ✅ Accepted, ⛔ **never tested** | **This is the top open risk** |
+| Gemma 3 1B / Qwen 2.5 1.5B | ✅ **Tested — WP-01** | `qwen2.5:1.5b` selected; `gemma3:1b` rejected. [FINDINGS Part II](packages/core-intent/eval/FINDINGS.md) |
 | Registry-based AI navigation | ✅ Accepted, ⚠️ partially built | schema exists; codegen does not |
 
 ### MVP roadmap
 
 | | Blueprint scope | Status |
 |---|---|---|
-| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | ~15% — router only |
+| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | ~15% — router only, now validated at 1B |
 | **MVP 2** — voice + analytics | Whisper, Piper, spending analytics | 0% |
 | **MVP 3** — coaching + domain #2 | goals, predictions, second domain | 0% |
 
@@ -113,7 +114,7 @@ NextGen_Interface/
 ├── packages/
 │   ├── core-intent/           863 lines                ✅ IMPLEMENTED
 │   │   ├── src/               cascade · stages · embedder · slots · text · config · registry
-│   │   └── eval/              200-entry golden set · evaluate · calibrate · inspect · 8 scorecards
+│   │   └── eval/              200-entry golden set · evaluate · calibrate · inspect · compare · 9 scorecards
 │   ├── core-capability/       5 lines                  ⬜ scaffold
 │   ├── core-trace/            5 lines                  ⬜ scaffold
 │   ├── core-inference/        5 lines                  ⬜ scaffold
@@ -127,8 +128,8 @@ NextGen_Interface/
 └── PLAN.md                    this file
 ```
 
-**Toolchain:** Node 25.1.0 · pnpm 11.1.2 · git 2.51.2 · Ollama with `llama3.1:8b` +
-`nomic-embed-text`. All 11 workspace packages resolve.
+**Toolchain:** Node 25.1.0 · pnpm 11.1.2 · git 2.51.2 · Ollama with `llama3.1:8b`,
+`qwen2.5:1.5b`, `gemma3:1b` + `nomic-embed-text`. All 11 workspace packages resolve.
 
 ### Known gaps in the scaffold itself
 
@@ -147,7 +148,37 @@ NextGen_Interface/
 ## 5. Measured results — the router
 
 From [packages/core-intent/eval/FINDINGS.md](packages/core-intent/eval/FINDINGS.md).
-Reproduce with `pnpm router:eval`.
+Reproduce with `pnpm router:eval`; compare models with `node eval/compare.js`.
+
+### Stage-3 model comparison — WP-01, the decisive run
+
+The question the whole architecture rested on: **can a phone-class model do stage-3
+work?** Answer: **yes, if it is `qwen2.5:1.5b` and not `gemma3:1b`.**
+
+| | `llama3.1:8b` | `qwen2.5:1.5b` | `gemma3:1b` |
+|---|---|---|---|
+| Top-1, direct+paraphrase | 90.0% | **84.0%** | 73.0% |
+| Top-1, whole corpus | 82.4% | 78.4% | 67.2% |
+| Out-of-scope detected | 85.0% | 30.0% | **0.0%** |
+| Turn latency p95 | 941ms | **151ms** | 375ms |
+| Safety violations | 0 | 0 | 0 |
+| Size | 4.9 GB | 986 MB | 815 MB |
+
+**The stop-criterion was not triggered.** Two results changed the plan, though — both are
+mechanisms that worked on the 8B and quietly stop working at 1B:
+
+- **No out-of-scope detection exists on target hardware.** Stage 2 cannot do it (either
+  encoder); stage 3 cannot at 1B. `gemma3:1b` never once emitted the sentinel in 140
+  constrained calls and answered "what is the capital of France" with `settings.currency`
+  at 0.95 confidence. Needs a model-independent mechanism — **new ADR, folded into WP-03**.
+- **`TAU_ACT_BY_KIND` no longer catches anything.** It held back 15.7% of stage-3 calls
+  on the 8B, 0.7% on `qwen2.5:1.5b`. Small models report high confidence unconditionally.
+
+Everything delegated to *structure* rather than model competence held on every model: the
+schema enum (0 hallucinated ids in ~1000 calls), registry validation, the ADR-004 policy
+table, deterministic-slot precedence, and adversarial safety at 20/20.
+
+### The 8B harness baseline
 
 | Gate | Target | Measured | |
 |---|---|---|---|
@@ -163,7 +194,13 @@ Reproduce with `pnpm router:eval`.
 FINDINGS §"What the number actually means". The golden set is deliberately 35%
 un-resolvable-before-stage-3, and the ambiguous bucket conflates two different
 requirements.
-\*\* Desktop, 8B model. Says nothing about phone-class inference.
+\*\* Desktop, 8B model. Says nothing about phone-class inference. WP-01 measured that
+separately, above.
+
+These are the numbers from the original harness run. A same-config re-run during WP-01
+gave 82.4% / 98.3% / 46.7% / **85.0%** / 30.0% / 0 / **941ms** — identical on four gates,
+one entry apart on the other two. That variance is real and is Finding 10; do not read any
+single run as exact.
 
 ---
 
@@ -184,30 +221,43 @@ Ordered by dependency. **WP-01 first** — it can invalidate the architecture.
 
 ---
 
-### WP-01 · Validate a 1B model ⚠️ BLOCKING RISK
+### WP-01 · Validate a 1B model ✅ **COMPLETE — 2026-08-29**
 
 **Goal:** Determine whether a phone-class model can do stage-3 work at all.
-Everything downstream assumes it can, and nothing has tested it.
 
-**Depends on:** nothing. Do this first.
+**Outcome: it can.** `qwen2.5:1.5b` at `topK: 3` reaches **84–86% top-1** on
+direct+paraphrase against the 8B's 90%, runs **6× faster** (151ms p95 vs 941ms), and
+records zero safety violations. The stop-criterion (<~70% ⇒ redesign) was not triggered.
+`gemma3:1b` was tested and **rejected**: 73%, and it never emits the out-of-scope
+sentinel.
 
-**Steps**
-1. `ollama pull gemma3:1b` and `ollama pull qwen2.5:1.5b`
-2. `cd packages/core-intent && node eval/evaluate.js --embedder=ollama --model=gemma3:1b`
-3. Repeat for `qwen2.5:1.5b`
-4. Compare per-bucket accuracy and stage-3 latency against the `llama3.1:8b` scorecard
-5. Write results into `eval/FINDINGS.md` and update [ADR-003](.ai/decisions/ADR-003.md)
+**Delivered**
+- Scorecards for both 1B models, plus a same-session 8B baseline, in
+  [eval/scorecards/](packages/core-intent/eval/scorecards/)
+- [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) — Findings 7–10
+- [ADR-003](.ai/decisions/ADR-003.md) status: provisional → **Accepted**, with three
+  claims amended inline
+- `eval/compare.js` — side-by-side scorecard comparison; `--topk=<n>` flag on the
+  evaluator; per-bucket top-1, per-bucket stage-3 latency and stage-3 health counters
+  added to the scorecard
 
-**Acceptance**
-- Scorecards committed for both 1B-class models
-- ADR-003 status changed from provisional to Accepted **or** Superseded
-- If top-1 on the direct+paraphrase buckets falls below ~70%, **stop and redesign**
-  before writing app code
+**What it changed for everything downstream**
 
-**Gotchas**
-- Small models are much worse at: long candidate lists, negation, multi-slot
-  extraction. If accuracy collapses, try `topK: 3` before concluding failure.
-- Confidence calibration differs per model. Re-run `calibrate.js`.
+Two mechanisms this plan assumed were working are model-dependent and stop working at 1B.
+Neither blocks WP-02; both must be closed before MVP 1 ships.
+
+1. **Out-of-scope detection does not exist on target hardware** (Finding 7). Stage 2
+   cannot do it with either encoder; stage 3 cannot at 1B. Needs a mechanism that does not
+   depend on model capability — a fitted stage-2 rejection classifier over (top score,
+   margin, entropy), a dedicated binary in-domain classifier, or accepting misroutes and
+   making recovery trivial in the UI. **Choose in WP-03 and write the ADR.**
+2. **`TAU_ACT_BY_KIND` reads a signal small models do not produce** (Finding 8). Replace
+   self-reported confidence with something the model cannot inflate — stage-2 margin, or
+   stage-2/stage-3 agreement. **Fold into WP-02's type work and WP-03's dispatcher.**
+
+Also learned, and load-bearing for WP-12: **the gates are not deterministic.** Two
+identical 8B runs at temperature 0 flipped 7 of 200 entries. CI must gate on tolerances,
+not exact scorecard equality (Finding 10).
 
 ---
 
@@ -216,7 +266,7 @@ Everything downstream assumes it can, and nothing has tested it.
 **Goal:** The engine is the one untyped package. Types are the enforcement mechanism
 for Rules 2, 6, and 11.
 
-**Depends on:** WP-01 (don't refactor code you might redesign)
+**Depends on:** WP-01 ✅ — **unblocked, this is the next work package.**
 
 **Steps**
 1. Rename `src/*.js` → `.ts`, add types
@@ -226,8 +276,12 @@ for Rules 2, 6, and 11.
    - `Capability`, `ParamSpec`, `CapabilityKind`
    - **`DeterministicParams` and `ModelParams` as distinct types** so they can only
      merge one way — this makes Rule 11 a compile error instead of a code review
-3. Keep `eval/*.js` runnable throughout — the golden set is the regression net
-4. Add `vitest` unit tests for `slots.ts` (dates, money, enums) — currently untested
+3. **Stop typing stage-3 confidence as a usable score** (WP-01 Finding 8). Model
+   self-report is near-constant at 1B. Either name the field for what it is
+   (`selfReportedConfidence`) and gate on something else, or drop it from the gate
+   entirely. Do not let `number` imply "calibrated".
+4. Keep `eval/*.js` runnable throughout — the golden set is the regression net
+5. Add `vitest` unit tests for `slots.ts` (dates, money, enums) — currently untested
    in isolation
 
 **Acceptance**
@@ -259,11 +313,19 @@ dispatcher, action, navigation, and query engines, which currently have no home.
 5. **New package `core-dispatch`:** dispatcher with the ADR-004 policy table,
    `NavigationEngine` (validates routes against registry), `QueryEngine` interface
    (id + typed slots, never SQL), undo journal interface
+6. **Decide the out-of-scope mechanism and write the ADR** (WP-01 Finding 7). There is
+   currently no working out-of-scope detection on target hardware. Candidates: a fitted
+   stage-2 rejection classifier over (top score, margin, entropy) — Finding 2 only ever
+   tested a single scalar cut; a dedicated binary in-domain classifier at stage 2.5; or
+   accept misroutes and make recovery trivial in the UI. The 1.5B model's 151ms p95
+   leaves ample budget for a second pass.
 
 **Acceptance**
 - A capability defined in one place produces both a working route and a routable
   intent — they cannot drift
 - Unclassified `kind` → dispatcher **refuses** (test this explicitly)
+- Out-of-scope ADR written, mechanism implemented, and measured on `qwen2.5:1.5b` —
+  not on the 8B, which is the mistake WP-01 caught
 - Registry validation runs in CI and fails on a capability with <3 examples
 - `eval/registry.json` regenerated from real definitions, golden set still passes
 
@@ -326,6 +388,9 @@ mobile-inference risk — if `llama.rn` fails, only this package changes.
 - Adapters: `OllamaRuntime` (extract from `core-intent/src/stages.js`),
   `LlamaRnRuntime` (mobile), `WebGpuRuntime` (web), **`FakeRuntime` (tests)**
 - Model lifecycle: download, **SHA-256 verify before load, fail closed**, idle unload
+- **Default model is `qwen2.5:1.5b` at `topK: 3`** (WP-01). `topK` is a property of
+  the *model*, not the encoder — carry it in the runtime config next to the model id,
+  the way thresholds travel with the encoder.
 
 **Acceptance**
 - `core-intent` no longer talks to Ollama directly — it takes a runtime
@@ -414,6 +479,18 @@ GitHub Actions per [.ai/deployment.md](.ai/deployment.md): typecheck · lint ·
 scorecard diff** · registry validation · CVE scan. Exit non-zero on any gate — the
 evaluator already does this.
 
+⚠️ **The scorecard diff must be tolerance-based, not exact** (WP-01 Finding 10). Two
+identical 8B runs at temperature 0 flipped 7 of 200 entries; a bucket of 20 cannot
+measure a 95% target to better than ±5%. Gate on thresholds with an explicit tolerance
+and treat per-entry diffs as advisory, or the pipeline flaps on every run.
+
+Also add a **staleness check**: a committed scorecard whose `config.thresholds` differ
+from the current profile in `config.js` is asserting a configuration that no longer
+exists. One was found in exactly that state during WP-01 — committed,
+plausible, and describing a `tauFloor` the codebase had already abandoned. It went stale
+within hours of being written, which is the point: this is not a slow drift you can catch
+by eye.
+
 ---
 
 ### WP-13 · Voice (MVP 2)
@@ -428,7 +505,7 @@ Audio **never persisted** past transcription. Mic state unmistakable in the UI.
 ## 8. Suggested sequence
 
 ```
-WP-01 (1B model)  ─── blocking; do first, alone
+WP-01 (1B model)  ─── ✅ DONE 2026-08-29 — qwen2.5:1.5b selected
    │
 WP-02 (TS port) ─── WP-03 (capability + dispatch) ─┬─ WP-04 (data) ─┬─ WP-07 (domain)
    │                         │                     │                │
@@ -450,14 +527,17 @@ the architecture's real exam.
 
 | Risk | Severity | State |
 |---|---|---|
-| 1B model cannot route reliably | **fatal** | **UNTESTED** — WP-01 |
-| Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate; mitigated by adapter interface |
-| Model assets (0.9–1.6 GB) vs 200 MB store cap | high | Planned — on-demand delivery from day one |
+| 1B model cannot route reliably | ~~fatal~~ | ✅ **CLOSED** — `qwen2.5:1.5b` 84% top-1 on realistic buckets, 151ms p95 (WP-01) |
+| **No out-of-scope detection on target hardware** | **high** | **OPEN — new.** Stage 2 can't (either encoder); stage 3 can't at 1B. Mechanism + ADR owed by WP-03 (Finding 7) |
+| **`tauAct` reads a signal small models don't produce** | medium | **OPEN — new.** Gate held 15.7% of calls on 8B, 0.7% on 1.5B. Replace self-report with margin or stage-2/3 agreement (Finding 8) |
+| Golden-set gates are not run-to-run deterministic | medium | **OPEN — new.** 7/200 entries flipped between identical 8B runs at temp 0. WP-12 must gate on tolerances (Finding 10) |
+| Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate; mitigated by adapter interface. Desktop headroom is now large (151ms p95 at 1.5B), which helps but does not settle it |
+| Model assets (0.9–1.6 GB) vs 200 MB store cap | high | Planned — on-demand delivery from day one. Selected model is 986 MB, at the low end of that range |
 | Model-free rate 30% vs 65% target | high | Partly measurement artefact; needs realistic corpus + `ScreenContext` slots |
 | Registry growth erodes stage-2 margins | medium | `similarityAudit()` exists; quarterly review documented |
 | Backend attracts features, offline erodes | medium | ADR-008 rules; FR-OFF-01 as release gate |
 | Injection via stored memos | medium | **Not modelled** — harness tests utterances only |
-| Non-English at 40% | medium | Decide: multilingual, or scope MVP to one language and say so |
+| Non-English at 40% | medium | Decide: multilingual, or scope MVP to one language and say so. `qwen2.5:1.5b` matches the 8B here (44.4% both) — the ceiling is the English-only registry, not the model |
 | Solo-developer capacity | high | Voice deferred to MVP 2, domain #2 to MVP 3 |
 
 ---
@@ -473,9 +553,12 @@ pnpm router:calibrate    # threshold sweep — NEVER hand-tune thresholds
 pnpm router:eval         # full cascade vs golden set; exit 0 only if all gates pass
 
 cd packages/core-intent
-node eval/evaluate.js --embedder=hashing --no-stage3      # model-free ceiling
-node eval/evaluate.js --embedder=ollama --model=gemma3:1b # WP-01
-node eval/inspect.js --embedder=ollama "how much on food" # debug one utterance
+node eval/evaluate.js --embedder=hashing --no-stage3       # model-free ceiling
+node eval/inspect.js --embedder=ollama "how much on food"  # debug one utterance
+
+# stage-3 model selection (WP-01). --topk is a MODEL knob, not an encoder one.
+node eval/evaluate.js --embedder=ollama --model=qwen2.5:1.5b --topk=3
+node eval/compare.js ollama-llama3.1_8b ollama-qwen2.5_1.5b ollama-gemma3_1b
 
 # workspace
 pnpm -r typecheck
@@ -483,7 +566,9 @@ pnpm -r test
 ```
 
 **Requires:** Ollama serving on `127.0.0.1:11434` with `nomic-embed-text` and a chat
-model. `--embedder=hashing` needs nothing.
+model. `--embedder=hashing` needs nothing. **Warm the model with one throwaway call
+before a timed run** — a cold load shows up as a 22-second stage-3 outlier, and run
+models sequentially or the latency numbers are meaningless.
 
 ---
 
@@ -513,6 +598,8 @@ Before marking anything complete:
 | Why TypeScript and not Flutter? | [ADR-006](.ai/decisions/ADR-006.md) |
 | How is a destructive action prevented? | [ADR-004](.ai/decisions/ADR-004.md) |
 | What did the router actually score, and why? | [eval/FINDINGS.md](packages/core-intent/eval/FINDINGS.md) |
+| Which stage-3 model, and why not the other one? | [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) · [ADR-003](.ai/decisions/ADR-003.md) |
+| Why is there no out-of-scope detection? | [FINDINGS.md Finding 7](packages/core-intent/eval/FINDINGS.md) — unresolved, owed by WP-03 |
 | What are the numbered requirements? | [.ai/sdlc/requirements.md](.ai/sdlc/requirements.md) |
 | How do I test a non-deterministic router? | [.ai/testing.md](.ai/testing.md) |
 | What does the entity model look like? | [.ai/sdlc/design.md](.ai/sdlc/design.md) |
