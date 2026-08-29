@@ -1,0 +1,31 @@
+# Normalise line endings. Without this, every file touched on Windows shows as
+# fully rewritten in the diff, which would bury real changes — including the
+# golden-set and scorecard diffs that are supposed to be reviewable.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary — never touch
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.gguf binary
+*.onnx binary
+*.bin  binary
+*.db   binary
+*.sqlite binary
+
+# Generated — collapse in review, but still diffable when needed
+pnpm-lock.yaml linguist-generated=true -diff
+
+# The golden set and scorecards are review-critical. Never collapse these.
+packages/core-intent/eval/golden-set.jsonl -linguist-generated
+packages/core-intent/eval/scorecards/** -linguist-generated
