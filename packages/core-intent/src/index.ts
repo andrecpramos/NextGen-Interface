@@ -22,7 +22,7 @@ export {
   type Stage2Decision,
   type Stage3Result,
 } from './stages.ts';
-export { makeEmbedder, HashingEmbedder, OllamaEmbedder, cosine } from './embedder.ts';
+export { makeEmbedder, HashingEmbedder, OllamaEmbeddingRuntime, cosine } from './embedder.ts';
 export {
   resolveDateRange,
   resolveMoney,

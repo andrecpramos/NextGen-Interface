@@ -1,5 +1,5 @@
 import { features } from './text.ts';
-import { OLLAMA } from './config.ts';
+import { OllamaEmbeddingRuntime } from '@nextgen/core-inference';
 import type { Embedder, Vector } from './types.ts';
 
 /**
@@ -104,55 +104,25 @@ export class HashingEmbedder implements Embedder {
 }
 
 // ----------------------------------------------------------------- ollama ---
+//
+// The Ollama encoder used to live here and call `fetch` directly. It moved to
+// `@nextgen/core-inference` in WP-06 — this package no longer contains any
+// transport code, which is what makes swapping the runtime a one-package change.
+//
+// `OllamaEmbeddingRuntime` is re-exported for callers that used to import it
+// from here.
 
-export class OllamaEmbedder implements Embedder {
-  readonly name: string;
-  private readonly model: string;
-  private cache = new Map<string, Vector>();
+export { OllamaEmbeddingRuntime } from '@nextgen/core-inference';
 
-  constructor(model: string = OLLAMA.embedModel) {
-    this.model = model;
-    this.name = `ollama:${model}`;
-  }
-
-  fit(): void {
-    /* nothing to fit — the encoder is pretrained */
-  }
-
-  async embed(text: string): Promise<Vector> {
-    const cached = this.cache.get(text);
-    if (cached) return cached;
-
-    const res = await fetch(`${OLLAMA.host}/api/embed`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: this.model, input: text }),
-      signal: AbortSignal.timeout(OLLAMA.timeoutMs),
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(
-        `embed failed (${res.status}): ${body}\n` +
-          `Is the model pulled?  ollama pull ${this.model}`,
-      );
-    }
-
-    const json = (await res.json()) as { embeddings?: number[][]; embedding?: number[] };
-    const vec = l2norm(json.embeddings?.[0] ?? json.embedding ?? []);
-    if (vec.length === 0) throw new Error('embed returned an empty vector');
-    this.cache.set(text, vec);
-    return vec;
-  }
-
-  async embedAll(texts: readonly string[]): Promise<Vector[]> {
-    const out: Vector[] = [];
-    for (const t of texts) out.push(await this.embed(t));
-    return out;
-  }
-}
-
+/**
+ * Pick an encoder by name.
+ *
+ * Note the asymmetry with the LLM runtime, which is injected: the encoder is
+ * selected here because stage 2 cannot degrade. A missing chat model becomes a
+ * clarify built from stage-2 scores; a missing *encoder* leaves nothing to build
+ * one from.
+ */
 export function makeEmbedder(kind: string): Embedder {
-  if (kind === 'ollama') return new OllamaEmbedder();
+  if (kind === 'ollama') return new OllamaEmbeddingRuntime();
   return new HashingEmbedder();
 }

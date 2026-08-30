@@ -1,3 +1,4 @@
+import type { LlmRuntime } from '@nextgen/core-inference';
 import { stage1, stage2, stage3 } from './stages.ts';
 import { resolveSlots } from './slots.ts';
 import {
@@ -31,6 +32,11 @@ export interface RouteDeps {
   readonly embedder: Embedder;
   readonly thresholds?: Thresholds;
   readonly useStage3?: boolean;
+  /**
+   * The stage-3 runtime. Omit it and the cascade runs stages 1–2 only — the same
+   * degraded path it takes when a runtime is present but unreachable.
+   */
+  readonly runtime?: LlmRuntime | undefined;
   readonly model?: string | undefined;
 }
 
@@ -45,7 +51,9 @@ export async function route(
   ctx: ScreenContext,
   deps: RouteDeps,
 ): Promise<TurnTrace> {
-  const { registry, embedder, thresholds = THRESHOLDS, useStage3 = true, model } = deps;
+  const { registry, embedder, thresholds = THRESHOLDS, useStage3 = true, runtime, model } = deps;
+  // No runtime is indistinguishable from an unreachable one, deliberately.
+  const stage3Enabled = useStage3 && runtime !== undefined;
   const t0 = performance.now();
 
   const trace: TurnTrace = {
@@ -135,7 +143,7 @@ export async function route(
     // A stage-1 phrase match that leaves required slots empty is not a failure
     // of stage 1 — it identified the capability correctly. Let stage 3 try to
     // fill the gap before giving up and asking.
-    if (result.outcome === OUTCOME.EXECUTE || !useStage3) return result;
+    if (result.outcome === OUTCOME.EXECUTE || !stage3Enabled) return result;
     trace.notes.push('stage1 identified capability but slots incomplete — escalating');
   }
 
@@ -168,11 +176,11 @@ export async function route(
 
   if (s2.decision === 'accept' && !hit) {
     const result = settle(s2.top.capabilityId, STAGE.EMBEDDING);
-    if (result.outcome === OUTCOME.EXECUTE || !useStage3) return result;
+    if (result.outcome === OUTCOME.EXECUTE || !stage3Enabled) return result;
     trace.notes.push('stage2 accepted but slots incomplete — escalating');
   }
 
-  if (!useStage3) {
+  if (!stage3Enabled) {
     trace.decidedAt = STAGE.EMBEDDING;
     trace.notes.push('stage3 disabled');
     return finish(OUTCOME.CLARIFY);
@@ -181,7 +189,7 @@ export async function route(
   // ---- stage 3 -------------------------------------------------------------
   let s3;
   try {
-    s3 = await stage3(utterance, s2.candidates, registry, ctx, { model });
+    s3 = await stage3(utterance, s2.candidates, registry, ctx, { runtime: runtime!, model });
   } catch (err) {
     // Model unavailable is a normal case, not an exception path. Degrade to a
     // clarify built from what stage 2 already knows (sdlc/design.md).

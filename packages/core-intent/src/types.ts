@@ -39,6 +39,7 @@ export {
 } from '@nextgen/core-capability';
 
 import { isCapabilityKind } from '@nextgen/core-capability';
+import type { Vector } from '@nextgen/core-inference';
 import type { Capability } from '@nextgen/core-capability';
 
 /** Surface form → canonical value, plus leaf → parent for category roll-up. */
@@ -62,15 +63,12 @@ export interface Registry {
 
 // --------------------------------------------------------------- embedding --
 
-export type Vector = readonly number[];
-
-export interface Embedder {
-  readonly name: string;
-  /** Optional: lexical encoders build a vocabulary from the registry corpus. */
-  fit?(corpus: readonly string[]): unknown;
-  embed(text: string): Promise<Vector>;
-  embedAll(texts: readonly string[]): Promise<Vector[]>;
-}
+/**
+ * The encoder contract lives in `core-inference` alongside the LLM runtime —
+ * both are "a model this package talks to", and defining one of them here and
+ * the other there is how the two drift apart.
+ */
+export type { Vector, EmbeddingRuntime as Embedder } from '@nextgen/core-inference';
 
 // ------------------------------------------------------------------- input --
 

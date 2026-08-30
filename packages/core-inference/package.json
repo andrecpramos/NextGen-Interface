@@ -1,12 +1,15 @@
-﻿{
-    "version":  "0.1.0",
-    "name":  "@nextgen/core-inference",
-    "main":  "./src/index.ts",
-    "description":  "LLM runtime adapters: Ollama (desktop), llama.rn (mobile), WebGPU (web).",
-    "scripts":  {
-                    "test":  "vitest run --passWithNoTests",
-                    "typecheck":  "tsc --noEmit"
-                },
-    "type":  "module",
-    "private":  true
+{
+  "version": "0.1.0",
+  "name": "@nextgen/core-inference",
+  "main": "./src/index.ts",
+  "description": "LLM runtime adapters: Ollama (desktop), llama.rn (mobile), WebGPU (web).",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  }
 }

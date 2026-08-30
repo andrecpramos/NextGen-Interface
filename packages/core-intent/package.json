@@ -21,7 +21,8 @@
     "inspect": "node eval/inspect.js --embedder=ollama"
   },
   "dependencies": {
-    "@nextgen/core-capability": "workspace:*"
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-inference": "workspace:*"
   },
   "devDependencies": {}
 }

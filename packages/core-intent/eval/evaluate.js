@@ -6,6 +6,7 @@ import { makeEmbedder, cosine } from '../src/embedder.ts';
 import { loadRegistry, similarityAudit } from '../src/registry.ts';
 import { route } from '../src/cascade.ts';
 import { thresholdsFor, OLLAMA, STAGE, OUTCOME } from '../src/config.ts';
+import { OllamaLlmRuntime } from '@nextgen/core-inference';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -121,6 +122,9 @@ async function main() {
   console.log(`  stage 3    ${args.stage3 ? args.model : 'DISABLED'}`);
   console.log(`  thresholds tauHigh=${THRESHOLDS.tauHigh} delta=${THRESHOLDS.delta} tauAct=${THRESHOLDS.tauAct} tauFloor=${THRESHOLDS.tauFloor}\n`);
 
+  // WP-06: the router no longer knows what Ollama is. It takes a runtime.
+  const runtime = args.stage3 ? new OllamaLlmRuntime({ model: args.model }) : undefined;
+
   const embedder = makeEmbedder(args.embedder);
   const registry = await loadRegistry(join(HERE, 'registry.json'), embedder);
 
@@ -140,7 +144,7 @@ async function main() {
     let trace;
     try {
       trace = await route(entry.utterance, ctx, {
-        registry, embedder, thresholds: THRESHOLDS, useStage3: args.stage3, model: args.model,
+        registry, embedder, thresholds: THRESHOLDS, useStage3: args.stage3, runtime, model: args.model,
       });
     } catch (err) {
       trace = { outcome: 'error', decidedAt: STAGE.NONE, error: String(err.message || err), latency: { total: 0 }, params: {}, notes: [] };

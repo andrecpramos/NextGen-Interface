@@ -1,6 +1,7 @@
 import { normalize } from './text.ts';
 import { cosine } from './embedder.ts';
-import { OLLAMA, THRESHOLDS, type Thresholds } from './config.ts';
+import { THRESHOLDS, type Thresholds } from './config.ts';
+import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
 import { OUT_OF_SCOPE_ID } from './config.ts';
 import { STAGE, type Candidate, type Embedder, type Registry, type SlotValue, type Stage } from './types.ts';
 
@@ -121,6 +122,15 @@ export async function stage2(
 
 // ------------------------------------------------------------- stage 3 ------
 
+/** The runtime could not be reached. Degrade, do not crash (sdlc/design.md). */
+export class RuntimeUnavailableError extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = 'RuntimeUnavailableError';
+  }
+}
+
+
 export interface Stage3Result {
   readonly capabilityId: string | null;
   /**
@@ -137,6 +147,11 @@ export interface Stage3Result {
 }
 
 interface Stage3Options {
+  /**
+   * The runtime to ask. Required — stage 3 no longer knows what Ollama is, which
+   * is the point of WP-06: swapping in llama.rn on a phone touches nothing here.
+   */
+  readonly runtime: LlmRuntime;
   readonly model?: string | undefined;
 }
 
@@ -159,9 +174,8 @@ export async function stage3(
   candidates: readonly Candidate[],
   registry: Registry,
   ctx: { readonly today: string; readonly route?: string },
-  opts: Stage3Options = {},
+  opts: Stage3Options,
 ): Promise<Stage3Result> {
-  const model = opts.model || OLLAMA.chatModel;
 
   const menu = candidates.map(({ capabilityId }) => {
     const cap = registry.byId.get(capabilityId)!;
@@ -182,7 +196,7 @@ export async function stage3(
   // WP-01 caveat: that only works if the model will actually pick it. gemma3:1b
   // never does, across 140 calls (FINDINGS Finding 7). The mechanism below is
   // correct and insufficient; do not assume out-of-scope input is caught here.
-  const schema = {
+  const schema: JsonSchema = {
     type: 'object',
     properties: {
       capabilityId: { type: 'string', enum: [...menu.map((m) => m.id), OUT_OF_SCOPE_ID] },
@@ -215,41 +229,30 @@ export async function stage3(
     `<utterance>${utterance}</utterance>`,
   ].join('\n');
 
-  const started = performance.now();
-  const res = await fetch(`${OLLAMA.host}/api/chat`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      format: schema, // structured output == constrained decoding
-      options: { temperature: 0, num_predict: 200 },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: prompt },
-      ],
-    }),
-    signal: AbortSignal.timeout(OLLAMA.timeoutMs),
+  const result = await opts.runtime.complete<{
+    capabilityId?: string;
+    confidence?: number;
+    params?: Record<string, SlotValue>;
+  }>({
+    system,
+    prompt,
+    schema,
+    ...(opts.model !== undefined ? { model: opts.model } : {}),
   });
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`chat failed (${res.status}): ${body}`);
+  const latencyMs = result.latencyMs;
+
+  // A runtime that cannot be reached is a normal condition on a device, not an
+  // exception. The cascade degrades to a clarify built from stage 2.
+  if (result.unavailable !== undefined) {
+    throw new RuntimeUnavailableError(result.unavailable);
   }
 
-  const json = (await res.json()) as { message?: { content?: string } };
-  const latencyMs = performance.now() - started;
-
-  let parsed: { capabilityId?: string; confidence?: number; params?: Record<string, SlotValue> };
-  try {
-    parsed = JSON.parse(json.message?.content ?? '') as typeof parsed;
-  } catch {
-    // Rare, not impossible — 1 in ~140 calls on llama3.1:8b. If the rate ever
-    // climbs, the runtime has stopped honouring the constraint and that is a
-    // finding in itself.
+  if (result.parseFailed || result.value === null) {
     return { capabilityId: null, selfReportedConfidence: 0, rawParams: {}, latencyMs, parseFailed: true };
   }
 
+  const parsed = result.value;
   const confidence = Math.max(0, Math.min(1, parsed.confidence ?? 0));
 
   if (parsed.capabilityId === OUT_OF_SCOPE_ID) {

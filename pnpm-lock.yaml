@@ -45,6 +45,9 @@ importers:
       '@nextgen/core-capability':
         specifier: workspace:*
         version: link:../core-capability
+      '@nextgen/core-inference':
+        specifier: workspace:*
+        version: link:../core-inference
 
   packages/core-trace: {}
 

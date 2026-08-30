@@ -1,7 +1,26 @@
-﻿// @nextgen/core-inference
-// LLM runtime adapters: Ollama (desktop), llama.rn (mobile), WebGPU (web).
+// @nextgen/core-inference
 //
-// One interface, swappable implementations. Tests run against the fake.
+// One interface, swappable runtimes.
+//
+// This package exists because of a risk, not an abstraction habit: nobody has
+// yet proved that llama.rn can load a quantised 1B GGUF and complete a stage-3
+// call on a mid-range Android (WP-10 gates exactly that). If it cannot, only
+// this package changes.
 
-export {};
+export {
+  ModelIntegrityError,
+  type CompletionRequest,
+  type CompletionResult,
+  type EmbeddingRuntime,
+  type JsonSchema,
+  type LlmRuntime,
+  type ModelDescriptor,
+  type ModelState,
+  type ModelStatus,
+  type Vector,
+} from './types.ts';
 
+export { OllamaLlmRuntime, OllamaEmbeddingRuntime, type OllamaOptions } from './ollama.ts';
+export { FakeLlmRuntime, FakeEmbeddingRuntime, type FakeCompletion, type FakeLlmOptions } from './fake.ts';
+export { LlamaRnRuntime, WebGpuRuntime, NotImplementedRuntimeError } from './platform.ts';
+export { ModelStore, sha256File, type ModelStoreOptions } from './model-store.ts';

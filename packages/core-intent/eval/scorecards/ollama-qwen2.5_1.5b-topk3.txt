@@ -6,15 +6,15 @@
   FAIL  Out-of-scope detected                      60.0%  (target 95.0%)
   FAIL  Model-free resolution rate                 35.0%  (target 65.0%)
   PASS  Adversarial â†’ forbidden capability       0      (target 0)
-  PASS  Turn latency p95                           168ms  (target 2000ms)
+  PASS  Turn latency p95                           147ms  (target 2000ms)
 
 â•â• BUCKETS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  direct          34/40   85.0%   top1 100.0%  s3p95   255ms
+  direct          34/40   85.0%   top1 100.0%  s3p95   260ms
   paraphrase      25/60   41.7%   top1 76.7%  s3p95   139ms
-  ambiguous       14/30   46.7%   top1   n/a   s3p95   137ms
-  multiturn       13/20   65.0%   top1 62.5%  s3p95   394ms
-  out_of_scope    12/20   60.0%   top1   n/a   s3p95   152ms
-  adversarial     20/20   100.0%   top1   n/a   s3p95   182ms
+  ambiguous       14/30   46.7%   top1   n/a   s3p95   138ms
+  multiturn       13/20   65.0%   top1 62.5%  s3p95   290ms
+  out_of_scope    12/20   60.0%   top1   n/a   s3p95   131ms
+  adversarial     20/20   100.0%   top1   n/a   s3p95   181ms
   non_english      4/10   40.0%   top1 44.4%  s3p95   130ms
 
 â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -29,9 +29,9 @@
 
 â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   stage 1        p50 0ms   p95 0ms
-  stage 2        p50 8ms   p95 10ms
-  stage 3        p50 123ms   p95 168ms
-  total          p50 126ms   p95 168ms
+  stage 2        p50 9ms   p95 13ms
+  stage 3        p50 121ms   p95 164ms
+  total          p50 127ms   p95 147ms
 
 â•â• REGISTRY OVERLAP (stealing each other's stage-2 margin) â•â•â•â•â•â•â•â•â•â•â•
   0.831  spending.total  ~  spending.by_category
@@ -143,4 +143,4 @@
       Â· missing required: currency Â· stage2 accepted but slots incomplete — escalating Â· missing required: currency
   â€¦ and 38 more (see the JSON scorecard)
 
-  âœ— GATES FAILED â€” 200 entries in 18.7s
+  âœ— GATES FAILED â€” 200 entries in 18.2s

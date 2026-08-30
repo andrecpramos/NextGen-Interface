@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ · WP-04 ✅ · WP-05 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-06** (inference) or **WP-07** (domain).
+**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ · WP-04 ✅ · WP-05 ✅ · WP-06 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-07** (domain).
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -91,7 +91,7 @@ verified on disk.
 | Flutter + Riverpod + GoRouter | ❌ **Rejected** | [ADR-006](.ai/decisions/ADR-006.md) — no Dart experience; TS monorepo instead |
 | Drift / Isar | ❌ **Rejected** | [ADR-007](.ai/decisions/ADR-007.md) — Drizzle; SQLite reasoning kept. **Built in WP-04**, on `node:sqlite` |
 | Local-first, no backend | ⚠️ **Amended** | [ADR-008](.ai/decisions/ADR-008.md) — backend exists, device stays source of truth |
-| llama.cpp / ONNX inference | ✅ Accepted, ⛔ not built | via Ollama / llama.rn / WebGPU |
+| llama.cpp / ONNX inference | ✅ **Interface built — WP-06** | Ollama live; `llama.rn` / WebGPU declared, gated by WP-10 / WP-09 |
 | Whisper STT + Piper TTS | ✅ Accepted, ⛔ not built | |
 | Gemma 3 1B / Qwen 2.5 1.5B | ✅ **Tested — WP-01** | `qwen2.5:1.5b` selected; `gemma3:1b` rejected. [FINDINGS Part II](packages/core-intent/eval/FINDINGS.md) |
 | Registry-based AI navigation | ✅ **Built — WP-03** | `defineCapability()` + codegen; route and intent generated together |
@@ -529,29 +529,52 @@ Finding 3, the one the next developer has too.
 
 ---
 
-### WP-06 · `core-inference` — runtime adapters
+### WP-06 · `core-inference` — runtime adapters ✅ **COMPLETE — 2026-08-30**
 
-**Goal:** One interface, swappable runtimes. This is the mitigation for the ADR-006
-mobile-inference risk — if `llama.rn` fails, only this package changes.
+**Goal:** One interface, swappable runtimes. The mitigation for the ADR-006 mobile-
+inference risk — if `llama.rn` fails, only this package changes.
 
-**Depends on:** WP-01, WP-02
+**Built:** `LlmRuntime` and `EmbeddingRuntime`; `OllamaLlmRuntime` and
+`OllamaEmbeddingRuntime` (extracted from `core-intent`); `FakeLlmRuntime` and
+`FakeEmbeddingRuntime`; `ModelStore` with download, SHA-256 verification and idle
+unload; and honest, throwing placeholders for `llama.rn` and WebGPU. 18 tests here plus
+17 cascade integration tests.
 
-**Build**
-- `LlmRuntime` interface: `complete(prompt, schema, opts)` with constrained decoding
-- `EmbeddingRuntime` interface
-- Adapters: `OllamaRuntime` (extract from `core-intent/src/stages.js`),
-  `LlamaRnRuntime` (mobile), `WebGpuRuntime` (web), **`FakeRuntime` (tests)**
-- Model lifecycle: download, **SHA-256 verify before load, fail closed**, idle unload
-- **Default model is `qwen2.5:1.5b` at `topK: 3`** (WP-01). `topK` is a property of
-  the *model*, not the encoder — carry it in the runtime config next to the model id,
-  the way thresholds travel with the encoder.
+**`core-intent` no longer contains a single `fetch` call.** Both the chat transport and
+the encoder transport moved out, so swapping the runtime on a phone touches nothing in
+the cascade. Verified: `grep -rn "fetch(" packages/core-intent/src/` returns nothing.
 
-**Acceptance**
-- `core-intent` no longer talks to Ollama directly — it takes a runtime
-- Integration tests run against `FakeRuntime`, no network, deterministic
-- Timeout + fallback on every call; model-missing degrades to stages 1–2
-- Constrained decoding is mandatory — plus a parse-failure fallback, because it is
-  **not** an absolute guarantee (measured 0.7% failure rate)
+**The platform runtimes throw rather than pretending.** `new LlamaRnRuntime()` fails with
+what has to happen before it can exist. A runtime that silently returned nothing would let
+the app appear to work on a platform where inference has never run, and that discovery
+belongs in development rather than in a store review.
+
+**Verify before load, fail closed.** A model file is executable weight fetched over a
+network, and a truncated download looks identical to a substituted one. Downloads land on
+a `.part` file and are renamed into place only after the hash matches, so an interrupted
+download cannot be mistaken for a complete one on the next launch. The hash is re-checked
+on *every* load, not only after download.
+
+**A found bug, in the tests rather than the code.** The cascade integration fixture
+inherited the production `boundaryMargin` of 0.105 and produced a false refusal: on a
+five-capability toy registry every real capability scores exactly 0.000, so any nonzero
+boundary score wins. `boundaryMargin` is an artefact of the **registry** as well as the
+encoder — [ADR-009](.ai/decisions/ADR-009.md) now says so, and a domain that adds
+capabilities must re-calibrate.
+
+**Acceptance — met**
+
+- `core-intent` no longer talks to Ollama directly — it takes a runtime ✅
+- Integration tests run against `FakeRuntime`: no network, deterministic ✅
+  (and deliberately so — Finding 10 makes a suite built on real inference flaky)
+- Timeout and fallback on every call; a missing model degrades to stages 1–2 and asks,
+  rather than throwing ✅
+- Constrained decoding is mandatory in the type — `schema` is required, with no overload
+  that omits it — plus the parse-failure fallback Finding 6 requires ✅
+- Model lifecycle: download, **SHA-256 verify before load, fail closed**, idle unload ✅
+
+**Behaviour unchanged:** `pnpm router:floor` byte-identical, and `qwen2.5:1.5b --topk=3`
+reproduces 80.0% top-1 / 98.2% param exactness / 60.0% out-of-scope / 0 safety violations.
 
 ---
 
@@ -685,7 +708,7 @@ the architecture's real exam.
 | No out-of-scope detection on target hardware | ~~high~~ | ✅ **CLOSED by [ADR-009](.ai/decisions/ADR-009.md)** — registry declares the app's limits; 0% → 40% on `gemma3:1b`, model-free. Residual: recall bounded by how well the boundary is written |
 | **`tauAct` reads a signal small models don't produce** | medium | **OPEN — new.** Gate held 15.7% of calls on 8B, 0.7% on 1.5B. Replace self-report with margin or stage-2/3 agreement (Finding 8) |
 | Golden-set gates are not run-to-run deterministic | medium | **OPEN — new.** 7/200 entries flipped between identical 8B runs at temp 0. WP-12 must gate on tolerances (Finding 10) |
-| Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate; mitigated by adapter interface. Desktop headroom is now large (151ms p95 at 1.5B), which helps but does not settle it |
+| Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate. **Mitigation now real:** the adapter interface exists and `core-intent` holds no transport code, so a failure changes one package. Desktop headroom is large (151ms p95 at 1.5B); that helps but does not settle it |
 | Model assets (0.9–1.6 GB) vs 200 MB store cap | high | Planned — on-demand delivery from day one. Selected model is 986 MB, at the low end of that range |
 | Model-free rate 30% vs 65% target | high | Partly measurement artefact; needs realistic corpus + `ScreenContext` slots |
 | Registry growth erodes stage-2 margins | medium | `similarityAudit()` exists; quarterly review documented |
