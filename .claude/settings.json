@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/branch-check.mjs",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Checking branch state"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/branch-check.mjs",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Checking branch state"
+          }
+        ]
+      }
+    ]
+  }
+}
