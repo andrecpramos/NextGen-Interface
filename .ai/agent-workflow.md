@@ -5,12 +5,18 @@ How agents working in this repository decide where their commits go.
 ## The rule
 
 **At the start of every new context window, the agent asks whether to keep working
-on the current branch or cut a new one — and waits for the answer before making any
-code change.**
+on the current branch or cut a new one from `develop` — and waits for the answer
+before making any code change.**
 
 Read-only work is exempt: a question, a review, an explanation that writes no files
 does not need a branch. The question is asked once per context window, not before
 every edit.
+
+The branch it proposes is never arbitrary. This repository runs a two-trunk model
+— `main` is production and moves only on the user's explicit instruction, `develop`
+is integration and takes everything else. The full policy, including how a release
+is performed, is [.ai/sdlc/branching.md](sdlc/branching.md); the version the agent
+actually receives every session is [CLAUDE.md](../CLAUDE.md).
 
 ## How it is enforced
 
@@ -27,10 +33,15 @@ start of a fresh context window.
 `manual|auto`, so the check fires on every path that produces a new context window:
 a fresh session, a resumed one, `/clear`, and both manual and automatic compaction.
 
-The hook injects **live state**, not a static reminder — current branch, commits
-ahead of `main`, and the count of uncommitted files. An agent that is told
-*"you are on `wp-01-1b-validation`, 8 commits ahead of main, 5 files uncommitted"*
-asks a useful question. One told *"consider branching"* does not.
+The hook injects **live state**, not a static reminder — current branch, position
+relative to `develop`, and the count of uncommitted files. An agent told *"you are
+on `wp-01-1b-validation`, 3 ahead and 2 behind develop, 5 files uncommitted"* asks a
+useful question. One told *"consider branching"* does not.
+
+Its message is situational, and each branch class gets a different one: a refusal
+on `main`, a soft nudge on `develop`, ahead/behind counts on a feature branch, and
+an explicit warning when a feature branch no longer contains the tip of `develop`
+and would carry stale work on merge.
 
 ### Implementation notes
 
@@ -80,5 +91,7 @@ Nothing was lost, because the CI work committed named paths rather than `git add
 
 ## Related
 
+- [CLAUDE.md](../CLAUDE.md) — the contract as the agent receives it, every session
+- [.ai/sdlc/branching.md](sdlc/branching.md) — main/develop policy and how a release is cut
 - [.ai/sdlc/ci-cd.md](sdlc/ci-cd.md) — what gates a branch has to pass to merge
 - [ADR-011](decisions/ADR-011.md) — why those gates are shaped the way they are

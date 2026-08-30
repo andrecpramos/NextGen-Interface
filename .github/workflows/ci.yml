@@ -11,9 +11,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 concurrency:
@@ -25,6 +25,23 @@ env:
   PNPM_VERSION: '11.1.2'
 
 jobs:
+  # Enforces the branching contract in CLAUDE.md: feature branches merge into
+  # develop, and only develop reaches main. A PR into main from anything else is
+  # a mistake, and a red check is a cheaper way to find out than a merge.
+  guard-production:
+    name: only develop may merge to main
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check the source branch
+        run: |
+          if [ "${{ github.head_ref }}" != "develop" ]; then
+            echo "::error::PR targets 'main' from '${{ github.head_ref }}'. Production takes develop only — retarget this PR at 'develop'. See CLAUDE.md."
+            exit 1
+          fi
+          echo "develop -> main. Release PR, allowed."
+
   verify:
     name: typecheck · test · registry · boundaries
     runs-on: ubuntu-latest
