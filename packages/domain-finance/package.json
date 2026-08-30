@@ -4,7 +4,7 @@
   "main": "./src/index.ts",
   "description": "Finance domain: entities, use cases, and capability registrations.",
   "scripts": {
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "registry:build": "node scripts/build-registry.ts"
   },
@@ -15,5 +15,8 @@
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*"
+  },
+  "devDependencies": {
+    "@nextgen/data": "workspace:*"
   }
 }

@@ -17,7 +17,7 @@ import { schema as sqliteSchema } from './schema/sqlite.ts';
 import { schema as pgSchema } from './schema/postgres.ts';
 
 const ACC = {
-  id: 'acc1', name: 'Everyday', type: 'current', currency: 'EUR' as const,
+  id: 'acc1', name: 'Everyday', type: 'current' as const, currency: 'EUR' as const,
   openingMinor: 100000, createdAt: '2026-01-01T00:00:00.000Z',
 };
 

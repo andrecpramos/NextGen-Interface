@@ -15,10 +15,19 @@ import {
  * place a bad amount can be stopped before it becomes history.
  */
 
+/** The four account shapes the finance domain recognises. */
+export type AccountType = 'current' | 'savings' | 'credit_card' | 'cash';
+
+const ACCOUNT_TYPES: readonly string[] = ['current', 'savings', 'credit_card', 'cash'];
+
+export function isAccountType(t: string): t is AccountType {
+  return ACCOUNT_TYPES.includes(t);
+}
+
 export interface AccountRecord {
   readonly id: string;
   readonly name: string;
-  readonly type: string;
+  readonly type: AccountType;
   readonly currency: CurrencyCode;
   readonly openingMinor: number;
   readonly createdAt: string;
@@ -92,6 +101,13 @@ export class SqliteAccountRepository implements AccountRepository {
     assertMinorUnits(a.openingMinor, `account ${a.id} openingMinor`);
     if (!isCurrencyCode(a.currency)) {
       throw new TypeError(`account ${a.id} has unsupported currency "${a.currency}"`);
+    }
+    // Validated on the way IN, which is what lets the read path narrow the row
+    // to AccountType honestly rather than asserting it and hoping.
+    if (!isAccountType(a.type)) {
+      throw new TypeError(
+        `account ${a.id} has unknown type "${a.type}" — expected one of ${ACCOUNT_TYPES.join(', ')}`,
+      );
     }
     this.#db
       .prepare(

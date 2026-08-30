@@ -20,7 +20,8 @@ export {
 
 export {
   SqliteAccountRepository, SqliteBudgetRepository, SqliteCategoryRepository, SqliteTransactionRepository,
-  type AccountRecord, type AccountRepository,
+  isAccountType,
+  type AccountRecord, type AccountRepository, type AccountType,
   type BudgetRecord, type BudgetRepository,
   type CategoryRecord, type CategoryRepository,
   type TransactionRecord, type TransactionRepository,

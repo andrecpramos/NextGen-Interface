@@ -64,6 +64,10 @@ importers:
       '@nextgen/core-capability':
         specifier: workspace:*
         version: link:../core-capability
+    devDependencies:
+      '@nextgen/data':
+        specifier: workspace:*
+        version: link:../data
 
   packages/ui: {}
 

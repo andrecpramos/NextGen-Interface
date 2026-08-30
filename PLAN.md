@@ -1,7 +1,8 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ · WP-04 ✅ · WP-05 ✅ · WP-06 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-07** (domain).
+**Progress:** WP-01…WP-07 ✅ — the whole engine and domain layer. See [§5](#5-measured-results--the-router).
+Next: **WP-08** (`ui`) → **WP-09** (`apps/web`), which together complete MVP 1.
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -80,7 +81,7 @@ verified on disk.
 | 2 · Intent Recognition | required | ✅ **Built & measured at 1B** — `packages/core-intent` |
 | 3 · Action (intent → execution) | required | ◐ **Dispatcher + policy built** — `core-dispatch`; query/undo impls in WP-04 |
 | 4 · Navigation (AI controls routing) | required | ✅ **Built** — `NavigationEngine`, routes generated from the registry |
-| 5 · Knowledge (domain intelligence) | required | ⛔ Not built |
+| 5 · Knowledge (domain intelligence) | required | ⛔ Not built — MVP 3 |
 
 **Persistence** (not an AI layer, but everything above needs it): ✅ `packages/data` — schema, migrations, the fixed query set, undo journal, seeded fixtures.
 
@@ -100,7 +101,7 @@ verified on disk.
 
 | | Blueprint scope | Status |
 |---|---|---|
-| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | ~15% — router only, now validated at 1B |
+| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | **~70%** — engine, data, trace, inference and domain complete; UI and app remain |
 | **MVP 2** — voice + analytics | Whisper, Piper, spending analytics | 0% |
 | **MVP 3** — coaching + domain #2 | goals, predictions, second domain | 0% |
 
@@ -128,8 +129,8 @@ NextGen_Interface/
 │   │   └── src/               types · recorder · store · explain · 28 tests
 │   ├── core-inference/        5 lines                  ⬜ scaffold
 │   ├── core-voice/            5 lines                  ⬜ scaffold
-│   ├── domain-finance/        27 capability defs        ◐ registry only
-│   │   ├── src/capabilities.ts  20 capabilities + 7 declared limits
+│   ├── domain-finance/        TypeScript, strict        ✅ IMPLEMENTED
+│   │   ├── src/               capabilities · entities · events · use-cases · 34 tests
 │   │   └── generated/         routes.json · golden.generated.jsonl
 │   ├── data/                  TypeScript, strict        ✅ IMPLEMENTED
 │   │   └── src/               money · schema/{spec,sqlite,postgres} · migrate
@@ -578,26 +579,50 @@ reproduces 80.0% top-1 / 98.2% param exactness / 60.0% out-of-scope / 0 safety v
 
 ---
 
-### WP-07 · `domain-finance`
+### WP-07 · `domain-finance` ✅ **COMPLETE — 2026-08-30**
 
 **Goal:** The first domain. Proves the engine is domain-agnostic.
 
-**Depends on:** WP-03, WP-04
+**Built:** entities and repository **ports**; domain events with an `EventBus`; use
+cases (`createTransaction`, `updateTransaction`, `deleteTransaction`, `setBudget`,
+`deleteBudget`, `createAccount`, `watchBudgets`); and the 27 capability definitions
+from WP-03. 34 tests.
 
-**Build:** entities, use cases (one thing each; emit domain events rather than
-reaching sideways), repository interfaces, and ~20 capability definitions matching
-`eval/registry.json`.
+**The dependency edge runs neither way.** The domain declares the ports; `@nextgen/data`
+implements them — and because TypeScript is structural, neither package imports the
+other's version. `@nextgen/data` is a *dev* dependency here, needed only to assert the
+fit. That is stronger than the usual arrangement: a port the adapter imports is a port
+the adapter can quietly widen.
 
-**Acceptance**
-- Zero imports from `domain-finance` into any `core-*` package
-- Every capability: kind classified, params typed, ≥3 examples
-- All MVP-1 CRUD reachable by intent **and** by conventional navigation
+**That assertion immediately earned its place.** It failed on first run: `data` typed
+`account.type` as `string` while the domain says it is one of four values. Fixed where
+rows actually enter — `SqliteAccountRepository.insert` now validates it — so the read
+path narrows honestly instead of asserting and hoping.
+
+**Use cases do one thing and emit an event rather than reaching sideways.** `watchBudgets`
+is a *subscriber*: recording a transaction does not recompute budgets. The moment it did,
+the two aggregates would be welded together and domain #2 would inherit the weld. A
+throwing subscriber cannot unmake what already happened, either — the event is a
+statement of fact.
+
+**The sign lives here**, which is what [ADR-010](.ai/decisions/ADR-010.md) §2 said the
+domain owed: `createTransaction` takes a magnitude and applies direction from the
+category's kind. "twenty euros" is the quantity 20; whether it leaves or arrives is a
+property of what it was spent on, not of the sentence.
+
+**Acceptance — met**
+
+- **Zero imports from `domain-finance` into any `core-*` package** — asserted
+  mechanically, per package, over both source text and declared dependencies ✅
+- Every capability: kind classified, params typed, ≥3 examples ✅
+- All MVP-1 CRUD reachable by intent **and** by conventional navigation — every
+  executable capability has a route (Rule 7) ✅
 
 ---
 
 ### WP-08 · `ui` — design system
 
-**Depends on:** WP-05
+**Depends on:** WP-05 ✅ — **unblocked, this is the next work package.**
 
 **Build:** sphere state machine (8 states, visually distinct, `confirming` ≠
 `thinking`), confirmation card showing **parsed params, editable in place**, trace
