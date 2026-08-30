@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ · WP-04 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-05** (trace) or **WP-07** (domain).
+**Progress:** WP-01 ✅ · WP-02 ✅ · WP-03 ✅ · WP-04 ✅ · WP-05 ✅ — see [§5](#5-measured-results--the-router). Next: **WP-06** (inference) or **WP-07** (domain).
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -43,7 +43,7 @@ or package boundaries — breaking them is a defect, not a style choice.
 | 6 | Money is **integer minor units + currency code**. Never float. Not once. | [ADR-007](.ai/decisions/ADR-007.md) |
 | 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](.ai/decisions/ADR-005.md) |
 | 8 | **The device is the source of truth.** Nothing on the critical path requires network. | [ADR-008](.ai/decisions/ADR-008.md) |
-| 9 | Every turn produces a **TurnTrace**. Explainability is a record, never model narration. | [architecture.md](.ai/architecture.md) |
+| 9 | Every turn produces a **TurnTrace**. Explainability is a record, never model narration. | [architecture.md](.ai/architecture.md), enforced by `core-trace` |
 | 10 | Every new capability ships with **≥3 examples** and golden-set entries. | [.ai/coding-standards.md](.ai/coding-standards.md) |
 | 11 | Deterministic slot values **always win** over model-extracted ones. | §6, learned the hard way |
 | 12 | A routing bug is not fixed until it is a **permanent golden-set entry**. | [.ai/sdlc/testing.md](.ai/sdlc/testing.md) |
@@ -124,7 +124,8 @@ NextGen_Interface/
 │   │   └── src/               types · define · validate · codegen · audit · 30 tests
 │   ├── core-dispatch/         TypeScript, strict        ✅ IMPLEMENTED (new, WP-03)
 │   │   └── src/               policy · dispatcher · engines · 26 tests
-│   ├── core-trace/            5 lines                  ⬜ scaffold
+│   ├── core-trace/            TypeScript, strict        ✅ IMPLEMENTED
+│   │   └── src/               types · recorder · store · explain · 28 tests
 │   ├── core-inference/        5 lines                  ⬜ scaffold
 │   ├── core-voice/            5 lines                  ⬜ scaffold
 │   ├── domain-finance/        27 capability defs        ◐ registry only
@@ -492,21 +493,39 @@ million in a two-decimal currency.
 
 ---
 
-### WP-05 · `core-trace` — TurnTrace
+### WP-05 · `core-trace` — TurnTrace ✅ **COMPLETE — 2026-08-30**
 
 **Goal:** Explainability from a record, not narration (Rule 9).
 
-**Depends on:** WP-03, WP-04
+**Built:** the `TurnTrace` type from [architecture.md](.ai/architecture.md); a recorder
+that cannot be bypassed; an AES-256-GCM encrypted store with a ring buffer and export;
+and `explain()`, which renders "why did you do that?" from the record alone. 28 tests.
 
-**Build:** the `TurnTrace` type from [architecture.md](.ai/architecture.md) —
-transcript, `decidedAt`, scored candidates, model+prompt versions, outcome, `dataRead`,
-per-stage latency, `undoToken`. Encrypted store, ring buffer, export.
+**Zero model prose, enforced twice.** There is no `setReasoning` on the recorder and no
+field on `TurnTrace` a free-text model answer could land in — and because a trace crosses
+the storage boundary as a plain object, where types stop, `put()` also rejects
+`reasoning`, `explanation`, `rationale`, `modelResponse` and four more at runtime.
+Verified against the router: stage 3 requests a `reasoning` field in its schema, and the
+cascade never reads it out of the response.
 
-**Acceptance**
-- 100% of turns produce a trace, including failures and out-of-scope
-- Trace contains **zero** model-generated prose
-- "Why did you do that?" renders entirely from the record
-- `dataRead` lists tables, row counts, date ranges
+**Every turn produces a trace, including the ones that threw.** The turn runs *inside*
+the recorder and the record is written in a `finally`, because the paths that most need a
+trace are the ones that failed before reaching the end. Errors are recorded and rethrown.
+A turn that never reports an outcome is recorded as `error` — forgetting to say how a
+turn ended is not the same as it having gone well.
+
+**The most useful field turned out to be `paramSources`.** For every value the user can
+see, the explanation says whether code worked it out, the model read it, or it came from
+the screen. That is the question someone checking a number actually has — and after
+Finding 3, the one the next developer has too.
+
+**Acceptance — met**
+
+- 100% of turns produce a trace, including failures and out-of-scope ✅
+- Trace contains **zero** model-generated prose, enforced by types and again at storage ✅
+- "Why did you do that?" renders entirely from the record — no model, no network ✅
+- `dataRead` lists tables, row counts and date ranges ✅
+- Encrypted at rest with tamper detection; ring buffer; full export ✅
 
 ---
 
