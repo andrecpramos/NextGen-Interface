@@ -148,3 +148,38 @@ deploy target is a decision to make when there is something to deploy, and
 Still requiring authorization before they can be used: Atlassian, Gmail, Google
 Calendar, Google Drive, Figma. These need an interactive OAuth flow through
 claude.ai connector settings.
+
+---
+
+## Repository — one step still owed
+
+The repository was **not** created. `gh` is installed (2.89.0) and the active
+account is `andrecpramos`, but the stored token is invalid — `gh api user` returns
+`401 Bad credentials` and `gh auth status` reports *"The token in keyring is
+invalid."* Re-authenticating needs an interactive browser flow, which a
+non-interactive session cannot perform.
+
+Everything else is ready. `main` has been fast-forwarded to `wp-01-1b-validation`
+(a strict fast-forward — 8 ahead, 0 behind, nothing rewritten), so the CI workflow
+is on the default branch and runs on the first push. No remote is configured yet,
+deliberately: `gh repo create --source=.` adds it.
+
+To finish, in an interactive terminal:
+
+```bash
+gh auth login -h github.com          # browser flow, needs 'repo' scope
+gh repo create "AI Interface" --private --source=. --remote=origin --push
+```
+
+GitHub slugs the name to **`AI-Interface`**; the display name keeps the space.
+Verify with `gh repo view --json name,visibility,defaultBranchRef`.
+
+The first CI run is expected **green**: typecheck, 129 tests, `registry:check`,
+the boundary check and the scorecard gate were all run locally against this commit
+and pass, and on committed dependencies `pnpm audit --audit-level high` finds
+nothing (the PostCSS advisories belong to `apps/web`, which is not committed yet).
+
+Note that `packages/ui` and `apps/web` were under active construction in this
+working tree by a concurrent session while WP-12 was implemented, and are **not**
+part of the WP-12 commit. Push order matters: whoever commits that work should
+re-run the gates, because it is what will first turn the `audit` job red.
