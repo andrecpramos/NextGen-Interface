@@ -4,9 +4,15 @@ packages:
   - 'services/*'
   - 'tooling/*'
 
-# better-sqlite3 ships a prebuilt binary, so its build script is not needed here
-# — but drizzle-kit's esbuild is, and pnpm blocks both by default. Declaring them
-# explicitly is what stops `pnpm install` stopping to ask on a fresh clone.
+# Records which dependencies MAY run build scripts. Nothing here actually needs
+# one: persistence is node:sqlite rather than better-sqlite3, and vitest's esbuild
+# resolves through platform-specific optional dependencies.
+#
+# This list does NOT stop `pnpm install` failing on a fresh clone. pnpm 11.1.2
+# still exits 1 with ERR_PNPM_IGNORED_BUILDS despite it — reproduced in a clean
+# clone, and again with the list moved to package.json's `pnpm` field. An existing
+# checkout hides it, because a populated node_modules leaves no builds to ignore.
+# CI therefore installs with --ignore-scripts; see .github/workflows/ci.yml.
 onlyBuiltDependencies:
   - better-sqlite3
   - esbuild

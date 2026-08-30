@@ -63,6 +63,11 @@ The golden-set gate and its tolerances are described in
 - **Node 23.6+ required**, despite `engines` saying `>=20`. The repo runs
   TypeScript through `node` directly and uses `node:sqlite`. On Node 20 install
   succeeds and everything fails at run time.
+- **A fresh clone needs `pnpm install --ignore-scripts`.** pnpm 11 exits 1 with
+  `ERR_PNPM_IGNORED_BUILDS`, and the `onlyBuiltDependencies` list in
+  `pnpm-workspace.yaml` does not suppress it. Your working checkout hides this —
+  a populated `node_modules` leaves no builds to ignore. Nothing here needs a
+  native build, so skipping them is safe; CI does exactly this.
 - `jq` is **not** on PATH here. Use Node for JSON in scripts and hooks.
 - Five `package.json` files carry a PowerShell UTF-8 BOM that `JSON.parse`
   rejects. Strip it when reading a manifest.

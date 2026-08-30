@@ -6,6 +6,17 @@
 # and eval/*.js importing ../src/config.ts) which needs unflagged type stripping
 # (Node 23.6+), and packages/data needs `node:sqlite` (22.5+). On Node 20 the
 # install succeeds and then everything fails at run time. See .ai/sdlc/ci-cd.md.
+#
+# Every install passes --ignore-scripts. pnpm 11 EXITS 1 on a fresh clone with
+# ERR_PNPM_IGNORED_BUILDS (better-sqlite3, esbuild), and the onlyBuiltDependencies
+# list in pnpm-workspace.yaml does NOT suppress it -- verified by reproducing a
+# clean clone locally, and again with the list moved to package.json. A working
+# checkout hides this because node_modules is already populated, so there are no
+# builds left to ignore. Skipping the scripts is safe and was verified end to end:
+# boundaries, typecheck, all 129 tests, registry:check, the floor eval and the
+# scorecard gate all pass against an --ignore-scripts install. Nothing here needs
+# a native build -- persistence is node:sqlite, not better-sqlite3, and vitest's
+# esbuild resolves through platform-specific optional dependencies.
 
 name: CI
 
@@ -58,7 +69,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
 
       # Rule 1 — core must never import a domain. Cheapest gate, run it first.
       - name: Import boundaries (Rule 1)
@@ -109,7 +120,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
 
       # Only the hashing + no-stage-3 run is deterministic and needs no Ollama,
       # so it is the only cascade configuration CI can gate on. The model-backed
@@ -156,7 +167,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
 
       # Fails the build on a high or critical advisory. Moderate and below are
       # reported without blocking — this is a solo-developer repo and a blocking
