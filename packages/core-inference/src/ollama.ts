@@ -16,9 +16,9 @@ import type {
  */
 
 export interface OllamaOptions {
-  readonly host?: string;
-  readonly model?: string;
-  readonly timeoutMs?: number;
+  readonly host?: string | undefined;
+  readonly model?: string | undefined;
+  readonly timeoutMs?: number | undefined;
 }
 
 const DEFAULTS = {

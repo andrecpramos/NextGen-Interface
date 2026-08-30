@@ -1,4 +1,17 @@
-import type { Capability, RegistryFile } from '@nextgen/core-capability';
+import type { Capability } from '@nextgen/core-capability';
+
+/**
+ * Everything the dispatcher reads from a registry, and nothing else.
+ *
+ * Deliberately not `RegistryFile`: that also carries `enums` in their *source*
+ * form, while a loaded registry carries them compiled. Asking for the whole file
+ * made a runtime registry fail to satisfy this port despite having every field
+ * actually used — a mismatch no isolated test could surface, because neither
+ * package ever saw the other's value.
+ */
+export interface CapabilitySource {
+  readonly capabilities: readonly Capability[];
+}
 
 /**
  * The engines the dispatcher drives.
@@ -28,7 +41,7 @@ export type NavigationResult =
 export class NavigationEngine {
   private readonly byId: Map<string, Capability>;
 
-  constructor(registry: RegistryFile) {
+  constructor(registry: CapabilitySource) {
     this.byId = new Map(registry.capabilities.map((c) => [c.id, c]));
   }
 

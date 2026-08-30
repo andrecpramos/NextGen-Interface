@@ -12,6 +12,7 @@ export { policyFor, requiresConfirmation, type Policy } from './policy.ts';
 
 export {
   NavigationEngine,
+  type CapabilitySource,
   type DataRef,
   type NavigationResult,
   type QueryEngine,

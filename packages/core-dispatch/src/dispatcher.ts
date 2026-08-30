@@ -1,6 +1,8 @@
-import type { Capability, RegistryFile } from '@nextgen/core-capability';
+import type { Capability } from '@nextgen/core-capability';
+
+
 import { policyFor } from './policy.ts';
-import { NavigationEngine, type SlotValue, type UndoJournal } from './engines.ts';
+import { NavigationEngine, type CapabilitySource, type SlotValue, type UndoJournal } from './engines.ts';
 
 /**
  * The dispatcher.
@@ -31,7 +33,7 @@ export interface DispatchRequest {
 }
 
 export interface DispatcherDeps {
-  readonly registry: RegistryFile;
+  readonly registry: CapabilitySource;
   readonly undo?: UndoJournal;
 }
 

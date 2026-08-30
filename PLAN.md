@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
 **Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01…WP-07 ✅ — the whole engine and domain layer. See [§5](#5-measured-results--the-router).
+**Progress:** WP-01…WP-07 ✅ · **`apps/cli` runs the whole stack** — see [SETUP.md](SETUP.md).
 Next: **WP-08** (`ui`) → **WP-09** (`apps/web`), which together complete MVP 1.
 
 > **If you are an agent picking this up cold, read this file top to bottom before
@@ -113,6 +113,8 @@ verified on disk.
 NextGen_Interface/
 ├── .ai/                       27 docs, 8 ADRs          ✅ COMPLETE
 ├── apps/
+│   ├── cli/                   TypeScript, strict        ✅ COMPOSITION ROOT
+│   │   └── src/               app · index · 10 tests — the whole stack, runnable
 │   ├── web/                   EMPTY
 │   ├── mobile/                EMPTY
 │   └── desktop/               EMPTY

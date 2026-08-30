@@ -1,0 +1,23 @@
+{
+  "name": "@nextgen/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The composition root: the first place every package is wired into a real turn.",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "node src/index.ts",
+    "start:offline": "node src/index.ts --no-model --embedder=hashing",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-dispatch": "workspace:*",
+    "@nextgen/core-inference": "workspace:*",
+    "@nextgen/core-intent": "workspace:*",
+    "@nextgen/core-trace": "workspace:*",
+    "@nextgen/data": "workspace:*",
+    "@nextgen/domain-finance": "workspace:*"
+  }
+}
