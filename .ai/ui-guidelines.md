@@ -7,6 +7,8 @@ surfaces the assistant drives. The assistant is always reachable; the screens ar
 where answers land.
 
 ```
+   ☰                                  ● local     ☾     ← menu · engine · theme
+
         ╭─────────────╮
         │             │
         │      ◯      │      ← sphere: state, not decoration
@@ -16,18 +18,27 @@ where answers land.
      What can I help with?
 
    ╭───────────────────────────╮
-   │  Ask or say something…  🎤 │
+   │  Ask anything…          🎤 │
    ╰───────────────────────────╯
 
-   ┌────────┬────────┬────────┐   ← capability surfacing, not a menu
-   │ Spent  │ Budget │ Recent │
-   │ €412   │ 82%    │ 12 txn │
-   └────────┴────────┴────────┘
+    ( how much did I spend )  ( find the payment to… )   ← examples, first turn only
 ```
 
-Those tiles at the bottom are load-bearing. They solve the discoverability problem
-(you cannot ask for what you don't know exists) and they're tappable — the fast path
-for habitual actions.
+**Discoverability still has to be solved** — you cannot ask for what you don't know
+exists — but it is a *first-turn* problem, so its solution is a first-turn element.
+Example prompts sit under the composer until there is a conversation, then go for
+good. They are read from the capability definitions, which are the same strings the
+golden set is generated from, so nothing is offered that the router has not been
+measured on.
+
+> **Revised 2026-08-30.** This originally specified a permanent row of live-figure
+> tiles ("Spent €412 / Budget 82% / Recent 12 txn"). They were removed: a persistent
+> strip of pre-built modules is weight on every turn to solve a problem that only
+> exists on the first one, and the figures made the assistant look like a dashboard
+> with a chat box attached — the exact inversion this document opens by rejecting.
+> The **fast path for habitual actions** they also provided now lives in the drawer,
+> where it is stronger: selecting an item runs the capability directly, with no
+> router in the way. See "AI-first, not AI-only" below.
 
 ## The sphere is a state machine
 
@@ -57,6 +68,20 @@ placement and visual weight.
 
 Concretely: a nav drawer or bottom bar exists. It is not the thing the app opens on.
 The assistant is.
+
+As built: an off-canvas drawer behind one control, listing every `navigate`
+capability read straight from the registry — so it is not a menu anyone maintains,
+and it cannot come to advertise something the dispatcher will not run.
+
+**Selecting from it does not go through the router.** This is the part that is easy
+to get wrong. Turning a menu tap into a sentence and routing that sentence would put
+the model back on the one path built to be free of it, and inherit the 20% the router
+gets wrong at top-1. The drawer hands a capability id straight to the dispatcher, so
+it resolves in about a millisecond and cannot be misrouted at all.
+
+What it does **not** skip is policy. A `write` chosen from the menu still raises a
+confirmation card, because policy attaches to the capability's kind and never to how
+the user arrived ([ADR-004](decisions/ADR-004.md)).
 
 This is not a hedge. It is a requirement, for four reasons that don't go away:
 accessibility, discoverability, model-failure degradation, and speed on habitual
@@ -125,9 +150,23 @@ reduced-motion equivalent.
 
 ## Visual system
 
-- Material 3, dynamic colour, full light/dark parity — dark is not an afterthought.
-- One accent colour for AI-originated content, so "the app said this" and "the AI said
-  this" are always distinguishable.
+> **Superseded in part by [ADR-012](decisions/ADR-012.md).** Material 3 was chosen
+> when the stack was Flutter and it came free with the framework; [ADR-006](decisions/ADR-006.md)
+> then moved us to TypeScript, where it is an imported opinion rather than a default.
+> The visual language is now a bespoke token system — "graphite HUD", cyberpunk
+> register without neon, Apple design principles — defined in
+> `packages/ui/src/tokens.css`. Everything else on this page stands.
+
+- A bespoke design-token system, full light/dark parity — dark is not an afterthought,
+  and light is a designed theme rather than an inversion.
+- **One accent colour for AI-originated content**, so "the app said this" and "the AI
+  said this" are always distinguishable. A second accent — warm, distinct in hue —
+  means *waiting on the user*, and is half of what keeps `confirming` from reading as
+  `thinking`.
+- Depth from layered translucency and hairline borders. Shadows are neutral and dark;
+  **no coloured shadow anywhere**, because a coloured shadow is a glow.
+- Technical metadata — ids, scores, timings, table names — in a monospace face, so the
+  machine record is visibly not prose.
 - Financial figures in tabular numerals, aligned right, currency always shown.
 - Negative amounts distinguished by more than colour (sign, and a shape cue).
 - 8dp spacing grid.

@@ -1,8 +1,9 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Last verified:** 2026-08-29 · **Branch:** `main` · **Commits:** 4 · **Tracked files:** 99
-**Progress:** WP-01…WP-07 ✅ · **`apps/cli` runs the whole stack** — see [SETUP.md](SETUP.md).
-Next: **WP-08** (`ui`) → **WP-09** (`apps/web`), which together complete MVP 1.
+**Last verified:** 2026-08-30 · **Branch:** `wp-01-1b-validation` · **Tracked files:** 99+
+**Progress:** WP-01…WP-09 ✅ · **`apps/web` is the assistant surface, running the whole stack** — see [SETUP.md](SETUP.md).
+MVP 1 is functionally complete; **WP-12** (CI/CD) landed alongside it. Next: **WP-11**
+(docs cleanup), then MVP 2.
 
 > **If you are an agent picking this up cold, read this file top to bottom before
 > touching anything.** It tells you the goal, the rules you must not break, exactly
@@ -67,7 +68,7 @@ verified on disk.
 | `coding-standards.md`, `ui-guidelines.md`, `security.md`, `testing.md`, `deployment.md` | ✅ Done | [.ai/](.ai/) |
 | `sdlc/` × 7 phase docs | ✅ Done | [.ai/sdlc/](.ai/sdlc/) |
 | `agents/` × 6 role briefs | ✅ Done | [.ai/agents/](.ai/agents/) |
-| `decisions/` ADR-001…003 | ✅ Done — **8 ADRs**, not 3 | [.ai/decisions/](.ai/decisions/) |
+| `decisions/` ADR-001…003 | ✅ Done — **12 ADRs**, not 3 | [.ai/decisions/](.ai/decisions/) |
 | SDLC Phase 1 Planning (vision, roadmap, metrics, risks) | ✅ Done | [roadmap.md](.ai/roadmap.md) |
 | SDLC Phase 2 Requirements (FR + NFR) | ✅ Done — IDs assigned, testable | [sdlc/requirements.md](.ai/sdlc/requirements.md) |
 | SDLC Phase 3 Design (ERD, sequence diagrams, nav flow) | ✅ Done | [sdlc/design.md](.ai/sdlc/design.md) |
@@ -77,7 +78,7 @@ verified on disk.
 
 | Layer | Blueprint | Status |
 |---|---|---|
-| 1 · Conversation (voice, text, history) | required | ⛔ **Not built** |
+| 1 · Conversation (voice, text, history) | required | ◐ **Text built — WP-08/09.** Voice is WP-13 |
 | 2 · Intent Recognition | required | ✅ **Built & measured at 1B** — `packages/core-intent` |
 | 3 · Action (intent → execution) | required | ◐ **Dispatcher + policy built** — `core-dispatch`; query/undo impls in WP-04 |
 | 4 · Navigation (AI controls routing) | required | ✅ **Built** — `NavigationEngine`, routes generated from the registry |
@@ -101,7 +102,7 @@ verified on disk.
 
 | | Blueprint scope | Status |
 |---|---|---|
-| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | **~70%** — engine, data, trace, inference and domain complete; UI and app remain |
+| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | ✅ **Complete** — engine, data, trace, inference, domain, design system and web surface all built and wired |
 | **MVP 2** — voice + analytics | Whisper, Piper, spending analytics | 0% |
 | **MVP 3** — coaching + domain #2 | goals, predictions, second domain | 0% |
 
@@ -111,11 +112,13 @@ verified on disk.
 
 ```
 NextGen_Interface/
-├── .ai/                       27 docs, 8 ADRs          ✅ COMPLETE
+├── .ai/                       27 docs, 12 ADRs         ✅ COMPLETE
 ├── apps/
 │   ├── cli/                   TypeScript, strict        ✅ COMPOSITION ROOT
 │   │   └── src/               app · index · 10 tests — the whole stack, runnable
-│   ├── web/                   EMPTY
+│   ├── web/                   Next.js 15, React 19       ✅ ASSISTANT SURFACE (WP-09)
+│   │   ├── app/               layout · page · Assistant · api/{session,turn,confirm,navigate}
+│   │   └── lib/               engine (singleton + pending decisions) · render · store · wire
 │   ├── mobile/                EMPTY
 │   └── desktop/               EMPTY
 ├── packages/
@@ -129,7 +132,7 @@ NextGen_Interface/
 │   │   └── src/               policy · dispatcher · engines · 26 tests
 │   ├── core-trace/            TypeScript, strict        ✅ IMPLEMENTED
 │   │   └── src/               types · recorder · store · explain · 28 tests
-│   ├── core-inference/        5 lines                  ⬜ scaffold
+│   ├── core-inference/        TypeScript, strict        ✅ IMPLEMENTED (WP-06)
 │   ├── core-voice/            5 lines                  ⬜ scaffold
 │   ├── domain-finance/        TypeScript, strict        ✅ IMPLEMENTED
 │   │   ├── src/               capabilities · entities · events · use-cases · 34 tests
@@ -137,7 +140,9 @@ NextGen_Interface/
 │   ├── data/                  TypeScript, strict        ✅ IMPLEMENTED
 │   │   └── src/               money · schema/{spec,sqlite,postgres} · migrate
 │   │                          repositories · query-engine · undo · fixtures · 43 tests
-│   └── ui/                    5 lines                  ⬜ scaffold
+│   └── ui/                    TypeScript, strict        ✅ DESIGN SYSTEM (WP-08)
+│       └── src/               tokens.css · ui.css · Sphere · Composer · Answer
+│                              ConfirmationCard · NavDrawer · TracePanel · types
 ├── services/api/              4 lines                  ⬜ empty by design (ADR-008)
 ├── infrastructure/            dirs only
 ├── tooling/                   eslint-config · tsconfig
@@ -145,7 +150,7 @@ NextGen_Interface/
 ```
 
 **Toolchain:** Node 25.1.0 · pnpm 11.1.2 · git 2.51.2 · Ollama with `llama3.1:8b`,
-`qwen2.5:1.5b`, `gemma3:1b` + `nomic-embed-text`. All 11 workspace packages resolve.
+`qwen2.5:1.5b`, `gemma3:1b` + `nomic-embed-text`. All 15 workspace packages resolve.
 
 ### Known gaps in the scaffold itself
 
@@ -622,31 +627,121 @@ property of what it was spent on, not of the sentence.
 
 ---
 
-### WP-08 · `ui` — design system
+### WP-08 · `ui` — design system ✅ **COMPLETE — 2026-08-30**
 
-**Depends on:** WP-05 ✅ — **unblocked, this is the next work package.**
+**Built:** `packages/ui` — token system (`tokens.css`), component styles (`ui.css`),
+and six components: `Sphere` + `SphereStatus`, `Composer`, `Answer`,
+`ConfirmationCard`, `NavDrawer`, `TracePanel`.
 
-**Build:** sphere state machine (8 states, visually distinct, `confirming` ≠
-`thinking`), confirmation card showing **parsed params, editable in place**, trace
-viewer, chart components, Tailwind theme with light/dark parity.
+**Visual language changed.** Material 3 was superseded by a bespoke token system —
+"graphite HUD", cyberpunk register **without neon**, Apple design principles. See
+[ADR-012](.ai/decisions/ADR-012.md); [ui-guidelines.md](.ai/ui-guidelines.md) carries
+the pointer. Every *structural* rule in that document survived and is implemented.
+Tailwind, suggested above, was rejected in the same ADR — the tokens are the design
+system and a utility layer over them adds a build dependency and no expressiveness.
 
-**Acceptance:** WCAG 2.2 AA · 48dp targets · 4.5:1 contrast · 200% text without
-clipping · `prefers-reduced-motion` honoured · live regions announce state.
+**The sphere** is 8 states distinguished by **form first**: a body in orbit
+(`thinking`), four still corner brackets (`confirming`), amplitude rings
+(`listening`), an inward ripple (`transcribing`), an outward pulse (`acting`), synced
+bands (`speaking`), a broken rim with a strike (`error`), slow breathing (`idle`).
+Colour is the second channel, never the first — which is what makes the
+`prefers-reduced-motion` fallback carry the same information with the animation off.
+
+⚠️ `listening` / `transcribing` / `speaking` are **implemented but unreachable** until
+WP-13 wires voice. The mic button renders disabled and says so rather than pretending.
+
+**Acceptance:** 48px targets enforced in `.ngx-btn`/`.ngx-nav`; both
+themes' text pairs checked ≥ 4.5:1 at the point the token is defined; type scale in
+`rem` and no fixed-height text boxes, so 200% does not clip; `prefers-reduced-motion`
+kills every animation and transition; `SphereStatus` is an `aria-live` region and the
+sphere carries `role="img"` with its state in the label. **Not yet verified with a
+real screen reader or an automated axe pass** — that is the honest gap.
 
 ---
 
-### WP-09 · `apps/web` — the assistant surface
+### WP-09 · `apps/web` — the assistant surface ✅ **COMPLETE — 2026-08-30**
 
-**Goal:** First working app. Fastest path to a usable product.
+**Built:** Next.js 15 App Router + React 19 + Zustand. `apps/web` is a second surface
+over the *same* `FinanceApp` composition root as the CLI — it does not reimplement the
+assembly, which was the whole premise.
 
-**Depends on:** WP-03, WP-05, WP-06, WP-07, WP-08
+```
+app/            layout · page · Assistant (client) · globals.css
+app/api/        session · turn · confirm     — Node runtime, the engine lives here
+lib/            engine · render · store · wire
+```
 
-**Build:** Next.js App Router, assistant as the landing surface, conventional nav
-underneath (Rule 7), routes generated from the registry, Ollama for inference (local
-dev), Zustand for turn state.
+**Three things the CLI never needed**, all in `lib/engine.ts`: a singleton (the
+database is in-memory, so per-request construction would lose writes), survival across
+HMR via `globalThis`, and the **pending-decision table**.
 
-**Acceptance:** the MVP-1 scripted set completes end-to-end; every turn explainable
-from its trace; every screen reachable without the AI.
+⚠️ **That table is a security boundary, not a cache.** The client is never given a
+`Decision`. It gets a card and a `turnId`; the decision stays server-side, and
+`/api/confirm` merges the user's *edited values* into the remembered decision and
+re-approves it through the dispatcher. A client cannot choose the capability and
+cannot skip the card. Verified: replaying a spent `turnId` and forging one both 409.
+
+Three small additions were made to `apps/cli/src/app.ts` to make it reusable —
+`registryPath` (a bundler makes `import.meta.dirname` meaningless), a `capabilities`
+getter, a `query` getter and `snapshot()`. The CLI's 10 tests still pass.
+
+**Two renderers, one engine.** `#read` in the CLI returns padded text; `lib/render.ts`
+returns a headline, a caption and rows with bars. Both read `SqliteQueryEngine`, which
+stays the only thing allowed to compute a number the user sees (Rule 2). The cost is
+that an `execute` turn queries twice — once inside `turn()` for the trace's `dataRead`,
+once for the view. It is microseconds against in-memory SQLite; the fix, if it ever
+matters, is to hoist `#read` into a shared package.
+
+**Ollama is probed, not assumed** (ADR-008). With it: a teal dot and `local`. Without
+it: `hashing` embedder, stages 1–2 only, and an amber dot reading `no model`. A
+degraded router is a real product; an error page is not.
+
+**Verified end-to-end** against a live engine — all four decision types:
+
+| Utterance | Decision | Result |
+|---|---|---|
+| "how much did I spend on food this month" | execute | €307.24, decided at `llm`, 1018ms |
+| "how are my budgets doing" | execute | 1 over budget, decided at `embedding`, 26ms |
+| "book me a flight to tokyo" | refuse | declared limit, `embedding`, 23ms |
+| "add 12 euros for coffee today" | confirm | card with amount/category/date, all `deterministic` |
+
+The confirm was then approved **with the amount edited** 12.00 → 18.50 and the
+category changed: recorded −€18.50 against a month-to-date that moved €1,819.28 →
+€1,837.78 across 25 → 26 transactions. The edit path is the one that matters, and it
+is exercised.
+
+**Navigation simplified — 2026-08-30.** The first cut carried a 232px domain rail
+(Finance / Agenda / Health), a "will not do" list and a permanent strip of live-figure
+tiles. All three are gone. Pre-built modules are weight on every turn, and the tiles
+in particular made the assistant read as a dashboard with a chat box attached — the
+inversion [ui-guidelines.md](.ai/ui-guidelines.md) opens by rejecting. What replaced
+them:
+
+- **An off-canvas drawer**, one control in the status bar, listing every `navigate`
+  capability read from the registry. Costs nothing in the layout until asked for,
+  which is [ADR-005](.ai/decisions/ADR-005.md)'s "secondary in placement and visual
+  weight" taken literally.
+- **`FinanceApp.invoke(capabilityId)`** and `POST /api/navigate` — the drawer hands a
+  capability id straight to the dispatcher. ⚠️ **This is deliberate, not an
+  optimisation.** Routing a sentence the menu generated would put the model back on
+  the one path built to be free of it and inherit the 20% top-1 misses. Menu
+  selections resolve in ~1ms and cannot be misrouted. **Policy is untouched** — a
+  `write` from the menu still raises a confirmation card, because policy attaches to
+  the capability's kind, never to how the user arrived.
+- **First-turn example prompts** instead of tiles: registry-sourced, gone after the
+  first turn. Discoverability is a first-turn problem, so it gets a first-turn element.
+
+Verified: `budget.view` / `transactions.list` / `accounts.list` execute at
+`deterministic` in 0–10ms; `settings.currency` and `transaction.delete` both come back
+as confirmations (the latter `destructive: true`); an unknown id 404s before reaching
+the dispatcher. The CSS bundle dropped 22.2 KB → 20.8 KB.
+
+**Still open:** no automated tests in `apps/web` (the API contract is a natural
+integration-test target and there is none yet); routes are not yet *navigated* — the
+registry's `route` is tracked in `app.route` and returned on every turn, but there are
+no per-route screens under `/transactions`, `/budget` etc., so Rule 7's "every screen
+reachable without the AI" holds over the drawer — which runs each capability and
+renders its answer — rather than over a full screen set.
 
 ---
 
@@ -674,7 +769,24 @@ Remove the stack-note warning from [.ai/project.md](.ai/project.md) when done.
 
 ---
 
-### WP-12 · CI/CD
+### WP-12 · CI/CD ✅ **COMPLETE — 2026-08-30**
+
+Built by a concurrent session: [.github/workflows/ci.yml](.github/workflows/ci.yml)
+(branch guard · typecheck · tests · registry · boundaries · golden-set floor · CVE
+scan), [check-import-boundaries.mjs](tooling/scripts/check-import-boundaries.mjs) and
+[check-scorecard.mjs](tooling/scripts/check-scorecard.mjs). Reasoning in
+[ADR-011](.ai/decisions/ADR-011.md) and [ci-cd.md](.ai/sdlc/ci-cd.md).
+
+⚠️ **Lint is deliberately absent**, not forgotten — `tooling/eslint-config` has no
+`index.js` and no ESLint dependency, so a lint job would wrap a no-op and report
+green. The root `lint` and `build` scripts were removed for the same reason.
+
+⚠️ **The CVE gate went red when WP-09 landed**, exactly as `ci-cd.md` predicted:
+Next 15 pins `postcss@8.4.31`, which carries two high advisories. Fixed with a
+`postcss: ^8.5.26` override in `pnpm-workspace.yaml` — *not* in `package.json`,
+where pnpm 11 silently ignores it.
+
+Original scope, for the record:
 
 **Depends on:** WP-02, WP-03
 
@@ -750,6 +862,11 @@ the architecture's real exam.
 
 ```bash
 pnpm install
+
+# the app
+pnpm web                 # assistant surface at http://localhost:3000
+pnpm app                 # the same stack as a CLI
+pnpm app:offline         # stages 1-2 only, no model, no Ollama needed
 
 # registry — one definition, four artefacts
 pnpm registry:build      # regenerate registry.json, routes.json, golden fixtures

@@ -12,7 +12,8 @@ decision.
 
 | Layer | Choice |
 |---|---|
-| Web | Next.js (App Router) + Tailwind |
+| Web | Next.js (App Router) + React 19 + Zustand |
+| Design system | Bespoke CSS design tokens — no UI framework ([ADR-012](.ai/decisions/ADR-012.md)) |
 | Mobile | Expo / React Native |
 | Local DB | SQLite + Drizzle ([ADR-007](.ai/decisions/ADR-007.md)) |
 | Backend | Supabase — optional, off the critical path ([ADR-008](.ai/decisions/ADR-008.md)) |
@@ -22,7 +23,7 @@ decision.
 ## Structure
 
 ```
-apps/           web · mobile · desktop
+apps/           cli (composition root) · web (assistant surface) · mobile · desktop
 packages/       the product — domain-agnostic engine + finance domain
 services/       optional backend (empty through MVP 2, deliberately)
 infrastructure/ supabase · docker · ci
@@ -43,27 +44,50 @@ unlisted dependency will not resolve, which is stronger than a lint rule.
 | `core-voice` | Whisper STT + Piper TTS adapters |
 | `domain-finance` | Entities, use cases, capability registrations |
 | `data` | Drizzle schema, migrations, repositories |
-| `ui` | Sphere states, confirmation cards, trace viewer |
+| `ui` | Sphere states, confirmation cards, trace viewer. **Built.** |
 
 ## Status
 
+MVP 1 is functionally complete — WP-01 through WP-09.
+
 | | |
 |---|---|
-| Documentation foundation | ✅ complete — 8 ADRs |
-| Monorepo scaffold | ✅ complete |
-| Intent router | ✅ built, calibrated, measured |
-| Everything else | scaffold only |
+| Documentation foundation | ✅ complete — 12 ADRs |
+| Monorepo scaffold | ✅ complete — 15 workspace projects |
+| Intent router | ✅ built, calibrated, measured on a 1.5B model |
+| Engine, data, trace, inference, domain | ✅ complete |
+| `apps/cli` · `apps/web` | ✅ both run the whole stack |
+| CI/CD | ✅ complete — gates on every push (WP-12) |
+| Voice · mobile | not built — WP-10, WP-13 |
 
-**Open risk:** no 1B model has been tested. Everything measured ran against
-`llama3.1:8b` on a desktop, which predicts nothing about phone-class inference. This
-is the one result that can still invalidate the architecture — see
+**Open risk:** top-1 routing accuracy is 80% against a 90% target, and the closest
+capability pair (`spending.total` / `spending.by_category`, cosine 0.83) is where it
+fails. The trace makes each failure visible rather than hiding it — see
 [FINDINGS.md](packages/core-intent/eval/FINDINGS.md).
 
-## Run the router
+## Run it
 
 ```bash
 pnpm install
-pnpm router:inspect     # score distributions, recall@k
+pnpm web          # the assistant surface — http://localhost:3000
+```
+
+That is the product. Ollama is probed, not required: without it the router drops to
+its deterministic stages and the status bar says so, rather than failing.
+
+```bash
+pnpm app          # the same stack in a terminal
+pnpm app:offline  # stages 1-2 only, no model at all
+pnpm check        # typecheck + 248 tests + registry validation
+```
+
+Full command list in [SETUP.md](SETUP.md#command-reference), which is also where the
+prerequisites and the `ollama pull` lines live.
+
+### Measuring the router
+
+```bash
+pnpm router:inspect     # score distributions, recall@k — always look here first
 pnpm router:calibrate   # sweep thresholds — never hand-tune them
 pnpm router:eval        # full cascade against the golden set
 ```
@@ -91,7 +115,12 @@ with no model at all.
 
 ## Next
 
-1. Test a 1B model — closes the ADR-003 gate either way
-2. `core-capability` — registry schema and codegen; everything else depends on it
-3. `data` — Drizzle schema for the finance entities
-4. `apps/web` — fastest path to a working assistant surface
+1. **WP-11 — docs cleanup.** The last Dart examples in `coding-standards.md` and the
+   agent briefs still describe a stack that ADR-006 replaced.
+2. **Per-route screens.** The registry's `route` is tracked and returned on every turn
+   but there is nothing to navigate *to*. The drawer runs each capability and renders
+   its answer inline; Rule 7 holds over that rather than over a real screen set.
+3. **WP-13 — voice.** Whisper in, Piper out. Three sphere states are already built and
+   waiting on it.
+4. **Domain #2.** The real test: if adding it means touching `packages/core-*`, the
+   architecture has failed.

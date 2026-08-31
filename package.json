@@ -9,11 +9,13 @@
     "node": ">=20"
   },
   "scripts": {
+    "web": "pnpm --filter @nextgen/web dev",
+    "web:build": "pnpm --filter @nextgen/web build",
+    "web:start": "pnpm --filter @nextgen/web start",
     "app": "pnpm --filter @nextgen/cli start",
     "app:offline": "pnpm --filter @nextgen/cli start:offline",
-    "build": "pnpm -r --filter './packages/**' build",
+    "check": "pnpm typecheck && pnpm test && pnpm registry:check",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "registry:build": "pnpm --filter @nextgen/domain-finance registry:build",
     "registry:check": "pnpm --filter @nextgen/domain-finance registry:build -- --check",
@@ -23,7 +25,7 @@
     "router:calibrate": "pnpm --filter @nextgen/core-intent calibrate",
     "router:inspect": "pnpm --filter @nextgen/core-intent inspect",
     "router:compare": "pnpm --filter @nextgen/core-intent compare",
-    "clean": "pnpm -r exec rm -rf dist node_modules .turbo"
+    "clean": "pnpm -r exec rm -rf dist node_modules .turbo .next"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

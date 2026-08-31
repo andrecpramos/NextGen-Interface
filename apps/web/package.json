@@ -1,0 +1,32 @@
+{
+  "name": "@nextgen/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The assistant surface. Conversation is the interface; screens are what the AI drives.",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@nextgen/cli": "workspace:*",
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-dispatch": "workspace:*",
+    "@nextgen/core-inference": "workspace:*",
+    "@nextgen/core-intent": "workspace:*",
+    "@nextgen/core-trace": "workspace:*",
+    "@nextgen/data": "workspace:*",
+    "@nextgen/domain-finance": "workspace:*",
+    "@nextgen/ui": "workspace:*",
+    "next": "^15.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

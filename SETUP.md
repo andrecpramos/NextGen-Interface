@@ -2,8 +2,18 @@
 
 **Last verified:** 2026-08-30 · Node 25.1.0 · pnpm 11.1.2 · Windows 11
 
-There is a working app to run: `apps/cli`, the assistant loop in a terminal. There is
-**not** a web or mobile app yet — see [What is missing](#what-is-missing) at the end.
+There are two working apps: **`apps/web`**, the assistant surface in a browser, and
+`apps/cli`, the same stack as a terminal loop. There is **not** a mobile app — see
+[What is missing](#what-is-missing) at the end.
+
+## The short version
+
+```bash
+pnpm install
+pnpm web          # http://localhost:3000  — the product
+```
+
+Everything else on this page is detail.
 
 ---
 
@@ -43,15 +53,62 @@ cascade; neither is needed for the offline mode below.
 ## 4. Check it works
 
 ```bash
-pnpm typecheck     # all 13 packages, strict
-pnpm test          # 248 tests
+pnpm check          # all three gates below, in order
+```
+
+or individually:
+
+```bash
+pnpm typecheck      # every package, strict
+pnpm test           # 248 tests across 8 files
 pnpm registry:check # the capability registry is valid
 ```
 
 All three should pass. If `pnpm test` fails, stop here — nothing downstream will make
 sense.
 
-## 5. Run the app
+There is deliberately **no `build` and no `lint` at the root.** The workspace runs
+TypeScript directly via Node's native type stripping, so no package defines `build`;
+the only real build in the repo is `pnpm web:build`. ESLint is not wired up yet — see
+[ci-cd.md](.ai/sdlc/ci-cd.md), which explains why a job wrapping a no-op is worse than
+no job.
+
+## 5. Run the web app
+
+```bash
+pnpm web
+```
+
+Then open **http://localhost:3000**. The assistant is the landing surface and gets the
+whole stage. The conventional navigation Rule 7 requires lives off-canvas behind the
+☰ in the top-left — selecting from it runs the capability **directly**, with no router
+and no model involved.
+
+Try, in order:
+
+```
+  how are my budgets doing          # answers in ~25ms, without the model
+  how much did I spend on food this month
+  book me a flight to tokyo         # a declared limit — it refuses, and says why
+  add 12 euros for coffee today     # a write — a card appears, editable in place
+```
+
+On that last one, **change the amount before confirming**. That is the whole point of
+the card: it shows the *parsed parameters*, not your sentence, so a misheard twelve
+versus twenty is caught here or not at all. Then hit `why?` on any answer — the trace
+panel shows what it considered, the scores, what it read and how long it took, all
+rendered from the record rather than narrated by a model.
+
+The status bar says what is actually running: a teal dot and `local`, or an amber dot
+and `no model` if Ollama is not up. It does not fail without it — hover for detail.
+
+```bash
+pnpm web:build && pnpm web:start   # production build, if you want to check bundle size
+```
+
+## 5b. Run the CLI
+
+Same engine, same composition root, a terminal instead of a browser.
 
 ```bash
 pnpm app
@@ -129,6 +186,81 @@ history — it has cost measurable accuracy three separate times (Findings 1 and
 
 ---
 
+## Command reference
+
+Every root script, and what it is for. All run from the repo root.
+
+### Running something
+
+| | |
+|---|---|
+| `pnpm web` | **the product** — assistant surface at http://localhost:3000 |
+| `pnpm web:build` | Next.js production build (the only real build in the repo) |
+| `pnpm web:start` | serve that production build |
+| `pnpm app` | the same stack as a terminal loop, with the model |
+| `pnpm app:offline` | the same, stages 1–2 only — no model, no Ollama needed |
+
+### Checking it
+
+| | |
+|---|---|
+| `pnpm check` | `typecheck` + `test` + `registry:check`, in order — run this before a commit |
+| `pnpm typecheck` | every package, strict |
+| `pnpm test` | 248 tests across 8 files |
+| `pnpm registry:check` | validate the capability registry; this is the CI gate |
+
+### The registry
+
+`packages/domain-finance/src/capabilities.ts` is the source of truth.
+
+| | |
+|---|---|
+| `pnpm registry:build` | regenerate `registry.json`, `routes.json`, golden fixtures |
+| `pnpm registry:check` | validate only, changing nothing |
+
+⚠️ After `registry:build`, **run `pnpm router:calibrate`.** Thresholds are an artefact
+of the encoder *and* of the registry corpus. See §7 above — this is the single most
+repeated mistake in the project's history.
+
+### Measuring the router
+
+| | |
+|---|---|
+| `pnpm router:inspect` | score distributions, recall@k — **always look here first** |
+| `pnpm router:calibrate` | threshold sweep; never hand-tune thresholds |
+| `pnpm router:eval` | full cascade on `qwen2.5:1.5b` against the golden set |
+| `pnpm router:floor` | stages 1+2 only — the **only** deterministic run, so the regression net |
+| `pnpm router:baseline` | the same on `llama3.1:8b`, the historical comparison point |
+| `pnpm router:compare` | scorecards side by side across models |
+
+`router:eval` and `router:floor` **exit non-zero by design**. Read
+[FINDINGS.md](packages/core-intent/eval/FINDINGS.md) before reading anything into a
+number.
+
+### Housekeeping
+
+| | |
+|---|---|
+| `pnpm install` | workspace install; no native compilation |
+| `pnpm clean` | drop `dist`, `node_modules`, `.turbo`, `.next` everywhere |
+
+### Inside the CLI
+
+`why` · `trace` · `stats` · `help` · `exit` — see §5b.
+
+### Environment variables
+
+| | |
+|---|---|
+| `NEXTGEN_MODEL` | chat model for `apps/web`; defaults to `qwen2.5:1.5b` |
+
+There is **no `pnpm build` and no `pnpm lint`.** Both were removed rather than left to
+fail: no package defines `build` (the workspace runs TypeScript directly), and ESLint
+is not wired up. [ci-cd.md](.ai/sdlc/ci-cd.md) explains why a green job that certifies
+nothing is worse than an absent one.
+
+---
+
 ## What is missing
 
 Honest status. The engine is complete; the product surface is not.
@@ -145,16 +277,20 @@ Honest status. The engine is complete; the product surface is not.
 | `data` | schema, migrations, the fixed query set, undo journal, fixtures |
 | `domain-finance` | entities, ports, events, use cases, 27 capabilities |
 | `apps/cli` | **the composition root** — the whole stack in a terminal |
+| `ui` | design system — sphere states, confirmation card, trace viewer (WP-08) |
+| `apps/web` | **the assistant surface** — Next.js, a second surface over the same root (WP-09) |
 
 ### Not built
 
 | | Work package | What it blocks |
 |---|---|---|
-| **`ui` design system** | WP-08 | sphere states, confirmation card, trace viewer, charts |
-| **`apps/web`** | WP-09 | the actual product surface — Next.js, routes generated from the registry |
+| **Charts** | WP-08 remainder | `Answer` renders bars; there is no chart component yet |
+| **Per-route screens** | WP-09 remainder | `/transactions`, `/budget` etc. do not exist as screens — the route is tracked and returned, not navigated to |
+| **Tests for `apps/web`** | — | the API contract is the natural integration-test target |
 | **`apps/mobile`** | WP-10 | on-device inference; **gated** on proving `llama.rn` works at all |
-| **Voice** | WP-13 | MVP 2 |
-| **CI** | WP-12 | nothing enforces the gates on a push yet |
+| **Voice** | WP-13 | MVP 2 — the mic button renders disabled and says so |
+| **Lint** | WP-12 | `tooling/eslint-config` has no `index.js` and no ESLint dependency — deliberately left out of CI rather than wrapped in a green no-op |
+
 
 ### Gaps I found while wiring this up, which the plan did not name
 

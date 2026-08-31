@@ -2,7 +2,12 @@ import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
 import { loadRegistry, makeEmbedder, route, thresholdsFor } from '@nextgen/core-intent';
-import type { Registry, ScreenContext, TurnTrace as RouterTrace } from '@nextgen/core-intent';
+import type {
+  Capability,
+  Registry,
+  ScreenContext,
+  TurnTrace as RouterTrace,
+} from '@nextgen/core-intent';
 import { OllamaLlmRuntime, type LlmRuntime } from '@nextgen/core-inference';
 import { Dispatcher, type Decision } from '@nextgen/core-dispatch';
 import {
@@ -54,6 +59,14 @@ export interface AppOptions {
   readonly today?: string;
   /** Skip the LLM entirely. Stages 1–2 only — proves the offline path. */
   readonly noModel?: boolean;
+  /**
+   * Where `registry.json` lives.
+   *
+   * The CLI can find it by walking up from its own source. A bundler cannot —
+   * `import.meta.dirname` means something else once the file has been through
+   * one — so any host that is not this CLI passes the path in explicitly.
+   */
+  readonly registryPath?: string;
 }
 
 export interface TurnResult {
@@ -150,7 +163,7 @@ export class FinanceApp {
     const embedder = makeEmbedder(embedderKind);
 
     // The registry is generated from domain-finance by `pnpm registry:build`.
-    const registryPath = join(
+    const registryPath = options.registryPath ?? join(
       import.meta.dirname, '..', '..', '..',
       'packages', 'core-intent', 'eval', 'registry.json',
     );
@@ -179,6 +192,78 @@ export class FinanceApp {
 
   get traceStore(): SqliteTraceStore {
     return this.#traces;
+  }
+
+  /**
+   * What the application can do, as declared.
+   *
+   * A surface that wants to *show* the user their options reads them from the
+   * same registry the router matches against. If the two ever disagree, the UI
+   * is advertising something that cannot be run — so there is only one list.
+   */
+  get capabilities(): readonly Capability[] {
+    return this.#registry.capabilities;
+  }
+
+  get currency(): CurrencyCode {
+    return this.#options.currency;
+  }
+
+  /**
+   * The fixed query set, for surfaces that render rather than print.
+   *
+   * `#read` below is the *CLI's* renderer: it returns padded text lines, which
+   * is the right answer for a terminal and the wrong one for a screen that
+   * wants a figure at 44px and a bar beside it. Rather than teach one renderer
+   * to speak two languages, each surface renders from the same query engine —
+   * which is the only thing that is allowed to compute a number either way.
+   */
+  get query(): SqliteQueryEngine {
+    return this.#query;
+  }
+
+  /**
+   * Headline figures, computed.
+   *
+   * This exists so the discoverability tiles can carry live numbers instead of
+   * captions. Every value is produced by the query engine and formatted by
+   * `formatMoney` — Rule 2 applies to a tile exactly as it applies to an
+   * answer, and the model is not involved in either.
+   */
+  snapshot(): {
+    currency: CurrencyCode;
+    today: string;
+    monthToDate: { totalMinor: number; transactionCount: number; from: string; to: string };
+    budgets: readonly { categoryId: string; categoryName: string; spentMinor: number; limitMinor: number; remainingMinor: number }[];
+    accounts: readonly { name: string; balanceMinor: number }[];
+  } {
+    const today = this.#options.today;
+    const from = `${today.slice(0, 7)}-01`;
+    const total = this.#query.spendingTotal({ from, to: today, currency: this.#options.currency });
+    const budgets = this.#query.budgetStatus({ currency: this.#options.currency, on: today });
+    const accounts = this.#query.listAccounts();
+
+    return {
+      currency: this.#options.currency,
+      today,
+      monthToDate: {
+        totalMinor: total.rows[0]?.totalMinor ?? 0,
+        transactionCount: total.rows[0]?.transactionCount ?? 0,
+        from,
+        to: today,
+      },
+      budgets: budgets.rows.map((b) => ({
+        categoryId: b.categoryId,
+        categoryName: b.categoryName,
+        spentMinor: b.spentMinor,
+        limitMinor: b.limitMinor,
+        remainingMinor: b.remainingMinor,
+      })),
+      accounts: accounts.rows.map((a) => ({
+        name: String(a.name),
+        balanceMinor: Number(a.balanceMinor),
+      })),
+    };
   }
 
   /**
@@ -240,6 +325,71 @@ export class FinanceApp {
         );
 
         // --- act, only if policy allows --------------------------------------
+        if (decision.type === 'execute') {
+          const { lines, dataRead } = this.#read(decision.capabilityId, decision.params);
+          output = lines;
+          for (const d of dataRead) r.read(d);
+          if (decision.route) this.route = decision.route;
+        } else if (decision.type === 'refuse') {
+          output = [decision.reason];
+        } else if (decision.type === 'confirm') {
+          output = this.#describeConfirmation(decision);
+        } else {
+          output = [decision.question, ...decision.options.map((o) => `  · ${o}`)];
+        }
+      },
+    );
+
+    return { decision, output, trace: this.#traces.latest()! };
+  }
+
+  /**
+   * Run a capability the user picked by hand.
+   *
+   * This is Rule 7 taken literally. "Every screen reachable by AI is reachable
+   * without it" does not mean *typing a sentence that the router will probably
+   * route correctly* — that is still the AI, and it still fails 20% of the time
+   * at the top-1 measured here. It means a path that does not consult the
+   * router at all, which is what this is: a capability id straight into the
+   * dispatcher.
+   *
+   * Policy is unchanged. A `write` picked from a menu still produces a
+   * confirmation card, because the policy is attached to the capability's
+   * *kind*, never to how the user got there (ADR-004).
+   */
+  async invoke(capabilityId: string): Promise<TurnResult> {
+    const cap = this.#registry.byId.get(capabilityId);
+    if (!cap) throw new Error(`unknown capability "${capabilityId}"`);
+
+    let decision: Decision = { type: 'refuse', reason: 'not runnable', declared: false };
+    let output: readonly string[] = [];
+
+    await this.#recorder.run(
+      { transcript: cap.title, promptVersion: 'v3' },
+      async (r) => {
+        // The trace still has to be honest about how this was decided: it was
+        // not a match, it was a selection. `deterministic` with a single
+        // candidate at 1.0 says exactly that, and the note spells it out.
+        r.decidedAt('deterministic');
+        r.candidates([{ capabilityId, score: 1 }]);
+        r.capability(cap.id, cap.kind, cap.route);
+        r.missing([]);
+        r.note('chosen directly from the menu; the router was not consulted');
+
+        decision = this.#dispatcher.decide({
+          capabilityId,
+          params: {},
+          missing: [],
+          candidates: [capabilityId],
+        });
+
+        r.requiresConfirmation(decision.type === 'confirm');
+        r.outcome(
+          decision.type === 'execute' ? 'execute'
+            : decision.type === 'refuse' ? 'out_of_scope'
+              : 'clarify',
+        );
+
         if (decision.type === 'execute') {
           const { lines, dataRead } = this.#read(decision.capabilityId, decision.params);
           output = lines;
