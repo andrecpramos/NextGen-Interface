@@ -28,8 +28,9 @@ const nextConfig = {
     '@nextgen/core-inference',
     '@nextgen/core-intent',
     '@nextgen/core-trace',
+    '@nextgen/core-voice',
     '@nextgen/data',
-    '@nextgen/domain-finance',
+    '@nextgen/domain-modules',
   ],
   eslint: { ignoreDuringBuilds: true },
 };

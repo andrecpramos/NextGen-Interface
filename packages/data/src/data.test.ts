@@ -8,6 +8,7 @@ import {
 import { currentVersion, LATEST_VERSION, migrate, MIGRATIONS, openMemoryDatabase } from './migrate.ts';
 import {
   SqliteAccountRepository, SqliteBudgetRepository, SqliteCategoryRepository, SqliteTransactionRepository,
+  SqliteModuleCategoryRepository, SqliteModuleRepository, SqliteModuleEntryRepository,
 } from './repositories.ts';
 import { SqliteQueryEngine } from './query-engine.ts';
 import { SqliteUndoJournal } from './undo.ts';
@@ -289,6 +290,109 @@ describe('repositories — invariants at the boundary', () => {
     repo.insert(tx);
     expect(repo.delete('t1')).toMatchObject({ id: 't1', amountMinor: -1000 });
     expect(repo.get('t1')).toBeNull();
+  });
+});
+
+// -------------------------------------------------------------- modules --
+
+describe('module repositories — invariants at the boundary', () => {
+  it('refuses a self-parenting module category', () => {
+    const db = freshDb();
+    expect(() =>
+      new SqliteModuleCategoryRepository(db).insert({ id: 'health', name: 'Health', parentId: 'health', icon: null }),
+    ).toThrow();
+  });
+
+  it('refuses a module that references an unknown category', () => {
+    const db = freshDb();
+    expect(() =>
+      new SqliteModuleRepository(db).insert({
+        id: 'm1', categoryId: 'nope', title: 'Passport renewal', summary: 'How to renew.',
+        body: 'Full text.', createdAt: '2026-03-01T10:00:00.000Z', updatedAt: '2026-03-01T10:00:00.000Z',
+      }),
+    ).toThrow(/unknown category/);
+  });
+
+  it('accepts a module with no category — uncategorised is a valid state', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    repo.insert({
+      id: 'm1', categoryId: null, title: 'Passport renewal', summary: 'How to renew.',
+      body: 'Full text.', createdAt: '2026-03-01T10:00:00.000Z', updatedAt: '2026-03-01T10:00:00.000Z',
+    });
+    expect(repo.get('m1')).toMatchObject({ id: 'm1', categoryId: null });
+  });
+
+  it('refuses a module entry that references an unknown module', () => {
+    const db = freshDb();
+    expect(() =>
+      new SqliteModuleEntryRepository(db).insert({
+        id: 'e1', moduleId: 'nope', kind: 'seed', sourceType: 'text',
+        sourceExcerpt: 'raw text', createdAt: '2026-03-01T10:00:00.000Z',
+      }),
+    ).toThrow(/unknown module/);
+  });
+
+  it('refuses an entry with an unrecognised kind or source type', () => {
+    const db = freshDb();
+    new SqliteModuleRepository(db).insert({
+      id: 'm1', categoryId: null, title: 'Passport renewal', summary: 'How to renew.',
+      body: 'Full text.', createdAt: '2026-03-01T10:00:00.000Z', updatedAt: '2026-03-01T10:00:00.000Z',
+    });
+    const entries = new SqliteModuleEntryRepository(db);
+    expect(() =>
+      entries.insert({
+        id: 'e1', moduleId: 'm1', kind: 'nonsense' as never, sourceType: 'text',
+        sourceExcerpt: null, createdAt: '2026-03-01T10:00:00.000Z',
+      }),
+    ).toThrow(/kind/);
+    expect(() =>
+      entries.insert({
+        id: 'e2', moduleId: 'm1', kind: 'seed', sourceType: 'carrier-pigeon' as never,
+        sourceExcerpt: null, createdAt: '2026-03-01T10:00:00.000Z',
+      }),
+    ).toThrow(/sourceType/);
+  });
+
+  it('logs provenance as an append-only list, oldest first', () => {
+    const db = freshDb();
+    new SqliteModuleRepository(db).insert({
+      id: 'm1', categoryId: null, title: 'Passport renewal', summary: 'How to renew.',
+      body: 'Seed text.', createdAt: '2026-03-01T10:00:00.000Z', updatedAt: '2026-03-01T10:00:00.000Z',
+    });
+    const entries = new SqliteModuleEntryRepository(db);
+    entries.insert({
+      id: 'e1', moduleId: 'm1', kind: 'seed', sourceType: 'text',
+      sourceExcerpt: 'seed text', createdAt: '2026-03-01T10:00:00.000Z',
+    });
+    entries.insert({
+      id: 'e2', moduleId: 'm1', kind: 'append', sourceType: 'document',
+      sourceExcerpt: 'appended text', createdAt: '2026-03-02T10:00:00.000Z',
+    });
+    expect(entries.listByModule('m1').map((e) => e.id)).toEqual(['e1', 'e2']);
+  });
+
+  it('update replaces the current body — the entry log is what preserves history', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    repo.insert({
+      id: 'm1', categoryId: null, title: 'Passport renewal', summary: 'How to renew.',
+      body: 'Seed text.', createdAt: '2026-03-01T10:00:00.000Z', updatedAt: '2026-03-01T10:00:00.000Z',
+    });
+    const next = repo.update('m1', { body: 'Merged text.', updatedAt: '2026-03-02T10:00:00.000Z' });
+    expect(next).toMatchObject({ id: 'm1', body: 'Merged text.' });
+    expect(repo.get('m1')).toMatchObject({ body: 'Merged text.' });
+  });
+
+  it('returns the deleted module so undo has something to restore', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    repo.insert({
+      id: 'm1', categoryId: null, title: 'Passport renewal', summary: 'How to renew.',
+      body: 'Full text.', createdAt: '2026-03-01T10:00:00.000Z', updatedAt: '2026-03-01T10:00:00.000Z',
+    });
+    expect(repo.delete('m1')).toMatchObject({ id: 'm1', title: 'Passport renewal' });
+    expect(repo.get('m1')).toBeNull();
   });
 });
 

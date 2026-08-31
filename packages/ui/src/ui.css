@@ -409,6 +409,26 @@
 }
 .ngx-field__input:hover { background: var(--surface-sunken); }
 .ngx-field__input:focus { background: var(--surface-sunken); border-color: var(--accent-line); outline: none; }
+.ngx-field__input--multiline {
+  min-height: calc(var(--tap) * 2.5);
+  padding: calc(var(--u) * 1.25);
+  text-align: left;
+  font-weight: 400;
+  font-variant-numeric: normal;
+  line-height: 1.5;
+  resize: vertical;
+}
+/* The standardised-question field — create / add to a specific existing
+ * module / just interpret. Given its own row so it reads as the one
+ * decision the others are details of, not one field among equals. */
+.ngx-field--choice { order: -1; }
+.ngx-field__input--select {
+  padding: 0 calc(var(--u) * 1.25);
+  text-align: left;
+  font-weight: 550;
+  font-variant-numeric: normal;
+  cursor: pointer;
+}
 .ngx-field__source {
   grid-column: 2;
   justify-self: end;
@@ -443,11 +463,32 @@
   display: flex; flex-direction: column; gap: calc(var(--u) * 3);
 }
 .ngx-trace__headline {
-  font-size: var(--t-callout);
-  font-weight: 550;
-  line-height: 1.45;
+  font-size: var(--t-title-3);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
   color: var(--text);
 }
+
+/* The technical detail disclosure — present, inspectable, just not the first
+ * thing a non-technical reader sees. Rule 9 needs the record available on
+ * request; it does not need it leading. */
+.ngx-trace__tech {
+  border-top: 1px solid var(--hairline);
+  padding-top: calc(var(--u) * 1.5);
+}
+.ngx-trace__tech > summary {
+  cursor: pointer;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption);
+  letter-spacing: 0.04em;
+  list-style: none;
+}
+.ngx-trace__tech > summary::-webkit-details-marker { display: none; }
+.ngx-trace__tech > summary::before { content: '▸ '; }
+.ngx-trace__tech[open] > summary::before { content: '▾ '; }
+.ngx-trace__tech > .ngx-trace__list { margin-top: calc(var(--u) * 1.5); }
 .ngx-trace__section { display: flex; flex-direction: column; gap: var(--u); }
 .ngx-trace__list { display: flex; flex-direction: column; gap: calc(var(--u) * 0.75); margin: 0; padding: 0; list-style: none; }
 .ngx-trace__item {

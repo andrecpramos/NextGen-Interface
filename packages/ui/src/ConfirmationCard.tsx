@@ -78,17 +78,44 @@ export function ConfirmationCard({
       <div className="ngx-fields">
         {confirm.params.map((param) => {
           const inputId = `${titleId}-${param.name}`;
+          const value = edits[param.name] ?? '';
+          const onChange = (v: string) => setEdits((prev) => ({ ...prev, [param.name]: v }));
           return (
-            <div className="ngx-field" key={param.name}>
+            <div className={`ngx-field${param.choices ? ' ngx-field--choice' : ''}`} key={param.name}>
               <label className="ngx-field__name" htmlFor={inputId}>{param.name}</label>
-              <input
-                id={inputId}
-                className="ngx-field__input ngx-figure"
-                value={edits[param.name] ?? ''}
-                readOnly={!param.editable}
-                onChange={(e) => setEdits((prev) => ({ ...prev, [param.name]: e.target.value }))}
-                aria-describedby={`${inputId}-src`}
-              />
+              {param.choices ? (
+                <select
+                  id={inputId}
+                  className="ngx-field__input ngx-field__input--select"
+                  value={value}
+                  disabled={!param.editable}
+                  onChange={(e) => onChange(e.target.value)}
+                  aria-describedby={`${inputId}-src`}
+                >
+                  {param.choices.map((choice) => (
+                    <option key={choice.value} value={choice.value}>{choice.label}</option>
+                  ))}
+                </select>
+              ) : param.multiline ? (
+                <textarea
+                  id={inputId}
+                  className="ngx-field__input ngx-field__input--multiline"
+                  rows={6}
+                  value={value}
+                  readOnly={!param.editable}
+                  onChange={(e) => onChange(e.target.value)}
+                  aria-describedby={`${inputId}-src`}
+                />
+              ) : (
+                <input
+                  id={inputId}
+                  className="ngx-field__input ngx-figure"
+                  value={value}
+                  readOnly={!param.editable}
+                  onChange={(e) => onChange(e.target.value)}
+                  aria-describedby={`${inputId}-src`}
+                />
+              )}
               <span className="ngx-field__source ngx-mono" id={`${inputId}-src`}
                     style={{ color: param.source === 'model' ? 'var(--attention)' : 'var(--text-3)' }}>
                 {param.source === 'deterministic' ? 'parsed by rule'

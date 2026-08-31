@@ -1,0 +1,23 @@
+{
+  "version": "0.1.0",
+  "name": "@nextgen/domain-modules",
+  "main": "./src/index.ts",
+  "description": "Modules domain: user-driven topics organized at runtime, entities, use cases, and capability registrations.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "registry:build": "node scripts/build-registry.ts"
+  },
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-inference": "workspace:*"
+  },
+  "devDependencies": {
+    "@nextgen/data": "workspace:*"
+  }
+}

@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<NextResponse<TurnResponse 
         return NextResponse.json({
           ...base,
           kind: 'execute' as const,
-          answer: renderAnswer(app, decision.capabilityId, decision.params),
+          answer: await renderAnswer(app, decision.capabilityId, decision.params),
         });
 
       case 'confirm':
@@ -64,7 +64,7 @@ export async function POST(request: Request): Promise<NextResponse<TurnResponse 
         return NextResponse.json({
           ...base,
           kind: 'confirm' as const,
-          confirm: renderConfirm(decision, trace, app.currency),
+          confirm: renderConfirm(decision, trace),
         });
 
       case 'refuse':

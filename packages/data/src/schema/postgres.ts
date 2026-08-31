@@ -117,6 +117,46 @@ export const undoJournal = pgTable('undo_journal', {
   undoneAt: text('undoneAt'),
 });
 
+export const moduleCategories = pgTable(
+  'module_categories',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    parentId: text('parentId').references((): AnyPgColumn => moduleCategories.id),
+    icon: text('icon'),
+  },
+  (t) => [index('module_categories_parent_idx').on(t.parentId)],
+);
+
+export const modules = pgTable(
+  'modules',
+  {
+    id: text('id').primaryKey(),
+    categoryId: text('categoryId').references(() => moduleCategories.id),
+    title: text('title').notNull(),
+    summary: text('summary').notNull(),
+    /** UNTRUSTED. */
+    body: text('body').notNull(),
+    createdAt: text('createdAt').notNull(),
+    updatedAt: text('updatedAt').notNull(),
+  },
+  (t) => [index('modules_category_idx').on(t.categoryId)],
+);
+
+export const moduleEntries = pgTable(
+  'module_entries',
+  {
+    id: text('id').primaryKey(),
+    moduleId: text('moduleId').notNull().references(() => modules.id),
+    kind: text('kind').notNull(),
+    sourceType: text('sourceType').notNull(),
+    /** UNTRUSTED. */
+    sourceExcerpt: text('sourceExcerpt'),
+    createdAt: text('createdAt').notNull(),
+  },
+  (t) => [index('module_entries_module_idx').on(t.moduleId)],
+);
+
 export const schema = {
   accounts,
   categories,
@@ -125,4 +165,7 @@ export const schema = {
   turnTraces,
   dataRefs,
   undoJournal,
+  moduleCategories,
+  modules,
+  moduleEntries,
 };

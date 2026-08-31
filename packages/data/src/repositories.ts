@@ -271,3 +271,176 @@ export class SqliteBudgetRepository implements BudgetRepository {
     return existing;
   }
 }
+
+// ----------------------------------------------------------------- modules --
+
+export type ModuleEntryKind = 'seed' | 'append' | 'merge_snapshot' | 'revert';
+export type ModuleSourceType = 'text' | 'image' | 'document' | 'voice';
+
+const MODULE_ENTRY_KINDS: readonly string[] = ['seed', 'append', 'merge_snapshot', 'revert'];
+const MODULE_SOURCE_TYPES: readonly string[] = ['text', 'image', 'document', 'voice'];
+
+export function isModuleEntryKind(k: string): k is ModuleEntryKind {
+  return MODULE_ENTRY_KINDS.includes(k);
+}
+
+export function isModuleSourceType(t: string): t is ModuleSourceType {
+  return MODULE_SOURCE_TYPES.includes(t);
+}
+
+export interface ModuleCategoryRecord {
+  readonly id: string;
+  readonly name: string;
+  readonly parentId: string | null;
+  readonly icon: string | null;
+}
+
+export interface ModuleRecord {
+  readonly id: string;
+  readonly categoryId: string | null;
+  readonly title: string;
+  readonly summary: string;
+  /** UNTRUSTED — model-consolidated prose. Fence before this reaches a prompt. */
+  readonly body: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ModuleEntryRecord {
+  readonly id: string;
+  readonly moduleId: string;
+  readonly kind: ModuleEntryKind;
+  readonly sourceType: ModuleSourceType;
+  /** UNTRUSTED. */
+  readonly sourceExcerpt: string | null;
+  readonly createdAt: string;
+}
+
+export interface ModuleCategoryRepository {
+  insert(c: ModuleCategoryRecord): void;
+  get(id: string): ModuleCategoryRecord | null;
+  list(): readonly ModuleCategoryRecord[];
+}
+
+export interface ModuleRepository {
+  insert(m: ModuleRecord): void;
+  get(id: string): ModuleRecord | null;
+  /** All modules, newest-updated first — the in-memory search index is built from this at boot. */
+  list(): readonly ModuleRecord[];
+  update(
+    id: string,
+    patch: Partial<Pick<ModuleRecord, 'categoryId' | 'title' | 'summary' | 'body' | 'updatedAt'>>,
+  ): ModuleRecord | null;
+  /** Returns the deleted row so the undo journal can put it back. */
+  delete(id: string): ModuleRecord | null;
+}
+
+export interface ModuleEntryRepository {
+  insert(e: ModuleEntryRecord): void;
+  listByModule(moduleId: string): readonly ModuleEntryRecord[];
+}
+
+export class SqliteModuleCategoryRepository implements ModuleCategoryRepository {
+  readonly #db: DatabaseSync;
+
+  constructor(db: DatabaseSync) {
+    this.#db = db;
+  }
+
+  insert(c: ModuleCategoryRecord): void {
+    if (c.parentId === c.id) {
+      throw new TypeError(`module category ${c.id} cannot be its own parent`);
+    }
+    this.#db
+      .prepare('INSERT INTO module_categories (id, name, parentId, icon) VALUES (?, ?, ?, ?)')
+      .run(c.id, c.name, c.parentId, c.icon);
+  }
+
+  get(id: string): ModuleCategoryRecord | null {
+    return (this.#db.prepare('SELECT * FROM module_categories WHERE id = ?').get(id) as unknown as ModuleCategoryRecord) ?? null;
+  }
+
+  list(): readonly ModuleCategoryRecord[] {
+    return this.#db.prepare('SELECT * FROM module_categories ORDER BY name').all() as unknown as ModuleCategoryRecord[];
+  }
+}
+
+export class SqliteModuleRepository implements ModuleRepository {
+  readonly #db: DatabaseSync;
+
+  constructor(db: DatabaseSync) {
+    this.#db = db;
+  }
+
+  insert(m: ModuleRecord): void {
+    if (m.categoryId !== null) {
+      const category = this.#db.prepare('SELECT id FROM module_categories WHERE id = ?').get(m.categoryId);
+      if (!category) throw new TypeError(`module ${m.id} references unknown category "${m.categoryId}"`);
+    }
+    this.#db
+      .prepare(
+        `INSERT INTO modules (id, categoryId, title, summary, body, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(m.id, m.categoryId, m.title, m.summary, m.body, m.createdAt, m.updatedAt);
+  }
+
+  get(id: string): ModuleRecord | null {
+    return (this.#db.prepare('SELECT * FROM modules WHERE id = ?').get(id) as unknown as ModuleRecord) ?? null;
+  }
+
+  list(): readonly ModuleRecord[] {
+    return this.#db.prepare('SELECT * FROM modules ORDER BY updatedAt DESC').all() as unknown as ModuleRecord[];
+  }
+
+  update(
+    id: string,
+    patch: Partial<Pick<ModuleRecord, 'categoryId' | 'title' | 'summary' | 'body' | 'updatedAt'>>,
+  ): ModuleRecord | null {
+    const existing = this.get(id);
+    if (!existing) return null;
+    const next = { ...existing, ...patch };
+    this.#db
+      .prepare('UPDATE modules SET categoryId = ?, title = ?, summary = ?, body = ?, updatedAt = ? WHERE id = ?')
+      .run(next.categoryId, next.title, next.summary, next.body, next.updatedAt, id);
+    return next;
+  }
+
+  delete(id: string): ModuleRecord | null {
+    const existing = this.get(id);
+    if (!existing) return null;
+    this.#db.prepare('DELETE FROM modules WHERE id = ?').run(id);
+    return existing;
+  }
+}
+
+export class SqliteModuleEntryRepository implements ModuleEntryRepository {
+  readonly #db: DatabaseSync;
+
+  constructor(db: DatabaseSync) {
+    this.#db = db;
+  }
+
+  insert(e: ModuleEntryRecord): void {
+    if (!isModuleEntryKind(e.kind)) {
+      throw new TypeError(`module entry ${e.id} has unknown kind "${e.kind}"`);
+    }
+    if (!isModuleSourceType(e.sourceType)) {
+      throw new TypeError(`module entry ${e.id} has unknown sourceType "${e.sourceType}"`);
+    }
+    const parent = this.#db.prepare('SELECT id FROM modules WHERE id = ?').get(e.moduleId);
+    if (!parent) throw new TypeError(`module entry ${e.id} references unknown module "${e.moduleId}"`);
+    this.#db
+      .prepare(
+        `INSERT INTO module_entries (id, moduleId, kind, sourceType, sourceExcerpt, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(e.id, e.moduleId, e.kind, e.sourceType, e.sourceExcerpt, e.createdAt);
+  }
+
+  listByModule(moduleId: string): readonly ModuleEntryRecord[] {
+    return this.#db
+      .prepare('SELECT * FROM module_entries WHERE moduleId = ? ORDER BY createdAt')
+      .all(moduleId) as unknown as ModuleEntryRecord[];
+  }
+}

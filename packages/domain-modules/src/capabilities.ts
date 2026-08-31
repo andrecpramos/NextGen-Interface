@@ -1,0 +1,154 @@
+import { defineBoundary, defineCapability, defineRegistry } from '@nextgen/core-capability';
+
+/**
+ * The modules domain's capabilities.
+ *
+ * Deliberately small — five executable capabilities, not sixty. The router's
+ * only job here is recognising *which kind of turn this is* (save something,
+ * browse, search, delete, undo); it never has to guess *what* the content
+ * means or *which* module it belongs to. That harder judgment happens inside
+ * `module.capture`'s own execution (`use-cases.ts`'s propose/commit split),
+ * using a larger local model than the router runs — a small, fixed registry
+ * is also what keeps stage-2 margins healthy as ADR-009 warns a growing one
+ * would erode.
+ *
+ * `eval/registry.json`, the route table and the embedding index are generated
+ * from this file — run `pnpm registry:build`.
+ */
+
+export const capabilities = [
+  defineCapability({
+    id: 'module.capture',
+    kind: 'write',
+    route: '/modules/new',
+    title: 'Remember this',
+    description:
+      'Save something the user wants remembered — extract the important information from ' +
+      'what they said, wrote, or uploaded, and file it as a module, either new or appended ' +
+      'onto one that already covers the same topic',
+    triggers: ['remember this', 'save this', 'take a note', 'note that', 'add a note', 'remember that'],
+    params: {
+      body: { type: 'string', required: false, description: 'what you want me to remember' },
+    },
+    examples: [
+      'remember that my passport expires in June 2027',
+      'save this: the wifi password is on the router label',
+      "note that the landlord's number is 555-0142",
+      'take a note about the car insurance renewal date',
+    ],
+  }),
+  defineCapability({
+    id: 'module.list',
+    kind: 'navigate',
+    route: '/modules',
+    title: 'Modules',
+    description: 'Open the modules browser, listing everything saved so far grouped by category',
+    triggers: ['modules', 'my modules', 'my notes', 'saved notes', 'what have I saved'],
+    examples: [
+      'show my modules',
+      'open my notes',
+      'what have I saved',
+      'take me to my saved modules',
+    ],
+  }),
+  defineCapability({
+    id: 'module.search',
+    kind: 'read',
+    route: '/modules/search',
+    title: 'Search modules',
+    description:
+      'Find and open the module that best matches a topic — answers "what did I save about X" ' +
+      'and doubles as "open" for a specific module by describing it',
+    triggers: ['find my note about', 'what did I save about', 'look up', 'search my notes'],
+    params: {
+      query: { type: 'string', required: true, description: 'topic' },
+    },
+    examples: [
+      'what did I save about the passport renewal',
+      'find my note about the wifi password',
+      'look up what I wrote about the car insurance',
+      'search my notes for the landlord',
+    ],
+  }),
+  defineCapability({
+    id: 'module.delete',
+    kind: 'destructive',
+    route: '/modules',
+    title: 'Delete module',
+    description: 'Permanently remove a saved module',
+    triggers: ['delete that module', 'remove that note', 'forget that', 'delete this module'],
+    params: {
+      target: { type: 'string', required: true, description: 'module' },
+    },
+    examples: [
+      'delete that module',
+      'forget the note about the old address',
+      'remove the wifi password module',
+    ],
+  }),
+  defineCapability({
+    id: 'module.revert',
+    kind: 'destructive',
+    route: '/modules',
+    title: 'Undo last merge',
+    description: 'Undo the most recent merge into a module, restoring what it said before',
+    triggers: ['undo that merge', 'revert that module', 'undo the last change', 'undo that update'],
+    params: {
+      target: { type: 'string', required: true, description: 'module' },
+    },
+    examples: [
+      'undo that merge',
+      'revert the passport module to before that',
+      'undo the last change to that note',
+    ],
+  }),
+];
+
+/**
+ * The application's declared limits (ADR-009).
+ *
+ * Matched by exactly the same retrieval as everything above, so out-of-scope
+ * detection stays routing rather than a judgement the model makes.
+ */
+export const boundary = [
+  defineBoundary({
+    id: 'unsupported.live_data',
+    title: 'Live data and outside accounts',
+    description:
+      'Reading email, a calendar, the web, or any account outside this app. Checking the ' +
+      'weather, the news, or anything that requires fetching live information from elsewhere.',
+    triggers: ['check my email', 'look that up online', "what's the weather"],
+    examples: [
+      'check my email for the confirmation',
+      'look up flight prices for me',
+      "what's the weather this weekend",
+    ],
+    refusal:
+      "I can only work with what you've told me or given me directly — I can't reach your email, " +
+      'the web, or any other account.',
+  }),
+  defineBoundary({
+    id: 'unsupported.automation',
+    title: 'Acting in other apps',
+    description:
+      'Sending a message, email, or payment on the user\'s behalf. Booking, ordering, or ' +
+      'making a change in another app or account. Setting a reminder, alarm, or calendar event.',
+    triggers: ['send this to', 'book me', 'order me', 'set a reminder'],
+    examples: [
+      'send this note to my sister',
+      'book that appointment for me',
+      'set a reminder for the renewal date',
+    ],
+    refusal:
+      "I can save what you tell me, but I can't send messages, book anything, or act in another " +
+      "app on your behalf.",
+  }),
+];
+
+export const enums = {};
+
+export const registry = defineRegistry({
+  schemaVersion: 1,
+  capabilities: [...capabilities, ...boundary],
+  enums,
+});

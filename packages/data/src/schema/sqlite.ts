@@ -109,6 +109,47 @@ export const undoJournal = sqliteTable('undo_journal', {
   undoneAt: text('undoneAt'),
 });
 
+export const moduleCategories = sqliteTable(
+  'module_categories',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    // Self-reference needs the explicit return type or TS cannot infer it.
+    parentId: text('parentId').references((): AnySQLiteColumn => moduleCategories.id),
+    icon: text('icon'),
+  },
+  (t) => [index('module_categories_parent_idx').on(t.parentId)],
+);
+
+export const modules = sqliteTable(
+  'modules',
+  {
+    id: text('id').primaryKey(),
+    categoryId: text('categoryId').references(() => moduleCategories.id),
+    title: text('title').notNull(),
+    summary: text('summary').notNull(),
+    /** UNTRUSTED — model-consolidated prose. Fence before this reaches a prompt. */
+    body: text('body').notNull(),
+    createdAt: text('createdAt').notNull(),
+    updatedAt: text('updatedAt').notNull(),
+  },
+  (t) => [index('modules_category_idx').on(t.categoryId)],
+);
+
+export const moduleEntries = sqliteTable(
+  'module_entries',
+  {
+    id: text('id').primaryKey(),
+    moduleId: text('moduleId').notNull().references(() => modules.id),
+    kind: text('kind').notNull(),
+    sourceType: text('sourceType').notNull(),
+    /** UNTRUSTED. */
+    sourceExcerpt: text('sourceExcerpt'),
+    createdAt: text('createdAt').notNull(),
+  },
+  (t) => [index('module_entries_module_idx').on(t.moduleId)],
+);
+
 export const schema = {
   accounts,
   categories,
@@ -117,6 +158,9 @@ export const schema = {
   turnTraces,
   dataRefs,
   undoJournal,
+  moduleCategories,
+  modules,
+  moduleEntries,
 };
 
 export type Account = typeof accounts.$inferSelect;
@@ -127,3 +171,9 @@ export type Transaction = typeof transactions.$inferSelect;
 export type NewTransaction = typeof transactions.$inferInsert;
 export type Budget = typeof budgets.$inferSelect;
 export type NewBudget = typeof budgets.$inferInsert;
+export type ModuleCategory = typeof moduleCategories.$inferSelect;
+export type NewModuleCategory = typeof moduleCategories.$inferInsert;
+export type Module = typeof modules.$inferSelect;
+export type NewModule = typeof modules.$inferInsert;
+export type ModuleEntry = typeof moduleEntries.$inferSelect;
+export type NewModuleEntry = typeof moduleEntries.$inferInsert;

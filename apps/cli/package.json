@@ -17,7 +17,8 @@
     "@nextgen/core-inference": "workspace:*",
     "@nextgen/core-intent": "workspace:*",
     "@nextgen/core-trace": "workspace:*",
+    "@nextgen/core-voice": "workspace:*",
     "@nextgen/data": "workspace:*",
-    "@nextgen/domain-finance": "workspace:*"
+    "@nextgen/domain-modules": "workspace:*"
   }
 }
