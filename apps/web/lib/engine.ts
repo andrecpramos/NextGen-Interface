@@ -3,14 +3,14 @@ import 'server-only';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { FinanceApp, type TurnResult } from '@nextgen/cli';
+import { NextGenApp, type TurnResult } from '@nextgen/cli';
 import { OllamaLlmRuntime } from '@nextgen/core-inference';
 import type { Decision } from '@nextgen/core-dispatch';
 
 /**
  * The engine, server-side.
  *
- * `FinanceApp` is the composition root from `apps/cli`. This module does not
+ * `NextGenApp` is the composition root from `apps/cli`. This module does not
  * reimplement it — WP-09's whole premise is that the CLI is a surface, not a
  * prototype, so the web app is a second surface over the identical assembly.
  *
@@ -27,14 +27,14 @@ import type { Decision } from '@nextgen/core-dispatch';
  */
 
 interface EngineCache {
-  app: FinanceApp | null;
-  starting: Promise<FinanceApp> | null;
+  app: NextGenApp | null;
+  starting: Promise<NextGenApp> | null;
   pending: Map<string, Decision>;
   info: EngineInfo;
 }
 
 export interface EngineInfo {
-  /** True when no LLM is wired: stages 1–2 only. */
+  /** True when no LLM is wired: stages 1–2 only, and module.capture cannot reason at all. */
   readonly offline: boolean;
   /**
    * True when no part of a turn crosses the network.
@@ -47,7 +47,6 @@ export interface EngineInfo {
   readonly local: boolean;
   readonly model: string | null;
   readonly embedder: 'hashing' | 'ollama';
-  readonly currency: string;
   readonly today: string;
 }
 
@@ -57,7 +56,7 @@ const cache: EngineCache = (globalRef.__nextgenEngine ??= {
   app: null,
   starting: null,
   pending: new Map(),
-  info: { offline: true, local: true, model: null, embedder: 'hashing', currency: 'EUR', today: '2026-08-29' },
+  info: { offline: true, local: true, model: null, embedder: 'hashing', today: '2026-08-29' },
 });
 
 /**
@@ -85,6 +84,20 @@ function findRegistry(): string {
 }
 
 /**
+ * The repo root — same reasoning as `findRegistry`, `import.meta.dirname`
+ * means nothing once webpack has been through this file. `pnpm-workspace.yaml`
+ * only ever lives at the root, so its presence is what's actually checked
+ * rather than assumed from `process.cwd()` alone.
+ */
+function findRepoRoot(): string {
+  const candidates = [
+    resolve(process.cwd(), '..', '..'), // apps/web  → repo root
+    resolve(process.cwd()),             // repo root
+  ];
+  return candidates.find((p) => existsSync(join(p, 'pnpm-workspace.yaml'))) ?? candidates[0]!;
+}
+
+/**
  * Boot the engine.
  *
  * Ollama is probed rather than assumed. ADR-008 says the device is the source
@@ -93,15 +106,20 @@ function findRegistry(): string {
  * stages and says so in the status bar. A degraded router is a real product;
  * an error page is not.
  */
-async function boot(): Promise<FinanceApp> {
+async function boot(): Promise<NextGenApp> {
   const model = process.env.NEXTGEN_MODEL ?? 'qwen2.5:1.5b';
+  const moduleModel = process.env.NEXTGEN_MODULE_MODEL ?? 'llama3.1:8b';
+  const visionModel = process.env.NEXTGEN_VISION_MODEL ?? 'qwen2.5vl:7b';
   const available = await new OllamaLlmRuntime({ model }).isAvailable().catch(() => false);
 
-  const app = await FinanceApp.create({
+  const app = await NextGenApp.create({
     registryPath: findRegistry(),
+    voiceDirectory: join(findRepoRoot(), 'models', 'voice'),
     embedder: available ? 'ollama' : 'hashing',
     noModel: !available,
     model,
+    moduleModel,
+    visionModel,
   });
 
   cache.info = {
@@ -109,14 +127,13 @@ async function boot(): Promise<FinanceApp> {
     local: true, // Ollama is on loopback; the database never leaves the process.
     model: available ? model : null,
     embedder: available ? 'ollama' : 'hashing',
-    currency: app.currency,
-    today: app.snapshot().today,
+    today: app.today,
   };
 
   return app;
 }
 
-export async function getEngine(): Promise<FinanceApp> {
+export async function getEngine(): Promise<NextGenApp> {
   if (cache.app) return cache.app;
   // Concurrent first requests must not each build a registry. The in-flight
   // promise is the lock.

@@ -1,12 +1,21 @@
-﻿{
-    "version":  "0.1.0",
-    "name":  "@nextgen/core-voice",
-    "main":  "./src/index.ts",
-    "description":  "STT and TTS adapters: Whisper for input, Piper for output.",
-    "scripts":  {
-                    "test":  "vitest run --passWithNoTests",
-                    "typecheck":  "tsc --noEmit"
-                },
-    "type":  "module",
-    "private":  true
+{
+  "version": "0.1.0",
+  "name": "@nextgen/core-voice",
+  "main": "./src/index.ts",
+  "description": "STT and TTS adapters: whisper.cpp for input, Piper for output — both prebuilt binaries, downloaded and verified on first use.",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8"
+  }
 }

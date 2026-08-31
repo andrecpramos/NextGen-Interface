@@ -9,7 +9,6 @@ import {
   NavDrawer,
   Sphere,
   SphereStatus,
-  TracePanel,
 } from '@nextgen/ui';
 
 import { useAssistant, type Turn } from '@/lib/store';
@@ -30,9 +29,10 @@ import { useAssistant, type Turn } from '@/lib/store';
  */
 export function Assistant(): JSX.Element {
   const {
-    session, turns, state, detail, cancellable, input, pending, traceOpen, drawerOpen, error,
-    bootstrap, setInput, send, navigate, approve, cancelConfirmation, abort,
-    openTrace, closeTrace, setDrawer, setTheme,
+    session, turns, state, detail, cancellable, input, pending, drawerOpen, error,
+    listening, amplitude, voiceReply,
+    bootstrap, setInput, send, navigate, upload, toggleVoice, setVoiceReply, approve, cancelConfirmation, abort,
+    setDrawer, setTheme,
   } = useAssistant();
 
   const [dark, setDark] = useState(true);
@@ -52,16 +52,8 @@ export function Assistant(): JSX.Element {
     bottomRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' });
   }, [turns, pending]);
 
-  useEffect(() => {
-    if (!traceOpen) return;
-    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') closeTrace(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [traceOpen, closeTrace]);
-
   const empty = turns.length === 0;
   const thinking = state === 'thinking' || state === 'acting';
-  const traced = turns.find((t) => t.response?.turnId === traceOpen)?.response;
 
   function toggleTheme(): void {
     const next = !dark;
@@ -118,6 +110,23 @@ export function Assistant(): JSX.Element {
         <button
           type="button"
           className="ngx-btn ngx-btn--quiet ngx-btn--icon"
+          onClick={() => setVoiceReply(!voiceReply)}
+          aria-pressed={voiceReply}
+          title={voiceReply ? 'Answers are read aloud — tap to mute' : 'Answers are silent — tap to hear them'}
+          aria-label={voiceReply ? 'Mute spoken answers' : 'Read answers aloud'}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 9v6h4l5 4V5L8 9H4Z" />
+            {voiceReply
+              ? <path d="M17.5 8.5a5 5 0 0 1 0 7M20 6a9 9 0 0 1 0 12" />
+              : <path d="M17 9l5 5M22 9l-5 5" />}
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className="ngx-btn ngx-btn--quiet ngx-btn--icon"
           onClick={toggleTheme}
           aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
         >
@@ -138,13 +147,13 @@ export function Assistant(): JSX.Element {
           <div className="column">
             {empty ? (
               <div className="opening">
-                <Sphere state={state} size={180} />
+                <Sphere state={state} size={180} amplitude={amplitude} />
                 <h1 className="opening__prompt">What can I help with?</h1>
                 <SphereStatus state={state} {...(detail ? { detail } : {})} />
               </div>
             ) : (
               <div className="crown">
-                <Sphere state={state} size={40} />
+                <Sphere state={state} size={40} amplitude={amplitude} />
                 <SphereStatus state={state} {...(detail ? { detail } : {})} />
                 {cancellable && thinking && (
                   <button type="button" className="chip" onClick={abort}>cancel</button>
@@ -163,7 +172,6 @@ export function Assistant(): JSX.Element {
                 <TurnBlock
                   key={turn.id}
                   turn={turn}
-                  onWhy={openTrace}
                   onSuggest={(text) => void send(text)}
                 />
               ))}
@@ -190,28 +198,12 @@ export function Assistant(): JSX.Element {
               value={input}
               onChange={setInput}
               onSubmit={() => void send(input)}
-              disabled={thinking}
+              onUpload={(file) => void upload(file)}
+              onVoice={() => void toggleVoice()}
+              listening={listening}
+              disabled={thinking || listening || state === 'transcribing'}
               autoFocus
             />
-
-            {/*
-              Discoverability, at the lowest weight that still works. You cannot
-              ask for what you do not know exists — but that problem only exists
-              before the first turn, so these go away the moment there is one,
-              and they are real capability examples from the registry rather
-              than invented copy.
-            */}
-            {empty && session && session.examples.length > 0 && (
-              <ul className="examples">
-                {session.examples.map((example) => (
-                  <li key={example}>
-                    <button type="button" className="chip" onClick={() => void send(example)}>
-                      {example}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </div>
       </main>
@@ -222,20 +214,6 @@ export function Assistant(): JSX.Element {
         onClose={() => setDrawer(false)}
         onSelect={(item) => void navigate(item.capabilityId, item.label)}
       />
-
-      {traced && (
-        <div className="tracewrap">
-          <button
-            type="button"
-            className="tracewrap__scrim"
-            aria-label="Close explanation"
-            onClick={closeTrace}
-          />
-          <div className="tracewrap__panel">
-            <TracePanel trace={traced.trace} onClose={closeTrace} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -249,11 +227,9 @@ export function Assistant(): JSX.Element {
  */
 function TurnBlock({
   turn,
-  onWhy,
   onSuggest,
 }: {
   readonly turn: Turn;
-  readonly onWhy: (turnId: string) => void;
   readonly onSuggest: (text: string) => void;
 }): JSX.Element {
   const response = turn.response;
@@ -279,7 +255,7 @@ function TurnBlock({
       {response && (
         <div style={{ marginTop: 'calc(var(--u) * 2.5)' }}>
           {response.kind === 'execute' && response.answer && (
-            <Answer answer={response.answer} onWhy={() => onWhy(response.turnId)} />
+            <Answer answer={response.answer} />
           )}
 
           {response.kind === 'clarify' && response.clarify && (
@@ -294,19 +270,11 @@ function TurnBlock({
                   ))}
                 </div>
               )}
-              <div className="ngx-answer__actions">
-                <button type="button" className="ngx-why" onClick={() => onWhy(response.turnId)}>
-                  why?
-                </button>
-              </div>
             </div>
           )}
 
           {response.kind === 'refuse' && response.refuse && (
-            <Answer
-              answer={{ caption: response.refuse.reason, tone: 'attention' }}
-              onWhy={() => onWhy(response.turnId)}
-            >
+            <Answer answer={{ caption: response.refuse.reason, tone: 'attention' }}>
               <span className="ngx-badge ngx-badge--attention">
                 {response.refuse.declared ? 'declared limit' : 'unclassified'}
               </span>
@@ -321,7 +289,7 @@ function TurnBlock({
 
           {turn.outcome && (
             <div style={{ marginTop: 'calc(var(--u) * 2)' }}>
-              <Answer answer={turn.outcome} onWhy={() => onWhy(response.turnId)} />
+              <Answer answer={turn.outcome} />
             </div>
           )}
         </div>

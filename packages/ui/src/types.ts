@@ -64,6 +64,13 @@ export interface AnswerView {
   readonly tone?: Tone;
 }
 
+/** One option in a `ParamView.choices` list. */
+export interface ParamChoice {
+  readonly value: string;
+  /** What the person reads — a plain-language description of what picking this does. */
+  readonly label: string;
+}
+
 /** One parsed parameter on the confirmation card. */
 export interface ParamView {
   readonly name: string;
@@ -74,6 +81,15 @@ export interface ParamView {
   /** Which resolver filled it. Shown, because it is what makes it checkable. */
   readonly source: 'deterministic' | 'model' | 'context';
   readonly editable: boolean;
+  /** Render as a textarea rather than a single-line input — a module's body, say. */
+  readonly multiline?: boolean;
+  /**
+   * Render as a select control offering exactly these options, instead of
+   * free text — the standardised-question shape: create a module, add to
+   * one of these specific existing ones, or just interpret and save
+   * nothing. `display` should equal one of these values' `value`.
+   */
+  readonly choices?: readonly ParamChoice[];
 }
 
 export interface ConfirmView {

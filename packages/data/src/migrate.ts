@@ -116,6 +116,42 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'modules',
+    // The pivot: user/AI-created content, organized by a category tree built
+    // entirely at runtime — never a fixed developer-defined taxonomy.
+    up: `
+      CREATE TABLE module_categories (
+        id        TEXT PRIMARY KEY,
+        name      TEXT NOT NULL,
+        parentId  TEXT REFERENCES module_categories(id),
+        icon      TEXT
+      );
+      CREATE INDEX module_categories_parent_idx ON module_categories(parentId);
+
+      CREATE TABLE modules (
+        id          TEXT PRIMARY KEY,
+        categoryId  TEXT REFERENCES module_categories(id),
+        title       TEXT NOT NULL,
+        summary     TEXT NOT NULL,
+        body        TEXT NOT NULL,
+        createdAt   TEXT NOT NULL,
+        updatedAt   TEXT NOT NULL
+      );
+      CREATE INDEX modules_category_idx ON modules(categoryId);
+
+      CREATE TABLE module_entries (
+        id            TEXT PRIMARY KEY,
+        moduleId      TEXT NOT NULL REFERENCES modules(id),
+        kind          TEXT NOT NULL,
+        sourceType    TEXT NOT NULL,
+        sourceExcerpt TEXT,
+        createdAt     TEXT NOT NULL
+      );
+      CREATE INDEX module_entries_module_idx ON module_entries(moduleId);
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

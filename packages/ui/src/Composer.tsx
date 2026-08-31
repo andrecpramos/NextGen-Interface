@@ -21,6 +21,8 @@ export interface ComposerProps {
   readonly onVoice?: () => void;
   readonly listening?: boolean;
   readonly autoFocus?: boolean;
+  /** A photo or document to remember. Separate from voice — always present, no MVP gate. */
+  readonly onUpload?: (file: File) => void;
 }
 
 export function Composer({
@@ -32,8 +34,10 @@ export function Composer({
   onVoice,
   listening = false,
   autoFocus = false,
+  onUpload,
 }: ComposerProps): JSX.Element {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Grow with the content rather than scrolling inside a fixed box: at 200%
   // text the fixed box is the thing that clips.
@@ -74,6 +78,32 @@ export function Composer({
           onKeyDown={handleKeyDown}
           aria-describedby="ngx-composer-hint"
         />
+
+        <input
+          ref={fileRef}
+          type="file"
+          className="ngx-sr-only"
+          accept="image/*,.pdf,.docx,.txt,.md"
+          disabled={disabled || !onUpload}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && onUpload) onUpload(file);
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          className="ngx-btn ngx-btn--quiet ngx-btn--icon"
+          onClick={() => fileRef.current?.click()}
+          disabled={disabled || !onUpload}
+          title="Remember a photo or document"
+          aria-label="Upload a photo or document to remember"
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05 12.25 20.24a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.19 9.19a1.5 1.5 0 0 1-2.12-2.12l8.49-8.49" />
+          </svg>
+        </button>
 
         <button
           type="button"

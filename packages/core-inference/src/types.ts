@@ -37,6 +37,13 @@ export interface CompletionRequest {
   readonly model?: string | undefined;
   readonly timeoutMs?: number;
   readonly maxTokens?: number;
+  /**
+   * Base64-encoded image bytes (no data-URI prefix), for a vision-capable
+   * model. Additive and optional — a runtime or model that doesn't support
+   * vision simply ignores it rather than failing; degrade, don't throw, is
+   * the same rule `LlmRuntime` already states for a missing model.
+   */
+  readonly images?: readonly string[];
 }
 
 export interface CompletionResult<T> {

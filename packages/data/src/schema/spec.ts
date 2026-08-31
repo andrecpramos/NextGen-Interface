@@ -150,6 +150,47 @@ export const UNDO_JOURNAL: TableSpec = {
   },
 };
 
+export const MODULE_CATEGORIES: TableSpec = {
+  name: 'module_categories',
+  comment: 'A tree, same shape as categories — but entirely user/AI-created at runtime. No seeded taxonomy.',
+  columns: {
+    id: { type: 'text', primaryKey: true },
+    name: { type: 'text', notNull: true },
+    parentId: { type: 'text', references: { table: 'module_categories', column: 'id' } },
+    icon: { type: 'text' },
+  },
+  indexes: [{ name: 'module_categories_parent_idx', columns: ['parentId'] }],
+};
+
+export const MODULES: TableSpec = {
+  name: 'modules',
+  comment: 'What the user asked the AI to remember. body is the current canonical merged content — module_entries is the append-only log of what built it.',
+  columns: {
+    id: { type: 'text', primaryKey: true },
+    categoryId: { type: 'text', references: { table: 'module_categories', column: 'id' } },
+    title: { type: 'text', notNull: true },
+    summary: { type: 'text', notNull: true, comment: 'Short text. What gets embedded for create-vs-append search — distinct from body.' },
+    body: { type: 'text', notNull: true, untrusted: true, comment: 'UNTRUSTED. Model-consolidated prose; fence before it reaches a prompt.' },
+    createdAt: { type: 'timestamp', notNull: true },
+    updatedAt: { type: 'timestamp', notNull: true },
+  },
+  indexes: [{ name: 'modules_category_idx', columns: ['categoryId'] }],
+};
+
+export const MODULE_ENTRIES: TableSpec = {
+  name: 'module_entries',
+  comment: 'Append-only provenance log, never edited. Answers "what was this module built from" the way data_refs answers "what did this turn read".',
+  columns: {
+    id: { type: 'text', primaryKey: true },
+    moduleId: { type: 'text', notNull: true, references: { table: 'modules', column: 'id' } },
+    kind: { type: 'text', notNull: true, comment: 'seed | append | merge_snapshot | revert' },
+    sourceType: { type: 'text', notNull: true, comment: 'text | image | document | voice' },
+    sourceExcerpt: { type: 'text', untrusted: true, comment: 'UNTRUSTED. Raw extracted text that fed this entry, length-capped.' },
+    createdAt: { type: 'timestamp', notNull: true },
+  },
+  indexes: [{ name: 'module_entries_module_idx', columns: ['moduleId'] }],
+};
+
 export const TABLES: readonly TableSpec[] = [
   ACCOUNTS,
   CATEGORIES,
@@ -158,6 +199,9 @@ export const TABLES: readonly TableSpec[] = [
   TURN_TRACES,
   DATA_REFS,
   UNDO_JOURNAL,
+  MODULE_CATEGORIES,
+  MODULES,
+  MODULE_ENTRIES,
 ];
 
 /** Every money column in the model. The parity test asserts each is an integer. */

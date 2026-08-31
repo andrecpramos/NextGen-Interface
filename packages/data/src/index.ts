@@ -20,11 +20,15 @@ export {
 
 export {
   SqliteAccountRepository, SqliteBudgetRepository, SqliteCategoryRepository, SqliteTransactionRepository,
-  isAccountType,
+  SqliteModuleCategoryRepository, SqliteModuleRepository, SqliteModuleEntryRepository,
+  isAccountType, isModuleEntryKind, isModuleSourceType,
   type AccountRecord, type AccountRepository, type AccountType,
   type BudgetRecord, type BudgetRepository,
   type CategoryRecord, type CategoryRepository,
   type TransactionRecord, type TransactionRepository,
+  type ModuleCategoryRecord, type ModuleCategoryRepository,
+  type ModuleRecord, type ModuleRepository,
+  type ModuleEntryRecord, type ModuleEntryRepository, type ModuleEntryKind, type ModuleSourceType,
 } from './repositories.ts';
 
 export {

@@ -17,7 +17,6 @@ export interface EngineStatus {
   readonly local: boolean;
   readonly model: string | null;
   readonly embedder: 'hashing' | 'ollama';
-  readonly currency: string;
   readonly today: string;
 }
 
@@ -25,13 +24,6 @@ export interface SessionResponse {
   readonly status: EngineStatus;
   /** The drawer's contents, read from the registry rather than hand-authored. */
   readonly nav: readonly NavItem[];
-  /**
-   * A few real utterances, taken from the capability definitions — which are
-   * the same strings the golden set is generated from. So anything offered
-   * here is something the router has actually been measured on, rather than a
-   * suggestion that reads well and routes badly.
-   */
-  readonly examples: readonly string[];
 }
 
 export interface TurnResponse {

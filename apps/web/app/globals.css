@@ -202,22 +202,6 @@ body {
 }
 .chip:hover { color: var(--accent); border-color: var(--accent-line); }
 
-
-/*
- * Example prompts. Present only before the first turn, then gone for good.
- * Lowest weight that still solves "you cannot ask for what you do not know
- * exists" — plain chips, no figures, no cards.
- */
-.examples {
-  list-style: none;
-  margin: calc(var(--u) * 2) 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--u);
-}
-
 /* A menu selection is not speech, so it is not drawn as a said-bubble. */
 .picked {
   margin: 0;
@@ -239,36 +223,10 @@ body {
   font-size: var(--t-footnote);
 }
 
-/* -------------------------------------------------------- trace panel -- */
-
-.tracewrap {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: 1fr min(440px, 92vw);
-}
-.tracewrap__scrim {
-  background: var(--scrim);
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  animation: fade var(--d-base) var(--ease) both;
-}
-.tracewrap__panel {
-  animation: slide var(--d-slow) var(--ease) both;
-  box-shadow: var(--shadow-3);
-  min-height: 0;
-}
-@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slide { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
-
 /* ------------------------------------------------------------ scrolls -- */
 
-.scroll::-webkit-scrollbar,
-.ngx-trace__body::-webkit-scrollbar { width: 10px; }
-.scroll::-webkit-scrollbar-thumb,
-.ngx-trace__body::-webkit-scrollbar-thumb {
+.scroll::-webkit-scrollbar { width: 10px; }
+.scroll::-webkit-scrollbar-thumb {
   background: var(--hairline-firm);
   border-radius: 5px;
   border: 3px solid transparent;
@@ -283,6 +241,105 @@ body {
   .opening__prompt { font-size: var(--t-title-2); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tracewrap__scrim, .tracewrap__panel { animation: none; }
+/* --------------------------------------------------------- module pages -- */
+
+/*
+ * Rule 7, taken literally for the modules domain: `/modules` and
+ * `/modules/:id` are real pages, reachable by URL with no prior chat turn —
+ * not the assistant's chat stream re-skinned. They still read the same
+ * design tokens the assistant uses, so they don't feel like a second app.
+ */
+
+.page {
+  position: relative;
+  z-index: 1;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: calc(var(--u) * 4) calc(var(--u) * 3) calc(var(--u) * 6);
+}
+
+.page__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--u) * 2);
+  margin-bottom: calc(var(--u) * 3);
+}
+
+.page__title {
+  margin: 0;
+  font-size: var(--t-title-1);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.page__back {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption);
+  text-decoration: none;
+}
+.page__back:hover { color: var(--accent); }
+
+.page__empty {
+  color: var(--text-3);
+  padding: calc(var(--u) * 4) 0;
+}
+
+.module-group {
+  margin-bottom: calc(var(--u) * 3);
+}
+.module-group__name {
+  margin: 0 0 var(--u);
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: calc(var(--u) * 1.5);
+}
+
+.module-card {
+  display: block;
+  padding: calc(var(--u) * 1.75);
+  border-radius: var(--r-md);
+  border: 1px solid var(--hairline);
+  background: var(--material-thin);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--d-fast) var(--ease), background var(--d-fast) var(--ease);
+}
+.module-card:hover { border-color: var(--accent-line); background: var(--surface-sunken); }
+.module-card__title {
+  margin: 0 0 calc(var(--u) * 0.5);
+  font-size: var(--t-callout);
+  font-weight: 600;
+}
+.module-card__summary {
+  margin: 0;
+  color: var(--text-2);
+  font-size: var(--t-footnote);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.module-detail__meta {
+  display: flex;
+  gap: var(--u);
+  margin-bottom: calc(var(--u) * 2);
+}
+
+.module-detail__body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+
+.module-detail__history {
+  margin-top: calc(var(--u) * 4);
+  padding-top: calc(var(--u) * 2);
+  border-top: 1px solid var(--hairline);
+  max-width: 68ch;
 }

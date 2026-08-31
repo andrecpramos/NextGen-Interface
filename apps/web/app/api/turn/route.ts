@@ -20,9 +20,11 @@ export const maxDuration = 120;
  */
 export async function POST(request: Request): Promise<NextResponse<TurnResponse | ErrorResponse>> {
   let utterance: string;
+  let sttConfidence: number | undefined;
   try {
-    const body = (await request.json()) as { utterance?: unknown };
+    const body = (await request.json()) as { utterance?: unknown; sttConfidence?: unknown };
     utterance = typeof body.utterance === 'string' ? body.utterance.trim() : '';
+    sttConfidence = typeof body.sttConfidence === 'number' ? body.sttConfidence : undefined;
   } catch {
     return NextResponse.json({ error: 'Malformed request.' }, { status: 400 });
   }
@@ -34,7 +36,10 @@ export async function POST(request: Request): Promise<NextResponse<TurnResponse 
 
   try {
     const app = await getEngine();
-    const { decision, trace } = await app.turn(utterance);
+    const { decision, trace } = await app.turn(
+      utterance,
+      sttConfidence !== undefined ? { sttConfidence } : undefined,
+    );
     const local = engineInfo().local;
 
     const base = {
@@ -48,7 +53,7 @@ export async function POST(request: Request): Promise<NextResponse<TurnResponse 
         return NextResponse.json({
           ...base,
           kind: 'execute' as const,
-          answer: renderAnswer(app, decision.capabilityId, decision.params),
+          answer: await renderAnswer(app, decision.capabilityId, decision.params),
         });
 
       case 'confirm':
@@ -57,7 +62,7 @@ export async function POST(request: Request): Promise<NextResponse<TurnResponse 
         return NextResponse.json({
           ...base,
           kind: 'confirm' as const,
-          confirm: renderConfirm(decision, trace, app.currency),
+          confirm: renderConfirm(decision, trace),
         });
 
       case 'refuse':

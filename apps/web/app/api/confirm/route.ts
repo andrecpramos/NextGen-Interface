@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 
 import type { Decision } from '@nextgen/core-dispatch';
-import { fromMajorUnits } from '@nextgen/data';
 
 import { forget, getEngine, recall } from '@/lib/engine';
 import type { ConfirmResponse, ErrorResponse } from '@/lib/wire';
@@ -24,9 +23,7 @@ export const dynamic = 'force-dynamic';
  *   - **No new slots.** A key that was not in the original decision is dropped,
  *     not added. The confirmation card is a form over a fixed shape.
  *   - **Types are preserved.** A slot that came back from the router as a
- *     number goes to the use case as a number. `amount` is parsed with
- *     `fromMajorUnits` from its string, digit by digit, because `value * 100`
- *     is how a cent goes missing (Rule 6).
+ *     number goes to the use case as a number.
  */
 export async function POST(request: Request): Promise<NextResponse<ConfirmResponse | ErrorResponse>> {
   let turnId: string;
@@ -55,27 +52,22 @@ export async function POST(request: Request): Promise<NextResponse<ConfirmRespon
     const app = await getEngine();
     const merged: Record<string, string | number> = { ...pending.params };
 
-    for (const [labelled, value] of Object.entries(edits)) {
-      // The card labels the money field "amount (EUR)" so the user knows what
-      // they are typing. Strip the label back off to find the slot.
-      const name = labelled.replace(/\s*\([^)]*\)\s*$/, '');
+    for (const [name, value] of Object.entries(edits)) {
       if (!(name in pending.params)) continue;
 
       const original = pending.params[name];
       const text = String(value).trim();
 
       if (typeof original === 'number') {
-        if (name === 'amount') {
-          merged[name] = fromMajorUnits(text, app.currency).amountMinor;
-        } else {
-          const n = Number(text);
-          if (!Number.isFinite(n)) {
-            return NextResponse.json({ error: `"${name}" must be a number.` }, { status: 400 });
-          }
-          merged[name] = n;
+        const n = Number(text);
+        if (!Number.isFinite(n)) {
+          return NextResponse.json({ error: `"${name}" must be a number.` }, { status: 400 });
         }
+        merged[name] = n;
       } else {
-        if (!text) {
+        // "category" may legitimately be cleared — an empty category means
+        // uncategorised, not a missing field.
+        if (!text && name !== 'category') {
           return NextResponse.json({ error: `"${name}" cannot be empty.` }, { status: 400 });
         }
         merged[name] = text;

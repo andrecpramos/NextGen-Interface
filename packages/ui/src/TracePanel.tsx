@@ -112,7 +112,8 @@ export function TracePanel({ trace, onClose }: TracePanelProps): JSX.Element {
         )}
 
         {trace.notes.length > 0 && (
-          <Section title="Machine notes">
+          <details className="ngx-trace__tech">
+            <summary className="ngx-label">Technical detail</summary>
             <ul className="ngx-trace__list">
               {trace.notes.map((note, i) => (
                 <li className="ngx-trace__item" key={`${note}-${i}`}>
@@ -120,7 +121,7 @@ export function TracePanel({ trace, onClose }: TracePanelProps): JSX.Element {
                 </li>
               ))}
             </ul>
-          </Section>
+          </details>
         )}
       </div>
     </aside>

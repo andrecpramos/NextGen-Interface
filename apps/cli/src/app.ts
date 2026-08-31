@@ -8,56 +8,67 @@ import type {
   ScreenContext,
   TurnTrace as RouterTrace,
 } from '@nextgen/core-intent';
-import { OllamaLlmRuntime, type LlmRuntime } from '@nextgen/core-inference';
+import { FakeLlmRuntime, OllamaLlmRuntime, type EmbeddingRuntime, type LlmRuntime } from '@nextgen/core-inference';
+import { PiperTtsEngine, VoiceAssetStore, WhisperCppSttEngine, type SttResult } from '@nextgen/core-voice';
 import { Dispatcher, type Decision } from '@nextgen/core-dispatch';
 import {
   openMemoryDatabase,
-  seed,
-  SqliteAccountRepository,
-  SqliteBudgetRepository,
-  SqliteCategoryRepository,
-  SqliteQueryEngine,
-  SqliteTransactionRepository,
+  SqliteModuleCategoryRepository,
+  SqliteModuleEntryRepository,
+  SqliteModuleRepository,
   SqliteUndoJournal,
-  formatMoney,
-  type CurrencyCode,
 } from '@nextgen/data';
 import {
-  createTransaction,
-  deleteBudget,
-  deleteTransaction,
-  setBudget,
+  commitCapture,
+  deleteModule,
+  proposeCapture,
+  revertModule,
+  searchModules,
   EventBus,
+  type CaptureProposal,
+  type Module,
+  type ModuleCategory,
+  type ModuleEntry,
+  type ModuleMatch,
   type Repositories,
   type UseCaseDeps,
-} from '@nextgen/domain-finance';
+} from '@nextgen/domain-modules';
 import {
   explain,
   formatExplanation,
   SqliteTraceStore,
   TraceRecorder,
+  type TurnRecorder,
   type TurnTrace,
 } from '@nextgen/core-trace';
 
 /**
  * The composition root.
  *
- * Every package until now was built and tested in isolation. This is the first
- * place they are wired into an actual turn — utterance in, router, dispatcher
- * policy, domain use case, database, trace out — and building it was the point:
- * seven packages that each pass their own tests have still never been run
- * together, and that gap is exactly where integration bugs live.
+ * Every package until now was built and tested in isolation. This is the
+ * first place they are wired into an actual turn — utterance in, router,
+ * dispatcher policy, domain use case, database, trace out.
  *
  * `apps/web` (WP-09) wraps this same assembly behind a UI. Nothing here is
  * throwaway; the CLI is a surface, not a prototype.
+ *
+ * Renamed from `FinanceApp`: the registered domain is now `domain-modules`,
+ * not `domain-finance` — see PLAN.md's WP-14. `domain-finance` stays in the
+ * repo as the reference domain (34 passing tests, the evidence that the
+ * engine is domain-agnostic), it just is not what this root wires by
+ * default any more.
  */
 
 export interface AppOptions {
+  /** The router's stage-3 model — fast, small, picks among the ~7 module capabilities. */
   readonly model?: string;
+  /** The larger model `module.capture` uses to read, summarize and judge — a different job than routing. */
+  readonly moduleModel?: string;
+  /** A vision-capable model, used only when a capture carries images — `moduleModel` need not be one. */
+  readonly visionModel?: string;
   readonly embedder?: 'hashing' | 'ollama';
-  readonly currency?: CurrencyCode;
   readonly today?: string;
-  /** Skip the LLM entirely. Stages 1–2 only — proves the offline path. */
+  /** Skip the LLM entirely. Stages 1–2 only for routing, and module.capture degrades to "say so, don't guess". */
   readonly noModel?: boolean;
   /**
    * Where `registry.json` lives.
@@ -67,6 +78,12 @@ export interface AppOptions {
    * one — so any host that is not this CLI passes the path in explicitly.
    */
   readonly registryPath?: string;
+  /**
+   * Where whisper.cpp/Piper's binaries and models are cached, downloaded and
+   * verified on first use (matches `.gitignore`'s `models/` convention for
+   * on-demand assets — never bundled, never committed).
+   */
+  readonly voiceDirectory?: string;
 }
 
 export interface TurnResult {
@@ -76,20 +93,39 @@ export interface TurnResult {
   readonly trace: TurnTrace;
 }
 
-export class FinanceApp {
+const DEFAULT_MODULE_MODEL = 'llama3.1:8b';
+const DEFAULT_VISION_MODEL = 'qwen2.5vl:7b';
+
+/**
+ * `llama3.1:8b` reads text well and cannot read an image at all; a
+ * vision-capable model is a different, usually weaker-at-text pull. Rather
+ * than force one model to do both jobs, this picks per-request: images
+ * present → the vision model, otherwise the text model. `domain-modules`
+ * stays unaware of the split — it sees one `LlmRuntime`.
+ */
+function visionAwareRuntime(text: LlmRuntime, vision: LlmRuntime): LlmRuntime {
+  return {
+    name: `${text.name} (+vision: ${vision.name})`,
+    isAvailable: () => text.isAvailable(),
+    complete: (request) => (request.images && request.images.length > 0 ? vision : text).complete(request),
+  };
+}
+
+export class NextGenApp {
   readonly #db: DatabaseSync;
   readonly #registry: Registry;
   readonly #dispatcher: Dispatcher;
-  readonly #query: SqliteQueryEngine;
   readonly #repositories: Repositories;
   readonly #useCaseDeps: UseCaseDeps;
   readonly #recorder: TraceRecorder;
   readonly #traces: SqliteTraceStore;
-  readonly #runtime: LlmRuntime | undefined;
+  readonly #routerRuntime: LlmRuntime | undefined;
   readonly #undo: SqliteUndoJournal;
-  readonly #options: Required<Pick<AppOptions, 'currency' | 'today' | 'embedder'>>;
+  readonly #options: Required<Pick<AppOptions, 'today' | 'embedder'>>;
   readonly #embedder: ReturnType<typeof makeEmbedder>;
   readonly #model: string | undefined;
+  readonly #stt: WhisperCppSttEngine;
+  readonly #tts: PiperTtsEngine;
 
   /** Where the user "is". Stage 1 and the slot resolvers both read this. */
   route = '/';
@@ -98,24 +134,27 @@ export class FinanceApp {
     db: DatabaseSync;
     registry: Registry;
     embedder: ReturnType<typeof makeEmbedder>;
-    runtime: LlmRuntime | undefined;
+    moduleEmbedder: EmbeddingRuntime;
+    routerRuntime: LlmRuntime | undefined;
+    moduleRuntime: LlmRuntime;
     model: string | undefined;
-    options: Required<Pick<AppOptions, 'currency' | 'today' | 'embedder'>>;
+    voiceStore: VoiceAssetStore;
+    options: Required<Pick<AppOptions, 'today' | 'embedder'>>;
   }) {
     this.#db = parts.db;
     this.#registry = parts.registry;
     this.#embedder = parts.embedder;
-    this.#runtime = parts.runtime;
+    this.#routerRuntime = parts.routerRuntime;
     this.#model = parts.model;
     this.#options = parts.options;
+    this.#stt = new WhisperCppSttEngine({ store: parts.voiceStore });
+    this.#tts = new PiperTtsEngine({ store: parts.voiceStore });
 
     this.#repositories = {
-      accounts: new SqliteAccountRepository(this.#db),
-      categories: new SqliteCategoryRepository(this.#db),
-      transactions: new SqliteTransactionRepository(this.#db),
-      budgets: new SqliteBudgetRepository(this.#db),
+      modules: new SqliteModuleRepository(this.#db),
+      moduleCategories: new SqliteModuleCategoryRepository(this.#db),
+      moduleEntries: new SqliteModuleEntryRepository(this.#db),
     };
-    this.#query = new SqliteQueryEngine(this.#db);
     this.#undo = new SqliteUndoJournal(this.#db);
 
     // The dispatcher's journal port is async; the SQLite one is sync. Bridging
@@ -155,14 +194,20 @@ export class FinanceApp {
       events: new EventBus(),
       now: () => new Date(`${this.#options.today}T12:00:00.000Z`),
       newId: (p) => `${p}_${Date.now()}_${++n}`,
+      llm: parts.moduleRuntime,
+      embedder: parts.moduleEmbedder,
     };
   }
 
-  static async create(options: AppOptions = {}): Promise<FinanceApp> {
+  static async create(options: AppOptions = {}): Promise<NextGenApp> {
     const embedderKind = options.embedder ?? 'ollama';
     const embedder = makeEmbedder(embedderKind);
+    // A separate instance for module search — sharing one with the router
+    // would mean each `.fit()` call stomps the other's fitted vocabulary
+    // (relevant only to the hashing embedder; the neural one is stateless).
+    const moduleEmbedder = makeEmbedder(embedderKind);
 
-    // The registry is generated from domain-finance by `pnpm registry:build`.
+    // The registry is generated from domain-modules by `pnpm registry:build`.
     const registryPath = options.registryPath ?? join(
       import.meta.dirname, '..', '..', '..',
       'packages', 'core-intent', 'eval', 'registry.json',
@@ -170,16 +215,33 @@ export class FinanceApp {
     const registry = await loadRegistry(registryPath, embedder);
 
     const db = openMemoryDatabase();
-    seed(db, { currency: options.currency ?? 'EUR', endDate: options.today ?? '2026-08-29' });
 
-    return new FinanceApp({
+    // Matches .gitignore's `models/` convention: on-demand assets, never
+    // bundled, never committed. Downloaded and verified on first voice use.
+    const voiceDirectory = options.voiceDirectory ?? join(
+      import.meta.dirname, '..', '..', '..', 'models', 'voice',
+    );
+    const voiceStore = new VoiceAssetStore({ directory: voiceDirectory });
+
+    return new NextGenApp({
       db,
       registry,
       embedder,
-      runtime: options.noModel ? undefined : new OllamaLlmRuntime({ model: options.model }),
+      moduleEmbedder,
+      voiceStore,
+      routerRuntime: options.noModel ? undefined : new OllamaLlmRuntime({ model: options.model }),
+      // module.capture needs real reasoning — a different, larger local model
+      // than the router's, and a vision-capable one specifically when a
+      // capture carries images. Degrades to an honest "unavailable" rather
+      // than a silent guess when no model is running at all.
+      moduleRuntime: options.noModel
+        ? new FakeLlmRuntime({ unavailable: 'running with --no-model' })
+        : visionAwareRuntime(
+            new OllamaLlmRuntime({ model: options.moduleModel ?? DEFAULT_MODULE_MODEL }),
+            new OllamaLlmRuntime({ model: options.visionModel ?? DEFAULT_VISION_MODEL }),
+          ),
       model: options.model,
       options: {
-        currency: options.currency ?? 'EUR',
         today: options.today ?? '2026-08-29',
         embedder: embedderKind,
       },
@@ -194,6 +256,10 @@ export class FinanceApp {
     return this.#traces;
   }
 
+  get today(): string {
+    return this.#options.today;
+  }
+
   /**
    * What the application can do, as declared.
    *
@@ -205,65 +271,47 @@ export class FinanceApp {
     return this.#registry.capabilities;
   }
 
-  get currency(): CurrencyCode {
-    return this.#options.currency;
+  /**
+   * The same search `module.search`'s read handler uses, exposed so a surface
+   * that wants a richer view than padded text can build one from the same
+   * source rather than re-deriving it. Same reasoning as `query` in the
+   * finance-era composition root: this is the only thing allowed to compute
+   * the answer, and both renderers read it.
+   */
+  async search(query: string): Promise<readonly ModuleMatch[]> {
+    return searchModules(this.#useCaseDeps, query);
   }
 
   /**
-   * The fixed query set, for surfaces that render rather than print.
-   *
-   * `#read` below is the *CLI's* renderer: it returns padded text lines, which
-   * is the right answer for a terminal and the wrong one for a screen that
-   * wants a figure at 44px and a bar beside it. Rather than teach one renderer
-   * to speak two languages, each surface renders from the same query engine —
-   * which is the only thing that is allowed to compute a number either way.
+   * Plain reads for the module browser pages (Rule 7: `module.list`'s route
+   * has to be a real, browsable screen, not just a chat answer). These carry
+   * no policy — listing and viewing are `navigate`/`read`-equivalent, and
+   * nothing here writes.
    */
-  get query(): SqliteQueryEngine {
-    return this.#query;
+  listModules(): readonly Module[] {
+    return this.#repositories.modules.list();
   }
 
-  /**
-   * Headline figures, computed.
-   *
-   * This exists so the discoverability tiles can carry live numbers instead of
-   * captions. Every value is produced by the query engine and formatted by
-   * `formatMoney` — Rule 2 applies to a tile exactly as it applies to an
-   * answer, and the model is not involved in either.
-   */
-  snapshot(): {
-    currency: CurrencyCode;
-    today: string;
-    monthToDate: { totalMinor: number; transactionCount: number; from: string; to: string };
-    budgets: readonly { categoryId: string; categoryName: string; spentMinor: number; limitMinor: number; remainingMinor: number }[];
-    accounts: readonly { name: string; balanceMinor: number }[];
-  } {
-    const today = this.#options.today;
-    const from = `${today.slice(0, 7)}-01`;
-    const total = this.#query.spendingTotal({ from, to: today, currency: this.#options.currency });
-    const budgets = this.#query.budgetStatus({ currency: this.#options.currency, on: today });
-    const accounts = this.#query.listAccounts();
+  listCategories(): readonly ModuleCategory[] {
+    return this.#repositories.moduleCategories.list();
+  }
 
-    return {
-      currency: this.#options.currency,
-      today,
-      monthToDate: {
-        totalMinor: total.rows[0]?.totalMinor ?? 0,
-        transactionCount: total.rows[0]?.transactionCount ?? 0,
-        from,
-        to: today,
-      },
-      budgets: budgets.rows.map((b) => ({
-        categoryId: b.categoryId,
-        categoryName: b.categoryName,
-        spentMinor: b.spentMinor,
-        limitMinor: b.limitMinor,
-        remainingMinor: b.remainingMinor,
-      })),
-      accounts: accounts.rows.map((a) => ({
-        name: String(a.name),
-        balanceMinor: Number(a.balanceMinor),
-      })),
-    };
+  getModule(id: string): Module | null {
+    return this.#repositories.modules.get(id);
+  }
+
+  listEntries(moduleId: string): readonly ModuleEntry[] {
+    return this.#repositories.moduleEntries.listByModule(moduleId);
+  }
+
+  /** Voice in: a 16kHz mono WAV path (already resampled client-side) → text. */
+  async transcribe(wavPath: string): Promise<SttResult> {
+    return this.#stt.transcribe(wavPath);
+  }
+
+  /** Voice out: text → WAV bytes. */
+  async speak(text: string): Promise<Buffer> {
+    return this.#tts.synthesize(text);
   }
 
   /**
@@ -272,15 +320,25 @@ export class FinanceApp {
    * The whole point of the assembly, in order: route, then apply policy, then —
    * only if policy allows — touch data. Nothing the model produced reaches the
    * database without passing through the dispatcher.
+   *
+   * `module.capture` is the one exception to "route, then dispatch": the hard
+   * reasoning (extract, decide create-vs-append, merge) has to run *before*
+   * dispatch, because its result — the proposed title/body/category — is what
+   * the confirmation card shows. See `#proposeAndDispatchCapture`.
+   *
+   * `sttConfidence`, when the turn came from voice, rides straight into the
+   * trace — `explain()` already knows how to report it, and did before any
+   * caller populated it.
    */
-  async turn(utterance: string): Promise<TurnResult> {
+  async turn(utterance: string, options?: { readonly sttConfidence?: number }): Promise<TurnResult> {
     let decision: Decision = { type: 'clarify', question: 'I did not understand that.', options: [] };
     let output: readonly string[] = [];
 
     await this.#recorder.run(
       {
         transcript: utterance,
-        ...(this.#runtime ? { modelId: this.#runtime.name } : {}),
+        ...(this.#routerRuntime ? { modelId: this.#routerRuntime.name } : {}),
+        ...(options?.sttConfidence !== undefined ? { sttConfidence: options.sttConfidence } : {}),
         promptVersion: 'v3',
       },
       async (r) => {
@@ -288,8 +346,8 @@ export class FinanceApp {
           registry: this.#registry,
           embedder: this.#embedder,
           thresholds: thresholdsFor(this.#options.embedder),
-          useStage3: this.#runtime !== undefined,
-          runtime: this.#runtime,
+          useStage3: this.#routerRuntime !== undefined,
+          runtime: this.#routerRuntime,
           model: this.#model,
         });
 
@@ -302,20 +360,24 @@ export class FinanceApp {
         if (routed.latency.stage1 !== undefined) r.stageLatency('stage1', routed.latency.stage1);
         if (routed.latency.stage2 !== undefined) r.stageLatency('stage2', routed.latency.stage2);
         if (routed.latency.stage3 !== undefined) r.stageLatency('stage3', routed.latency.stage3);
-        for (const [name, value] of Object.entries(routed.params)) {
-          // The router already applied Rule 11, so anything surviving a
-          // deterministic resolver is deterministic. Free-text params are the
-          // model's. This is what `explain()` reports back to the user.
-          r.param(name, value, this.#isDeterministic(name) ? 'deterministic' : 'model');
-        }
 
-        // --- policy ----------------------------------------------------------
-        decision = this.#dispatcher.decide({
-          capabilityId: routed.capabilityId,
-          params: routed.params,
-          missing: routed.missing,
-          candidates: routed.candidates.map((c) => c.capabilityId),
-        });
+        // --- policy, or — for a capture turn — propose first -------------------
+        if (routed.capabilityId === 'module.capture') {
+          const text = String(routed.params.body ?? utterance);
+          decision = await this.#proposeAndDispatchCapture(
+            r, text, 'text', undefined, routed.latency.stage3 ?? 0,
+          );
+        } else {
+          for (const [name, value] of Object.entries(routed.params)) {
+            r.param(name, value, this.#isDeterministic(name) ? 'deterministic' : 'model');
+          }
+          decision = this.#dispatcher.decide({
+            capabilityId: routed.capabilityId,
+            params: routed.params,
+            missing: routed.missing,
+            candidates: routed.candidates.map((c) => c.capabilityId),
+          });
+        }
 
         r.requiresConfirmation(decision.type === 'confirm');
         r.outcome(
@@ -326,7 +388,7 @@ export class FinanceApp {
 
         // --- act, only if policy allows --------------------------------------
         if (decision.type === 'execute') {
-          const { lines, dataRead } = this.#read(decision.capabilityId, decision.params);
+          const { lines, dataRead } = await this.#read(decision.capabilityId, decision.params);
           output = lines;
           for (const d of dataRead) r.read(d);
           if (decision.route) this.route = decision.route;
@@ -346,16 +408,9 @@ export class FinanceApp {
   /**
    * Run a capability the user picked by hand.
    *
-   * This is Rule 7 taken literally. "Every screen reachable by AI is reachable
-   * without it" does not mean *typing a sentence that the router will probably
-   * route correctly* — that is still the AI, and it still fails 20% of the time
-   * at the top-1 measured here. It means a path that does not consult the
-   * router at all, which is what this is: a capability id straight into the
-   * dispatcher.
-   *
-   * Policy is unchanged. A `write` picked from a menu still produces a
-   * confirmation card, because the policy is attached to the capability's
-   * *kind*, never to how the user got there (ADR-004).
+   * Rule 7 taken literally: a path that does not consult the router at all —
+   * a capability id straight into the dispatcher. Policy is unchanged: a
+   * `write` picked from a menu still produces a confirmation card.
    */
   async invoke(capabilityId: string): Promise<TurnResult> {
     const cap = this.#registry.byId.get(capabilityId);
@@ -367,9 +422,6 @@ export class FinanceApp {
     await this.#recorder.run(
       { transcript: cap.title, promptVersion: 'v3' },
       async (r) => {
-        // The trace still has to be honest about how this was decided: it was
-        // not a match, it was a selection. `deterministic` with a single
-        // candidate at 1.0 says exactly that, and the note spells it out.
         r.decidedAt('deterministic');
         r.candidates([{ capabilityId, score: 1 }]);
         r.capability(cap.id, cap.kind, cap.route);
@@ -391,7 +443,7 @@ export class FinanceApp {
         );
 
         if (decision.type === 'execute') {
-          const { lines, dataRead } = this.#read(decision.capabilityId, decision.params);
+          const { lines, dataRead } = await this.#read(decision.capabilityId, decision.params);
           output = lines;
           for (const d of dataRead) r.read(d);
           if (decision.route) this.route = decision.route;
@@ -423,41 +475,42 @@ export class FinanceApp {
     if (approved.type !== 'approved') return ['could not approve'];
 
     const { capabilityId, params } = approved;
-    const currency = this.#options.currency;
 
     switch (capabilityId) {
-      case 'transaction.create': {
-        const r = createTransaction(this.#useCaseDeps, {
-          accountId: 'acc_current',
-          amountMinor: Number(params.amount ?? 0),
-          categoryId: (params.category as string) ?? null,
-          ...(params.date ? { occurredAt: `${params.date}T12:00:00.000Z` } : {}),
+      case 'module.capture': {
+        const sourceType = params.sourceType;
+        const action = String(params.action ?? 'create');
+        const decision = action === 'interpret' ? 'interpret' : action.startsWith('append:') ? 'append' : 'create';
+        const targetModuleId = action.startsWith('append:') ? action.slice('append:'.length) : null;
+
+        const r = await commitCapture(this.#useCaseDeps, {
+          decision,
+          targetModuleId,
+          title: String(params.title ?? 'Untitled'),
+          summary: String(params.summary ?? ''),
+          body: String(params.body ?? ''),
+          category: String(params.category ?? ''),
+          sourceType:
+            sourceType === 'image' || sourceType === 'document' || sourceType === 'voice' ? sourceType : 'text',
+          sourceExcerpt: String(params.sourceExcerpt ?? params.body ?? ''),
         });
-        return r.ok
-          ? [`Recorded ${formatMoney({ amountMinor: r.value.amountMinor, currency })} to ${r.value.categoryId ?? 'uncategorised'}.`]
-          : [`Could not record it: ${r.reason}`];
+        if (!r.ok) return [`Could not do that: ${r.reason}`];
+
+        switch (r.value.kind) {
+          case 'created': return [`Saved "${r.value.module.title}".`];
+          case 'appended': return [`Added to "${r.value.module.title}".`];
+          case 'interpreted': return [r.value.title, r.value.body];
+        }
       }
-      case 'transaction.delete': {
-        const r = deleteTransaction(this.#useCaseDeps, String(params.target ?? ''));
+      case 'module.delete': {
+        const r = deleteModule(this.#useCaseDeps, String(params.target ?? ''));
         return r.ok
-          ? [`Deleted ${r.value.id}.`, `Undo with the token in the trace.`]
+          ? [`Deleted "${r.value.title}".`, `Undo with the token in the trace.`]
           : [`Could not delete it: ${r.reason}`];
       }
-      case 'budget.set': {
-        const r = setBudget(this.#useCaseDeps, {
-          categoryId: String(params.category ?? ''),
-          limitMinor: Number(params.amount ?? 0),
-          periodStart: `${this.#options.today.slice(0, 7)}-01`,
-          periodEnd: `${this.#options.today.slice(0, 7)}-28`,
-          currency,
-        });
-        return r.ok
-          ? [`Budget for ${r.value.categoryId} set to ${formatMoney({ amountMinor: r.value.limitMinor, currency })}.`]
-          : [`Could not set it: ${r.reason}`];
-      }
-      case 'budget.delete': {
-        const r = deleteBudget(this.#useCaseDeps, `bud_${params.category}_${this.#options.today.slice(0, 7)}-01`);
-        return r.ok ? [`Deleted the ${r.value.categoryId} budget.`] : [`Could not delete it: ${r.reason}`];
+      case 'module.revert': {
+        const r = revertModule(this.#useCaseDeps, String(params.target ?? ''));
+        return r.ok ? [`Reverted "${r.value.title}" to its previous version.`] : [`Could not revert it: ${r.reason}`];
       }
       default:
         return [`"${capabilityId}" is confirmed but has no action wired up yet.`];
@@ -470,102 +523,150 @@ export class FinanceApp {
     return trace ? formatExplanation(explain(trace)) : 'No turns yet.';
   }
 
+  // ------------------------------------------------------------- capture ----
+
+  /**
+   * The one place a turn does real work *before* the dispatcher sees it.
+   *
+   * `module.capture`'s hard reasoning — extract, decide create-vs-append,
+   * merge — has to happen here so its result can become the confirmation
+   * card's editable fields. On failure this builds a `clarify` directly with
+   * the actual reason, rather than routing through the dispatcher's generic
+   * "missing param" question — "the model needed for this is unavailable" is
+   * a better answer than "Which body?".
+   *
+   * Shared by both entry points: a chat turn the router recognised as a
+   * capture (`turn()`), and a file/image upload that bypasses the router
+   * entirely (`captureFromContent()`) — the reasoning is identical either
+   * way, only where the raw material came from differs.
+   */
+  async #proposeAndDispatchCapture(
+    r: TurnRecorder,
+    text: string,
+    sourceType: 'text' | 'image' | 'document' | 'voice',
+    images: readonly string[] | undefined,
+    routerStage3Ms: number,
+  ): Promise<Decision> {
+    const startedAt = performance.now();
+    const proposal = await proposeCapture(this.#useCaseDeps, { text, sourceType, ...(images ? { images } : {}) });
+    // The router's own `stage3` is a different model call than this one, but
+    // it is the one field `explain()` reads to say "the model was used, Nms"
+    // vs "without using the model at all" — added rather than overwritten, so
+    // a turn that needed both is not under-reported either way.
+    r.stageLatency('stage3', routerStage3Ms + (performance.now() - startedAt));
+
+    if (!proposal.ok) {
+      r.note(`module.capture: ${proposal.reason}`);
+      return { type: 'clarify', question: proposal.reason, options: [] };
+    }
+
+    const value: CaptureProposal = proposal.value;
+    // The standardised question: create / add to one of these specific
+    // existing modules / just interpret and save nothing. Defaults to the
+    // AI's own suggestion, but every shortlisted module is offered as a
+    // real alternative — deciding *which* module this belongs to is the
+    // person's call, not something the AI silently commits to.
+    const defaultAction = value.decision === 'append' && value.targetModuleId
+      ? `append:${value.targetModuleId}`
+      : 'create';
+    const params: Record<string, string> = {
+      action: defaultAction,
+      title: value.title,
+      summary: value.summary,
+      body: value.body,
+      category: value.category,
+      sourceType,
+      sourceExcerpt: text || `[${sourceType}]`,
+      // Carries the candidate list to the renderer as the field's options —
+      // not a value anyone edits directly, so it stays out of the visible
+      // param list (apps/web/lib/render.ts hides it explicitly).
+      candidatesJson: JSON.stringify(value.candidates),
+    };
+
+    for (const [name, val] of Object.entries(params)) {
+      r.param(name, val, 'model');
+    }
+    if (value.decision === 'append') {
+      r.note(`proposing to append to the existing module "${value.targetModuleTitle}"`);
+    }
+    if (value.candidates.length > 0) {
+      r.note(`${value.candidates.length} existing module(s) offered as alternatives: ${value.candidates.map((c) => c.title).join(', ')}`);
+    }
+
+    return this.#dispatcher.decide({
+      capabilityId: 'module.capture',
+      params,
+      missing: [],
+      candidates: ['module.capture'],
+    });
+  }
+
+  /**
+   * Capture from an upload — a photo or a document, rather than something
+   * typed. Bypasses the router the same way `invoke()` does (Rule 7's "menu
+   * selections cannot be misrouted", applied to an upload instead of a menu
+   * tap): there is no sentence to route, so there is nothing for the 1.5B
+   * model to get wrong here.
+   */
+  async captureFromContent(input: {
+    readonly text: string;
+    readonly sourceType: 'text' | 'image' | 'document' | 'voice';
+    readonly images?: readonly string[];
+  }): Promise<TurnResult> {
+    let decision: Decision = { type: 'refuse', reason: 'not runnable', declared: false };
+    let output: readonly string[] = [];
+
+    await this.#recorder.run(
+      { transcript: `[${input.sourceType} upload]`, promptVersion: 'v3' },
+      async (r) => {
+        r.decidedAt('deterministic');
+        r.candidates([{ capabilityId: 'module.capture', score: 1 }]);
+        r.capability('module.capture', 'write', '/modules/new');
+        r.missing([]);
+        r.note('uploaded directly; the router was not consulted');
+
+        decision = await this.#proposeAndDispatchCapture(r, input.text, input.sourceType, input.images, 0);
+
+        r.requiresConfirmation(decision.type === 'confirm');
+        r.outcome(
+          decision.type === 'execute' ? 'execute'
+            : decision.type === 'refuse' ? 'out_of_scope'
+              : 'clarify',
+        );
+
+        if (decision.type === 'refuse') {
+          output = [decision.reason];
+        } else if (decision.type === 'confirm') {
+          output = this.#describeConfirmation(decision);
+        } else if (decision.type === 'clarify') {
+          output = [decision.question, ...decision.options.map((o) => `  · ${o}`)];
+        }
+      },
+    );
+
+    return { decision, output, trace: this.#traces.latest()! };
+  }
+
   // -------------------------------------------------------------- reading --
 
-  #read(
+  async #read(
     capabilityId: string,
     params: Readonly<Record<string, string | number>>,
-  ): { lines: string[]; dataRead: { table: string; rowCount: number; from?: string; to?: string }[] } {
-    const currency = this.#options.currency;
-    const from = String(params.from ?? `${this.#options.today.slice(0, 7)}-01`);
-    const to = String(params.to ?? this.#options.today);
-    const money = (m: number) => formatMoney({ amountMinor: m, currency });
-
+  ): Promise<{ lines: string[]; dataRead: { table: string; rowCount: number; from?: string; to?: string }[] }> {
     switch (capabilityId) {
-      case 'spending.total': {
-        const r = this.#query.spendingTotal({ from, to, currency });
-        return {
-          lines: [`You spent ${money(r.rows[0]!.totalMinor)} between ${from} and ${to} (${r.rows[0]!.transactionCount} transactions).`],
-          dataRead: [...r.dataRead],
-        };
-      }
-      case 'spending.by_category': {
-        if (params.category) {
-          const r = this.#query.spendingInCategory({ categoryId: String(params.category), from, to, currency });
-          return {
-            lines: [`${params.category}: ${money(r.rows[0]!.totalMinor)} between ${from} and ${to}.`],
-            dataRead: [...r.dataRead],
-          };
+      case 'module.search': {
+        const query = String(params.query ?? '');
+        const matches: readonly ModuleMatch[] = await searchModules(this.#useCaseDeps, query);
+        if (matches.length === 0) {
+          return { lines: [`Nothing saved yet matches "${query}".`], dataRead: [{ table: 'modules', rowCount: 0 }] };
         }
-        const r = this.#query.spendingByCategory({ from, to, currency });
-        return {
-          lines: [
-            `Spending by category, ${from} to ${to}:`,
-            ...r.rows.map((c) => `  ${(c.categoryName ?? '?').padEnd(16)} ${money(c.totalMinor)}`),
-          ],
-          dataRead: [...r.dataRead],
-        };
-      }
-      case 'spending.trend': {
-        const r = this.#query.spendingTrend({ from: '2025-03-01', to, currency });
-        return {
-          lines: ['Monthly spending:', ...r.rows.map((m) => `  ${m.month}  ${money(m.totalMinor)}`)],
-          dataRead: [...r.dataRead],
-        };
-      }
-      case 'account.balance':
-      case 'accounts.list': {
-        const r = this.#query.listAccounts();
-        return {
-          lines: [
-            'Accounts:',
-            ...r.rows.map((a) => `  ${String(a.name).padEnd(12)} ${money(Number(a.balanceMinor))}`),
-          ],
-          dataRead: [...r.dataRead],
-        };
-      }
-      case 'transactions.list':
-      case 'search.transactions': {
-        const r = params.query
-          ? this.#query.searchTransactions({ query: String(params.query) })
-          : this.#query.listTransactions({
-              from, to,
-              ...(params.category ? { categoryId: String(params.category) } : {}),
-              limit: 10,
-            });
-        return {
-          lines: [
-            `${r.rows.length} transaction(s):`,
-            ...r.rows.slice(0, 10).map(
-              (t) =>
-                `  ${String(t.occurredAt).slice(0, 10)}  ${String(t.categoryName ?? '—').padEnd(14)}` +
-                ` ${money(Number(t.amountMinor)).padStart(10)}  ${t.merchant ?? ''}`,
-            ),
-          ],
-          dataRead: [...r.dataRead],
-        };
-      }
-      case 'budget.status':
-      case 'budget.view': {
-        const r = this.#query.budgetStatus({ currency, on: this.#options.today });
-        return {
-          lines: [
-            'Budgets:',
-            ...r.rows.map(
-              (b) =>
-                `  ${b.categoryName.padEnd(14)} ${money(b.spentMinor).padStart(10)} of ${money(b.limitMinor)}` +
-                `  ${b.remainingMinor < 0 ? `OVER by ${money(-b.remainingMinor)}` : `${money(b.remainingMinor)} left`}`,
-            ),
-          ],
-          dataRead: [...r.dataRead],
-        };
-      }
-      case 'categories.list': {
-        const r = this.#query.listCategories();
-        return {
-          lines: ['Categories:', ...r.rows.map((c) => `  ${c.parentId ? '  ' : ''}${c.name}`)],
-          dataRead: [...r.dataRead],
-        };
+        const [best, ...rest] = matches;
+        const lines = [
+          `${best!.module.title}`,
+          best!.module.body,
+          ...(rest.length > 0 ? ['', `Also related: ${rest.map((m) => m.module.title).join(', ')}`] : []),
+        ];
+        return { lines, dataRead: [{ table: 'modules', rowCount: matches.length }] };
       }
       default: {
         // A navigate capability with nothing to read: the route already changed.
@@ -580,22 +681,19 @@ export class FinanceApp {
   /**
    * The confirmation card, as text.
    *
-   * ADR-004 rule 1: it shows the **parsed parameters**, not the utterance. That
-   * is where a misheard "twelve" versus "twenty" gets caught, and it is the
-   * single highest-value detail in the system.
+   * ADR-004 rule 1: it shows the **parsed parameters**, not the utterance —
+   * for `module.capture` that means the proposed title/category/body, so a
+   * wrong guess is caught and edited here rather than silently saved.
    */
   #describeConfirmation(decision: Extract<Decision, { type: 'confirm' }>): string[] {
-    const currency = this.#options.currency;
     const lines = [
       decision.destructive ? `⚠  ${decision.title} — this cannot be undone without the journal.` : `${decision.title}?`,
       '',
     ];
     for (const [name, value] of Object.entries(decision.params)) {
-      const shown =
-        name === 'amount' && typeof value === 'number'
-          ? formatMoney({ amountMinor: value, currency })
-          : String(value);
-      lines.push(`    ${name.padEnd(10)} ${shown}`);
+      // provenance/internal, not something to review as its own line
+      if (name === 'sourceExcerpt' || name === 'sourceType' || name === 'candidatesJson') continue;
+      lines.push(`    ${name.padEnd(12)} ${String(value)}`);
     }
     lines.push('', 'Type  yes  to confirm, or anything else to cancel.');
     return lines;
@@ -603,17 +701,18 @@ export class FinanceApp {
 
   #payloadFor(capabilityId: string, params: Readonly<Record<string, string | number>>): unknown {
     // A destructive undo needs the row itself, captured BEFORE the delete.
-    if (capabilityId === 'transaction.delete') {
-      return this.#repositories.transactions.get(String(params.target ?? ''));
-    }
-    if (capabilityId === 'budget.delete') {
-      return this.#repositories.budgets.get(`bud_${params.category}_${this.#options.today.slice(0, 7)}-01`);
+    if (capabilityId === 'module.delete' || capabilityId === 'module.revert') {
+      return this.#repositories.modules.get(String(params.target ?? ''));
     }
     return params;
   }
 
   #isDeterministic(name: string): boolean {
-    // dates, money, enums and numbers all have resolvers; free text does not.
-    return ['from', 'to', 'date', 'amount', 'category', 'account', 'period'].includes(name);
+    // Nothing in the modules domain has a deterministic slot resolver — every
+    // module capability's params are free text (query/target) or model-read
+    // content (module.capture's proposal). Kept as its own method, matching
+    // domain-finance's shape, so a future capability with a real resolver
+    // (a date, say) has one place to declare it.
+    return false;
   }
 }

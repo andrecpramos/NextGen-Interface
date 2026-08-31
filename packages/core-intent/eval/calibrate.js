@@ -222,7 +222,14 @@ if (boundaryIds.size > 0) {
   });
 
   const oos = rows.filter((r) => r.bucket === 'out_of_scope');
-  const routable = rows.filter((r) => r.expected);
+  // "In-domain" means every bucket except out_of_scope (the boundary's actual
+  // target) and adversarial (refusing an injection attempt is a safe outcome,
+  // not a cost — it isn't what this constraint is protecting against).
+  // Filtering on `r.expected` alone silently dropped the whole `ambiguous`
+  // bucket, because those entries assert an outcome ("clarify"), not a
+  // capability id — so a vague in-domain turn could be boundary-refused
+  // without tripping the "never refuse an in-domain turn" constraint below.
+  const routable = rows.filter((r) => r.bucket !== 'out_of_scope' && r.bucket !== 'adversarial');
 
   console.log('');
   console.log('  boundaryMargin sweep');

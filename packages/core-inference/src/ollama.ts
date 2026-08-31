@@ -75,7 +75,11 @@ export class OllamaLlmRuntime implements LlmRuntime {
           options: { temperature: 0, num_predict: request.maxTokens ?? 200 },
           messages: [
             { role: 'system', content: request.system },
-            { role: 'user', content: request.prompt },
+            {
+              role: 'user',
+              content: request.prompt,
+              ...(request.images && request.images.length > 0 ? { images: request.images } : {}),
+            },
           ],
         }),
         signal: AbortSignal.timeout(request.timeoutMs ?? this.#timeoutMs),
