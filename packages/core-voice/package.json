@@ -13,7 +13,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "adm-zip": "^0.5.18"
+    "adm-zip": "^0.6.0"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8"

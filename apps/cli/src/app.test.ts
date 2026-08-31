@@ -64,7 +64,12 @@ describe('the stack composes', () => {
 describe('module.capture says so rather than guessing when it has no model to reason with', () => {
   it('produces an honest clarify, never a silent write, when the module model is unavailable', async () => {
     const a = await app();
-    const r = await a.turn('remember that my passport expires in June 2027');
+    // An exact trigger phrase, not a longer paraphrase: this must resolve to
+    // module.capture at stage 1, independent of stage-2 embedding thresholds
+    // (calibrated per WP-14 against the modules registry), so the assertion
+    // below exercises module.capture's own no-model degradation rather than
+    // the router's generic "which of these" clarify.
+    const r = await a.turn('remember this');
     expect(r.decision.type).toBe('clarify');
     expect(r.decision.type === 'clarify' && r.decision.question).toMatch(/unavailable/);
   });

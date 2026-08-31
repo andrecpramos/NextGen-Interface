@@ -39,33 +39,41 @@ export interface Thresholds {
 export type EmbedderKind = 'hashing' | 'ollama';
 
 export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
-  // Calibrated 2026-08-29 against golden-set.jsonl (200 entries).
+  // Recalibrated 2026-08-31 (WP-14) against golden-set.jsonl (80 entries), after
+  // the registered domain pivoted from the 60-capability finance registry to
+  // the 7-capability "remember this" one. The old finance-era values below are
+  // meaningless against this registry — a threshold is a property of the
+  // encoder AND the capability surface it is scoring, never a constant to
+  // carry forward.
   //
-  // tauFloor is deliberately 0 — stage-2 out-of-scope rejection is DISABLED.
-  // Calibration showed no operating point where a lexical encoder separates
-  // "vague but in-domain" from "off-domain": "more" scores 0.154 and "what
-  // time is it" scores 0.127. The best joint point was 75% OOS / 60% clarify,
-  // against 95%/95% gates. Domain membership is a semantic judgement, so it is
-  // deferred to stage 3, which has an explicit __out_of_scope__ answer.
+  // tauFloor is still 0, for the same reason as before: a lexical/embedding
+  // score alone cannot separate "vague but in-domain" from "off-domain" — see
+  // ADR-009. Out-of-scope stays a registry-retrieval problem (boundaryMargin),
+  // not a stage-2 threshold problem.
   //
-  // WP-01 UPDATE: that deferral does not survive a smaller model. gemma3:1b
-  // never emits the sentinel and qwen2.5:1.5b catches 30–40% of out-of-scope
-  // input, against 85% on llama3.1:8b (FINDINGS Finding 7).
+  // Smaller registry, smaller golden set, smaller accept rate: stage 2 now
+  // accepts only 10.3% of routable turns (hashing) / 27.6% (nomic-embed-text)
+  // at 100% precision — down from 45.3% on the old 60-capability registry.
+  // Expected, not a regression: seven capabilities give the embedder far fewer
+  // near-miss paraphrases to build a safe margin against, so the calibrator
+  // finds a smaller, more conservative accept region. Re-run
+  // `node eval/calibrate.js --embedder=<kind> --defer-oos` whenever the
+  // registry or the golden set changes — never hand-set these.
   //
-  // ADR-009 answers it, and NOT by raising tauFloor — measurement over five
-  // features (top score, margin, mean, entropy, spread) confirmed there is no
-  // operating point, because the classes are genuinely interleaved: "transfer
-  // 500 to my brother" scores 0.500 while the in-domain "no not that one"
-  // scores 0.363. The fix is that the registry now DECLARES the application's
-  // limits, so out-of-scope is retrieved rather than judged. See boundaryMargin.
-  hashing: { tauHigh: 0.231, delta: 0.09, tauFloor: 0, topK: 5, boundaryMargin: 0.105 },
+  // boundaryMargin also picked up a real fix here, not just a re-run: the
+  // sweep's "in-domain wrongly refused" check only looked at entries with an
+  // `expect.capability`, which silently excluded the whole `ambiguous` bucket
+  // (those assert an outcome, not a capability) from the "never refuse an
+  // in-domain turn" constraint. A margin of 0 was passing only because nothing
+  // was checking it — genuinely unrelated input ("something entirely
+  // unrelated to anything this app does xyzzy") was being refused as a
+  // declared limit instead of clarified. Fixed in calibrate.js; the value
+  // below is what the corrected sweep recommends.
+  hashing: { tauHigh: 0.436, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.055 },
 
-  // nomic-embed-text, calibrated 2026-08-29 with --defer-oos.
-  // Accepts 45.3% of routable turns at 95.6% precision.
-  // Note how much lower tauHigh and delta sit than the values a reasonable
-  // person would guess (0.62 / 0.08) — guessing them disabled stage 2 entirely
-  // on the first run. Always calibrate.
-  ollama: { tauHigh: 0.535, delta: 0.05, tauFloor: 0, topK: 5, boundaryMargin: 0.075 },
+  // nomic-embed-text, recalibrated 2026-08-31 (WP-14) with --defer-oos.
+  // Accepts 27.6% of routable turns at 100% precision.
+  ollama: { tauHigh: 0.715, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.1 },
 };
 
 /** Sentinel the model may return to mean "none of these capabilities". */
