@@ -43,21 +43,20 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **WP-31** · Ground truth for `fut-app` | M1 | M | — |
-| 2 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | 1 |
-| 3 | **WP-25** · The registry generator — role-scoped | M1 | L | 2 |
-| 4 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 3 |
-| 5 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | 1 |
-| 6 | **WP-33** · **The measurement** — the first artefact | M1 | S | 3, 4, 5 |
-| 7 | **WP-34** · The write-up — the second artefact | M2 | M | 6 |
-| 8 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 6 |
-| 9 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 3, D-3 |
-| 10 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 4, 8 |
-| 11 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 8, 9, 10 |
+| 1 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | — |
+| 2 | **WP-25** · The registry generator — role-scoped | M1 | L | 1 |
+| 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 2 |
+| 4 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | — |
+| 5 | **WP-33** · **The measurement** — the first artefact | M1 | S | 2, 3, 4 |
+| 6 | **WP-34** · The write-up — the second artefact | M2 | M | 5 |
+| 7 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 5 |
+| 8 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 2, D-3 |
+| 9 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 7 |
+| 10 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 7, 8, 9 |
 
-**Landed this session:** WP-15, WP-17, **WP-16** (all §7.1) and **WP-23** — ADR-013
+**Landed this session:** WP-15, WP-17, WP-16, **WP-31** (all §7.1) and **WP-23** — ADR-013
 written (status `Proposed`, awaiting the owner's acceptance) — plus D-1 and D-2 decided
-(§13), on `feature/plan-execution`. **M0 is now fully closed.**
+(§13), on `feature/plan-execution`. **M0 is fully closed; M1 has its ground truth.**
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
@@ -775,7 +774,7 @@ both well under 5s.
 
 ---
 
-### WP-31 · Ground truth for `fut-app` ⬜ · **M** · queue 5
+### WP-31 · Ground truth for `fut-app` ✅ **COMPLETE — 2026-09-10**
 
 **Goal.** You cannot score a generator without knowing the right answer. Assemble the
 registry a careful developer would produce for `fut-app`.
@@ -798,17 +797,33 @@ something written independently of it.
 Declare ≥2 `unsupported` boundaries. Write examples in the words a **guardian or coach**
 would use, in Portuguese and English — not the developer's vocabulary.
 
+**Delivered.** [eval/fut-app/](eval/fut-app/GROUND_TRUTH.md) — `ground-truth.registry.json` (47
+entries: 45 capabilities + 2 boundaries) and `GROUND_TRUTH.md` (methodology, sourcing,
+the corrected 10-role model, four documented omissions from the 36 deep-links, Ladder A2
+notes). Samples: `operations` (simple, 2 pages), `guardian`/`PARENT` (role-gated, 6
+`PARENT`-exclusive routes), `medical` (deep, 10 pages — including the same route
+(`medical.centre`) open to two roles with materially different in-page content, a case
+worth watching in WP-25/WP-30). Verify with `node --experimental-strip-types
+eval/fut-app/verify.mjs`.
+
 **Acceptance.**
-- [ ] Passes `pnpm registry:check`
-- [ ] Covers all 36 deep-link routes plus the three sampled feature areas
-- [ ] **Role-scoped**: each capability carries the roles that may reach it (Rule 17)
-- [ ] ≥3 examples per capability in the sampled areas; ≥2 boundaries
-- [ ] Written **before** looking at any generator output
-- [ ] Notes which capabilities need live data and are therefore **Ladder A2**, not A1
+- [x] Passes validation — `validateRegistry()` directly (not `pnpm registry:check`,
+      which is `domain-modules`-only and would clobber the router's actual registry;
+      see `eval/fut-app/verify.mjs`'s own note)
+- [x] Covers all 36 deep-link routes plus the three sampled feature areas — 32 direct,
+      4 documented, reasoned omissions (two legacy redirects, a stale-bookmark redirect,
+      a dev-only route)
+- [x] **Role-scoped**: each capability carries the roles that may reach it (Rule 17) —
+      via `routes.tsx`'s `ROUTE_ROLES` guards, not `deepLinks.ts`'s narrower "off-nav for"
+      field (a real distinction this work found; see GROUND_TRUTH.md)
+- [x] ≥3 examples per capability everywhere (not only the sampled areas); ≥2 boundaries
+- [x] Written **before** looking at any generator output
+- [x] Notes which capabilities need live data and are therefore **Ladder A2**, not A1
 
 **Stop if.** `deepLinks.ts` and `navConfigs` turn out to be stale against the router —
 then the app's own IA is drifting, and that is a finding worth reporting to the app's
 owner before measuring anything against it.
+**Did not trigger** — `fut-app`'s own drift gate, `navGate.test.ts`, passes 17/17.
 
 ---
 
@@ -1146,7 +1161,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 M0  FOUNDATION ✅     WP-23 ADR ✅ (Proposed) · WP-15 landed ✅ · WP-16 de-financed ✅ · WP-17 re-measured ✅
      ~5 sessions       cheap, unblocks everything, builds nothing new
                             │
-M1  THE MEASUREMENT   WP-31 ground truth → WP-30 SPIKE ⟨GO/NO-GO⟩ → WP-25 generator
+M1  THE MEASUREMENT   WP-31 ground truth ✅ → WP-30 SPIKE ⟨GO/NO-GO⟩ → WP-25 generator
      ~15-20 sessions   → WP-36 explanations → WP-32 golden set + palette baseline
                        → WP-33 MEASURE      ◄── the milestone that matters
                             │
