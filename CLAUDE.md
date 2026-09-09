@@ -58,6 +58,38 @@ pnpm registry:check                                # Rule 10: >=3 examples per c
 The golden-set gate and its tolerances are described in
 [.ai/sdlc/ci-cd.md](.ai/sdlc/ci-cd.md); the reasoning is [ADR-011](.ai/decisions/ADR-011.md).
 
+`/gates` runs all of it and reports PASS/FAIL per gate, or delegate it to the
+`gate-runner` agent to keep it out of your context. The gate list itself lives in
+[.ai/sdlc.config.json](.ai/sdlc.config.json) — hooks and commands read that file,
+so it and CI must not drift.
+
+**Which rule is actually enforced where** — and which are only written down — is
+the register in
+[.ai/critical-infrastructure.md](.ai/critical-infrastructure.md). Read it before
+trusting that something is protected. Its top entry is not theoretical: the CI
+staleness gate currently diffs a directory the build never writes.
+
+## The workflow is in `.claude/`
+
+Don't re-derive these procedures — they are written down. Full map:
+[.claude/README.md](.claude/README.md).
+
+| You are… | Use |
+|---|---|
+| adding or changing a capability | `new-feature` skill |
+| making an architectural choice | `write-adr` skill — the reversibility test is in it |
+| finishing work: gates → commit → PR | `ship-it` skill |
+| checking a diff against the rules | `/rules-check` |
+| asking what is actually enforced | `/sdlc-audit`, or the `sdlc-auditor` agent |
+| ending a session | `/handoff` |
+| suspicious the docs have drifted | `docs-keeper` agent |
+| installing this SDLC in another repo | `sdlc-bootstrap` skill, and [sdlc-kit/](sdlc-kit/) |
+
+Three hooks enforce what you would otherwise have to remember: the branching
+contract at every context boundary, a guard denying broad staging and writes to
+production, and an immediate gate check on edits that could break Rule 1 or the
+calibration discipline. Review them with `/hooks`.
+
 ## Environment
 
 - **Node 23.6+ required**, despite `engines` saying `>=20`. The repo runs

@@ -28,6 +28,58 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-git.mjs",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Checking the command against the branching contract"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/check-gates.mjs",
+            "shell": "bash",
+            "timeout": 20,
+            "statusMessage": "Checking the gates this edit could break"
+          }
+        ]
+      }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git symbolic-ref:*)"
+    ],
+    "ask": [
+      "Write(.ai/decisions/**)",
+      "Edit(.ai/decisions/**)",
+      "Edit(.ai/sdlc.config.json)",
+      "Edit(.ai/rules.md)",
+      "Edit(.ai/critical-infrastructure.md)",
+      "Edit(PLAN.md)",
+      "Edit(.ai/architecture.md)",
+      "Edit(.ai/security.md)"
+    ],
+    "deny": []
   }
 }
