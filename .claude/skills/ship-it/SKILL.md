@@ -101,7 +101,7 @@ better than one told everything is fine.
 
 ## 6 · Definition of done
 
-From `.ai/sdlc/planning.md`. Check it, and report honestly on anything not done —
+From `.claude/sdlc/planning.md`. Check it, and report honestly on anything not done —
 the two items a project skips most are the two worth naming explicitly.
 
 ## What this skill will not do

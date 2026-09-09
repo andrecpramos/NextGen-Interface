@@ -17,7 +17,7 @@ Owed:
 - A change to a layer boundary or the dependency rule
 - A storage engine, a wire format, a runtime
 - A policy table — anything encoding "what is allowed to happen"
-- Anything that weakens a principle in `.ai/vision.md`
+- Anything that weakens a principle in `.claude/docs/vision.md`
 
 Not owed:
 
@@ -34,8 +34,8 @@ reads any of them, and that costs more than a missing record.
 ## Then: write it
 
 ```bash
-ls .ai/decisions/           # find the next number — sequential, never reused
-cp .ai/decisions/ADR-000-template.md .ai/decisions/ADR-0NN-<slug>.md
+ls .claude/decisions/           # find the next number — sequential, never reused
+cp .claude/decisions/ADR-000-template.md .claude/decisions/ADR-0NN-<slug>.md
 ```
 
 Title names the **choice**, not the topic. "ADR-004 — Confirm writes, never reads"
@@ -77,7 +77,7 @@ and check whether an ADR is owed at all.
 
 Name what enforces this: a gate id, a hook, a test, or **convention**.
 
-If `convention`, add a row to `.ai/critical-infrastructure.md`'s gap list. An
+If `convention`, add a row to `.claude/docs/critical-infrastructure.md`'s gap list. An
 unenforced ADR is a strong suggestion, and calling it binding does not make it so.
 
 ## Superseding
@@ -89,13 +89,13 @@ Never edit an accepted ADR and never delete one.
    mandatory**, a superseded ADR with no forward link is a trap
 3. Leave the old one's content untouched. The record of a wrong decision and why
    it was reversed is more valuable than the decision was
-4. Update the index in `.ai/decisions/README.md`
+4. Update the index in `.claude/decisions/README.md`
 5. Update any rule in `PLAN.md` §2 that cited the old ADR
 
 ## After writing
 
 - Add it to the index table
 - If it creates or changes a rule, update `PLAN.md` §2 and
-  `.ai/critical-infrastructure.md`
+  `.claude/docs/critical-infrastructure.md`
 - Tell the user it needs their acceptance. **You do not accept ADRs** — status
   stays `Proposed` until they say otherwise.

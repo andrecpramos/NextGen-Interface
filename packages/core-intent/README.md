@@ -1,6 +1,6 @@
 # @nextgen/core-intent
 
-The three-stage intent cascade from [ADR-003](../../.ai/decisions/ADR-003.md):
+The three-stage intent cascade from [ADR-003](../../.claude/decisions/ADR-003.md):
 deterministic → embedding → constrained LLM. Domain-agnostic — nothing here knows what
 a transaction is. TypeScript, run directly by Node's native type stripping; no build
 step and no runtime dependencies.
@@ -141,7 +141,7 @@ tolerances, not on scorecard equality (Finding 10).
   working mechanism. See Finding 7; WP-03 owes the replacement.
 - **Injection via stored data.** Adversarial entries arrive as utterances. The
   realistic vector is a transaction memo entering a prompt as data, which needs the
-  fencing described in [security.md](../../.ai/security.md).
+  fencing described in [security.md](../../.claude/docs/security.md).
 - **Real traffic distribution.** The corpus is deliberately adversarial (35% of
   entries cannot resolve before stage 3 by design), so the model-free rate here is a
   lower bound, not an estimate.
@@ -153,7 +153,7 @@ tolerances, not on scorecard equality (Finding 10).
 ## Adding to the golden set
 
 Every routing bug becomes a permanent entry before it is closed
-([sdlc/testing.md](../../.ai/sdlc/testing.md)). Format:
+([sdlc/testing.md](../../.claude/sdlc/testing.md)). Format:
 
 ```jsonc
 {

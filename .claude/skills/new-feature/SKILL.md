@@ -5,7 +5,7 @@ description: Implement a new feature or change an existing one, following this r
 
 # The development loop
 
-Adapt this to what the repo's `.ai/sdlc/development.md` says. Where the two
+Adapt this to what the repo's `.claude/sdlc/development.md` says. Where the two
 disagree, that document wins — it is the repo's, this is the kit's default.
 
 ## 1 · Branch
@@ -18,7 +18,7 @@ Propose a concrete name: `feature/<area>-<short-name>`.
 
 ## 2 · Ready?
 
-Check the Definition of Ready in `.ai/sdlc/planning.md`. The item needs a
+Check the Definition of Ready in `.claude/sdlc/planning.md`. The item needs a
 user-facing outcome, checkable acceptance criteria, and resolved-or-stubbed
 dependencies.
 

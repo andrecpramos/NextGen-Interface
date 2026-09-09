@@ -32,7 +32,7 @@ than no handoff, because the next session builds on it.
 
 ## 3 · Write the handoff
 
-Update the living plan document (`docs.plan` in `.ai/sdlc.config.json`) if there
+Update the living plan document (`docs.plan` in `.claude/sdlc.config.json`) if there
 is one; otherwise put it in the session summary.
 
 ```markdown

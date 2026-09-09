@@ -2,7 +2,7 @@
  * Runtime interfaces.
  *
  * This package exists because of a risk, not because of an abstraction habit.
- * [ADR-006](../../../.ai/decisions/ADR-006.md) moved the stack to TypeScript, which
+ * [ADR-006](../../../.claude/decisions/ADR-006.md) moved the stack to TypeScript, which
  * means on-device inference goes through `llama.rn` — and nobody has yet proved
  * that `llama.rn` can load a quantised 1B GGUF and complete a stage-3 call on a
  * mid-range Android (WP-10 gates exactly that).

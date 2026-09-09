@@ -9,7 +9,7 @@
  * So the shape lives here as data, both dialects are generated from it, and a
  * parity test asserts they never diverge.
  *
- * Entity model from [sdlc/design.md](../../../../.ai/sdlc/design.md).
+ * Entity model from [sdlc/design.md](../../../../.claude/sdlc/design.md).
  */
 
 export type ColumnType =

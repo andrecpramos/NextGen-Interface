@@ -9,8 +9,8 @@ MVP 1 is functionally complete; **WP-12** (CI/CD) landed alongside it. Next: **W
 > touching anything.** It tells you the goal, the rules you must not break, exactly
 > what exists, exactly what does not, and what to build next in what order.
 >
-> Then read [.ai/architecture.md](.ai/architecture.md) and the ADRs in
-> [.ai/decisions/](.ai/decisions/). Those are binding. This file is the schedule;
+> Then read [.claude/docs/architecture.md](.claude/docs/architecture.md) and the ADRs in
+> [.claude/decisions/](.claude/decisions/). Those are binding. This file is the schedule;
 > they are the constitution.
 
 ---
@@ -37,19 +37,19 @@ or package boundaries — breaking them is a defect, not a style choice.
 
 | # | Rule | Where it comes from |
 |---|---|---|
-| 1 | `packages/core-*` **never** imports `domain-finance`. Domains register into the engine. | [architecture.md](.ai/architecture.md), enforced by pnpm workspace deps |
-| 2 | The model **never computes a number the user sees.** It phrases; code computes. | [ADR-003](.ai/decisions/ADR-003.md) — and a real bug caught by it, see §6 |
-| 3 | The model **never emits SQL** and never a raw route. It selects an id + typed slots. | [ADR-007](.ai/decisions/ADR-007.md) |
-| 4 | Every model-produced identifier is **validated against the registry** before use. | [ADR-003](.ai/decisions/ADR-003.md) |
-| 5 | Policy is **code in the dispatcher**, never prompt text. read→execute, write→confirm, destructive→confirm+undo, unclassified→**refuse**. | [ADR-004](.ai/decisions/ADR-004.md) |
-| 6 | Money is **integer minor units + currency code**. Never float. Not once. | [ADR-007](.ai/decisions/ADR-007.md) |
-| 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](.ai/decisions/ADR-005.md) |
-| 8 | **The device is the source of truth.** Nothing on the critical path requires network. | [ADR-008](.ai/decisions/ADR-008.md) |
-| 9 | Every turn produces a **TurnTrace**. Explainability is a record, never model narration. | [architecture.md](.ai/architecture.md), enforced by `core-trace` |
-| 10 | Every new capability ships with **≥3 examples** and golden-set entries. | [.ai/coding-standards.md](.ai/coding-standards.md) |
+| 1 | `packages/core-*` **never** imports `domain-finance`. Domains register into the engine. | [architecture.md](.claude/docs/architecture.md), enforced by pnpm workspace deps |
+| 2 | The model **never computes a number the user sees.** It phrases; code computes. | [ADR-003](.claude/decisions/ADR-003.md) — and a real bug caught by it, see §6 |
+| 3 | The model **never emits SQL** and never a raw route. It selects an id + typed slots. | [ADR-007](.claude/decisions/ADR-007.md) |
+| 4 | Every model-produced identifier is **validated against the registry** before use. | [ADR-003](.claude/decisions/ADR-003.md) |
+| 5 | Policy is **code in the dispatcher**, never prompt text. read→execute, write→confirm, destructive→confirm+undo, unclassified→**refuse**. | [ADR-004](.claude/decisions/ADR-004.md) |
+| 6 | Money is **integer minor units + currency code**. Never float. Not once. | [ADR-007](.claude/decisions/ADR-007.md) |
+| 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](.claude/decisions/ADR-005.md) |
+| 8 | **The device is the source of truth.** Nothing on the critical path requires network. | [ADR-008](.claude/decisions/ADR-008.md) |
+| 9 | Every turn produces a **TurnTrace**. Explainability is a record, never model narration. | [architecture.md](.claude/docs/architecture.md), enforced by `core-trace` |
+| 10 | Every new capability ships with **≥3 examples** and golden-set entries. | [.claude/docs/coding-standards.md](.claude/docs/coding-standards.md) |
 | 11 | Deterministic slot values **always win** over model-extracted ones. | §6, learned the hard way |
-| 12 | A routing bug is not fixed until it is a **permanent golden-set entry**. | [.ai/sdlc/testing.md](.ai/sdlc/testing.md) |
-| 13 | The application's **limits are declared in the registry**, not left to the model to infer. | [ADR-009](.ai/decisions/ADR-009.md) |
+| 12 | A routing bug is not fixed until it is a **permanent golden-set entry**. | [.claude/sdlc/testing.md](.claude/sdlc/testing.md) |
+| 13 | The application's **limits are declared in the registry**, not left to the model to infer. | [ADR-009](.claude/decisions/ADR-009.md) |
 | 14 | Thresholds are **calibrated per encoder**, never hand-set and never copied between encoders. | Findings 1 and 11 — cost accuracy three times |
 
 ---
@@ -63,16 +63,16 @@ verified on disk.
 
 | Blueprint asked for | Status | Where |
 |---|---|---|
-| `.ai/` folder structure | ✅ Done | [.ai/](.ai/) — 27 files |
-| `project.md`, `vision.md`, `roadmap.md`, `architecture.md` | ✅ Done | [.ai/](.ai/) |
-| `coding-standards.md`, `ui-guidelines.md`, `security.md`, `testing.md`, `deployment.md` | ✅ Done | [.ai/](.ai/) |
-| `sdlc/` × 7 phase docs | ✅ Done | [.ai/sdlc/](.ai/sdlc/) |
-| `agents/` × 6 role briefs | ✅ Done | [.ai/agents/](.ai/agents/) |
-| `decisions/` ADR-001…003 | ✅ Done — **12 ADRs**, not 3 | [.ai/decisions/](.ai/decisions/) |
-| SDLC Phase 1 Planning (vision, roadmap, metrics, risks) | ✅ Done | [roadmap.md](.ai/roadmap.md) |
-| SDLC Phase 2 Requirements (FR + NFR) | ✅ Done — IDs assigned, testable | [sdlc/requirements.md](.ai/sdlc/requirements.md) |
-| SDLC Phase 3 Design (ERD, sequence diagrams, nav flow) | ✅ Done | [sdlc/design.md](.ai/sdlc/design.md) |
-| SDLC Phase 4–7 (dev, test, deploy, maintain) | ✅ Documented, ⛔ not executed | [.ai/sdlc/](.ai/sdlc/) |
+| `.claude/` folder structure | ✅ Done | [.claude/](.claude/) — 27 files |
+| `project.md`, `vision.md`, `roadmap.md`, `architecture.md` | ✅ Done | [.claude/](.claude/) |
+| `coding-standards.md`, `ui-guidelines.md`, `security.md`, `testing.md`, `deployment.md` | ✅ Done | [.claude/](.claude/) |
+| `sdlc/` × 7 phase docs | ✅ Done | [.claude/sdlc/](.claude/sdlc/) |
+| `agents/` × 6 role briefs | ✅ Done | [.claude/roles/](.claude/roles/) |
+| `decisions/` ADR-001…003 | ✅ Done — **12 ADRs**, not 3 | [.claude/decisions/](.claude/decisions/) |
+| SDLC Phase 1 Planning (vision, roadmap, metrics, risks) | ✅ Done | [roadmap.md](.claude/docs/roadmap.md) |
+| SDLC Phase 2 Requirements (FR + NFR) | ✅ Done — IDs assigned, testable | [sdlc/requirements.md](.claude/sdlc/requirements.md) |
+| SDLC Phase 3 Design (ERD, sequence diagrams, nav flow) | ✅ Done | [sdlc/design.md](.claude/sdlc/design.md) |
+| SDLC Phase 4–7 (dev, test, deploy, maintain) | ✅ Documented, ⛔ not executed | [.claude/sdlc/](.claude/sdlc/) |
 
 ### Architecture — the five AI layers
 
@@ -90,9 +90,9 @@ verified on disk.
 
 | Blueprint proposed | Decision | Why |
 |---|---|---|
-| Flutter + Riverpod + GoRouter | ❌ **Rejected** | [ADR-006](.ai/decisions/ADR-006.md) — no Dart experience; TS monorepo instead |
-| Drift / Isar | ❌ **Rejected** | [ADR-007](.ai/decisions/ADR-007.md) — Drizzle; SQLite reasoning kept. **Built in WP-04**, on `node:sqlite` |
-| Local-first, no backend | ⚠️ **Amended** | [ADR-008](.ai/decisions/ADR-008.md) — backend exists, device stays source of truth |
+| Flutter + Riverpod + GoRouter | ❌ **Rejected** | [ADR-006](.claude/decisions/ADR-006.md) — no Dart experience; TS monorepo instead |
+| Drift / Isar | ❌ **Rejected** | [ADR-007](.claude/decisions/ADR-007.md) — Drizzle; SQLite reasoning kept. **Built in WP-04**, on `node:sqlite` |
+| Local-first, no backend | ⚠️ **Amended** | [ADR-008](.claude/decisions/ADR-008.md) — backend exists, device stays source of truth |
 | llama.cpp / ONNX inference | ✅ **Interface built — WP-06** | Ollama live; `llama.rn` / WebGPU declared, gated by WP-10 / WP-09 |
 | Whisper STT + Piper TTS | ✅ Accepted, ⛔ not built | |
 | Gemma 3 1B / Qwen 2.5 1.5B | ✅ **Tested — WP-01** | `qwen2.5:1.5b` selected; `gemma3:1b` rejected. [FINDINGS Part II](packages/core-intent/eval/FINDINGS.md) |
@@ -112,7 +112,7 @@ verified on disk.
 
 ```
 NextGen_Interface/
-├── .ai/                       27 docs, 12 ADRs         ✅ COMPLETE
+├── .claude/                       27 docs, 12 ADRs         ✅ COMPLETE
 ├── apps/
 │   ├── cli/                   TypeScript, strict        ✅ COMPOSITION ROOT
 │   │   └── src/               app · index · 10 tests — the whole stack, runnable
@@ -164,7 +164,7 @@ NextGen_Interface/
    harness stays `.js` and imports the `.ts` sources directly via Node's native type
    stripping, so there is still no build step between changing the router and
    measuring it.
-3. **Several `.ai/` docs contain Dart examples** — `coding-standards.md`,
+3. **Several `.claude/` docs contain Dart examples** — `coding-standards.md`,
    `architecture.md`, `ui-guidelines.md`, and the agent briefs. The architecture they
    describe is language-neutral and correct; only the syntax is stale. Fixed by
    **WP-11**.
@@ -261,7 +261,7 @@ sentinel.
 - Scorecards for both 1B models, plus a same-session 8B baseline, in
   [eval/scorecards/](packages/core-intent/eval/scorecards/)
 - [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) — Findings 7–10
-- [ADR-003](.ai/decisions/ADR-003.md) status: provisional → **Accepted**, with three
+- [ADR-003](.claude/decisions/ADR-003.md) status: provisional → **Accepted**, with three
   claims amended inline
 - `eval/compare.js` — side-by-side scorecard comparison; `--topk=<n>` flag on the
   evaluator; per-bucket top-1, per-bucket stage-3 latency and stage-3 health counters
@@ -404,7 +404,7 @@ better boundary:
 
 Out-of-scope requests to a finance app are mostly *about finance*. What separates the
 classes is not what the sentence is about — it is what the application does. Which
-[ADR-004](.ai/decisions/ADR-004.md) rule 3 already stated, in prose, where no code could
+[ADR-004](.claude/decisions/ADR-004.md) rule 3 already stated, in prose, where no code could
 read it.
 
 **So the registry declares it.** A new kind, `unsupported`, describes a class the app
@@ -455,13 +455,13 @@ between encoders.
 
 ### WP-04 · `data` — schema, migrations, query engine ✅ **COMPLETE — 2026-08-29**
 
-**Goal:** Persistence for the finance domain, per [ADR-007](.ai/decisions/ADR-007.md).
+**Goal:** Persistence for the finance domain, per [ADR-007](.claude/decisions/ADR-007.md).
 
 **Built:** `Account`, `Transaction`, `Category` (tree), `Budget`, `TurnTrace`,
 `DataRef` and `undo_journal`; repositories behind the interfaces the domain declares;
 the fixed query set; the undo journal; and seeded fixtures. 43 tests.
 
-**[ADR-010](.ai/decisions/ADR-010.md) — money, finally decided.** WP-02 left three
+**[ADR-010](.claude/decisions/ADR-010.md) — money, finally decided.** WP-02 left three
 `DECISION OWED` items; this closes them:
 
 - `amountMinor` is a **signed** integer minor unit. Negative leaves the account. The
@@ -505,7 +505,7 @@ million in a two-decimal currency.
 
 **Goal:** Explainability from a record, not narration (Rule 9).
 
-**Built:** the `TurnTrace` type from [architecture.md](.ai/architecture.md); a recorder
+**Built:** the `TurnTrace` type from [architecture.md](.claude/docs/architecture.md); a recorder
 that cannot be bypassed; an AES-256-GCM encrypted store with a ring buffer and export;
 and `explain()`, which renders "why did you do that?" from the record alone. 28 tests.
 
@@ -567,7 +567,7 @@ on *every* load, not only after download.
 inherited the production `boundaryMargin` of 0.105 and produced a false refusal: on a
 five-capability toy registry every real capability scores exactly 0.000, so any nonzero
 boundary score wins. `boundaryMargin` is an artefact of the **registry** as well as the
-encoder — [ADR-009](.ai/decisions/ADR-009.md) now says so, and a domain that adds
+encoder — [ADR-009](.claude/decisions/ADR-009.md) now says so, and a domain that adds
 capabilities must re-calibrate.
 
 **Acceptance — met**
@@ -612,7 +612,7 @@ the two aggregates would be welded together and domain #2 would inherit the weld
 throwing subscriber cannot unmake what already happened, either — the event is a
 statement of fact.
 
-**The sign lives here**, which is what [ADR-010](.ai/decisions/ADR-010.md) §2 said the
+**The sign lives here**, which is what [ADR-010](.claude/decisions/ADR-010.md) §2 said the
 domain owed: `createTransaction` takes a magnitude and applies direction from the
 category's kind. "twenty euros" is the quantity 20; whether it leaves or arrives is a
 property of what it was spent on, not of the sentence.
@@ -635,7 +635,7 @@ and six components: `Sphere` + `SphereStatus`, `Composer`, `Answer`,
 
 **Visual language changed.** Material 3 was superseded by a bespoke token system —
 "graphite HUD", cyberpunk register **without neon**, Apple design principles. See
-[ADR-012](.ai/decisions/ADR-012.md); [ui-guidelines.md](.ai/ui-guidelines.md) carries
+[ADR-012](.claude/decisions/ADR-012.md); [ui-guidelines.md](.claude/docs/ui-guidelines.md) carries
 the pointer. Every *structural* rule in that document survived and is implemented.
 Tailwind, suggested above, was rejected in the same ADR — the tokens are the design
 system and a utility layer over them adds a build dependency and no expressiveness.
@@ -714,12 +714,12 @@ is exercised.
 (Finance / Agenda / Health), a "will not do" list and a permanent strip of live-figure
 tiles. All three are gone. Pre-built modules are weight on every turn, and the tiles
 in particular made the assistant read as a dashboard with a chat box attached — the
-inversion [ui-guidelines.md](.ai/ui-guidelines.md) opens by rejecting. What replaced
+inversion [ui-guidelines.md](.claude/docs/ui-guidelines.md) opens by rejecting. What replaced
 them:
 
 - **An off-canvas drawer**, one control in the status bar, listing every `navigate`
   capability read from the registry. Costs nothing in the layout until asked for,
-  which is [ADR-005](.ai/decisions/ADR-005.md)'s "secondary in placement and visual
+  which is [ADR-005](.claude/decisions/ADR-005.md)'s "secondary in placement and visual
   weight" taken literally.
 - **`FinanceApp.invoke(capabilityId)`** and `POST /api/navigate` — the drawer hands a
   capability id straight to the dispatcher. ⚠️ **This is deliberate, not an
@@ -765,7 +765,7 @@ bundled** — 0.9–1.6 GB exceeds the 200 MB cap), app useful before download c
 
 Convert Dart examples to TypeScript in `coding-standards.md`, `architecture.md`,
 `ui-guidelines.md`, and the six agent briefs. Architecture unchanged — syntax only.
-Remove the stack-note warning from [.ai/project.md](.ai/project.md) when done.
+Remove the stack-note warning from [.claude/docs/project.md](.claude/docs/project.md) when done.
 
 ---
 
@@ -775,7 +775,7 @@ Built by a concurrent session: [.github/workflows/ci.yml](.github/workflows/ci.y
 (branch guard · typecheck · tests · registry · boundaries · golden-set floor · CVE
 scan), [check-import-boundaries.mjs](tooling/scripts/check-import-boundaries.mjs) and
 [check-scorecard.mjs](tooling/scripts/check-scorecard.mjs). Reasoning in
-[ADR-011](.ai/decisions/ADR-011.md) and [ci-cd.md](.ai/sdlc/ci-cd.md).
+[ADR-011](.claude/decisions/ADR-011.md) and [ci-cd.md](.claude/sdlc/ci-cd.md).
 
 ⚠️ **Lint is deliberately absent**, not forgotten — `tooling/eslint-config` has no
 `index.js` and no ESLint dependency, so a lint job would wrap a no-op and report
@@ -790,7 +790,7 @@ Original scope, for the record:
 
 **Depends on:** WP-02, WP-03
 
-GitHub Actions per [.ai/deployment.md](.ai/deployment.md): typecheck · lint ·
+GitHub Actions per [.claude/docs/deployment.md](.claude/docs/deployment.md): typecheck · lint ·
 **import-boundary check (Rule 1)** · unit · integration · **golden-set with committed
 scorecard diff** · registry validation · CVE scan. Exit non-zero on any gate — the
 evaluator already does this.
@@ -844,7 +844,7 @@ the architecture's real exam.
 | Risk | Severity | State |
 |---|---|---|
 | 1B model cannot route reliably | ~~fatal~~ | ✅ **CLOSED** — `qwen2.5:1.5b` 84% top-1 on realistic buckets, 151ms p95 (WP-01) |
-| No out-of-scope detection on target hardware | ~~high~~ | ✅ **CLOSED by [ADR-009](.ai/decisions/ADR-009.md)** — registry declares the app's limits; 0% → 40% on `gemma3:1b`, model-free. Residual: recall bounded by how well the boundary is written |
+| No out-of-scope detection on target hardware | ~~high~~ | ✅ **CLOSED by [ADR-009](.claude/decisions/ADR-009.md)** — registry declares the app's limits; 0% → 40% on `gemma3:1b`, model-free. Residual: recall bounded by how well the boundary is written |
 | **`tauAct` reads a signal small models don't produce** | medium | **OPEN — new.** Gate held 15.7% of calls on 8B, 0.7% on 1.5B. Replace self-report with margin or stage-2/3 agreement (Finding 8) |
 | Golden-set gates are not run-to-run deterministic | medium | **OPEN — new.** 7/200 entries flipped between identical 8B runs at temp 0. WP-12 must gate on tolerances (Finding 10) |
 | Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate. **Mitigation now real:** the adapter interface exists and `core-intent` holds no transport code, so a failure changes one package. Desktop headroom is large (151ms p95 at 1.5B); that helps but does not settle it |
@@ -920,16 +920,16 @@ Before marking anything complete:
 
 | Question | File |
 |---|---|
-| What are we building, and what will we not build? | [.ai/vision.md](.ai/vision.md) |
-| How do the layers fit together? | [.ai/architecture.md](.ai/architecture.md) |
-| Why is the router three stages? | [ADR-003](.ai/decisions/ADR-003.md) |
-| Why TypeScript and not Flutter? | [ADR-006](.ai/decisions/ADR-006.md) |
-| How is a destructive action prevented? | [ADR-004](.ai/decisions/ADR-004.md) |
+| What are we building, and what will we not build? | [.claude/docs/vision.md](.claude/docs/vision.md) |
+| How do the layers fit together? | [.claude/docs/architecture.md](.claude/docs/architecture.md) |
+| Why is the router three stages? | [ADR-003](.claude/decisions/ADR-003.md) |
+| Why TypeScript and not Flutter? | [ADR-006](.claude/decisions/ADR-006.md) |
+| How is a destructive action prevented? | [ADR-004](.claude/decisions/ADR-004.md) |
 | What did the router actually score, and why? | [eval/FINDINGS.md](packages/core-intent/eval/FINDINGS.md) |
-| Which stage-3 model, and why not the other one? | [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) · [ADR-003](.ai/decisions/ADR-003.md) |
-| How is out-of-scope actually detected? | [ADR-009](.ai/decisions/ADR-009.md) · [FINDINGS Finding 11](packages/core-intent/eval/FINDINGS.md) |
-| Where does policy get enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.ai/decisions/ADR-004.md) |
+| Which stage-3 model, and why not the other one? | [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) · [ADR-003](.claude/decisions/ADR-003.md) |
+| How is out-of-scope actually detected? | [ADR-009](.claude/decisions/ADR-009.md) · [FINDINGS Finding 11](packages/core-intent/eval/FINDINGS.md) |
+| Where does policy get enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.claude/decisions/ADR-004.md) |
 | How do I add a capability? | [core-capability](packages/core-capability/README.md), then `pnpm registry:build` |
-| What are the numbered requirements? | [.ai/sdlc/requirements.md](.ai/sdlc/requirements.md) |
-| How do I test a non-deterministic router? | [.ai/testing.md](.ai/testing.md) |
-| What does the entity model look like? | [.ai/sdlc/design.md](.ai/sdlc/design.md) |
+| What are the numbered requirements? | [.claude/sdlc/requirements.md](.claude/sdlc/requirements.md) |
+| How do I test a non-deterministic router? | [.claude/docs/testing.md](.claude/docs/testing.md) |
+| What does the entity model look like? | [.claude/sdlc/design.md](.claude/sdlc/design.md) |

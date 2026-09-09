@@ -1,6 +1,6 @@
 # @nextgen/core-dispatch
 
-The dispatcher and the engines it drives: [ADR-004](../../.ai/decisions/ADR-004.md)
+The dispatcher and the engines it drives: [ADR-004](../../.claude/decisions/ADR-004.md)
 policy, navigation, query and undo.
 
 **Boundary:** this is where enforcement lives. Everything the model influences arrives

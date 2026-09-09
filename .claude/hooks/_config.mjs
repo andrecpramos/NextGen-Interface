@@ -1,6 +1,6 @@
 // Shared config loader for the SDLC kit hooks.
 //
-// Reads .ai/sdlc.config.json and fills in defaults. Every hook in this directory
+// Reads .claude/sdlc.config.json and fills in defaults. Every hook in this directory
 // depends on it; nothing else should.
 //
 // Contract: this module NEVER throws and NEVER exits non-zero. A SessionStart
@@ -52,7 +52,7 @@ const DEFAULTS = {
   sharedTree: false,
   commits: { convention: 'conventional', scopes: [], trailers: [] },
   gates: [],
-  docs: { root: '.ai', rules: '.ai/rules.md', decisions: '.ai/decisions' },
+  docs: { root: '.claude', rules: '.claude/docs/rules.md', decisions: '.claude/decisions' },
   guard: {
     denyProductionWrites: true,
     denyBranchFromProduction: true,
@@ -68,9 +68,22 @@ const DEFAULTS = {
  * on defaults and say so, rather than pretending to enforce a contract nobody
  * actually wrote down.
  */
+// Where the config may live, in priority order. `.claude/` is the default —
+// one directory for everything the agent workflow needs. `.ai/` is accepted so
+// a repo that keeps a separate tool-agnostic knowledge base still works, and so
+// this loader survives the migration between the two.
+const CONFIG_PATHS = [
+  ['.claude', 'sdlc.config.json'],
+  ['.ai', 'sdlc.config.json'],
+];
+
 export function loadConfig() {
   const root = repoRoot();
-  const raw = readJson(join(root, '.ai', 'sdlc.config.json'));
+  let raw = null;
+  for (const parts of CONFIG_PATHS) {
+    raw = readJson(join(root, ...parts));
+    if (raw !== null) break;
+  }
 
   const cfg = {
     ...DEFAULTS,

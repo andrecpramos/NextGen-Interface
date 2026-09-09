@@ -7,7 +7,7 @@ The audit this whole kit exists for: **what does this repo claim, and what does 
 actually enforce?**
 
 Read-only. Produces a ranked gap list, and updates
-`.ai/critical-infrastructure.md` if the user asks.
+`.claude/docs/critical-infrastructure.md` if the user asks.
 
 ## 1 · Collect every claim
 
@@ -15,8 +15,8 @@ Rules are stated in more places than the rule register. Search all of them:
 
 ```bash
 sed -n "/^## 2/,/^## 3/p" PLAN.md   # this repo: rules live in PLAN.md §2
-cat .ai/sdlc.config.json 2>/dev/null
-ls .ai/decisions/ 2>/dev/null
+cat .claude/sdlc.config.json 2>/dev/null
+ls .claude/decisions/ 2>/dev/null
 cat CLAUDE.md README.md CONTRIBUTING.md 2>/dev/null
 ls .github/workflows/ .gitlab-ci.yml Jenkinsfile 2>/dev/null
 ```
@@ -77,5 +77,5 @@ twelve is in a normal state; the point is that it now knows which nine.
 
 ## 5 · Offer
 
-Ask whether to write the findings into `.ai/critical-infrastructure.md` and to
+Ask whether to write the findings into `.claude/docs/critical-infrastructure.md` and to
 implement the top gap. Both are changes — neither happens without a yes.

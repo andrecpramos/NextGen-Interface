@@ -10,7 +10,7 @@
 // Contract with the harness: exit 0 and print a permissionDecision of "deny"
 // with a reason, or print nothing to allow. Never throw.
 //
-// Configured entirely by .ai/sdlc.config.json.
+// Configured entirely by .claude/sdlc.config.json.
 
 import { loadConfig } from './_config.mjs';
 

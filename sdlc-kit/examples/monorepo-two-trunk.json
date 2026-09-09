@@ -2,7 +2,7 @@
   "$schema": "../sdlc.config.schema.json",
   "version": 1,
 
-  "_comment": "A pnpm monorepo on main/develop with a shared working tree. Abridged from the kit's origin repo — see .ai/sdlc.config.json there for the full version. Shows the four features the simple example does not: `when` (path-scoped gates), `expectNonZero` (a command that exits non-zero by design), `guard.extraDeny` (a repo-specific denial), and `postEdit` (immediate feedback).",
+  "_comment": "A pnpm monorepo on main/develop with a shared working tree. Abridged from the kit's origin repo — see .claude/sdlc.config.json there for the full version. Shows the four features the simple example does not: `when` (path-scoped gates), `expectNonZero` (a command that exits non-zero by design), `guard.extraDeny` (a repo-specific denial), and `postEdit` (immediate feedback).",
 
   "project": {
     "name": "example-monorepo",
@@ -58,9 +58,9 @@
   ],
 
   "docs": {
-    "root": ".ai",
+    "root": ".claude",
     "rules": "PLAN.md",
-    "decisions": ".ai/decisions",
+    "decisions": ".claude/decisions",
     "plan": "PLAN.md"
   },
 

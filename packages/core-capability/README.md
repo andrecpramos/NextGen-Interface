@@ -28,10 +28,10 @@ invalidates every cached vector and shifts every score — treat it as versioned
 
 ## Kinds
 
-`navigate` · `read` · `write` · `destructive` — the [ADR-004](../../.ai/decisions/ADR-004.md)
+`navigate` · `read` · `write` · `destructive` — the [ADR-004](../../.claude/decisions/ADR-004.md)
 policy table — plus `unsupported`.
 
-`unsupported` ([ADR-009](../../.ai/decisions/ADR-009.md)) is a **declared limit**: a class
+`unsupported` ([ADR-009](../../.claude/decisions/ADR-009.md)) is a **declared limit**: a class
 of request the application deliberately does not serve, written with a description,
 examples and an authored refusal. It is matched by the same retrieval as everything
 else, which is what turns out-of-scope detection from a judgement the model makes into

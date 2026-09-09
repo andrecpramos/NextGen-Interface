@@ -4,10 +4,10 @@ Persistence for the finance domain: schema, migrations, repositories, the fixed 
 set, the undo journal, and seeded fixtures.
 
 **Boundary:** SQLite is the shipping dialect — the device is the source of truth
-([ADR-008](../../.ai/decisions/ADR-008.md)). Postgres exists so the backend can hold the
+([ADR-008](../../.claude/decisions/ADR-008.md)). Postgres exists so the backend can hold the
 same shape, not because anything reads from it on the critical path.
 
-## Money is signed integer minor units ([ADR-010](../../.ai/decisions/ADR-010.md))
+## Money is signed integer minor units ([ADR-010](../../.claude/decisions/ADR-010.md))
 
 Negative leaves the account, positive arrives. `SUM(amountMinor)` is therefore always a
 correct balance and cannot disagree with itself. "Spending" is the sum of the *outflows*,
@@ -38,7 +38,7 @@ deliberately more friction than string-building.
 
 `memo` and `merchant` are marked UNTRUSTED in `schema/spec.ts` and listed by
 `untrustedColumns()`. Reading them is safe; putting them in a prompt needs the fencing in
-[security.md](../../.ai/security.md).
+[security.md](../../.claude/docs/security.md).
 
 ### Category roll-up is a recursive CTE, not a join
 

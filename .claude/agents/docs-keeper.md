@@ -1,6 +1,6 @@
 ---
 name: docs-keeper
-description: Find and fix documentation drift — where .ai/, README or CONTRIBUTING no longer match the code on disk. Use after a change that altered behaviour or structure, when picking up a repo cold and the docs feel untrustworthy, or before a release. Verifies claims against the tree rather than tidying prose.
+description: Find and fix documentation drift — where .claude/, README or CONTRIBUTING no longer match the code on disk. Use after a change that altered behaviour or structure, when picking up a repo cold and the docs feel untrustworthy, or before a release. Verifies claims against the tree rather than tidying prose.
 tools: Read, Grep, Glob, Bash, Edit
 ---
 
@@ -44,7 +44,7 @@ A diff full of rewording hides the three real corrections inside it.
 ## Procedure
 
 1. `git log --oneline -30` — what changed recently? Drift concentrates there.
-2. For each `.ai/` document, check its audit date against the last change to what
+2. For each `.claude/` document, check its audit date against the last change to what
    it describes. Older = suspect.
 3. Verify claims, cheapest first.
 4. Fix what is verifiable. Mark what is not.

@@ -1,115 +1,113 @@
 # sdlc-kit
 
 A portable SDLC for repositories worked on by AI agents. Copy this folder into a
-project, point an agent at [INSTALL.md](INSTALL.md), and it surveys what is
-already there, installs what is missing, and reports what is *claimed* but not
+project, point an agent at [BOOTSTRAP.md](BOOTSTRAP.md), and it surveys what is
+already there, generates what is missing, and reports what is *claimed* but not
 *enforced*.
 
-It is not a methodology. It is a set of documents an agent reads, a config file
-that describes the repo in machine terms, and hooks that make the rules hold when
-nobody is watching.
+It is not a methodology and not a file drop. It is a **method**, a config schema,
+and four hooks.
+
+## What it installs into
+
+One directory: **`.claude/`**. Workflow and knowledge live together, because
+splitting them creates a "which folder does this go in?" question that nobody
+answers consistently.
+
+```
+.claude/
+├── settings.json      hook wiring + permissions
+├── sdlc.config.json   the machine-readable contract — hooks and commands read this
+├── hooks/             enforcement: branch contract, git guard, post-edit gates
+├── skills/            generated procedures, auto-selected by task
+├── agents/            generated subagents, delegated work
+├── commands/          generated slash-commands
+├── decisions/         ADRs — the constitution
+├── sdlc/              per-phase process definitions
+├── roles/             role briefs (architect, backend, QA, …)
+└── docs/              architecture, security, testing, rules, lessons, …
+```
+
+`docs.root` in the config can point elsewhere (`.ai/`, `docs/`) if a repo prefers
+a tool-agnostic knowledge base. The hooks accept either.
 
 ## The four ideas it is built on
 
 **1 · A written rule is obeyed until someone is in a hurry.**
-Every rule in this kit is labelled with where it is actually enforced — a CI job,
-a hook, a test, or nothing at all. The register that tracks this
-([critical-infrastructure.md](ai/critical-infrastructure.md)) is the most valuable
-document here, because it is the only one that admits what is not protected.
+Every rule gets labelled with where it is *actually* enforced — a CI job, a hook,
+a test, or nothing. The register that tracks this is the most valuable thing the
+kit produces, because it is the only document that admits what is not protected.
 A green build that gates nothing is worse than no build, because people trust it.
 
 **2 · An instruction is only followed by an agent that has read it.**
 Which is exactly not the case at the start of a fresh context window. So the
-branching contract is not a paragraph in a document — it is a `SessionStart` hook
-that injects live git state, and a `PreToolUse` hook that denies the commands the
-contract exists to prevent. Telling is necessary and not sufficient.
+branching contract is not a paragraph — it is a `SessionStart` hook injecting live
+git state, and a `PreToolUse` hook denying the commands the contract exists to
+prevent. Telling is necessary and not sufficient.
 
 **3 · The config is the contract.**
 Branch names, gate commands, denied operations and post-edit checks live in one
-file, [`.ai/sdlc.config.json`](sdlc.config.schema.json). The hooks read it. The
-slash commands read it. Nothing is hardcoded to one repository's names, which is
-the whole reason this folder is importable.
+file that the hooks and commands read. Nothing is hardcoded to one repo's names.
 
-**4 · Documents that lie are worse than missing documents.**
-Every template here carries the survey questions that produced it, and the kit
-ships a `docs-keeper` agent whose job is to verify claims against the tree rather
-than tidy prose. Drift is the default state of a knowledge base; something has to
-push back.
+**4 · Generate, don't copy.**
+An earlier version shipped a ready-made `.claude/`. Within one session of use,
+**10 of its 18 files had diverged** — every divergence a legitimate adaptation to
+the repo it landed in. Copying produces drift; generating produces fit. So the kit
+ships [patterns/](patterns/), not products.
 
-## What you get
+## Layout
 
 ```
 sdlc-kit/
-├── README.md                   ← you are here
-├── INSTALL.md                  drop-in procedure, greenfield and brownfield
-├── sdlc.config.schema.json     the machine-readable contract
-├── examples/                   two filled configs — a trunk library, a two-trunk monorepo
+├── README.md                  you are here
+├── BOOTSTRAP.md               the binding install procedure
+├── sdlc.config.schema.json    the contract
 │
-├── ai/                         → copied to <repo>/.ai/
-│   ├── README.md               map of the knowledge base
-│   ├── project.md              what this is, current state, environment facts
-│   ├── vision.md               why it exists, and what it refuses to be
-│   ├── rules.md                the numbered invariant register
-│   ├── architecture.md         layers, boundaries, the dependency rule
-│   ├── coding-standards.md     structure and naming, language-neutral
-│   ├── testing.md              strategy and thresholds
-│   ├── security.md             threat model and review triggers
-│   ├── critical-infrastructure.md   rule → enforcement → status, with the gaps
-│   ├── agent-workflow.md       how agents decide where commits go
-│   ├── sdlc/                   nine per-phase process definitions
-│   ├── agents/                 six role briefs
-│   └── decisions/              ADR format, template and index
+├── runtime/                   copied verbatim — genuinely universal
+│   ├── hooks/                 4 config-driven hooks
+│   └── settings.json          hook wiring to merge into the target
 │
-└── claude/                     → merged into <repo>/.claude/
-    ├── CLAUDE.template.md      the always-loaded contract
-    ├── settings.json           hook wiring + a conservative permission set
-    ├── hooks/                  three hooks, all config-driven
-    ├── commands/               /gates /rules-check /handoff /sdlc-audit
-    ├── skills/                 sdlc-bootstrap, sdlc-audit, ship-it, write-adr, new-feature
-    └── agents/                 gate-runner, boundary-auditor, docs-keeper, sdlc-auditor
+├── patterns/                  the method — read, don't copy
+│   ├── workflow.md            deciding which skills/agents/commands to generate
+│   └── enforcement.md         the claimed-vs-enforced audit
+│
+├── templates/                 doc scaffolds, mirroring the .claude/ layout
+│   ├── docs/  sdlc/  decisions/  roles/
+│
+└── examples/                  two filled configs
 ```
+
+**`runtime/` is the only thing copied verbatim.** The hooks are config-driven, so
+they are identical in every repo forever. Everything else is read and adapted.
 
 ## What it assumes
 
-- **Git.** The branching hooks are the core of the kit; without git they no-op.
-- **Node 18+** on PATH, for the three hooks. Not for your project — for the hooks.
-  They are Node rather than shell because `jq` is frequently absent from PATH on
-  Windows machines that otherwise have a POSIX shell, and a hook that silently
-  emits nothing looks exactly like a hook that works.
+- **Git.** The branching hooks are the core; without git they no-op.
+- **Node 18+** on PATH — for the hooks, not for your project. They are Node rather
+  than shell because `jq` is frequently absent from PATH on Windows machines that
+  otherwise have a POSIX shell, and a hook that silently emits nothing looks
+  exactly like a hook that works.
 - Nothing else. No package manager, language, CI provider or test framework is
-  assumed. The bootstrap detects them and writes them into the config.
+  assumed; the bootstrap detects them.
 
 ## What it refuses to be
 
 - **A CI provider.** It describes gates and runs them locally. Wiring them into
-  GitHub Actions, GitLab CI or anything else is one generated workflow file and
-  then your problem.
-- **A replacement for judgement.** The templates contain questions, not answers.
-  A bootstrap that invents a threshold is worse than one that leaves a `TODO`,
-  because an invented number gets cited later as if it were measured.
-- **A second source of truth.** `.claude/` is *how the work gets done*; `.ai/` is
-  *what is true*. When they disagree, `.ai/` wins and the disagreement is a bug.
-  Neither restates the other; they link.
-
-## Portability caveats, stated plainly
-
-| Thing | Status |
-|---|---|
-| Hooks (`branch-check`, `guard-git`, `check-gates`) | Fully config-driven. No edits needed. |
-| Slash commands (`/gates`, `/rules-check`, `/handoff`, `/sdlc-audit`) | Read the config at run time. No edits needed. |
-| Agents (`gate-runner`, `docs-keeper`, `sdlc-auditor`) | Generic. `boundary-auditor` needs the layer names from your architecture. |
-| `ai/*.md` templates | Contain `{{PLACEHOLDERS}}` and `> **Survey:**` blocks. The bootstrap fills them; anything it cannot determine stays a visible `TODO`. |
-| `ai/sdlc/requirements.md` | Deliberately near-empty. Requirements are the one thing that cannot be templated. |
+  your CI is one generated workflow file and then your problem.
+- **A replacement for judgement.** Templates contain questions, not answers. A
+  bootstrap that invents a threshold is worse than one leaving a `TODO`, because
+  an invented number gets cited later as if it were measured.
+- **A source of truth.** After install, the generated files are yours. The kit
+  does not sync, update, or own them.
 
 ## Provenance
 
-Extracted from **NextGen Interface**, a repository where these rules were not
-theoretical: the shared-tree staging rule exists because two agent sessions wrote
-into the same working tree inside a four-minute window; the heredoc-stripping
-detail in `guard-git.mjs` exists because the first version blocked its own
-documentation; and the enforcement register exists because a CI gate was found
-diffing a directory the build never wrote to, passing vacuously for weeks.
+Extracted from a repository where these rules were not theoretical: the
+shared-tree staging rule exists because two agent sessions wrote into the same
+working tree inside a four-minute window; the heredoc-stripping in `guard-git.mjs`
+exists because the first version blocked its own documentation; and the
+enforcement register exists because a CI gate was found diffing a directory the
+build never wrote to, passing vacuously for weeks.
 
-Those incidents are preserved in the templates as worked examples, marked as
-such. They are the reason the rules are shaped the way they are, and a rule
-without its incident tends to get optimised away.
+Those incidents are preserved in the templates as worked examples. A rule without
+its incident tends to get optimised away.

@@ -1,6 +1,6 @@
 ---
 name: gate-runner
-description: Run the repo's full gate set from .ai/sdlc.config.json and return a concise PASS/FAIL verdict with the actionable cause of every failure. Use after an implementation slice and before a commit or PR. Ideal to run in the background while other work continues. Never edits code.
+description: Run the repo's full gate set from .claude/sdlc.config.json and return a concise PASS/FAIL verdict with the actionable cause of every failure. Use after an implementation slice and before a commit or PR. Ideal to run in the background while other work continues. Never edits code.
 tools: Bash, Read, Grep, Glob
 ---
 
@@ -12,7 +12,7 @@ yourself.**
 
 1. Read the gate list:
    ```bash
-   node -e "const c=require('./.ai/sdlc.config.json');console.log(JSON.stringify(c.gates,null,1))"
+   node -e "const c=require('./.claude/sdlc.config.json');console.log(JSON.stringify(c.gates,null,1))"
    ```
    No config → say so and stop. There is no gate list to run.
 

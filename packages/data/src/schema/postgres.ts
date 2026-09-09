@@ -4,7 +4,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 /**
  * The Postgres schema.
  *
- * The device is the source of truth ([ADR-008](../../../../.ai/decisions/ADR-008.md)) —
+ * The device is the source of truth ([ADR-008](../../../../.claude/decisions/ADR-008.md)) —
  * this exists because the backend must be able to hold the same shape, not
  * because anything reads from it on the critical path.
  *

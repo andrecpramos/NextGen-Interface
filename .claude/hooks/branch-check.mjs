@@ -16,7 +16,7 @@
 // a failing SessionStart hook blocks the session, so failing open is the only
 // acceptable behaviour.
 //
-// Configured entirely by .ai/sdlc.config.json. Nothing here is repo-specific.
+// Configured entirely by .claude/sdlc.config.json. Nothing here is repo-specific.
 
 import { loadConfig, git, insideWorkTree, readPayload, emitContext } from './_config.mjs';
 
@@ -60,7 +60,7 @@ if (branch === PROD && model !== 'trunk') {
   situation =
     `You are on '${branch}'. Branch '${BASE}' does not exist locally, so this\n` +
     `hook cannot compare against it. Fetch it, or correct 'branching.integration'\n` +
-    `in .ai/sdlc.config.json — one of the two is wrong.`;
+    `in .claude/sdlc.config.json — one of the two is wrong.`;
 } else {
   const ahead = countRange(branch, BASE);
   const behind = countRange(BASE, branch);
@@ -99,7 +99,7 @@ const sharedClause = cfg.sharedTree
 
 const configClause = cfg.found
   ? ''
-  : `\nNOTE: no .ai/sdlc.config.json was found, so these are the kit's DEFAULTS\n` +
+  : `\nNOTE: no .claude/sdlc.config.json was found, so these are the kit's DEFAULTS\n` +
     `('${PROD}' / '${BASE}'), not this repo's verified contract. Run /sdlc-init\n` +
     `to survey the repo and write a real one.\n`;
 

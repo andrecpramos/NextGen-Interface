@@ -1,93 +1,103 @@
-# `.claude/` — the agent workflow
+# `.claude/` — everything the work needs
 
-Version-controlled Claude Code configuration. This directory is **workflow**:
-hooks that enforce, skills that encode procedure, commands that run on demand,
-agents that take a job away into their own context.
+One directory. Workflow *and* knowledge, because splitting them creates a "which
+folder does this go in?" question nobody answers consistently.
 
-It is deliberately **not** a knowledge base. That is `.ai/`, and duplicating it
-here would create a third source of truth that drifts. Everything below links into
-`.ai/` rather than restating it.
+Where a document and an ADR disagree, **the ADR wins** and the disagreement is a
+bug.
 
 ## Layout
 
 ```
 .claude/
-├── settings.json        # hook wiring + shared permissions (committed)
-├── settings.local.json  # personal overrides (gitignored — never edited by agents)
-├── hooks/               # automation the harness runs on lifecycle events
-├── skills/              # <name>/SKILL.md — auto-selected task playbooks
-├── agents/              # delegated, context-isolated workers
-├── commands/            # /slash-commands: mechanical, on demand
-└── README.md            # this file
+├── settings.json        hook wiring + shared permissions (committed)
+├── settings.local.json  personal overrides (gitignored — yours, not touched by agents)
+├── sdlc.config.json     the machine-readable contract: branches, gates, guards
+│
+├── hooks/               enforcement the harness runs on lifecycle events
+├── skills/              task playbooks, auto-selected by description
+├── agents/              delegated, context-isolated workers
+├── commands/            /slash-commands, mechanical and on demand
+│
+├── decisions/           ADRs — the constitution. 12 of them
+├── sdlc/                per-phase process definitions + agent-workflow
+├── roles/               role briefs: architect, backend, frontend, qa, devops, ai-engineer
+└── docs/                architecture, security, testing, standards, rules, lessons, …
 ```
 
 ## Where the truth lives
 
-1. **`.ai/decisions/ADR-*.md`** — the constitution. Binding. Superseded ADRs stay
-   in the tree with a forward-pointing `Status:`.
-2. **`PLAN.md` §2** — the fourteen non-negotiable rules, each traced to the ADR
-   or gate that enforces it. §7 is the work-package schedule; the header is the
-   cold-start handoff.
-3. **`.ai/`** — architecture, security, testing, standards, SDLC process, role
-   briefs. [`critical-infrastructure.md`](../.ai/critical-infrastructure.md) is the
-   one to read before assuming a rule is protected: it maps every rule to the gate,
-   hook or test actually holding it up, and lists the gaps.
-4. **`.ai/sdlc.config.json`** — the machine-readable version. Every hook and
-   command below reads it; nothing here hardcodes a branch name or a gate command.
-5. **`.claude/`** — how the work gets done. Never contradicts the above.
-
-Where a document and an ADR disagree, the ADR wins and the disagreement is a bug.
+1. **[`decisions/`](decisions/)** — binding. Superseded ADRs stay with a
+   forward-pointing `Status:`. Cited from production source — `cascade.ts`,
+   `money.ts`, `core-capability/src/types.ts`.
+2. **[`docs/rules.md`](docs/rules.md)** — the fourteen invariants, each traced to
+   **what actually enforces it**. The register PLAN.md §2 does not have.
+3. **[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md)** — read
+   this before assuming a rule is protected. It maps every rule to the gate, hook
+   or test holding it up, and lists the gaps. It never claims protection that does
+   not exist.
+4. **[`docs/lessons.md`](docs/lessons.md)** — mistakes this repo has already made,
+   and the enforcement level each one reached.
+5. **[`sdlc.config.json`](sdlc.config.json)** — the machine-readable version.
+   Every hook and command reads it; nothing hardcodes a branch name or a gate.
 
 ## Hooks — the part you do not have to remember
 
 | Hook | Fires | Does |
 |---|---|---|
-| `branch-check.mjs` | `SessionStart`, `PreCompact` | Injects live branch state and the branching contract into every new context window. An instruction in a document is only followed by an agent that has read it — which is exactly not the case at the start of a fresh session. |
-| `guard-git.mjs` | `PreToolUse` on `Bash` | Denies broad staging (shared trees), writes to production, and branching from production. Each denial names the correct alternative. **Heredoc bodies are stripped before matching**, so documentation that *mentions* those commands is not blocked. |
-| `check-gates.mjs` | `PostToolUse` on `Edit`/`Write` | Runs the cheapest gate the edit could have broken, from `postEdit` in the config. Silent otherwise — a hook that comments on everything becomes noise an agent learns to skim. |
+| [`branch-check.mjs`](hooks/branch-check.mjs) | `SessionStart`, `PreCompact` | Injects live branch state and the branching contract into every new context window. An instruction in a document is only followed by an agent that has read it — which is exactly not the case at the start of a fresh session. |
+| [`guard-git.mjs`](hooks/guard-git.mjs) | `PreToolUse` on `Bash` | Denies broad staging (this tree is shared), writes to production, branching from production, and `registry:build:finance`. **Heredoc bodies and `echo` arguments are stripped before matching**, so documentation that *mentions* those commands is not blocked. |
+| [`check-gates.mjs`](hooks/check-gates.mjs) | `PostToolUse` on `Edit`/`Write` | Runs the cheapest gate the edit could have broken. Rule 1 on a `core-*` write (~75ms), the codegen reminder on `capabilities.ts`, the calibration lesson on `eval/`. Silent otherwise — a hook that comments on everything becomes noise. |
 
-All three are config-driven and fail open: they swallow malformed input, return
-cleanly outside a git work tree, and never exit non-zero. **A `SessionStart` hook
-that errors blocks the session**, so that is the only acceptable behaviour.
+All three read `sdlc.config.json` and **fail open**: they swallow malformed input,
+return cleanly outside a git work tree, and never exit non-zero. A `SessionStart`
+hook that errors blocks the session.
 
-Review with `/hooks`. To disable one, delete its block from `settings.json`.
-A newly created `settings.json` may not be picked up until `/hooks` is opened once
-or the session restarts — the watcher only watches directories that already held a
-settings file when the session began.
+Review with `/hooks`. A newly created `settings.json` may not be picked up until
+`/hooks` is opened once or the session restarts.
 
 ## Skills — invoked automatically when the task matches
 
 | Skill | For |
 |---|---|
-| `sdlc-bootstrap` | Install or improve the SDLC: survey, config, install, and the ranked gap list. |
-| `new-feature` | The development loop: branch, contract first, failing test, implement, gates, ship. |
-| `ship-it` | Finished work → gates → explicit staging → conventional commit → PR. |
-| `write-adr` | An architectural choice was made. Includes the reversibility test for whether one is owed. |
+| [`new-feature`](skills/new-feature/SKILL.md) | The development loop: branch, declaration first, failing test, codegen, gates, ship. |
+| [`ship-it`](skills/ship-it/SKILL.md) | Finished work → gates → explicit staging → conventional commit → PR into `develop`. |
+| [`write-adr`](skills/write-adr/SKILL.md) | An architectural choice was made. Includes the reversibility test. |
+| [`sdlc-bootstrap`](skills/sdlc-bootstrap/SKILL.md) | Install this SDLC into another repo, from [`sdlc-kit/`](../sdlc-kit/). |
 
 ## Agents — delegated work in their own context
 
 | Agent | For |
 |---|---|
-| `gate-runner` | Run the whole gate set, return a PASS/FAIL verdict. Backgroundable; never edits. |
-| `sdlc-auditor` | What is claimed vs what is enforced. Returns the ranked gap list. |
-| `boundary-auditor` | Review a change against the layer boundaries and the rules. |
-| `docs-keeper` | Find and fix doc drift, verified against the tree rather than against other documents. |
+| [`gate-runner`](agents/gate-runner.md) | Run the whole gate set, return PASS/FAIL. Backgroundable; never edits. |
+| [`sdlc-auditor`](agents/sdlc-auditor.md) | What is claimed vs what is enforced. Returns the ranked gap list. |
+| [`boundary-auditor`](agents/boundary-auditor.md) | Review a change against Rule 1 and the layer boundaries. |
+| [`docs-keeper`](agents/docs-keeper.md) | Doc drift, verified against the tree rather than against other documents. |
 
-## Commands — mechanical, on demand
+## Commands
 
 | Command | Does |
 |---|---|
-| `/gates` | Runs every gate locally, reports PASS/FAIL with causes. |
-| `/rules-check` | Audits the working diff against the numbered rules. |
-| `/sdlc-audit` | Finds every rule that is written down and enforced by nothing. |
-| `/handoff` | End-of-session: state, drift, and exactly where the next session picks up. |
+| `/gates` | Runs every gate locally, PASS/FAIL with causes. |
+| `/rules-check` | Audits the working diff against the fourteen rules. |
+| `/sdlc-audit` | Finds every rule written down and enforced by nothing. |
+| `/handoff` | End-of-session: state, drift, where the next session picks up. |
 
-## The two ideas underneath all of it
+## Two facts that shape all of this
 
-**Telling is necessary and not sufficient.** The instruction sits at the top of a
-context window that fills up; the mistake happens at the bottom. Hence a guard
-that denies, not only a document that explains.
+**The working tree is shared.** More than one session works in this checkout at
+once. Stage explicit paths, re-check `git status` immediately before committing,
+and leave dirty files you did not create alone. Not theoretical — see
+[`docs/lessons.md`](docs/lessons.md).
 
-**A written rule is obeyed until someone is in a hurry.** Hence
-[critical-infrastructure.md](../.ai/critical-infrastructure.md), which never claims
-protection that does not exist, and `/sdlc-audit`, which keeps it honest.
+**Nothing here can block a merge.** Branch protection is unavailable on this
+repository's plan, so every CI gate is advisory in the mechanical sense and the
+local hooks are the only layer that actually denies anything — and they bind
+agents, not humans. Detail in
+[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md) §0.
+
+## Related
+
+- [../CLAUDE.md](../CLAUDE.md) — the always-loaded contract
+- [../PLAN.md](../PLAN.md) — §2 the rules, §7 the work packages
+- [../sdlc-kit/](../sdlc-kit/) — the portable version of all this, for other repos

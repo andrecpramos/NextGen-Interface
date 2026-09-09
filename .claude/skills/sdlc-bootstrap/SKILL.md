@@ -1,6 +1,6 @@
 ---
 name: sdlc-bootstrap
-description: Install or improve a repository's SDLC from the sdlc-kit — survey what exists, write .ai/sdlc.config.json, install the missing docs/hooks/commands, and report every rule that is claimed but not enforced. Use when the kit is dropped into a new repo, when asked to "set up the SDLC", "install the kit", "improve our process", or when a repo has rules nobody checks.
+description: Install or improve a repository's SDLC from the sdlc-kit — survey what exists, write .claude/sdlc.config.json, install the missing docs/hooks/commands, and report every rule that is claimed but not enforced. Use when the kit is dropped into a new repo, when asked to "set up the SDLC", "install the kit", "improve our process", or when a repo has rules nobody checks.
 ---
 
 # Bootstrapping an SDLC
@@ -43,7 +43,7 @@ git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null; git branch -a; git log --
 ls package.json pnpm-lock.yaml yarn.lock go.mod Cargo.toml pyproject.toml pom.xml 2>/dev/null
 ls .github/workflows/ .gitlab-ci.yml Jenkinsfile 2>/dev/null
 ls CLAUDE.md AGENTS.md .cursorrules CONTRIBUTING.md README.md 2>/dev/null
-ls .ai/ docs/ adr/ decisions/ 2>/dev/null
+ls .claude/ docs/ adr/ decisions/ 2>/dev/null
 ```
 
 Then **read the CI steps**. Job names are marketing; the `run:` lines are the
@@ -69,7 +69,7 @@ Classify:
   model, not the kit's**. The kit's defaults are defaults, not requirements. A
   trunk-based repo does not get a `develop` branch because a template mentioned one.
 
-## Phase 2 — Write `.ai/sdlc.config.json`
+## Phase 2 — Write `.claude/sdlc.config.json`
 
 Validate against `sdlc-kit/sdlc.config.schema.json`. Two rules matter more than
 the rest:
@@ -107,7 +107,7 @@ echo '{"hook_event_name":"SessionStart","source":"startup"}' | node .claude/hook
 echo '{"hook_event_name":"PreCompact","trigger":"auto"}'     | node .claude/hooks/branch-check.mjs
 echo 'not json'                                              | node .claude/hooks/branch-check.mjs
 echo '{"tool_name":"Bash","tool_input":{"command":"git push origin <production>"}}' | node .claude/hooks/guard-git.mjs
-node -e "JSON.parse(require('fs').readFileSync('.ai/sdlc.config.json','utf8'))"
+node -e "JSON.parse(require('fs').readFileSync('.claude/sdlc.config.json','utf8'))"
 node -e "JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'))"
 ```
 

@@ -5,7 +5,7 @@
 # through `node` directly (`node scripts/build-registry.ts`, `node src/index.ts`,
 # and eval/*.js importing ../src/config.ts) which needs unflagged type stripping
 # (Node 23.6+), and packages/data needs `node:sqlite` (22.5+). On Node 20 the
-# install succeeds and then everything fails at run time. See .ai/sdlc/ci-cd.md.
+# install succeeds and then everything fails at run time. See .claude/sdlc/ci-cd.md.
 #
 # Every install passes --ignore-scripts. pnpm 11 EXITS 1 on a fresh clone with
 # ERR_PNPM_IGNORED_BUILDS (better-sqlite3, esbuild), and the onlyBuiltDependencies
@@ -125,7 +125,7 @@ jobs:
       # Only the hashing + no-stage-3 run is deterministic and needs no Ollama,
       # so it is the only cascade configuration CI can gate on. The model-backed
       # runs (router:eval, router:baseline) need a local model server and are
-      # left to the self-hosted path described in .ai/sdlc/ci-cd.md.
+      # left to the self-hosted path described in .claude/sdlc/ci-cd.md.
       - name: Preserve the committed baseline
         run: cp packages/core-intent/eval/scorecards/hashing-nostage3.json "$RUNNER_TEMP/baseline.json"
 

@@ -7,7 +7,7 @@
 // which is worse than no hook at all -- it trains the agent to ignore the channel
 // the important messages arrive on.
 //
-// Driven by `postEdit` in .ai/sdlc.config.json. Keep those commands under a
+// Driven by `postEdit` in .claude/sdlc.config.json. Keep those commands under a
 // second: a slow post-edit hook makes every file write feel expensive and gets
 // disabled within a week.
 //

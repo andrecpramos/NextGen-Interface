@@ -1,0 +1,158 @@
+{
+  "$schema": "../sdlc-kit/sdlc.config.schema.json",
+  "version": 1,
+
+  "project": {
+    "name": "NextGen Interface",
+    "kind": "monorepo",
+    "stack": ["TypeScript", "Node 23.6+", "pnpm 11", "Next.js", "vitest"],
+    "packageManager": "pnpm",
+    "runtime": "node>=23.6"
+  },
+
+  "branching": {
+    "model": "two-trunk",
+    "production": "main",
+    "integration": "develop",
+    "featurePrefix": "feature/",
+    "releaseOnRequestOnly": true
+  },
+
+  "sharedTree": true,
+
+  "commits": {
+    "convention": "conventional",
+    "scopes": [
+      "core-intent",
+      "core-dispatch",
+      "core-inference",
+      "core-capability",
+      "domain-modules",
+      "domain-finance",
+      "ui",
+      "web",
+      "cli",
+      "ci",
+      "docs",
+      "adr",
+      "golden"
+    ],
+    "trailers": ["Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"]
+  },
+
+  "gates": [
+    {
+      "id": "import-boundaries",
+      "title": "Rule 1 — core never imports a domain",
+      "command": "node tooling/scripts/check-import-boundaries.mjs",
+      "blocking": true,
+      "rule": "1",
+      "fix": "The fix is a registration or a callback on the core side, never an import. If the gate is being worked around, that is the bug."
+    },
+    {
+      "id": "doc-links",
+      "title": "Every relative documentation link resolves",
+      "command": "node tooling/scripts/check-doc-links.mjs",
+      "blocking": true,
+      "fix": "The named target does not exist. Either the file moved (update the link) or the link was always wrong. sdlc-kit/templates/ is excluded by design — its links resolve at the destination, not in place."
+    },
+    {
+      "id": "kit-sync",
+      "title": "Hooks identical in .claude/ and sdlc-kit/runtime/",
+      "command": "node tooling/scripts/check-kit-sync.mjs",
+      "blocking": true,
+      "when": [".claude/hooks/**", "sdlc-kit/runtime/hooks/**"],
+      "fix": "Hooks are config-driven and must be byte-identical in both places. Copy the correct version over the other. Skills and agents are exempt — those are generated per repo and are SUPPOSED to differ."
+    },
+    {
+      "id": "typecheck",
+      "title": "Strict TypeScript across the workspace",
+      "command": "pnpm -r typecheck",
+      "blocking": true,
+      "fix": "Read the file:line and the error. Do not widen a type to silence it."
+    },
+    {
+      "id": "test",
+      "title": "Unit tests, every package",
+      "command": "pnpm -r test",
+      "blocking": true,
+      "fix": "Name the failing test and its first assertion before changing anything."
+    },
+    {
+      "id": "registry-check",
+      "title": "Rule 10 — >=3 examples per capability",
+      "command": "pnpm registry:check",
+      "blocking": true,
+      "rule": "10",
+      "fix": "Usually a capability with fewer than three examples. Add real paraphrases, not variations of one sentence."
+    },
+    {
+      "id": "registry-stale",
+      "title": "Generated artefacts match the committed ones",
+      "command": "pnpm registry:build && git diff --quiet -- packages/core-intent/eval/registry.json packages/domain-modules/generated",
+      "blocking": true,
+      "when": ["packages/domain-*/src/capabilities.ts", "packages/domain-*/scripts/**"],
+      "fix": "pnpm registry:build, then stage the generated files in the same commit as the declaration change."
+    },
+    {
+      "id": "router-floor",
+      "title": "Deterministic router floor (stages 1+2, hashing encoder)",
+      "command": "pnpm router:floor",
+      "blocking": false,
+      "expectNonZero": true,
+      "when": ["packages/domain-*/src/capabilities.ts", "packages/core-intent/**"],
+      "fix": "Exits non-zero BY DESIGN — with stage 3 disabled it cannot meet absolute accuracy targets and is not meant to. What gates is the scorecard comparison below."
+    },
+    {
+      "id": "scorecard",
+      "title": "Golden-set regression against the committed baseline",
+      "command": "node tooling/scripts/check-scorecard.mjs --baseline packages/core-intent/eval/scorecards/hashing-nostage3.json --current packages/core-intent/eval/scorecards/hashing-nostage3.json --tolerance 0.05",
+      "blocking": true,
+      "when": ["packages/domain-*/src/capabilities.ts", "packages/core-intent/**"],
+      "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold."
+    },
+    {
+      "id": "audit",
+      "title": "Dependency CVE scan",
+      "command": "pnpm audit --audit-level high",
+      "blocking": true,
+      "fix": "Upgrade, or record an accepted risk in .claude/docs/security.md with an owner and a date."
+    }
+  ],
+
+  "docs": {
+    "root": ".ai",
+    "rules": "PLAN.md",
+    "decisions": ".claude/decisions",
+    "plan": "PLAN.md"
+  },
+
+  "guard": {
+    "denyBroadStaging": true,
+    "denyProductionWrites": true,
+    "denyBranchFromProduction": true,
+    "extraDeny": [
+      {
+        "pattern": "pnpm\\s+registry:build:finance",
+        "reason": "Every domain's build script writes the same packages/core-intent/eval/registry.json. Running the finance build silently replaces the registry the router reads with the finance registry.",
+        "instead": "pnpm registry:build (domain-modules is the authoritative one). See .claude/docs/critical-infrastructure.md."
+      }
+    ]
+  },
+
+  "postEdit": [
+    {
+      "paths": ["packages/core-*/**/*.ts"],
+      "run": "node tooling/scripts/check-import-boundaries.mjs",
+      "timeoutMs": 5000
+    },
+    {
+      "paths": ["packages/domain-*/src/capabilities.ts"],
+      "remind": "Capability declaration changed. Rule 10 needs >=3 examples, and the generated artefacts are now stale: run `pnpm registry:build` and commit the result in the same commit. Then `pnpm router:floor` to check the new capability did not crowd its neighbours."
+    },
+    {
+      "paths": ["packages/core-intent/eval/**"],
+      "remind": "Eval asset changed. Thresholds come from `pnpm router:calibrate`, never from hand-tuning — a hand-tuned threshold encodes the last utterance you happened to try. If a bucket regressed, fix the capability description, not the threshold."
+    }
+  ]
+}

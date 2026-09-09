@@ -11,10 +11,10 @@ Do not fix anything while running. Diagnose, report, then let the user decide.
 ## 1 · Read the gate list
 
 ```bash
-node -e "const c=require('./.ai/sdlc.config.json');for(const g of c.gates)console.log([g.id,g.blocking===false?'(advisory)':'(blocking)',g.expectNonZero?'(exit!=0 by design)':'',g.command].filter(Boolean).join(' | '))"
+node -e "const c=require('./.claude/sdlc.config.json');for(const g of c.gates)console.log([g.id,g.blocking===false?'(advisory)':'(blocking)',g.expectNonZero?'(exit!=0 by design)':'',g.command].filter(Boolean).join(' | '))"
 ```
 
-If `.ai/sdlc.config.json` does not exist, say so and stop — there is no gate list
+If `.claude/sdlc.config.json` does not exist, say so and stop — there is no gate list
 to run. Suggest `/sdlc-init`.
 
 ## 2 · Run them in order
@@ -56,5 +56,5 @@ order — they account for most of it:
 
 If the gate itself looks wrong — checking a path nothing writes, asserting
 something no longer true — that is a finding worth more than the failure. Report
-it as a gap for [.ai/critical-infrastructure.md](../../.ai/critical-infrastructure.md)
+it as a gap for [.claude/docs/critical-infrastructure.md](../docs/critical-infrastructure.md)
 rather than working around it.

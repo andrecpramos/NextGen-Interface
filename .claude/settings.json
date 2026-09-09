@@ -71,14 +71,14 @@
       "Bash(git symbolic-ref:*)"
     ],
     "ask": [
-      "Write(.ai/decisions/**)",
-      "Edit(.ai/decisions/**)",
-      "Edit(.ai/sdlc.config.json)",
-      "Edit(.ai/rules.md)",
-      "Edit(.ai/critical-infrastructure.md)",
+      "Write(.claude/decisions/**)",
+      "Edit(.claude/decisions/**)",
+      "Edit(.claude/sdlc.config.json)",
+      "Edit(.claude/docs/rules.md)",
+      "Edit(.claude/docs/critical-infrastructure.md)",
       "Edit(PLAN.md)",
-      "Edit(.ai/architecture.md)",
-      "Edit(.ai/security.md)"
+      "Edit(.claude/docs/architecture.md)",
+      "Edit(.claude/docs/security.md)"
     ],
     "deny": []
   }
