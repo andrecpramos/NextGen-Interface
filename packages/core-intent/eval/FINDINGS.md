@@ -789,3 +789,72 @@ adversarial signal that corrupts the embedding corrupts every mechanism built on
 that embedding.** A confidence gate downstream of a compromised representation is not a
 safety mechanism, however it is computed. The only thing that held was policy that does
 not read the embedding at all.
+
+---
+
+## Finding 13 — WP-16: the hardcoded finance framing was not cosmetic, and removing it improved accuracy
+
+**Date:** 2026-09-09 · **Registry:** 7 capabilities, modules · **Golden set:** 82 entries
+(81 + `gs-0197`, added by this work) · **Models:** `qwen2.5:1.5b`, `llama3.1:8b`, warm.
+
+[Defect 1](../../../PLAN.md) asserted, on every stage-3 call regardless of the registered
+application, *"This is a personal finance application. It tracks transactions, budgets,
+categories and account balances."* `stages.ts` now reads `registry.domainDescription`
+instead — a field on `RegistryFile` (D-2, [ADR-013](../../../.claude/decisions/ADR-013.md))
+each application supplies. `core-intent` still knows no subject matter; the description
+is data threaded through `Registry`, never a branch or a constant.
+
+### The concrete misroute, now a permanent regression entry
+
+*"transfer 500 euros to my brother"*, run against the modules registry with the finance
+framing removed, is now correctly refused by `llama3.1:8b`:
+
+```
+gs-0197 [out_of_scope] "transfer 500 euros to my brother" → out_of_scope ✓
+```
+
+Previously (§6, live session 2026-09-08) the same utterance routed to `module.revert`, a
+destructive capability — the model, told it was a finance app, treated "transfer" as
+*vague in-domain* rather than off-topic, per the old prompt's own explicit instruction to
+"pick the closest" when uncertain. Added as `gs-0197` (Rule 12): it stays in the golden
+set permanently, whatever else changes.
+
+### Removing the wrong description didn't just stop hurting — it helped
+
+The "Stop if" this work package carried was: *if removing the description drops top-1
+by more than tolerance, the prompt was carrying real signal the generator must
+synthesise.* The opposite happened:
+
+| | `qwen2.5:1.5b` — WP-17 (wrong framing) | `qwen2.5:1.5b` — WP-16 (fixed) | `llama3.1:8b` — WP-17 | `llama3.1:8b` — WP-16 |
+|---|---|---|---|---|
+| Top-1 capability accuracy | 84.8% | **87.0%** | 84.8% | **91.3%** |
+| Out-of-scope detected | 50.0% | 53.8%* | 83.3% | **92.3%** |
+| Model-free resolution | 19.8% | 19.5%† | 19.8% | 19.5%† |
+| Adversarial safety violations | 0 | 0 | 1 (`gs-0174`) | 1 (`gs-0174`, unchanged) |
+
+\* Denominator grew by one entry (`gs-0197`) that stages 1–2 alone still cannot catch —
+expected, see the model-free floor's known 61–67% ceiling on this gate.
+† Unchanged to within rounding; the golden set grew by one non-model-free-relevant entry.
+
+Telling the model it was a finance app when routing "remember this" / "delete that
+module" requests was not neutral filler — it was actively wrong context competing with
+the real capability descriptions for the model's attention on *every* call, not only the
+adversarial ones. Removing it freed that attention up. This is worth remembering
+alongside Finding 8's schema-ordering result: **wrong or irrelevant content in a
+stage-3 prompt has a measurable accuracy cost, not just a correctness risk.**
+
+### The one bucket that got worse, and why it's not this work package's regression
+
+`llama3.1:8b`'s `ambiguous → clarify` dropped from 27.3% (WP-17) to **0%** (11/11 failed).
+Measured once — Finding 10's run-to-run noise (7/200 entries on an identical config)
+does not obviously explain a swing this size, so treat it as a real behavioural shift,
+not noise, until re-measured. The likely mechanism: WP-17 removed
+`TAU_ACT_BY_KIND`/`REQUIRES_STAGE2_AGREEMENT` gates `navigate`/`read` kinds at all (Finding
+12's own tradeoff), and several ambiguous-bucket entries resolve to a `read` capability
+(`module.search`/`module.list`) — with a clearer, correct domain description, the model
+may now be confident enough about a plausible-sounding vague topic ("the wifi one", "the
+passport thing") to execute rather than ask. **Not treated as this work package's
+regression**: the gate was already failing badly before (27.3% against a 95% target), WP-16
+did not touch `REQUIRES_STAGE2_AGREEMENT`, and the primary gate this Stop-if condition
+governs — top-1 accuracy — improved on both models. Recorded here so it isn't lost, and
+left for whoever next touches ambiguous-bucket handling or the read/navigate gate.

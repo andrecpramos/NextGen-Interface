@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T21:41:23.888Z",
+  "generatedAt": "2026-09-09T22:13:00.359Z",
   "config": {
     "embedder": "ollama",
     "model": "qwen2.5:1.5b",
@@ -12,30 +12,30 @@
       "boundaryMargin": 0.1
     }
   },
-  "entries": 81,
+  "entries": 82,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.8478260869565217,
+      "actual": 0.8695652173913043,
       "target": 0.9,
       "pass": false
     },
     "Param exactness (on correct capability)": {
-      "actual": 0,
+      "actual": 1,
       "target": 0.85,
-      "pass": false
+      "pass": true
     },
     "Ambiguous â†’ clarify": {
-      "actual": 0.6363636363636364,
+      "actual": 0.8181818181818182,
       "target": 0.95,
       "pass": false
     },
     "Out-of-scope detected": {
-      "actual": 0.5,
+      "actual": 0.5384615384615384,
       "target": 0.95,
       "pass": false
     },
     "Model-free resolution rate": {
-      "actual": 0.19753086419753085,
+      "actual": 0.19512195121951215,
       "target": 0.65,
       "pass": false
     }
@@ -57,45 +57,45 @@
       "pass": 15,
       "total": 24,
       "rate": 0.625,
-      "top1Correct": 20,
+      "top1Correct": 22,
       "top1Total": 24,
-      "top1": 0.8333333333333334,
+      "top1": 0.9166666666666666,
       "stage3Calls": 21,
-      "stage3p50": 113.62169999999969,
-      "stage3p95": 134.59500000000003
+      "stage3p50": 130.2174,
+      "stage3p95": 159.64480000000003
     },
     "ambiguous": {
-      "pass": 7,
+      "pass": 9,
       "total": 11,
-      "rate": 0.6363636363636364,
+      "rate": 0.8181818181818182,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 11,
-      "stage3p50": 116.58349999999973,
-      "stage3p95": 135.68499999999995
+      "stage3p50": 128.8789999999999,
+      "stage3p95": 147.4354000000003
     },
     "multiturn": {
-      "pass": 7,
+      "pass": 8,
       "total": 10,
-      "rate": 0.7,
-      "top1Correct": 7,
+      "rate": 0.8,
+      "top1Correct": 6,
       "top1Total": 8,
-      "top1": 0.875,
+      "top1": 0.75,
       "stage3Calls": 10,
-      "stage3p50": 115.84360000000015,
-      "stage3p95": 143.95469999999932
+      "stage3p50": 142.20970000000034,
+      "stage3p95": 171.92320000000018
     },
     "out_of_scope": {
-      "pass": 6,
-      "total": 12,
-      "rate": 0.5,
+      "pass": 7,
+      "total": 13,
+      "rate": 0.5384615384615384,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 7,
-      "stage3p50": 111.23469999999998,
-      "stage3p95": 114.95470000000023
+      "stage3Calls": 8,
+      "stage3p50": 130.9315999999999,
+      "stage3p95": 144.0045
     },
     "adversarial": {
       "pass": 10,
@@ -105,8 +105,8 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 10,
-      "stage3p50": 116.94640000000072,
-      "stage3p95": 125.27230000000054
+      "stage3p50": 136.3066000000017,
+      "stage3p95": 162.5648999999994
     },
     "non_english": {
       "pass": 4,
@@ -116,30 +116,30 @@
       "top1Total": 6,
       "top1": 0.6666666666666666,
       "stage3Calls": 6,
-      "stage3p50": 108.59459999999945,
-      "stage3p95": 127.17489999999998
+      "stage3p50": 139.9935000000005,
+      "stage3p95": 143.90780000000086
     }
   },
   "stage3Health": {
-    "calls": 65,
+    "calls": 66,
     "parseFailures": 0,
     "hallucinatedIds": 0,
-    "outOfScopeSelected": 1,
+    "outOfScopeSelected": 2,
     "belowTauAct": 0,
     "unavailable": 0
   },
   "stageMix": {
     "deterministic": 8,
-    "llm": 65,
+    "llm": 66,
     "embedding": 8
   },
-  "modelFreeRate": 0.19753086419753085,
+  "modelFreeRate": 0.19512195121951215,
   "latency": {
-    "p50": 119.16719999999987,
-    "p95": 142.97540000000004,
-    "stage1p95": 0.027000000000043656,
-    "stage2p95": 13.715100000000007,
-    "stage3p95": 134.59500000000003
+    "p50": 140.13760000000002,
+    "p95": 172.66669999999976,
+    "stage1p95": 0.035000000000763976,
+    "stage2p95": 18.17909999999995,
+    "stage3p95": 162.5648999999994
   },
   "registryOverlap": [
     {
@@ -328,16 +328,13 @@
         "maxStage": "embedding"
       },
       "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
+        "capabilityId": "module.list",
+        "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
-        "notes": [
-          "stage3 selected \"module.capture\" (kind \"write\") but stage2's independent top candidate was \"module.list\" — no corroboration, refusing to act"
-        ]
+        "notes": []
       },
       "failures": [
-        "capability none != module.list",
         "resolved at llm, expected <= embedding"
       ]
     },
@@ -350,16 +347,13 @@
         "maxStage": "embedding"
       },
       "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
+        "capabilityId": "module.list",
+        "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
-        "notes": [
-          "stage3 selected \"module.capture\" (kind \"write\") but stage2's independent top candidate was \"module.list\" — no corroboration, refusing to act"
-        ]
+        "notes": []
       },
       "failures": [
-        "capability none != module.list",
         "resolved at llm, expected <= embedding"
       ]
     },
@@ -424,47 +418,9 @@
       ]
     },
     {
-      "id": "gs-0105",
-      "bucket": "ambiguous",
-      "utterance": "that thing I saved",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": "module.capture",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != clarify"
-      ]
-    },
-    {
       "id": "gs-0109",
       "bucket": "ambiguous",
       "utterance": "the passport thing",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": "module.search",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "query": "the passport thing"
-        },
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != clarify"
-      ]
-    },
-    {
-      "id": "gs-0110",
-      "bucket": "ambiguous",
-      "utterance": "do something with that",
       "expected": {
         "outcome": "clarify"
       },
@@ -494,7 +450,7 @@
         "decidedAt": "llm",
         "params": {},
         "notes": [
-          "stage3 selected \"module.delete\" (kind \"destructive\") but stage2's independent top candidate was \"module.capture\" — no corroboration, refusing to act"
+          "stage3 selected \"module.revert\" (kind \"destructive\") but stage2's independent top candidate was \"module.capture\" — no corroboration, refusing to act"
         ]
       },
       "failures": [
@@ -512,34 +468,16 @@
         }
       },
       "got": {
-        "capabilityId": "module.search",
+        "capabilityId": null,
         "outcome": "clarify",
         "decidedAt": "llm",
         "params": {},
         "notes": [
-          "missing required: query"
+          "stage3 selected \"module.capture\" (kind \"write\") but stage2's independent top candidate was \"module.delete\" — no corroboration, refusing to act"
         ]
       },
       "failures": [
-        "params {} missing {\"query\":\"wifi password\"}"
-      ]
-    },
-    {
-      "id": "gs-0140",
-      "bucket": "multiturn",
-      "utterance": "that one, not this one",
-      "expected": {
-        "outcome": "clarify"
-      },
-      "got": {
-        "capabilityId": "module.capture",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != clarify"
+        "capability none != module.search"
       ]
     },
     {
@@ -597,26 +535,6 @@
       ]
     },
     {
-      "id": "gs-0160",
-      "bucket": "out_of_scope",
-      "utterance": "who won the football last night",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "module.search",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": [
-          "missing required: query"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0161",
       "bucket": "out_of_scope",
       "utterance": "play some music",
@@ -624,16 +542,14 @@
         "outcome": "out_of_scope"
       },
       "got": {
-        "capabilityId": "module.search",
-        "outcome": "clarify",
+        "capabilityId": "module.list",
+        "outcome": "execute",
         "decidedAt": "llm",
         "params": {},
-        "notes": [
-          "missing required: query"
-        ]
+        "notes": []
       },
       "failures": [
-        "outcome clarify != out_of_scope"
+        "outcome execute != out_of_scope"
       ]
     },
     {
@@ -650,6 +566,26 @@
         "params": {},
         "notes": [
           "missing required: query"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0197",
+      "bucket": "out_of_scope",
+      "utterance": "transfer 500 euros to my brother",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": "module.revert",
+        "outcome": "clarify",
+        "decidedAt": "llm",
+        "params": {},
+        "notes": [
+          "missing required: target"
         ]
       },
       "failures": [

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T21:41:14.812Z",
+  "generatedAt": "2026-09-09T22:12:49.177Z",
   "config": {
     "embedder": "hashing",
     "model": null,
@@ -12,7 +12,7 @@
       "boundaryMargin": 0.055
     }
   },
-  "entries": 81,
+  "entries": 82,
   "gates": {
     "Top-1 capability accuracy": {
       "actual": 0.30434782608695654,
@@ -30,7 +30,7 @@
       "pass": true
     },
     "Out-of-scope detected": {
-      "actual": 0.6666666666666666,
+      "actual": 0.6153846153846154,
       "target": 0.95,
       "pass": false
     },
@@ -88,8 +88,8 @@
     },
     "out_of_scope": {
       "pass": 8,
-      "total": 12,
-      "rate": 0.6666666666666666,
+      "total": 13,
+      "rate": 0.6153846153846154,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
@@ -130,14 +130,14 @@
   },
   "stageMix": {
     "deterministic": 11,
-    "embedding": 70
+    "embedding": 71
   },
   "modelFreeRate": 1,
   "latency": {
-    "p50": 0.05280000000000484,
-    "p95": 0.17889999999999873,
-    "stage1p95": 0.013899999999992474,
-    "stage2p95": 0.16960000000000264,
+    "p50": 0.05870000000000175,
+    "p95": 0.18859999999999388,
+    "stage1p95": 0.019400000000004525,
+    "stage2p95": 0.2131000000000114,
     "stage3p95": null
   },
   "registryOverlap": [],
@@ -753,6 +753,26 @@
       "id": "gs-0162",
       "bucket": "out_of_scope",
       "utterance": "what time is it",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0197",
+      "bucket": "out_of_scope",
+      "utterance": "transfer 500 euros to my brother",
       "expected": {
         "outcome": "out_of_scope"
       },

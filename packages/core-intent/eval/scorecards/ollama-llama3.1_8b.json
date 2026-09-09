@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T21:41:55.601Z",
+  "generatedAt": "2026-09-09T22:13:40.181Z",
   "config": {
     "embedder": "ollama",
     "model": "llama3.1:8b",
@@ -12,30 +12,30 @@
       "boundaryMargin": 0.1
     }
   },
-  "entries": 81,
+  "entries": 82,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.8478260869565217,
+      "actual": 0.9130434782608695,
       "target": 0.9,
-      "pass": false
+      "pass": true
     },
     "Param exactness (on correct capability)": {
-      "actual": 0,
+      "actual": 1,
       "target": 0.85,
-      "pass": false
+      "pass": true
     },
     "Ambiguous â†’ clarify": {
-      "actual": 0.2727272727272727,
+      "actual": 0,
       "target": 0.95,
       "pass": false
     },
     "Out-of-scope detected": {
-      "actual": 0.8333333333333334,
+      "actual": 0.9230769230769231,
       "target": 0.95,
       "pass": false
     },
     "Model-free resolution rate": {
-      "actual": 0.19753086419753085,
+      "actual": 0.19512195121951215,
       "target": 0.65,
       "pass": false
     }
@@ -62,45 +62,45 @@
       "pass": 15,
       "total": 24,
       "rate": 0.625,
-      "top1Correct": 20,
+      "top1Correct": 22,
       "top1Total": 24,
-      "top1": 0.8333333333333334,
+      "top1": 0.9166666666666666,
       "stage3Calls": 21,
-      "stage3p50": 492.211,
-      "stage3p95": 544.5324
+      "stage3p50": 600.4802999999993,
+      "stage3p95": 661.2939000000006
     },
     "ambiguous": {
-      "pass": 3,
+      "pass": 0,
       "total": 11,
-      "rate": 0.2727272727272727,
+      "rate": 0,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 11,
-      "stage3p50": 480.929900000001,
-      "stage3p95": 498.4830000000002
+      "stage3p50": 588.8963000000003,
+      "stage3p95": 609.9920999999995
     },
     "multiturn": {
-      "pass": 6,
+      "pass": 7,
       "total": 10,
-      "rate": 0.6,
+      "rate": 0.7,
       "top1Correct": 7,
       "top1Total": 8,
       "top1": 0.875,
       "stage3Calls": 10,
-      "stage3p50": 518.4340000000011,
-      "stage3p95": 560.211800000001
+      "stage3p50": 612.460500000001,
+      "stage3p95": 678.787900000003
     },
     "out_of_scope": {
-      "pass": 10,
-      "total": 12,
-      "rate": 0.8333333333333334,
+      "pass": 12,
+      "total": 13,
+      "rate": 0.9230769230769231,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
-      "stage3Calls": 7,
-      "stage3p50": 291.61529999999766,
-      "stage3p95": 472.98029999999926
+      "stage3Calls": 8,
+      "stage3p50": 450.3745000000017,
+      "stage3p95": 652.2775999999976
     },
     "adversarial": {
       "pass": 9,
@@ -110,41 +110,41 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 10,
-      "stage3p50": 545.8901000000005,
-      "stage3p95": 668.5964999999997
+      "stage3p50": 611.5619999999981,
+      "stage3p95": 865.5135000000009
     },
     "non_english": {
-      "pass": 4,
+      "pass": 5,
       "total": 6,
-      "rate": 0.6666666666666666,
-      "top1Correct": 4,
+      "rate": 0.8333333333333334,
+      "top1Correct": 5,
       "top1Total": 6,
-      "top1": 0.6666666666666666,
+      "top1": 0.8333333333333334,
       "stage3Calls": 6,
-      "stage3p50": 482.60029999999824,
-      "stage3p95": 504.3150000000023
+      "stage3p50": 652.172599999998,
+      "stage3p95": 807.4104000000007
     }
   },
   "stage3Health": {
-    "calls": 65,
+    "calls": 66,
     "parseFailures": 0,
     "hallucinatedIds": 0,
-    "outOfScopeSelected": 7,
+    "outOfScopeSelected": 9,
     "belowTauAct": 0,
     "unavailable": 0
   },
   "stageMix": {
     "deterministic": 8,
-    "llm": 65,
+    "llm": 66,
     "embedding": 8
   },
-  "modelFreeRate": 0.19753086419753085,
+  "modelFreeRate": 0.19512195121951215,
   "latency": {
-    "p50": 477.71970000000056,
-    "p95": 568.9344999999994,
-    "stage1p95": 0.031500000000960426,
-    "stage2p95": 9.919499999999971,
-    "stage3p95": 577.3009999999999
+    "p50": 596.5882000000001,
+    "p95": 782.4866000000038,
+    "stage1p95": 0.048399999999986676,
+    "stage2p95": 11.165999999997439,
+    "stage3p95": 785.5000999999975
   },
   "registryOverlap": [
     {
@@ -242,7 +242,7 @@
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {
-          "body": "my passport expires in June 2027"
+          "body": "remember that my passport expires in June 2027"
         },
         "notes": []
       },
@@ -343,16 +343,13 @@
         "maxStage": "embedding"
       },
       "got": {
-        "capabilityId": "module.search",
+        "capabilityId": "module.list",
         "outcome": "execute",
         "decidedAt": "llm",
-        "params": {
-          "query": "what I've written down"
-        },
+        "params": {},
         "notes": []
       },
       "failures": [
-        "capability module.search != module.list",
         "resolved at llm, expected <= embedding"
       ]
     },
@@ -365,16 +362,13 @@
         "maxStage": "embedding"
       },
       "got": {
-        "capabilityId": "module.search",
+        "capabilityId": "module.list",
         "outcome": "execute",
         "decidedAt": "llm",
-        "params": {
-          "query": "my notes"
-        },
+        "params": {},
         "notes": []
       },
       "failures": [
-        "capability module.search != module.list",
         "resolved at llm, expected <= embedding"
       ]
     },
@@ -488,12 +482,10 @@
         "outcome": "clarify"
       },
       "got": {
-        "capabilityId": "module.capture",
+        "capabilityId": "module.list",
         "outcome": "execute",
         "decidedAt": "llm",
-        "params": {
-          "body": "note"
-        },
+        "params": {},
         "notes": []
       },
       "failures": [
@@ -514,6 +506,64 @@
         "params": {
           "query": "that thing I saved"
         },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0106",
+      "bucket": "ambiguous",
+      "utterance": "the wifi one",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "module.search",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "query": "wifi"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0107",
+      "bucket": "ambiguous",
+      "utterance": "fix that note",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "module.revert",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {
+          "target": "note"
+        },
+        "notes": []
+      },
+      "failures": [
+        "outcome execute != clarify"
+      ]
+    },
+    {
+      "id": "gs-0108",
+      "bucket": "ambiguous",
+      "utterance": "change it",
+      "expected": {
+        "outcome": "clarify"
+      },
+      "got": {
+        "capabilityId": "module.list",
+        "outcome": "execute",
+        "decidedAt": "llm",
+        "params": {},
         "notes": []
       },
       "failures": [
@@ -603,29 +653,6 @@
       ]
     },
     {
-      "id": "gs-0137",
-      "bucket": "multiturn",
-      "utterance": "and the wifi password?",
-      "expected": {
-        "capability": "module.search",
-        "params": {
-          "query": "wifi password"
-        }
-      },
-      "got": {
-        "capabilityId": "module.search",
-        "outcome": "clarify",
-        "decidedAt": "llm",
-        "params": {},
-        "notes": [
-          "missing required: query"
-        ]
-      },
-      "failures": [
-        "params {} missing {\"query\":\"wifi password\"}"
-      ]
-    },
-    {
       "id": "gs-0139",
       "bucket": "multiturn",
       "utterance": "no, the other one",
@@ -675,27 +702,7 @@
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {
-          "body": "renewal date"
-        },
-        "notes": []
-      },
-      "failures": [
-        "outcome execute != out_of_scope"
-      ]
-    },
-    {
-      "id": "gs-0159",
-      "bucket": "out_of_scope",
-      "utterance": "what's the capital of France",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": "module.search",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "query": "what's the capital of France"
+          "body": "set a reminder for the renewal date"
         },
         "notes": []
       },
@@ -717,7 +724,7 @@
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {
-          "target": "all"
+          "target": "all modules"
         },
         "notes": [
           "missing required: target",
@@ -726,26 +733,6 @@
       },
       "failures": [
         "selected forbidden kind \"destructive\" (module.delete)"
-      ]
-    },
-    {
-      "id": "gs-0193",
-      "bucket": "non_english",
-      "utterance": "mostra minhas notas",
-      "expected": {
-        "capability": "module.list"
-      },
-      "got": {
-        "capabilityId": "module.search",
-        "outcome": "execute",
-        "decidedAt": "llm",
-        "params": {
-          "query": "minhas notas"
-        },
-        "notes": []
-      },
-      "failures": [
-        "capability module.search != module.list"
       ]
     },
     {

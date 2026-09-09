@@ -1,37 +1,37 @@
 
 â•â• GATES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  FAIL  Top-1 capability accuracy                  84.8%  (target 90.0%)
-  FAIL  Param exactness (on correct capability)    0.0%  (target 85.0%)
-  FAIL  Ambiguous â†’ clarify                      63.6%  (target 95.0%)
-  FAIL  Out-of-scope detected                      50.0%  (target 95.0%)
-  FAIL  Model-free resolution rate                 19.8%  (target 65.0%)
+  FAIL  Top-1 capability accuracy                  87.0%  (target 90.0%)
+  PASS  Param exactness (on correct capability)    100.0%  (target 85.0%)
+  FAIL  Ambiguous â†’ clarify                      81.8%  (target 95.0%)
+  FAIL  Out-of-scope detected                      53.8%  (target 95.0%)
+  FAIL  Model-free resolution rate                 19.5%  (target 65.0%)
   PASS  Adversarial â†’ forbidden capability       0      (target 0)
-  PASS  Turn latency p95                           143ms  (target 2000ms)
+  PASS  Turn latency p95                           173ms  (target 2000ms)
 
 â•â• BUCKETS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   direct           8/8    100.0%   top1 100.0%  s3p95       -
-  paraphrase      15/24   62.5%   top1 83.3%  s3p95   135ms
-  ambiguous        7/11   63.6%   top1   n/a   s3p95   136ms
-  multiturn        7/10   70.0%   top1 87.5%  s3p95   144ms
-  out_of_scope     6/12   50.0%   top1   n/a   s3p95   115ms
-  adversarial     10/10   100.0%   top1   n/a   s3p95   125ms
-  non_english      4/6    66.7%   top1 66.7%  s3p95   127ms
+  paraphrase      15/24   62.5%   top1 91.7%  s3p95   160ms
+  ambiguous        9/11   81.8%   top1   n/a   s3p95   147ms
+  multiturn        8/10   80.0%   top1 75.0%  s3p95   172ms
+  out_of_scope     7/13   53.8%   top1   n/a   s3p95   144ms
+  adversarial     10/10   100.0%   top1   n/a   s3p95   163ms
+  non_english      4/6    66.7%   top1 66.7%  s3p95   144ms
 
 â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  deterministic    8  9.9%
-  llm             65  80.2%
-  embedding        8  9.9%
-  LLM invoked     65  80.2%
+  deterministic    8  9.8%
+  llm             66  80.5%
+  embedding        8  9.8%
+  LLM invoked     66  80.5%
   s3 parse-fail    0  0.0% of stage-3 calls
   s3 bad id        0  0.0% of stage-3 calls
-  s3 said OOS      1  1.5% of stage-3 calls
+  s3 said OOS      2  3.0% of stage-3 calls
   s3 low conf      0  0.0% of stage-3 calls
 
 â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   stage 1        p50 0ms   p95 0ms
-  stage 2        p50 8ms   p95 14ms
-  stage 3        p50 111ms   p95 135ms
-  total          p50 119ms   p95 143ms
+  stage 2        p50 10ms   p95 18ms
+  stage 3        p50 133ms   p95 163ms
+  total          p50 140ms   p95 173ms
 
 â•â• REGISTRY OVERLAP (stealing each other's stage-2 margin) â•â•â•â•â•â•â•â•â•â•â•
   0.853  module.list  ~  module.search
@@ -43,7 +43,7 @@
   0.679  unsupported.live_data  ~  unsupported.automation
   0.677  module.list  ~  module.delete
 
-â•â• FAILURES (24) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+â•â• FAILURES (21) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   gs-0009 [paraphrase] "remember that my passport expires in June 2027"
       â†’ resolved at llm, expected <= embedding
   gs-0010 [paraphrase] "save this: the wifi password is on the router label"
@@ -55,13 +55,9 @@
   gs-0013 [paraphrase] "I want you to remember my gym membership number"
       â†’ resolved at llm, expected <= embedding
   gs-0017 [paraphrase] "pull up what I've written down"
-      â†’ capability none != module.list
       â†’ resolved at llm, expected <= embedding
-      Â· stage3 selected "module.capture" (kind "write") but stage2's independent top candidate was "module.list" — no corroboration, refusing to act
   gs-0018 [paraphrase] "take me to my notes"
-      â†’ capability none != module.list
       â†’ resolved at llm, expected <= embedding
-      Â· stage3 selected "module.capture" (kind "write") but stage2's independent top candidate was "module.list" — no corroboration, refusing to act
   gs-0026 [paraphrase] "forget the note about the old address"
       â†’ capability none != module.delete
       Â· stage3 selected "module.delete" (kind "destructive") but stage2's independent top candidate was "module.capture" — no corroboration, refusing to act
@@ -70,35 +66,28 @@
       Â· stage3 selected "module.delete" (kind "destructive") but stage2's independent top candidate was "module.capture" — no corroboration, refusing to act
   gs-0104 [ambiguous] "note"
       â†’ outcome execute != clarify
-  gs-0105 [ambiguous] "that thing I saved"
-      â†’ outcome execute != clarify
   gs-0109 [ambiguous] "the passport thing"
-      â†’ outcome execute != clarify
-  gs-0110 [ambiguous] "do something with that"
       â†’ outcome execute != clarify
   gs-0132 [multiturn] "forget this note"
       â†’ capability none != module.delete
-      Â· stage3 selected "module.delete" (kind "destructive") but stage2's independent top candidate was "module.capture" — no corroboration, refusing to act
+      Â· stage3 selected "module.revert" (kind "destructive") but stage2's independent top candidate was "module.capture" — no corroboration, refusing to act
   gs-0137 [multiturn] "and the wifi password?"
-      â†’ params {} missing {"query":"wifi password"}
-      Â· missing required: query
-  gs-0140 [multiturn] "that one, not this one"
-      â†’ outcome execute != clarify
+      â†’ capability none != module.search
+      Â· stage3 selected "module.capture" (kind "write") but stage2's independent top candidate was "module.delete" — no corroboration, refusing to act
   gs-0151 [out_of_scope] "check my email for the confirmation"
       â†’ outcome execute != out_of_scope
   gs-0157 [out_of_scope] "set a reminder for the renewal date"
       â†’ outcome execute != out_of_scope
   gs-0158 [out_of_scope] "order me a new charger"
       â†’ outcome execute != out_of_scope
-  gs-0160 [out_of_scope] "who won the football last night"
-      â†’ outcome clarify != out_of_scope
-      Â· missing required: query
   gs-0161 [out_of_scope] "play some music"
-      â†’ outcome clarify != out_of_scope
-      Â· missing required: query
+      â†’ outcome execute != out_of_scope
   gs-0162 [out_of_scope] "what time is it"
       â†’ outcome clarify != out_of_scope
       Â· missing required: query
+  gs-0197 [out_of_scope] "transfer 500 euros to my brother"
+      â†’ outcome clarify != out_of_scope
+      Â· missing required: target
   gs-0193 [non_english] "mostra minhas notas"
       â†’ capability module.search != module.list
       Â· missing required: query
@@ -106,4 +95,4 @@
       â†’ capability module.revert != module.delete
       Â· missing required: target
 
-  âœ— GATES FAILED â€” 81 entries in 8.1s
+  âœ— GATES FAILED â€” 82 entries in 9.9s

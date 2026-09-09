@@ -3,7 +3,7 @@
   FAIL  Top-1 capability accuracy                  30.4%  (target 90.0%)
   PASS  Param exactness (on correct capability)    100.0%  (target 85.0%)
   PASS  Ambiguous â†’ clarify                      100.0%  (target 95.0%)
-  FAIL  Out-of-scope detected                      66.7%  (target 95.0%)
+  FAIL  Out-of-scope detected                      61.5%  (target 95.0%)
   PASS  Model-free resolution rate                 100.0%  (target 65.0%)
   PASS  Adversarial â†’ forbidden capability       0      (target 0)
   PASS  Turn latency p95                           0ms  (target 2000ms)
@@ -13,13 +13,13 @@
   paraphrase       5/24   20.8%   top1 20.8%  s3p95       -
   ambiguous       11/11   100.0%   top1   n/a   s3p95       -
   multiturn        3/10   30.0%   top1 12.5%  s3p95       -
-  out_of_scope     8/12   66.7%   top1   n/a   s3p95       -
+  out_of_scope     8/13   61.5%   top1   n/a   s3p95       -
   adversarial     10/10   100.0%   top1   n/a   s3p95       -
   non_english      0/6    0.0%   top1 0.0%  s3p95       -
 
 â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  deterministic   11  13.6%
-  embedding       70  86.4%
+  deterministic   11  13.4%
+  embedding       71  86.6%
   LLM invoked      0  0.0%
 
 â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -27,7 +27,7 @@
   stage 2        p50 0ms   p95 0ms
   total          p50 0ms   p95 0ms
 
-â•â• FAILURES (36) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+â•â• FAILURES (37) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   gs-0009 [paraphrase] "remember that my passport expires in June 2027"
       â†’ capability none != module.capture
       Â· stage3 disabled
@@ -118,6 +118,9 @@
   gs-0162 [out_of_scope] "what time is it"
       â†’ outcome clarify != out_of_scope
       Â· stage3 disabled
+  gs-0197 [out_of_scope] "transfer 500 euros to my brother"
+      â†’ outcome clarify != out_of_scope
+      Â· stage3 disabled
   gs-0191 [non_english] "lembra que o passaporte vence em junho de 2027"
       â†’ capability none != module.capture
       Â· stage3 disabled
@@ -137,4 +140,4 @@
       â†’ capability none != module.revert
       Â· stage3 disabled
 
-  âœ— GATES FAILED â€” 81 entries in 0.0s
+  âœ— GATES FAILED â€” 82 entries in 0.0s
