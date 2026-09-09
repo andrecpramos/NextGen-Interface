@@ -655,7 +655,8 @@ attention), and a token budget sized for routing being wrong for writing content
 
 **What it left open**
 
-- **No ADR.** §1, §3, §9 — this is the single largest process gap this pivot created.
+- ~~**No ADR.**~~ **Closed 2026-09-09** — [ADR-013](../decisions/ADR-013.md) retroactively
+  records this pivot alongside the repositioning it was itself superseded by.
 - **The golden set had to be rebuilt from scratch** (follow-up commit 0719ca5): the
   registry regenerated against modules capabilities but the golden set still asserted
   finance capability ids, so the regression gate failed hard (top-1 0.408 → 0.000)
@@ -664,8 +665,9 @@ attention), and a token budget sized for routing being wrong for writing content
   boundary-margin sweep's "never refuse in-domain" check filtered on `expect.capability`
   and silently skipped the entire `ambiguous` bucket (those entries assert an outcome,
   not a capability), so a margin of 0 was passing only because nothing was checking it.
-- **The full qwen2.5:1.5b cascade hasn't been re-measured against the new registry** —
-  only the model-free floor has (§5).
+- ~~**The full qwen2.5:1.5b cascade hasn't been re-measured against the new
+  registry**~~ **Closed 2026-09-09 (WP-17)** — re-measured warm, both `qwen2.5:1.5b`
+  and `llama3.1:8b`; see PLAN.md §5 and FINDINGS.md Finding 12.
 - **No screens for `module.capture`/`module.search`** (§4 gap 5).
 - **Docs left behind**: `.claude/docs/vision.md`, `.claude/docs/project.md`, `apps/web/README.md`,
   `core-voice/README.md` (§4 gap 4, WP-11). `README.md` was rewritten and `SETUP.md`

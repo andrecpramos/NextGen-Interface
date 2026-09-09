@@ -43,22 +43,22 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **WP-23** · ADR-013 — record the repositioning | M0 | S | D-1 |
-| 2 | **WP-16** · De-finance the stage-3 prompt | M0 | M | D-2 |
-| 3 | **WP-31** · Ground truth for `fut-app` | M1 | M | — |
-| 4 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | 2, 3 |
-| 5 | **WP-25** · The registry generator — role-scoped | M1 | L | 4 |
-| 6 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 5 |
-| 7 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | 3 |
-| 8 | **WP-33** · **The measurement** — the first artefact | M1 | S | 5, 6, 7 |
-| 9 | **WP-34** · The write-up — the second artefact | M2 | M | 8 |
-| 10 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 8 |
-| 11 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 5, D-3 |
-| 12 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 6, 10 |
-| 13 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 10, 11, 12 |
+| 1 | **WP-16** · De-finance the stage-3 prompt | M0 | M | — |
+| 2 | **WP-31** · Ground truth for `fut-app` | M1 | M | — |
+| 3 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | 1, 2 |
+| 4 | **WP-25** · The registry generator — role-scoped | M1 | L | 3 |
+| 5 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 4 |
+| 6 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | 2 |
+| 7 | **WP-33** · **The measurement** — the first artefact | M1 | S | 4, 5, 6 |
+| 8 | **WP-34** · The write-up — the second artefact | M2 | M | 7 |
+| 9 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 7 |
+| 10 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 4, D-3 |
+| 11 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 5, 9 |
+| 12 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 9, 10, 11 |
 
-**Landed this session:** WP-15 (§7.1, commit `ca9ff6d`) and WP-17 (§7.1, router re-measured,
-`TAU_ACT_BY_KIND` replaced) on `feature/plan-execution`.
+**Landed this session:** WP-15, WP-17 (both §7.1) and **WP-23** — ADR-013 written
+(status `Proposed`, awaiting the owner's acceptance) — plus D-1 and D-2 decided
+(§13), on `feature/plan-execution`.
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
@@ -384,7 +384,7 @@ none.
 
 ```
 NextGen_Interface/
-├── .claude/docs/              26 docs + 12 ADRs + history.md + business-case.md
+├── .claude/docs/              26 docs + 13 ADRs + history.md + business-case.md
 │                     ⚠️ most prose still describes the pre-repositioning product (WP-11)
 ├── apps/
 │   ├── cli/          ✅ COMPOSITION ROOT — 13 tests
@@ -430,8 +430,8 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | `tooling/tsconfig` | `base.json` is **byte-identical** to the root `tsconfig.base.json`, and all **13** tsconfigs in the repo extend the root one. No package depends on it | **Dead — delete** |
 | `tooling/eslint-config` | Contains **only a `package.json`** — no `index.js`, no ESLint dependency, no dependents. The *absence of lint* is deliberate and documented; the empty package is not | **Dead — delete** |
 | `eval/scorecards/hashing-llama3.1_8b.txt` | **0 bytes**, tracked, sitting beside a real `.json`. Not recorded anywhere until now | **Dead — delete** |
-| `services/api` | 3 files, `src/index.ts` is `export {}`, zero dependents | **Decision, not cleanup** — [ADR-008](.claude/decisions/ADR-008.md) keeps a backend tier deliberately. WP-23 should say whether that survives the repositioning |
-| **`domain-finance` is orphaned** | **No workspace package depends on it.** `apps/cli` neither imports nor can register it — so the "swap the application and prove the engine is agnostic" test **is not currently executable** | **Blocks D-1 and WP-16.** Either wire it as a dev dependency of `apps/cli` so the swap test can exist, or retire it — but stop claiming it is registrable |
+| `services/api` | 3 files, `src/index.ts` is `export {}`, zero dependents | **Decided in [ADR-013](.claude/decisions/ADR-013.md), 2026-09-09** — keep, empty, reserved for Ladder B2's hosted trace store; use for nothing on rungs A1/B1/C1 without a new ADR |
+| **`domain-finance` is orphaned** | **No workspace package depends on it.** `apps/cli` neither imports nor can register it — so the "swap the application and prove the engine is agnostic" test **is not currently executable** | **D-1 decided (keep both, ADR-013) — this is now required follow-up, not a fork.** Wire it as a dev dependency of `apps/cli` so the swap test can exist, landing alongside WP-16 |
 | `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead.** WP-21 verifies it; a browser transport is unscoped work nobody has costed |
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
 | `.claude/docs/roadmap.md` | Plans a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened. 7 Flutter mentions | **Dead — delete.** `docs/runbook` already does |
@@ -603,7 +603,7 @@ Completed packages WP-01…WP-09 and WP-12…WP-14 are in
 
 ---
 
-### WP-23 · ADR-013, the repositioning ⬜ · **S** · queue 1 · **D-1**
+### WP-23 · ADR-013, the repositioning ✅ **WRITTEN — 2026-09-09, status Proposed**
 
 **Goal.** Put this repositioning in [.claude/decisions/](.claude/decisions/), where an agent that
 reads the ADR directory instead of `git log` will find it.
@@ -615,12 +615,19 @@ covering: the WP-14 domain pivot (superseded), this repositioning, D-1's answer 
 reference apps, what ADR-008 now means (§1.4), and the reversibility test.
 
 **Acceptance.**
-- [ ] ADR-013 exists in house format and supersedes nothing silently
-- [ ] It states what Rule 8 means for a browser deployment rather than leaving it broken
-- [ ] §1 of this file and ADR-013 do not disagree
+- [x] ADR-013 exists in house format and supersedes nothing silently — it *amends*
+      ADR-005 and ADR-008 (rescopes, does not reverse either)
+- [x] It states what Rule 8 means for a browser deployment rather than leaving it broken
+- [x] §1 of this file and ADR-013 do not disagree
 
 **Stop if.** Writing it reveals the repositioning cannot be reconciled with ADR-005 or
 ADR-008 — then the conflict is the finding, and resolve it before any M1 work.
+**Did not trigger** — both needed rescoping, not reversal; see ADR-013's own sections on
+each.
+
+⚠️ **Not fully closed:** per the `write-adr` skill, an agent does not accept ADRs.
+[ADR-013](.claude/decisions/ADR-013.md) is written and its content is final as of this
+session, but its **status stays `Proposed` until the owner accepts it.**
 
 ---
 
@@ -1085,7 +1092,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 ## 8. Milestones, sequence, and kill criteria
 
 ```
-M0  FOUNDATION        WP-23 ADR · WP-15 landed ✅ · WP-16 de-finance · WP-17 re-measured ✅
+M0  FOUNDATION        WP-23 ADR ✅ (Proposed) · WP-15 landed ✅ · WP-16 de-finance · WP-17 re-measured ✅
      ~5 sessions       cheap, unblocks everything, builds nothing new
                             │
 M1  THE MEASUREMENT   WP-31 ground truth → WP-30 SPIKE ⟨GO/NO-GO⟩ → WP-25 generator
@@ -1161,7 +1168,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | **Declared explanations may not cover enough** | medium | **OPEN** — WP-36. If they do not, A1 Q&A needs runtime generation, which forfeits the cost advantage and makes this a chat widget. The stop condition is written down |
 | Accessibility claims unverified | medium | **OPEN.** Designed in, never tested. It is in the pitch — WP-35 gates on it |
 | Guided steps anchoring to a DOM we do not control | medium | **OPEN** — D-3, WP-27. Reading from source reduces this materially |
-| **`domain-finance` is orphaned, so the domain-agnostic claim is untested** | **high** | **OPEN — found 2026-09-09.** Nothing depends on it; the swap test WP-16 requires cannot run today. The repo's central thesis is currently asserted, not exercised. §4's dead-weight register; D-1 |
+| **`domain-finance` is orphaned, so the domain-agnostic claim is untested** | **high** | **OPEN — found 2026-09-09.** Nothing depends on it; the swap test WP-16 requires cannot run today. The repo's central thesis is currently asserted, not exercised. D-1 is decided (keep both, ADR-013) — this is now required follow-up, landing with WP-16, not an open fork |
 | Undo unimplemented for the reference app | medium | **OPEN** — WP-18. Contained: no rung ships writes |
 | Registry growth erodes stage-2 margins | medium | `similarityAudit()` exists. An adopter may have 200 destinations where ours has 7; never tested at that size |
 | Bundle size in a browser | medium | **OPEN** — WP-24 measures it at 10/50/200 |
@@ -1260,46 +1267,32 @@ UTF-8 BOM that `JSON.parse` rejects.
 
 ## 13. Open decisions
 
-Three. Each states the fork, a recommendation, **what it costs to decide wrong**, and
-what it blocks.
+One left open. Each states the fork, a recommendation, **what it costs to decide wrong**,
+and what it blocks.
 
 ---
 
-**D-1 · Do both reference applications survive?** — *blocks WP-23*
+**D-1 · Do both reference applications survive?** — ✅ **DECIDED 2026-09-09 — (a), keep
+both.** Recorded in [ADR-013](.claude/decisions/ADR-013.md), which also answers what this
+means for ADR-005 and ADR-008. `domain-finance` (20 capabilities + 7 boundaries, 34 tests)
+and `domain-modules` (7 capabilities incl. 2 boundaries, 39 tests) are reclassified as
+reference/fixture applications — the generator's (WP-25) ground truth, not the product.
 
-`domain-finance` (20 capabilities + 7 boundaries, 34 tests) and `domain-modules` (5 + 2,
-38 tests). **(a)** keep both · **(b)** keep one · **(c)** replace both with a fixture app.
-
-⚠️ **New evidence, 2026-09-09.** `domain-finance` is **orphaned**: no workspace package
-depends on it, and `apps/cli` cannot register it. The swap test it exists to enable —
-and which WP-16's acceptance requires — **is not currently executable**. Whichever way
-D-1 goes, that has to be fixed or the package has to go; it cannot stay as a claim.
-
-> **Recommendation: (a), and say why in ADR-013.** They are the generator's ground truth.
-> WP-25's only honest quality measure before a second pilot is precision and recall
-> against hand-written registries, and two dissimilar ones are worth far more than one. A
-> purpose-built fixture would be built to pass.
->
-> **Cost of choosing wrong:** keeping both means WP-11 must explain two apps that are not
-> the product without confusing a reader. Dropping one costs the generator a comparison
-> point it cannot get back cheaply.
+⚠️ **Still open as a consequence, not a decision:** `domain-finance` is **orphaned** — no
+workspace package depends on it, `apps/cli` cannot register it, and the swap test WP-16's
+acceptance requires is not currently executable. ADR-013 tracks fixing this as required
+follow-up landing alongside WP-16, not as a someday item.
 
 ---
 
-**D-2 · How does stage 3 learn which app it serves?** — *blocks WP-16*
-
-**(a)** a `domainDescription` field on `RegistryFile` · **(b)** an override on
-`Stage3Options` supplied by the composition root.
-
-> **Recommendation: (a), the registry field.** With adopters in the picture this is not
-> close: the registry is the artefact WP-25 generates and WP-24 ships, so the app's
-> description must travel with it. An override means every integration must remember to
-> pass it, and one that forgets gets an engine claiming to be a finance app — the exact
-> defect being fixed.
->
-> **Cost of choosing wrong:** (a) is a breaking change to `RegistryFile`, so both
-> reference apps and the codegen move together. (b) is a smaller diff that leaves an
-> application-shaped hole in a `core-*` API.
+**D-2 · How does stage 3 learn which app it serves?** — ✅ **DECIDED 2026-09-09 — (a), a
+`domainDescription` field on `RegistryFile`.** With adopters in the picture this was not
+close: the registry is the artefact WP-25 generates and WP-24 ships, so the app's
+description must travel with it. An override (rejected alternative (b), on `Stage3Options`)
+means every integration must remember to pass it, and one that forgets gets an engine
+claiming to be a finance app — the exact defect WP-16 fixes. Cost of this choice: it is a
+breaking change to `RegistryFile`, so both reference apps and the codegen move together
+— accepted, and implemented as part of WP-16.
 
 ---
 
