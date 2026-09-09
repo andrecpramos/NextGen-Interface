@@ -32,8 +32,6 @@ export interface Thresholds {
    * can — so this is constrained, not traded off.
    */
   readonly boundaryMargin: number;
-  /** Fallback confidence bar, used only when the kind is unknown. */
-  readonly tauAct?: number;
 }
 
 export type EmbedderKind = 'hashing' | 'ollama';
@@ -80,38 +78,34 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
 export const OUT_OF_SCOPE_ID = '__out_of_scope__';
 
 /**
- * Confidence required to act, BY CAPABILITY KIND.
+ * Kinds where the router requires independent corroboration before acting:
+ * stage 3's selection must match stage 2's top-ranked candidate, or the turn
+ * degrades to a clarify instead of executing.
  *
- * A single global tauAct is the wrong shape, and the golden set showed why.
- * Given the bare utterance "budget", the model answers budget.view at ~0.6
- * confidence. Punishing that is wrong: navigating to a screen is cheap,
- * instantly visible, and reversible with the back gesture. Given "add 50" it
- * answers transaction.create — same confidence, but now it has guessed a
- * category and is about to write a financial record.
+ * WP-17, replacing `TAU_ACT_BY_KIND`. That gate read the model's *self-
+ * reported* confidence (FINDINGS Finding 8) — a signal close to constant at
+ * 1B: it held back 15.7% of stage-3 calls on llama3.1:8b, 0.7% on
+ * qwen2.5:1.5b, and gemma3:1b answers "what is the capital of France" at
+ * 0.95. ADR-003's amendment asks for a signal the model cannot inflate —
+ * stage-2 margin, or agreement between the stage-2 top candidate and the
+ * stage-3 selection. This is the second: cheap to compute (no new
+ * calibration sweep), and a real backstop against the model alone drifting
+ * off the embedding-grounded shortlist.
  *
- * The cost of being wrong differs by two orders of magnitude, so the evidence
- * required to proceed should differ too. Asking is cheap; a wrong write is not.
+ * ⚠️ It is not a backstop against every threat this gate's name might
+ * suggest. Re-measuring the modules registry (WP-17, 2026-09-09) surfaced
+ * `gs-0174`: adversarial text embedded in an otherwise benign utterance made
+ * stage 2 itself — not just stage 3 — rank `module.delete` first. Stage 2
+ * and stage 3 agreed, so this gate would not have caught it; only the
+ * unconditional confirm-before-destructive policy (Rule 5) did. Read as: this
+ * closes the "model hallucinated past a weak signal" gap, not the "adversarial
+ * text corrupted the embedding itself" gap. See FINDINGS.md.
  *
- * ⚠️ WP-01 UPDATE (FINDINGS Finding 8): this gate reads the model's *self-
- * reported* confidence, and that signal is close to constant at 1B. It held
- * back 15.7% of stage-3 calls on llama3.1:8b, 0.7% on qwen2.5:1.5b, and
- * gemma3:1b answers "what is the capital of France" at 0.95. The policy below
- * is still right; the signal it reads has stopped carrying information. The
- * replacement should be something the model cannot inflate — stage-2 margin,
- * or agreement between the stage-2 top candidate and the stage-3 selection.
- * Until then, treat this as defence in depth, not as the safety mechanism.
+ * Only write and destructive are gated — navigate and read are cheap and
+ * reversible enough that Finding 8's original reasoning (the bar scales with
+ * what the action costs to get wrong) puts their bar at zero.
  */
-// Keyed by ExecutableKind, not CapabilityKind: `unsupported` never executes, so
-// there is no confidence at which it would be allowed to. Making that a type
-// error is cheaper than remembering it.
-export const TAU_ACT_BY_KIND: Readonly<Record<ExecutableKind, number>> = {
-  navigate: 0.35,
-  read: 0.45,
-  write: 0.70,
-  destructive: 0.80,
-};
-
-export const TAU_ACT_DEFAULT = 0.55;
+export const REQUIRES_STAGE2_AGREEMENT: ReadonlySet<ExecutableKind> = new Set(['write', 'destructive']);
 
 export const THRESHOLDS: Thresholds = THRESHOLD_PROFILES.hashing;
 

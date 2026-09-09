@@ -37,8 +37,7 @@ export { normalize, tokens, features } from './text.ts';
 export {
   THRESHOLD_PROFILES,
   thresholdsFor,
-  TAU_ACT_BY_KIND,
-  TAU_ACT_DEFAULT,
+  REQUIRES_STAGE2_AGREEMENT,
   OUT_OF_SCOPE_ID,
   OLLAMA,
   type Thresholds,

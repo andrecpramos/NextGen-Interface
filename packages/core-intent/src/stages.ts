@@ -135,7 +135,9 @@ export interface Stage3Result {
   readonly capabilityId: string | null;
   /**
    * The model's own claim about how sure it is. Not calibrated, and at 1B not
-   * even informative — see TAU_ACT_BY_KIND in config.ts and FINDINGS Finding 8.
+   * even informative (FINDINGS Finding 8) — no longer gates anything as of
+   * WP-17; see REQUIRES_STAGE2_AGREEMENT in config.ts. Kept in the trace for
+   * `why` and for debugging, not as a safety signal.
    */
   readonly selfReportedConfidence: number;
   /** Raw, unfiltered. The caller validates every key against the registry. */
@@ -161,12 +163,18 @@ interface Stage3Options {
  *
  * Two properties this MUST preserve (ADR-003):
  *   1. Only the top-k candidates are shown. Never the full registry. This caps
- *      latency and is the reason injected text cannot introduce a destructive
- *      capability into the choice set.
+ *      latency and stops stage 3 from *introducing* a destructive capability
+ *      that stage 2's own ranking did not already surface.
+ *      ⚠️ It does NOT stop injected text from getting a destructive capability
+ *      ranked into that top-k in the first place — `gs-0174` (WP-17,
+ *      2026-09-09) is stage 2 itself ranking `module.delete` first for text
+ *      carrying a hidden delete instruction. That gap is open; see
+ *      FINDINGS.md and REQUIRES_STAGE2_AGREEMENT in config.ts for what does
+ *      and does not defend against it.
  *   2. Output is schema-constrained. Ollama's `format` is the equivalent of
  *      llama.cpp's GBNF grammar — it makes the JSON almost always parseable. It
- *      does NOT make it correct, which is what the confidence gate is for, and
- *      it does not make it *certain*: measured 0.7% parse failure on
+ *      does NOT make it correct, which is what REQUIRES_STAGE2_AGREEMENT is
+ *      partly for, and it does not make it *certain*: measured 0.7% parse failure on
  *      llama3.1:8b, so the fallback below is mandatory, not defensive.
  */
 export async function stage3(

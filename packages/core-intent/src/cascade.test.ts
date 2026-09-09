@@ -183,11 +183,16 @@ describe('cascade — degradation when the runtime is missing', () => {
 });
 
 describe('cascade — policy holds regardless of what the model says', () => {
+  // These utterances are worded close to the target capability's own title/
+  // description so stage 2's independent ranking agrees with what the fake
+  // model returns (WP-17: agreement is now required for write/destructive
+  // before the cascade will even reach a policy decision — see
+  // REQUIRES_STAGE2_AGREEMENT in config.ts).
   it('requires confirmation for a write even at maximum confidence', async () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'transaction.create', confidence: 1, params: { amount: 4500 } },
     });
-    const trace = await route('put down forty five euros', ctx, await deps(runtime));
+    const trace = await route('add a transaction for fifty euros', ctx, await deps(runtime));
     expect(trace.capabilityId).toBe('transaction.create');
     expect(trace.requiresConfirmation).toBe(true);
   });
@@ -196,7 +201,7 @@ describe('cascade — policy holds regardless of what the model says', () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'budget.delete', confidence: 1, params: { category: 'food' } },
     });
-    const trace = await route('get rid of the food one', ctx, await deps(runtime));
+    const trace = await route('delete a budget', ctx, await deps(runtime));
     expect(trace.capabilityId).toBe('budget.delete');
     expect(trace.requiresConfirmation).toBe(true);
   });
@@ -205,9 +210,23 @@ describe('cascade — policy holds regardless of what the model says', () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'transaction.create', confidence: 1 },
     });
-    const trace = await route('note something down', ctx, await deps(runtime));
+    const trace = await route('add a transaction', ctx, await deps(runtime));
     expect(trace.outcome).toBe(OUTCOME.CLARIFY);
     expect(trace.missing).toContain('amount');
+  });
+
+  it('clarifies instead of executing a write/destructive stage 3 alone is confident about', async () => {
+    // Stage 2's independent top pick for this utterance is transaction.create
+    // (shares no vocabulary with "Delete a budget"), but the fake model insists
+    // on budget.delete at maximum self-reported confidence. Without stage-2
+    // corroboration the cascade must not execute a destructive action — this
+    // is the mechanism Finding 8 asked for: a signal the model cannot inflate.
+    const runtime = new FakeLlmRuntime({
+      fallback: { capabilityId: 'budget.delete', confidence: 1, params: { category: 'food' } },
+    });
+    const trace = await route('add a transaction', ctx, await deps(runtime));
+    expect(trace.outcome).toBe(OUTCOME.CLARIFY);
+    expect(trace.notes.join(' ')).toContain('no corroboration');
   });
 });
 
