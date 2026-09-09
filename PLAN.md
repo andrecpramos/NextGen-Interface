@@ -43,20 +43,20 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | — |
-| 2 | **WP-25** · The registry generator — role-scoped | M1 | L | 1 |
-| 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 2 |
-| 4 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | — |
-| 5 | **WP-33** · **The measurement** — the first artefact | M1 | S | 2, 3, 4 |
-| 6 | **WP-34** · The write-up — the second artefact | M2 | M | 5 |
-| 7 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 5 |
-| 8 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 2, D-3 |
-| 9 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 7 |
-| 10 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 7, 8, 9 |
+| 1 | **WP-25** · The registry generator — role-scoped | M1 | L | — |
+| 2 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 1 |
+| 3 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | — |
+| 4 | **WP-33** · **The measurement** — the first artefact | M1 | S | 1, 2, 3 |
+| 5 | **WP-34** · The write-up — the second artefact | M2 | M | 4 |
+| 6 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 4 |
+| 7 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 1, D-3 |
+| 8 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 2, 6 |
+| 9 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 6, 7, 8 |
 
-**Landed this session:** WP-15, WP-17, WP-16, **WP-31** (all §7.1) and **WP-23** — ADR-013
-written (status `Proposed`, awaiting the owner's acceptance) — plus D-1 and D-2 decided
-(§13), on `feature/plan-execution`. **M0 is fully closed; M1 has its ground truth.**
+**Landed this session:** WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1) and
+**WP-23** — ADR-013 written (status `Proposed`, awaiting the owner's acceptance) — plus
+D-1 and D-2 decided (§13), on `feature/plan-execution`. **M0 is fully closed; M1's
+ground truth and generator spike are both done — WP-25 is next, and fully unblocked.**
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
@@ -827,7 +827,7 @@ owner before measuring anything against it.
 
 ---
 
-### WP-30 · Generator spike ⬜ · **S, TIMEBOXED to one session** · queue 6 · **GO/NO-GO**
+### WP-30 · Generator spike ✅ **COMPLETE — 2026-09-10 — GO**
 
 **Goal.** Find out whether the premise is feasible **before** building anything.
 Throwaway code, deliberately.
@@ -840,29 +840,61 @@ registry: destinations, a `kind`, roles, and three example utterances each. Use
 `llama3.1:8b` for the language parts. Do not integrate it, do not generalise it, do not
 clean it up.
 
+**Delivered.** [eval/fut-app/spike/](eval/fut-app/spike/VERDICT.md) —
+`generate-draft.mjs` (parses `routes.tsx` + `permissions.ts` mechanically, resolves
+labels via `deepLinks.ts`/`navConfigs.ts` + the locale files, calls `llama3.1:8b` per
+destination), `draft-registry.json` (131 capabilities from 154 parsed routes), `score.mjs`,
+and `VERDICT.md`.
+
 **Acceptance.**
-- [ ] A draft registry exists for `fut-app`
-- [ ] Scored against WP-31: **precision and recall recorded**
-- [ ] Scored separately on the 36 deep-link routes, where ground truth is exact
-- [ ] A written verdict: what it got right, what it invented, what it missed
-- [ ] A note on whether roles were extracted correctly — a role error is a Rule 17
-      violation, not a quality issue
+- [x] A draft registry exists for `fut-app` — 131 capabilities
+- [x] Scored against WP-31: **precision and recall recorded** — 92.9% precision
+      (restricted to judgeable territory), 86.7% combined recall
+- [x] Scored separately on the 36 deep-link routes — **93.8% recall, 100% role
+      exactness** on the 32 that belong in a user-facing registry
+- [x] A written verdict — VERDICT.md: got route+role extraction right and failed safe
+      (omit, don't guess) on incomplete information; invented plausible-but-wrong page
+      *descriptions* where given only a title (not page content); missed real
+      destinations whose component name contains "Redirect" even though they resolve to
+      a stable target (`GuardianChildRedirectPage` ×4, `MatchHubRedirectPage`); included
+      three legacy/dev-only routes with correct roles but no business reason to exist in
+      a user-facing registry (that judgment lives in source comments, unread by the spike)
+- [x] Role extraction accuracy — **zero mis-assignments in 39 comparable entries.**
+      Every miscount was an inclusion/exclusion question (should this route be a
+      capability at all), never a wrong role for a route that belongs in the registry
 
 **Stop if.** Precision or recall **below 70%** after one session, **or any role
 mis-assignment at all**. Then "fully automatic" is dead as a promise — fall back to
 *generated draft + developer edit*, record it in
 [.claude/docs/business-case.md](.claude/docs/business-case.md) §8, and re-scope WP-25 before writing a
 line of it.
+**Did not trigger.** Both figures clear 70% with margin, and there were zero role
+mis-assignments. **Proceed to WP-25** with three known, scoped fixes (read component
+bodies to distinguish a real destination from a bookmark redirect; read source comments
+for legacy/dev-only markers; always synthesise a two-segment id) rather than open risks.
 
 ---
 
-### WP-25 · The registry generator ⬜ · **L** · queue 7
+### WP-25 · The registry generator ⬜ · **L** · queue 1
 
 **Goal.** The real thing: read an app's source, emit a valid **role-scoped** registry,
 no human step.
 
-**Preconditions.** WP-30 passed GO/NO-GO. WP-31 exists. **WP-19's example format
+**Preconditions.** ✅ WP-30 passed GO/NO-GO (2026-09-10) — three known, scoped fixes
+carried forward from the spike (below). ✅ WP-31 exists. **WP-19's example format
 decided** — do not generate examples at scale into a format about to change.
+
+**Carried from WP-30's verdict, not optional polish:**
+- Distinguish a real destination from a bookmark redirect by reading the **component's
+  own body** (does it unconditionally render `<Navigate>`, or resolve a target from
+  data and render a real view), not its name — the spike's name-based heuristic missed
+  `GuardianChildRedirectPage` and `MatchHubRedirectPage` (real destinations) while
+  including `DashboardPage` (a bookmark redirect for most roles).
+- Read **source comments** for legacy/dev-only markers (`import.meta.env.DEV`, "legacy",
+  "kept one release") — that judgment isn't in the route table or the role guard.
+- Always synthesise a two-segment `<feature>.<name>` id — never fall back to a bare
+  lowercased component name (17.6% of the spike's ids failed `core-capability`'s
+  `id-format` rule this way).
 
 **Do this — the eight pieces.**
 
@@ -907,7 +939,7 @@ honest product is *generated draft + developer edit*, and
 
 ---
 
-### WP-36 · Declared explanations — Ladder A1's "read and explain" ⬜ · **M** · queue 8
+### WP-36 · Declared explanations — Ladder A1's "read and explain" ⬜ · **M** · queue 2
 
 **Goal.** *"What is a training cycle?"*, *"What does this page do?"*, *"Where do I record
 an injury?"* — answered about **this app and nothing else**.
@@ -942,7 +974,7 @@ decision to take deliberately rather than drift into.
 
 ---
 
-### WP-32 · Golden set, and the CommandPalette baseline ⬜ · **M** · queue 9
+### WP-32 · Golden set, and the CommandPalette baseline ⬜ · **M** · queue 3
 
 **Goal.** Measure against questions we did not invent, **and against the incumbent**.
 `fut-app` already has a CommandPalette — the thing this product competes with — which
@@ -969,7 +1001,7 @@ copy — then the measurement is partly circular and WP-33 must say so prominent
 
 ---
 
-### WP-33 · The measurement ⬜ · **S** · queue 10 · **THE ARTEFACT**
+### WP-33 · The measurement ⬜ · **S** · queue 4 · **THE ARTEFACT**
 
 **Goal.** One defensible sentence: *"On a 146-page app I did not design for this, X% of
 real user questions resolved with no model call, at Y ms — against Z% for the app's
@@ -1004,7 +1036,7 @@ and a publishable one.
 
 ## 7.3 · M2 — The write-up (second artefact)
 
-### WP-34 · Architecture and findings write-up ⬜ · **M** · queue 11
+### WP-34 · Architecture and findings write-up ⬜ · **M** · queue 5
 
 **Goal.** The portfolio piece. Cheap, fully under your control, and it forces you to
 state what you actually proved.
@@ -1032,7 +1064,7 @@ claim, or go and measure it.
 > Only start M3 if WP-33's numbers justify it. A deployed demo of a thing that resolves
 > 30% of questions is worse than no demo.
 
-### WP-24 · Ship stages 1+2 to the browser ⬜ · **L** · queue 12
+### WP-24 · Ship stages 1+2 to the browser ⬜ · **L** · queue 6
 
 **Goal.** Make the common path free: precomputed index, deterministic + embedding
 matching in the browser, no network.
@@ -1055,7 +1087,7 @@ quantising or the embedder needs changing, and that is the work before anything 
 
 ---
 
-### WP-27 · Guided steps ⬜ · **L** · queue 13 · **D-3**
+### WP-27 · Guided steps ⬜ · **L** · queue 7 · **D-3**
 
 **Goal.** *"Take me there and tell me what to do."* Navigation exists; guidance does not.
 A **step** declares which element, what to do, in what order.
@@ -1078,7 +1110,7 @@ Ship navigation only and say so.
 
 ---
 
-### WP-26 · The installable package — Ladder C2 ⬜ · **L** · queue 14
+### WP-26 · The installable package — Ladder C2 ⬜ · **L** · queue 8
 
 **Goal.** **Product requirement #1**: the client takes our solution and installs it in
 their own codebase. Not a service we run — a package they add, a build step they run,
@@ -1110,7 +1142,7 @@ rethinking before shipping.
 
 ---
 
-### WP-35 · Deploy on `fut-app` ⬜ · **M** · queue 15
+### WP-35 · Deploy on `fut-app` ⬜ · **M** · queue 9
 
 **Goal.** A live URL anyone can try — the third artefact.
 
@@ -1161,7 +1193,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 M0  FOUNDATION ✅     WP-23 ADR ✅ (Proposed) · WP-15 landed ✅ · WP-16 de-financed ✅ · WP-17 re-measured ✅
      ~5 sessions       cheap, unblocks everything, builds nothing new
                             │
-M1  THE MEASUREMENT   WP-31 ground truth ✅ → WP-30 SPIKE ⟨GO/NO-GO⟩ → WP-25 generator
+M1  THE MEASUREMENT   WP-31 ground truth ✅ → WP-30 SPIKE ✅ GO → WP-25 generator
      ~15-20 sessions   → WP-36 explanations → WP-32 golden set + palette baseline
                        → WP-33 MEASURE      ◄── the milestone that matters
                             │
