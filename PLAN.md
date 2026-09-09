@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-09 · **Branch:** reconciled onto `develop` · **238 tracked files · 15 workspace packages · 301 tests
+**Verified against disk:** 2026-09-09 · **Branch:** reconciled onto `develop` · **238 tracked files · 15 workspace packages · 302 tests
 across 11 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -44,20 +44,21 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
 | 1 | **WP-23** · ADR-013 — record the repositioning | M0 | S | D-1 |
-| 2 | **WP-15** · Land the knowledge layer (uncommitted in a shared tree) | M0 | S | — |
-| 3 | **WP-16** · De-finance the stage-3 prompt | M0 | M | D-2 |
-| 4 | **WP-17** · Re-measure the router honestly | M0 | S | — |
-| 5 | **WP-31** · Ground truth for `fut-app` | M1 | M | — |
-| 6 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | 3, 5 |
-| 7 | **WP-25** · The registry generator — role-scoped | M1 | L | 6 |
-| 8 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 7 |
-| 9 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | 5 |
-| 10 | **WP-33** · **The measurement** — the first artefact | M1 | S | 7, 8, 9 |
-| 11 | **WP-34** · The write-up — the second artefact | M2 | M | 10 |
-| 12 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 10 |
-| 13 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 7, D-3 |
-| 14 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 8, 12 |
-| 15 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 12, 13, 14 |
+| 2 | **WP-16** · De-finance the stage-3 prompt | M0 | M | D-2 |
+| 3 | **WP-17** · Re-measure the router honestly | M0 | S | — |
+| 4 | **WP-31** · Ground truth for `fut-app` | M1 | M | — |
+| 5 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | 2, 4 |
+| 6 | **WP-25** · The registry generator — role-scoped | M1 | L | 5 |
+| 7 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 6 |
+| 8 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | 4 |
+| 9 | **WP-33** · **The measurement** — the first artefact | M1 | S | 6, 7, 8 |
+| 10 | **WP-34** · The write-up — the second artefact | M2 | M | 9 |
+| 11 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 9 |
+| 12 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 6, D-3 |
+| 13 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 7, 11 |
+| 14 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 11, 12, 13 |
+
+**Landed this session:** WP-15 (§7.1) — commit `ca9ff6d` on `feature/plan-execution`.
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
@@ -362,17 +363,17 @@ single most important thing to understand about this repo.
 | 2 · Intent Recognition | ✅ built — but measured against a registry no longer loaded (WP-17) and still asserting it is a finance app (WP-16) |
 | 3 · Action | ✅ built. Rung A1 uses `read` + `navigate` only |
 | 4 · Navigation | ◐ **engine built, surface missing.** `NavigationEngine` resolves a route and refuses rather than emitting a broken URL — but **no browser navigation exists in the turn path**: `NextGenApp` sets `this.route`, the API echoes it, no client reads it. **For this product that is the main event**, closed by WP-35 |
-| 5 · Knowledge | ◐ WP-15, in the reference app |
+| 5 · Knowledge | ✅ WP-15 landed — `relatedModules()` + body-inclusive corpus, in the reference app |
 
 ### Tests
 
-301 across 11 files, green 2026-09-08. `apps/web`, `packages/ui` and `services/api` have
+302 across 11 files, green 2026-09-09. `apps/web`, `packages/ui` and `services/api` have
 none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `core-intent` | 59 (2 files) | | `data` | 51 |
-| `domain-modules` | 38 (incl. WP-15 uncommitted) | | `domain-finance` | 34 |
+| `domain-modules` | 39 (incl. WP-15) | | `domain-finance` | 34 |
 | `core-capability` | 30 | | `core-trace` | 28 |
 | `core-dispatch` | 26 | | `core-inference` | 18 |
 | `apps/cli` | 13 | | `core-voice` | 4 (asset store only) |
@@ -452,13 +453,23 @@ green.
 doc references — not a drive-by. That is why it is WP-37 and not a footnote.
 ### Branch state
 
+**Verified against `origin` 2026-09-09.** `feature/sdlc-kit` and `feature/reconcile-plan-restructure`
+(PRs #4 and #5) are merged into `develop` and their remotes deleted — local copies here are
+stale leftovers, safe to delete. `chore/claude-workflow` and `docs/plan-restructure` predate
+the `.ai` → `.claude` rename; their content already reached `develop` in renamed form via the
+reconciliation, so both are **superseded**, not pending. `feature/modules-knowledge-layer` was
+never advanced — WP-15 landed instead on `feature/plan-execution`.
+
 | Branch | Ahead of `develop` | Carries |
 |---|---|---|
-| `develop` | — | everything through WP-14 |
-| `chore/claude-workflow` | 2 | `.claude/` workflow + hooks, `CLAUDE.md`, `check-thresholds.mjs`, `.claude/docs/critical-infrastructure.md`, the CI registry-drift fix |
-| `docs/plan-restructure` | 3 | this file, `.claude/docs/history.md`, `.claude/docs/business-case.md` — **you are here** |
-| `docs/runbook` | 2 | adds `RUNNING.md`; **deletes `SETUP.md` and `.claude/docs/roadmap.md`** — unmerged |
-| `feature/modules-knowledge-layer` | 0 | nothing — WP-15 is uncommitted in the working tree |
+| `develop` | — | everything through the PR #3/#4/#5 reconciliation (sdlc-kit, plan restructure, WP-14) |
+| `feature/plan-execution` (current) | 1 | WP-15 — commit `ca9ff6d`, this file's plan-execution updates |
+| `chore/claude-workflow` | 2 | **superseded** — pre-rename `.ai/` workflow; landed on `develop` renamed to `.claude/` |
+| `docs/plan-restructure` | 6 | **superseded** — pre-rename version of this file; landed on `develop` via the reconciliation |
+| `docs/runbook` | 2 | adds `RUNNING.md`; **deletes `SETUP.md` and `.claude/docs/roadmap.md`** — genuinely unmerged, still real work |
+| `feature/modules-knowledge-layer` | 0 | nothing — superseded by `feature/plan-execution` |
+| `feature/reconcile-plan-restructure` | 0 | fully merged (PR #5); local-only leftover |
+| `feature/sdlc-kit` | 0 | fully merged (PR #4); local-only leftover |
 
 ⚠️ **`RUNNING.md` does not exist on this branch.** The operations doc here is
 [SETUP.md](SETUP.md), dated 2026-08-30 and describing the finance app.
@@ -577,7 +588,7 @@ ADR-008 — then the conflict is the finding, and resolve it before any M1 work.
 
 ---
 
-### WP-15 · Land the knowledge layer ◐ **uncommitted** · **S** · queue 2
+### WP-15 · Land the knowledge layer ✅ **COMPLETE — 2026-09-09**
 
 **Goal.** Get WP-15 out of the working tree. It is a reference-app feature now; its value
 is that it stops being at risk in a checkout other sessions write to.
@@ -588,12 +599,15 @@ is that it stops being at risk in a checkout other sessions write to.
 gates, add the missing test, commit explicit paths.
 
 **Acceptance.**
-- [ ] `pnpm -r typecheck`, `pnpm -r test`, `pnpm registry:check`, `check-import-boundaries.mjs` all green
-- [ ] `CORPUS_BODY_CHARS` truncation asserted by a test, not only a comment
-- [ ] Committed; the commit message notes that no registry or golden-set change was needed
-- [ ] Working tree clean of WP-15 files
+- [x] `pnpm -r typecheck`, `pnpm -r test`, `pnpm registry:check`, `check-import-boundaries.mjs` all green
+- [x] `CORPUS_BODY_CHARS` truncation asserted by a test, not only a comment — a body past the
+      cutoff can no longer drive a match (`domain.test.ts`, `relatedModules` describe block)
+- [x] Committed; the commit message notes that no registry or golden-set change was needed
+      (`ca9ff6d`, `feature/plan-execution`)
+- [x] Working tree clean of WP-15 files
 
 **Stop if.** The gates fail for a reason that predates WP-15 — fix that first, separately.
+**Did not trigger** — all gates were green before and after.
 
 ---
 
@@ -1024,7 +1038,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 ## 8. Milestones, sequence, and kill criteria
 
 ```
-M0  FOUNDATION        WP-23 ADR · WP-15 land · WP-16 de-finance · WP-17 re-measure
+M0  FOUNDATION        WP-23 ADR · WP-15 landed ✅ · WP-16 de-finance · WP-17 re-measure
      ~5 sessions       cheap, unblocks everything, builds nothing new
                             │
 M1  THE MEASUREMENT   WP-31 ground truth → WP-30 SPIKE ⟨GO/NO-GO⟩ → WP-25 generator
@@ -1123,7 +1137,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 pnpm -r typecheck
-pnpm -r test                                       # 301 tests, 11 files
+pnpm -r test                                       # 302 tests, 11 files
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
