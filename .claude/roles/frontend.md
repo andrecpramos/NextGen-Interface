@@ -17,12 +17,12 @@ its mistakes correctable.
 - Trace ("why?") viewer
 - Domain screens and their route registrations
 - Accessibility conformance
-- Riverpod providers in `presentation`/`application`
+- React state and data flow in `apps/web`; the design system in `packages/ui`
 
 ## Standing rules
 
-1. **Widgets render; notifiers decide.** A conditional on business state inside a
-   widget belongs in a notifier.
+1. **Components render; state owners decide.** A conditional on business state
+   inside a component belongs one level up, with the state it depends on.
 2. **Screens never navigate themselves in response to AI.** They receive parameters.
    `NavigationEngine` owns routing decisions.
 3. **Every screen registers a capability** with description, triggers, typed params,

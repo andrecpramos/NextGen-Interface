@@ -9,7 +9,7 @@
 | Web (PWA) | 3 | **no llama.cpp** — WebGPU/WASM or cloud fallback; core loop differs |
 | Desktop | 4 | easiest inference target, smallest audience |
 
-The web target is not a free ride from Flutter's single codebase. On-device inference
+The web target is not a free ride from a shared codebase. On-device inference
 does not port. Web either runs a WASM/WebGPU runtime with a much smaller model, or
 falls back to cloud — which conflicts with the offline principle. Decide explicitly
 before building it; do not let it happen by accident.
@@ -72,13 +72,13 @@ to know which combination produced it.
 
 ## Migrations
 
-Drift schema migrations are versioned and tested with a fixture DB at every prior
-version. Migration failure must never lose data — take a backup copy before migrating
+Schema migrations (`packages/data`, `node:sqlite`) are versioned and tested with a
+fixture DB at every prior version. Migration failure must never lose data — take a backup copy before migrating
 and restore on failure. Financial data loss is unrecoverable and unforgivable.
 
 ## Monitoring
 
-Opt-in, scrubbed per [security.md](./security.md).
+Opt-in, scrubbed per [security.md](security.md).
 
 Watch: crash-free rate, cold-start time, turn latency p50/p95 per stage,
 stage-resolution mix, clarify rate, confirmation-rejection rate (**the best available

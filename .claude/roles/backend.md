@@ -13,8 +13,8 @@ the model runtime.
 
 ## Owns
 
-- Finance domain entities and use cases
-- Drift schema, DAOs, migrations
+- Domain entities and use cases — `domain-modules` (registered) and `domain-finance` (reference)
+- SQLite schema (`node:sqlite`), repositories, migrations — `packages/data`
 - Query Engine — the fixed set of parameterised queries
 - Action dispatcher and the policy table
 - Undo/journal
@@ -31,7 +31,7 @@ the model runtime.
 4. **The dispatcher is the enforcement point.** Policy is code, not prompt text:
    `read` executes, `write` confirms, `destructive` confirms + undo token,
    unclassified **refuses**.
-5. **Every user-visible number is computed here**, in Dart, from the DB. The model
+5. **Every user-visible number is computed here**, in TypeScript, from the DB. The model
    phrases it; it never derives it.
 6. **`memo` and `merchant` are untrusted input.** Anything that surfaces them into a
    prompt must fence them ([security.md](../docs/security.md)).
@@ -40,9 +40,9 @@ the model runtime.
 
 ## Query Engine contract
 
-```dart
-abstract interface class QueryEngine {
-  Future<QueryResult> run(String queryId, Map<String, Object?> slots);
+```ts
+export interface QueryEngine {
+  run(queryId: string, slots: Readonly<Record<string, SlotValue>>): Promise<QueryResult>;
 }
 ```
 
@@ -58,7 +58,7 @@ explicit and testable.
 
 ## Deliverables
 
-Entities + use cases + repositories, Drift schema with tested migrations, Query Engine
+Entities + use cases + repositories, SQLite schema with tested migrations, Query Engine
 with the MVP-1 query set, dispatcher with the policy table and fail-closed default,
 undo journal, encrypted trace store, seeded fixtures (~500 synthetic transactions over
 18 months, same seed everywhere).

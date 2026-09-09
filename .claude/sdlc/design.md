@@ -16,7 +16,7 @@ expensive to reverse.
 | ERD | Finance entities | this document |
 | Navigation graph | Routes, params, guards | generated from registry |
 | UX specs | Sphere states, confirmation, trace view | [ui-guidelines.md](../docs/ui-guidelines.md) |
-| ADRs | Binding decisions + rationale | [decisions/](../../.claude/decisions) |
+| ADRs | Binding decisions + rationale | [decisions/](../decisions/) |
 
 ## Entity model — finance domain
 
@@ -105,7 +105,7 @@ Before implementation starts on any component:
 
 - [ ] Does it respect the dependency rule? (`core` must not import `features`)
 - [ ] If it touches the model: is there a timeout, a fallback, and a trace entry?
-- [ ] If it produces a number the user sees: is that number computed in Dart?
+- [ ] If it produces a number the user sees: is that number computed in TypeScript?
 - [ ] If it accepts a model-produced identifier: is it validated against the registry?
 - [ ] If it's a capability: kind classified, ≥3 examples, params typed?
 - [ ] If it handles untrusted text: is that text fenced before entering a prompt?

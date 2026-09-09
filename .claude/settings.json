@@ -74,7 +74,6 @@
       "Write(.claude/decisions/**)",
       "Edit(.claude/decisions/**)",
       "Edit(.claude/sdlc.config.json)",
-      "Edit(.claude/docs/rules.md)",
       "Edit(.claude/docs/critical-infrastructure.md)",
       "Edit(PLAN.md)",
       "Edit(.claude/docs/architecture.md)",

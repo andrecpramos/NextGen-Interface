@@ -69,9 +69,9 @@ const DEFAULTS = {
  * actually wrote down.
  */
 // Where the config may live, in priority order. `.claude/` is the default —
-// one directory for everything the agent workflow needs. `.ai/` is accepted so
-// a repo that keeps a separate tool-agnostic knowledge base still works, and so
-// this loader survives the migration between the two.
+// one directory for everything the agent workflow needs. A legacy `.ai/` root is
+// still accepted so a repo that keeps a separate tool-agnostic knowledge base
+// works, and so this loader survives the migration between the two.
 const CONFIG_PATHS = [
   ['.claude', 'sdlc.config.json'],
   ['.ai', 'sdlc.config.json'],

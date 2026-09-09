@@ -68,6 +68,14 @@
       "fix": "Hooks are config-driven and must be byte-identical in both places. Copy the correct version over the other. Skills and agents are exempt — those are generated per repo and are SUPPOSED to differ. Skips cleanly when sdlc-kit/ is absent, since the kit is gitignored and not present in a fresh clone."
     },
     {
+      "id": "check-thresholds",
+      "title": "Rule 14 — shipped thresholds are the calibrated ones",
+      "command": "node tooling/scripts/check-thresholds.mjs",
+      "blocking": true,
+      "rule": "14",
+      "fix": "config.ts no longer matches the calibration output. Re-run `pnpm router:calibrate` if the corpus changed; otherwise someone hand-edited a threshold, which is exactly what Rule 14 exists to prevent. Hand-tuning has cost accuracy three times here."
+    },
+    {
       "id": "typecheck",
       "title": "Strict TypeScript across the workspace",
       "command": "pnpm -r typecheck",

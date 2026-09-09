@@ -39,7 +39,7 @@ Identifiers are stable; tests reference them.
 
 | ID | Requirement | Acceptance |
 |---|---|---|
-| FR-QRY-01 | Aggregate spending by category and period | Values match a deterministic Dart fixture computation |
+| FR-QRY-01 | Aggregate spending by category and period | Values match a deterministic TypeScript fixture computation |
 | FR-QRY-02 | Free-text search across entities | Merchant/memo/amount search returns expected fixtures |
 | FR-QRY-03 | Numeric results are never model-generated | Code review + test asserting arithmetic origin |
 | FR-QRY-04 | Model never emits SQL | Architectural test: Query Engine accepts ids + typed params only |

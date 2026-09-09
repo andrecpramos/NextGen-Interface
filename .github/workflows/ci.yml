@@ -89,20 +89,39 @@ jobs:
       # The generated artefacts must match what is committed. A registry built
       # from a changed definition but not regenerated is a silent drift.
       #
-      # Scoped to the three files the builder actually writes. A bare
+      # Scoped to the files the builder actually writes. A bare
       # `git diff --quiet` also trips on pnpm-lock.yaml, which pnpm rewrites
       # whenever any workspace manifest changed — an unrelated failure.
+      #
+      # These paths are DOMAIN-MODULES, because that is what the root
+      # `registry:build` script builds (WP-14 made it the registered domain).
+      # Until 2026-09-08 this step diffed `domain-finance/generated/` instead —
+      # files that build never touches — so it passed vacuously while real
+      # drift in `domain-modules/generated/` went ungated.
+      #
+      # domain-finance's artefacts are deliberately NOT checked here.
+      # `registry:build:finance` writes the same global
+      # `core-intent/eval/registry.json`, so running both in one job leaves
+      # whichever ran last as the authoritative registry. Covering finance
+      # needs that shared-path collision fixed first — see
+      # .claude/docs/critical-infrastructure.md, "The capability registry".
       - name: Registry artefacts are current
         run: |
           pnpm registry:build
           if ! git diff --quiet -- \
               packages/core-intent/eval/registry.json \
-              packages/domain-finance/generated/routes.json \
-              packages/domain-finance/generated/golden.generated.jsonl; then
+              packages/domain-modules/generated/routes.json \
+              packages/domain-modules/generated/golden.generated.jsonl; then
             echo "::error::Registry artefacts are stale. Run 'pnpm registry:build' and commit the result."
-            git diff --stat -- packages/core-intent/eval/registry.json packages/domain-finance/generated
+            git diff --stat -- packages/core-intent/eval/registry.json packages/domain-modules/generated
             exit 1
           fi
+
+      # Rule 14 — the shipped thresholds must be the calibrated ones. Nothing
+      # reads the calibration output at run time, so without this the one edit
+      # the rule forbids is also the one nothing notices.
+      - name: Thresholds match their calibration (Rule 14)
+        run: node tooling/scripts/check-thresholds.mjs
 
   golden-set:
     name: golden-set regression (model-free)

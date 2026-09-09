@@ -13,8 +13,9 @@ capability not found.
 
 ## Per-commit (local, pre-push)
 
-- `dart format --set-exit-if-changed`
-- `flutter analyze`
+- `pnpm -r typecheck` — strict TypeScript across the workspace
+- `node tooling/scripts/check-import-boundaries.mjs` — Rule 1
+  (no linter is configured; see [coding-standards.md](../docs/coding-standards.md))
 - Unit tests for touched packages
 - Golden set — **fast subset** (the buckets touching changed capabilities)
 
@@ -22,13 +23,13 @@ capability not found.
 
 | Stage | Blocks merge |
 |---|---|
-| Format + analyze | yes |
+| Typecheck (strict) | yes |
 | Import-boundary lint | yes |
 | Unit (coverage ≥ 80%) | yes |
 | Integration (fake runtime) | yes |
 | Navigation (registry-generated) | yes |
 | Golden set — full, reference model | yes, on any regression |
-| Widget + golden images | yes |
+| Registry artefacts current | yes |
 | Dependency CVE scan | yes on high/critical |
 
 The golden-set scorecard is committed, so accuracy changes appear in the PR diff and
