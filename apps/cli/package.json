@@ -20,5 +20,8 @@
     "@nextgen/core-voice": "workspace:*",
     "@nextgen/data": "workspace:*",
     "@nextgen/domain-modules": "workspace:*"
+  },
+  "devDependencies": {
+    "@nextgen/domain-finance": "workspace:*"
   }
 }

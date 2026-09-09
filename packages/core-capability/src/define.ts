@@ -85,6 +85,7 @@ export function defineBoundary(def: BoundaryDefinition): Capability {
 
 export interface RegistryDefinition {
   readonly schemaVersion?: number;
+  readonly domainDescription: string;
   readonly capabilities: readonly Capability[];
   readonly enums?: Readonly<Record<string, EnumDefinition>>;
 }
@@ -92,6 +93,7 @@ export interface RegistryDefinition {
 export function defineRegistry(def: RegistryDefinition): RegistryFile {
   return {
     schemaVersion: def.schemaVersion ?? 1,
+    domainDescription: def.domainDescription,
     capabilities: def.capabilities,
     ...(def.enums ? { enums: def.enums } : {}),
   };

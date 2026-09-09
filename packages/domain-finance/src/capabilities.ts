@@ -692,6 +692,9 @@ export const enums = {
 
 export const registry = defineRegistry({
   schemaVersion: 1,
+  domainDescription:
+    'A personal finance tracker. It records transactions, budgets, categories ' +
+    'and account balances for one user.',
   capabilities: [...capabilities, ...boundary],
   enums,
 });

@@ -104,6 +104,16 @@ export interface EnumDefinition {
 
 export interface RegistryFile {
   readonly schemaVersion: number;
+  /**
+   * What application stage 3 is routing for, in one or two sentences — e.g.
+   * "A personal finance tracker. It records transactions, budgets, categories
+   * and account balances." Read by `core-intent`'s stage-3 prompt so the model
+   * knows what app it serves without that knowledge being hardcoded into
+   * `core-*` (Rule 1; WP-16, D-2). Required: an engine that silently falls
+   * back to a default description on a missing one reproduces the exact
+   * defect this field exists to fix.
+   */
+  readonly domainDescription: string;
   readonly capabilities: readonly Capability[];
   readonly enums?: Readonly<Record<string, EnumDefinition>>;
 }

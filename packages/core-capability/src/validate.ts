@@ -46,6 +46,9 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
   if (typeof registry.schemaVersion !== 'number') {
     err(null, 'schema-version', 'registry has no numeric schemaVersion');
   }
+  if (!registry.domainDescription?.trim()) {
+    err(null, 'domain-description-required', 'registry has no domainDescription — stage 3 needs to know what application it serves (Rule 1, WP-16)');
+  }
   if (!Array.isArray(registry.capabilities) || registry.capabilities.length === 0) {
     err(null, 'non-empty', 'registry declares no capabilities');
     return summarise(issues);

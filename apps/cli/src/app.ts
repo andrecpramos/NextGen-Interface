@@ -54,10 +54,11 @@ import {
  * throwaway; the CLI is a surface, not a prototype.
  *
  * Renamed from `FinanceApp`: the registered domain is now `domain-modules`,
- * not `domain-finance` — see PLAN.md's WP-14. `domain-finance` stays in the
- * repo as the reference domain (34 passing tests, the evidence that the
- * engine is domain-agnostic), it just is not what this root wires by
- * default any more.
+ * not `domain-finance` — see PLAN.md's WP-14. `domain-finance` is not wired
+ * into `NextGenApp` (its use cases are module-specific, not generic), but it
+ * is a `devDependency` here so `domain-swap.test.ts` can run the real router
+ * against its registry — the actual evidence that `core-intent` is
+ * domain-agnostic (WP-16), not just an assertion.
  */
 
 export interface AppOptions {

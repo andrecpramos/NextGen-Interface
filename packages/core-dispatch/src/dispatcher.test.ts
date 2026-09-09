@@ -8,6 +8,7 @@ import { policyFor, requiresConfirmation } from './policy.ts';
 const ex = (n: number) => Array.from({ length: n }, (_, i) => `example ${i + 1}`);
 
 const registry: RegistryFile = defineRegistry({
+  domainDescription: 'A personal finance tracker, for these tests.',
   capabilities: [
     defineCapability({
       id: 'transactions.list', kind: 'navigate', route: '/transactions',

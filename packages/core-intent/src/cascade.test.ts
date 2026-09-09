@@ -25,6 +25,7 @@ import { THRESHOLD_PROFILES } from './config.ts';
 const ex = (n: number) => Array.from({ length: n }, (_, i) => `example ${i + 1}`);
 
 const registryFile = defineRegistry({
+  domainDescription: 'A personal finance tracker. It records transactions, budgets, categories and account balances.',
   capabilities: [
     defineCapability({
       id: 'budget.view', kind: 'navigate', route: '/budget',
@@ -76,6 +77,7 @@ async function buildRegistry(): Promise<Registry> {
 
   return {
     schemaVersion: 1,
+    domainDescription: registryFile.domainDescription,
     capabilities,
     byId: new Map(capabilities.map((c) => [c.id, c])),
     triggerIndex,

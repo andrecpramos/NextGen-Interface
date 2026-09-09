@@ -52,6 +52,7 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
 
   return {
     schemaVersion: raw.schemaVersion,
+    domainDescription: raw.domainDescription,
     capabilities,
     byId: new Map<string, Capability>(capabilities.map((c) => [c.id, c])),
     triggerIndex,

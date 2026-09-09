@@ -215,12 +215,17 @@ export async function stage3(
     required: ['capabilityId', 'confidence'],
   };
 
+  // WP-16 (Rule 1, D-2): the application description comes from the registry,
+  // never from a string written into core-intent. core-intent knows no subject
+  // matter — that is the product boundary (PLAN.md §1.5) — so the ONLY thing
+  // distinguishing one adopter's prompt from another's must be data threaded
+  // through `Registry`, not a branch or a constant in this file.
   const system = [
     'You route a user utterance to exactly one capability from the provided list.',
     'You may ONLY choose an id from the list. Never invent one.',
-    'This is a personal finance application. It tracks transactions, budgets, categories and account balances.',
-    `If the utterance is not about this application's data at all — weather, jokes, general knowledge, sending messages, moving real money — choose "${OUT_OF_SCOPE_ID}".`,
-    `If the utterance IS about personal finance but is too vague to identify one capability, pick the closest and set confidence below 0.4. Do not use "${OUT_OF_SCOPE_ID}" for vague in-domain requests.`,
+    `This application: ${registry.domainDescription}`,
+    `If the utterance is not about this application's data or actions at all — weather, jokes, general knowledge, or something an unrelated app would handle — choose "${OUT_OF_SCOPE_ID}".`,
+    `If the utterance IS about this application but is too vague to identify one capability, pick the closest and set confidence below 0.4. Do not use "${OUT_OF_SCOPE_ID}" for vague in-domain requests.`,
     'Set confidence to how certain you are, from 0 to 1.',
     'Extract only parameters you can read directly from the utterance. Never guess a value.',
     'Never compute totals, dates or arithmetic — leave those to the caller.',

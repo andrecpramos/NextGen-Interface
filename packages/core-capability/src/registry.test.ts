@@ -20,7 +20,11 @@ const ok = (over: Partial<Parameters<typeof defineCapability>[0]> = {}) =>
   } as Parameters<typeof defineCapability>[0]);
 
 const registryOf = (...capabilities: Capability[]): RegistryFile =>
-  defineRegistry({ capabilities, enums: { Category: { values: ['food'] } } });
+  defineRegistry({
+    domainDescription: 'A personal finance tracker, for these tests.',
+    capabilities,
+    enums: { Category: { values: ['food'] } },
+  });
 
 const rules = (r: RegistryFile) => validateRegistry(r).errors.map((e) => e.rule);
 
@@ -38,6 +42,14 @@ describe('validateRegistry — a valid registry', () => {
       refusal: "I can record transactions, but I can't move real money.",
     });
     expect(validateRegistry(registryOf(ok(), b)).ok).toBe(true);
+  });
+
+  // WP-16 (Rule 1, D-2): stage 3 reads this field instead of a hardcoded
+  // description, so a registry that omits it reproduces the exact defect the
+  // field exists to fix.
+  it('rejects a registry with no domainDescription', () => {
+    const registry = { ...registryOf(ok()), domainDescription: '' };
+    expect(rules(registry)).toContain('domain-description-required');
   });
 });
 

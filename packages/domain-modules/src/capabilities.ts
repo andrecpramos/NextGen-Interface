@@ -149,6 +149,10 @@ export const enums = {};
 
 export const registry = defineRegistry({
   schemaVersion: 1,
+  domainDescription:
+    'A personal notes application. Users save arbitrary information as modules — ' +
+    'a password, a renewal date, a phone number — and can list, search for, delete ' +
+    'or undo a recent change to what they have saved.',
   capabilities: [...capabilities, ...boundary],
   enums,
 });

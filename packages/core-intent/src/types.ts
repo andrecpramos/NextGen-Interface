@@ -51,6 +51,8 @@ export interface EnumIndex {
 /** A loaded registry: the file plus everything the stages precompute from it. */
 export interface Registry {
   readonly schemaVersion: number;
+  /** What application stage 3 is routing for (WP-16, D-2). See `RegistryFile`. */
+  readonly domainDescription: string;
   readonly capabilities: readonly Capability[];
   readonly byId: ReadonlyMap<string, Capability>;
   readonly triggerIndex: ReadonlyMap<string, string>;

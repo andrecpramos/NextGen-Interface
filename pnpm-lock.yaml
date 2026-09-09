@@ -59,6 +59,10 @@ importers:
       '@nextgen/domain-modules':
         specifier: workspace:*
         version: link:../../packages/domain-modules
+    devDependencies:
+      '@nextgen/domain-finance':
+        specifier: workspace:*
+        version: link:../../packages/domain-finance
 
   apps/web:
     dependencies:
