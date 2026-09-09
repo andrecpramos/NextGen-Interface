@@ -2,6 +2,11 @@
 
 How agents working in this repository decide where their commits go.
 
+> This document is about the **branching** half of the agent workflow, which is
+> the part that has actually bitten. The full set of workflow assets — hooks,
+> skills, agents and slash commands — is mapped in
+> [.claude/README.md](../README.md).
+
 ## The rule
 
 **At the start of every new context window, the agent asks whether to keep working
@@ -27,7 +32,8 @@ start of a fresh context window.
 | File | Role |
 |---|---|
 | [`.claude/hooks/branch-check.mjs`](../hooks/branch-check.mjs) | Reads live git state, emits the instruction |
-| [`.claude/settings.json`](../settings.json) | Binds it to `SessionStart` and `PreCompact` |
+| [`.claude/hooks/guard-git.mjs`](../hooks/guard-git.mjs) | Denies the commands the instruction is meant to prevent |
+| [`.claude/settings.json`](../settings.json) | Binds them to `SessionStart`/`PreCompact` and `PreToolUse` |
 
 `SessionStart` matches `startup|resume|clear|compact` and `PreCompact` matches
 `manual|auto`, so the check fires on every path that produces a new context window:
@@ -42,6 +48,36 @@ Its message is situational, and each branch class gets a different one: a refusa
 on `main`, a soft nudge on `develop`, ahead/behind counts on a feature branch, and
 an explicit warning when a feature branch no longer contains the tip of `develop`
 and would carry stale work on merge.
+
+### The second layer: denying, not only telling
+
+Telling an agent the contract is necessary and not sufficient — the instruction
+sits at the top of a context window that fills up, and the mistake happens at the
+bottom. [`guard-git.mjs`](../hooks/guard-git.mjs) runs on `PreToolUse`
+for `Bash` and denies the three commands the contract exists to prevent:
+
+| Denied | Because |
+|---|---|
+| `git add -A`, `git add .`, `git commit -a` | This tree is shared. See the incident below. |
+| Any push or PR that writes to production | Production moves only on the user's explicit request, in that session. CI's `guard-production` job catches the PR case; nothing but this catches a local push. |
+| `git checkout -b <x> main` | Every branch is cut from `develop`. One based on production silently reverts integration work on merge. |
+
+Each denial names the correct alternative, so the agent retries without needing
+the user. Read-only commands against `main` — `log`, `diff`, `show` — stay allowed.
+
+One subtlety it learned the hard way: **heredoc bodies are stripped before
+matching.** The first version blocked its own documentation, because a `SKILL.md`
+being written with `cat > file <<'EOF'` contained the words `git push origin main`
+inside the heredoc. Anything a heredoc carries is data this shell never executes,
+so scanning it produces only false positives.
+
+A third hook, [`check-gates.mjs`](../hooks/check-gates.mjs), runs on
+`PostToolUse` for `Edit`/`Write` and surfaces the cheapest gate the edit could
+have broken — Rule 1 on a `core-*` write (it runs the real CI script, ~75ms), the
+codegen and Rule 10 reminders on a `capabilities.ts` write, the calibration
+discipline on an `eval/` write. It is silent otherwise, deliberately: a hook that
+comments on every write becomes noise an agent learns to skim, which is worse
+than no hook at all.
 
 ### Implementation notes
 

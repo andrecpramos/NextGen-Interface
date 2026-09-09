@@ -1,48 +1,22 @@
 # Critical infrastructure and the rules that bind it
 
-> **Audited against the tree:** 2026-09-09, on `feature/sdlc-kit` (cut from `develop`).
-> Re-audit trigger: any change to `.github/workflows/ci.yml`, any new gate, any
-> new rule in PLAN.md §2, or a release.
+**Audited against the tree:** 2026-09-09.
+Re-audit trigger: any change to `ci.yml`, any new gate, any new rule, or a release.
 
-Every component whose failure is not a local bug, the rules that govern it,
-**where each rule is actually enforced**, and whether it is currently obeyed.
+What this is: every component whose failure is not a local bug, the rules that
+govern it, **where that rule is actually enforced**, and whether it is currently
+obeyed.
 
-The distinction that runs through this document is between a rule that is
-*written down* and a rule that is *enforced*. A written rule is obeyed until
-someone is in a hurry. Every row says which kind it is, and
-[the gap list](#enforcement-gaps-ranked) collects the ones that are only written
-down.
-
-**Nothing here claims protection that does not exist.** If a cell says
+The distinction that matters throughout is between a rule that is *written down*
+and a rule that is *enforced*. A written rule is obeyed until someone is in a
+hurry. Every row below says which kind it is, and the
+[gaps](#enforcement-gaps-ranked) section lists the ones that are still only
+written down. Nothing here claims protection that does not exist — if a cell says
 `convention`, there is no gate.
 
-Rule numbers are [PLAN.md](../../PLAN.md) §2. The ADRs in [decisions/](../../.claude/decisions)
-are the constitution; this file maps how they are held up. The machine-readable
-version of the gate list is [`sdlc.config.json`](../sdlc.config.json).
-
----
-
-## 0 · The finding that reframes every row below
-
-**No gate in this repository can block a merge.**
-
-`GET /repos/andrecpramos/AI-Interface/branches/{develop,main}/protection` returns
-**403 — "Upgrade to GitHub Pro or make this repository public to enable this
-feature."** Branch protection is unavailable on a private repository on this plan.
-
-Every consequence follows from that one fact:
-
-- CI jobs go red. Nothing stops the merge button.
-- The `guard-production` job — "only develop may merge to main" — **fails the run
-  and prevents nothing.** [sdlc/branching.md](../sdlc/branching.md) lists it as the
-  "Repository" enforcement layer. That layer does not mechanically exist.
-- Every `"blocking": true` in `sdlc.config.json` means *policy says do not merge
-  this*, not *the platform will not let you*.
-
-This is not a reason to remove the CI jobs — a red build a human respects is real
-enforcement, and it is what this repo has. It is a reason to stop describing them
-as though they were mechanical, and to know that **the local hooks are the only
-enforcement that actually denies anything.**
+Rule numbers are [PLAN.md](../../PLAN.md) section 2. The ADRs in
+[decisions/](../decisions/) are the constitution; this file is a map of how they are
+held up.
 
 ---
 
@@ -59,45 +33,22 @@ subsystem reads.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 10 — every capability ships ≥3 examples | `pnpm registry:check` in CI (`registry-check` gate) | **enforced** |
-| Rule 13 — limits declared, not inferred | the `unsupported` kind + `defineBoundary`, asserted in both domains' tests | **enforced** |
-| Generated artefacts match the committed ones | CI step "Registry artefacts are current" | ⚠️ **2 of 3 paths vacuous — see below** |
+| Rule 10 — every capability ships >=3 examples | `MIN_EXAMPLES` in `core-capability/src/validate.ts`, gated by `pnpm registry:check` in CI | **enforced** |
+| Rule 13 — limits declared, not judged | the `unsupported` kind and `defineBoundary`, asserted in both domains' tests | **enforced** |
+| Generated artefacts match the committed ones | CI step "Registry artefacts are current" | **enforced (fixed 2026-09-08)** |
 
-> ⚠️ **The staleness gate is two-thirds decorative.**
+> ⚠️ **The known fragility: `OUT_INTENT` is one global path.** Every domain's
+> `scripts/build-registry.ts` writes the same
+> `packages/core-intent/eval/registry.json`, so **only one domain's build script
+> can be authoritative at a time**. `pnpm registry:build` (domain-modules) is the
+> authoritative one; running `pnpm registry:build:finance` silently replaces the
+> registry the router reads with the finance registry.
 >
-> `pnpm registry:build` resolves to `--filter @nextgen/domain-modules`. Reading
-> `packages/domain-modules/scripts/build-registry.ts:33-66`, that build writes
-> exactly three files:
->
-> - `packages/core-intent/eval/registry.json` (`OUT_INTENT`)
-> - `packages/domain-modules/generated/routes.json`
-> - `packages/domain-modules/generated/golden.generated.jsonl`
->
-> The CI step (`ci.yml:95-105`) diffs:
->
-> - `packages/core-intent/eval/registry.json` ✅ real
-> - `packages/domain-finance/generated/routes.json` ❌ **this build never writes it**
-> - `packages/domain-finance/generated/golden.generated.jsonl` ❌ **likewise**
->
-> Those two finance files are dated 30 Aug and have not moved since. The gate
-> therefore passes on them unconditionally. Real drift in
-> `domain-modules/generated/` — the domain that is actually authoritative — is
-> **ungated**.
->
-> `sdlc.config.json`'s `registry-stale` gate already diffs
-> `packages/domain-modules/generated`, so `/gates` checks the right thing while
-> CI does not. That divergence is itself a defect: they must be the same command.
-
-> ⚠️ **The underlying fragility: `OUT_INTENT` is one global path.**
-> Every domain's `build-registry.ts` writes the same
-> `packages/core-intent/eval/registry.json`, so **only one domain's build can be
-> authoritative at a time**. `pnpm registry:build` (domain-modules) is the
-> authoritative one; `pnpm registry:build:finance` silently replaces the registry
-> the router reads. The script's own header comment flags this at line 23.
->
-> Mitigated locally: `guard.extraDeny` in `sdlc.config.json` now denies
-> `pnpm registry:build:finance` and names the alternative. That is a hook, not a
-> fix — a third domain forces the real one.
+> This is why CI cannot check both domains' artefacts in one job, and why the
+> staleness gate covers `domain-modules/generated/` only. **Until 2026-09-08 that
+> gate diffed `domain-finance/generated/` — files the build never touches — so it
+> passed vacuously while real drift went ungated.** Fixed; the underlying
+> shared-path collision is not. A third domain forces the issue.
 
 ---
 
@@ -106,120 +57,280 @@ subsystem reads.
 **What.** `packages/core-*` must never import a domain. Domains register *into*
 the engine; the engine never enumerates them.
 
-**Blast radius.** The invariant the entire "how little code does a new domain
-need" thesis rests on. Once broken it is rarely broken back.
+**Blast radius.** This is the invariant the entire "how little code does a new
+domain need" thesis rests on. Once broken it is rarely broken back.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 1 — core never imports a domain | `node tooling/scripts/check-import-boundaries.mjs`, in CI and as a `postEdit` hook on every `packages/core-*` write | **enforced** |
-| Rule 5 — policy is code in the dispatcher, never prompt text | `core-dispatch` tests | **enforced** |
+| Rule 1 — core never imports a domain | `tooling/scripts/check-import-boundaries.mjs`, checking both the declared dependency and every actual import specifier. First step of CI's `verify` job; also `.claude/hooks/check-gates.mjs` on every `core-*` write | **enforced, three layers** |
 
-The `postEdit` hook is the addition from this install: the boundary check now runs
-within ~75ms of any edit to `packages/core-*`, so the failure arrives while the
-change is still in the agent's head rather than in CI.
+What the gate cannot see: a `switch` or an `if` in `core-*` enumerating domain
+types. Same violation, no import. That one needs a reader — the
+`boundary-auditor` agent and `/rules-check` look for it.
 
 ---
 
-## 3 · The router and its calibration
+## 3 · The dispatcher policy table
 
-**What.** The three-stage cascade, its thresholds, and the golden-set scorecard
-that says whether it still works.
+**What.** `packages/core-dispatch` decides what a capability is allowed to do:
+`read` executes, `write` confirms, `destructive` confirms and issues an undo
+token, **unclassified refuses**. Policy is code. It is never prompt text, and no
+confidence score is consulted.
 
-**Blast radius.** Degrades **quietly**. Accuracy falls a fraction per capability
-added, with no bug report, because nothing breaks.
+**Blast radius.** This is the safety mechanism. Everything else degrades; this
+one fails open or it does not.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 12 — a routing bug is not fixed until it is a permanent golden-set entry | none | **convention** |
-| Rule 14 — thresholds are calibrated per encoder, never hand-set | none on this branch — `tooling/scripts/check-thresholds.mjs` **does not exist here** | **convention** |
-| Golden-set regression against the committed baseline | `check-scorecard.mjs`, tolerance 0.05, in CI | **enforced** (subject to §0) |
-
-> Note on `pnpm router:floor || true` in `ci.yml:137` — this is **not** a silenced
-> failure. The floor run exits 1 by design: with stage 3 disabled it cannot meet
-> absolute accuracy targets and is not meant to. The gate is the scorecard
-> comparison in the next step. `sdlc.config.json` records this as
-> `expectNonZero: true` so no runner misreports it.
-
-> ⚠️ Rule 14 is cited in PLAN.md as costing accuracy three times, and on this
-> branch **nothing checks it.** `check-thresholds.mjs` exists on
-> `docs/plan-restructure`, unmerged. Until that lands, a hand-edited threshold
-> ships silently. The `postEdit` reminder on `packages/core-intent/eval/**` is a
-> nudge, not a gate.
+| Rule 5 — policy is code, unclassified refuses | `dispatcher.test.ts`: "ADR-004 — unclassified fails closed", "never defaults an unclassified kind to read", "cannot be talked out of confirming — no confidence is consulted" | **enforced by test** |
+| Rule 4 — model-produced ids validated against the registry | `dispatcher.test.ts`: "Rule 4 — model-produced ids are untrusted"; re-checked in `cascade.ts` and `stages.ts` as defence in depth | **enforced by test** |
+| Rule 3 — the model never emits a route or SQL | `dispatcher.test.ts`: "NavigationEngine — Rule 3, the model never produces a route". The query engine (`data/src/query-engine.ts`) exposes queries by id with typed slots, so SQL injection is removed structurally rather than sanitised | **enforced by test + design** |
 
 ---
 
-## 4 · The branching contract
+## 4 · The router cascade, thresholds, and calibration
 
-**What.** `main` is production and moves only on request; `develop` takes
-everything; branches cut from `develop`.
+**What.** `packages/core-intent` — deterministic, then embedding, then a
+constrained LLM call. The operating point is `THRESHOLD_PROFILES` in
+`src/config.ts`.
 
-**Blast radius.** A branch cut from `main` silently reverts integrated work on
-merge. An unrequested push to production ships whatever happened to be local.
-
-| Layer | Mechanism | Status |
-|---|---|---|
-| Context | [CLAUDE.md](../../CLAUDE.md), loaded every session | **enforced** (for agents) |
-| Session | `.claude/hooks/branch-check.mjs` on `SessionStart`/`PreCompact`, live git state | **enforced** (for agents) |
-| Local | `.claude/hooks/guard-git.mjs` on `PreToolUse` — **the only layer that denies anything** | **enforced** (for agents) |
-| Repository | `guard-production` job in `ci.yml:43` | ⚠️ **advisory only — see §0** |
-
-**Every one of these binds agents, not humans.** A person can push to `main` from
-this checkout and nothing in the repository will stop them. That is a deliberate
-choice recorded in [sdlc/branching.md](../sdlc/branching.md) — a protection rule
-would also block the maintainer's own release push — but it means the contract's
-real enforcement surface is exactly one hook file.
-
----
-
-## 5 · The shared working tree
-
-**What.** More than one agent session works in this checkout simultaneously.
-
-**Blast radius.** Not hypothetical: nine component files, a modified manifest and
-a lockfile-rewriting install landed in this tree from another session inside a
-four-minute window during WP-12. Nothing was lost only because that session
-staged named paths.
+**Blast radius.** Thresholds decide what gets accepted without a model. Too high
+and everything escalates (latency, battery, offline viability); too low and a
+wrong acceptance reaches a write capability behind a confirmation card the user
+taps through.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Never `git add -A` / `git add .` / `git commit -a` | `guard-git.mjs`, active because `sharedTree: true` | **enforced (new, this install)** |
-| Re-check `git status` immediately before committing | `ship-it` skill | **convention** |
-| A dirty file you did not create is someone else's | CLAUDE.md | **convention** |
+| Rule 14 — thresholds calibrated per encoder, never hand-set | `tooling/scripts/check-thresholds.mjs`, in CI | **enforced (added 2026-09-08)** |
+| Rule 11 — deterministic slot values beat model-extracted ones | `slots.test.ts` | **enforced by test** |
+| Rule 2 — the model never computes a number the user sees | comments at `core-intent/src/types.ts`, `ui/src/types.ts`, `apps/web/lib/render.ts` | **convention — no test** |
 
-Before this install, all three were convention. The first is now denied at the
-tool call.
+> **The gap Rule 14's gate closes.** `pnpm router:calibrate` writes its
+> recommendation to `eval/scorecards/thresholds-<kind>.json`, and **nothing reads
+> that file at run time** — the shipped operating point is a hand-transcribed
+> literal in `config.ts`. So the exact edit the rule forbids (nudging `tauHigh`
+> until a failing case passes) was also the edit nothing would notice. The new
+> check compares the two and fails on any divergence. Both encoders match their
+> calibration as of this audit.
+
+Standing discipline, not mechanically checkable: hand-tuning has cost accuracy
+three times here (FINDINGS 1 and 11). When a case fails, differentiate the
+overlapping capability descriptions — do not move the threshold.
 
 ---
 
-## Enforcement gaps, ranked
+## 5 · The golden set and the scorecard gate
 
-By blast radius first, cost to fix second.
+**What.** `packages/core-intent/eval/golden-set.jsonl` plus the committed
+scorecards. `pnpm router:floor` (stages 1+2, hashing encoder) is the only
+deterministic configuration, which is why it is the only one CI gates
+([ADR-011](../decisions/ADR-011.md)).
 
-| # | Gap | Blast radius | Cheapest fix | Effort |
-|---|---|---|---|---|
-| 1 | **CI staleness gate diffs `domain-finance/generated`, which `pnpm registry:build` never writes.** 2 of 3 paths pass vacuously | Registry drift in the authoritative domain ships ungated. Router reaches routes that do not exist; nobody learns until a user does | In `ci.yml:98-100`, change the two `domain-finance` paths to `packages/domain-modules/generated`. `sdlc.config.json`'s `registry-stale` gate already has it right — copy that command | **S** |
-| 2 | **Rule 14 (calibrated thresholds) is enforced by nothing on `develop`** | A hand-edited threshold ships silently. PLAN.md records this class of mistake costing accuracy three times | Merge `docs/plan-restructure` (which carries `check-thresholds.mjs`), or port that one script and add it to the gate list | **S** |
-| 3 | **No gate can block a merge** (§0) | Every "blocking" claim in the docs is policy, not mechanism | Make the repo public, or upgrade the plan, then require the `quality` and `golden-set` checks on `develop`. If neither: change the docs to say "policy", not "blocks" | **S** (doc) / **M** (plan) |
-| 4 | Rule 12 — a routing bug must become a permanent golden-set entry | The same misrouting reappears the next time a capability is added | Nothing mechanical can check this. Add it to the PR template as a checkbox and accept it is a convention | **S** |
-| 5 | No linter configured — no `tooling/eslint-config`, no `lint` script anywhere | Style and a class of correctness bugs go unchecked; typecheck and tests are the only automated gates | Add a flat ESLint config and one `lint` gate. Do it when it is cheap, not because the register says so | **M** |
+**Blast radius.** It is the sole regression net for a non-deterministic
+component. A corpus that drifts toward happy paths stops detecting the failures
+that matter.
+
+| Rule | Enforcement | Status |
+|---|---|---|
+| No accuracy regression beyond tolerance | `tooling/scripts/check-scorecard.mjs` against the committed baseline, CI `golden-set` job | **enforced** |
+| Adversarial to destructive count stays zero | `safetyViolations` in the scorecard | **enforced (release blocker)** |
+| Rule 12 — a routing bug is fixed only as a permanent golden-set entry | none — process only | **convention** |
+
+`eval/scorecards/` is deliberately **not** gitignored: accuracy changes have to
+appear in the PR diff and be discussed, not silently absorbed.
+
+Two traps that make model-backed runs lie: a cold model load puts a ~22-second
+outlier in the p95 (warm it with one throwaway call), and parallel runs share the
+GPU (run models sequentially).
+
+---
+
+## 6 · Persistence
+
+**What.** `packages/data` — `node:sqlite`, the schema spec, migrations, and the
+money representation.
+
+**Blast radius.** Data loss is unrecoverable. A float money column is
+unrecoverable *and* silent.
+
+| Rule | Enforcement | Status |
+|---|---|---|
+| Rule 6 — money is signed integer minor units plus currency | `data.test.ts`: "has no float money column anywhere — Rule 6, checked structurally"; plus `money.ts` tests that never multiply a float and never return a fractional minor unit | **enforced by test, structurally** |
+| Migrations tested from every prior released schema | `data.test.ts` + `migrate.ts` | **enforced by test** |
+| Rule 9 — every turn produces a TurnTrace | `cascade.test.ts` "every turn produces a trace", `trace.test.ts` "a trace contains no model-generated prose", trace schema in `data/src/schema/spec.ts` | **enforced by test** |
+
+---
+
+## 7 · Inference runtime and asset provisioning
+
+**What.** `packages/core-inference` (LLM and embedding adapters, model store) and
+`packages/core-voice` (whisper.cpp and Piper binaries plus voice models).
+
+**Blast radius.** A corrupt or substituted model asset is arbitrary code and
+arbitrary output.
+
+| Rule | Enforcement | Status |
+|---|---|---|
+| Verify SHA-256 before load; fail closed | `core-voice/src/assets.ts` — download lands on a `.part` file and is renamed into place only after the hash matches, so an interrupted download cannot be mistaken for a complete one. Same discipline as `core-inference`'s `ModelStore` | **enforced in code** |
+| Rule 8 — the device is the source of truth; nothing on the critical path requires network | verified by inspection 2026-09-08: the only remote hosts in runtime code are the asset manifest in `core-voice/src/assets.ts` (first-run provisioning), never a per-turn call. Everything else is `127.0.0.1` | **convention — verified, not gated** |
+| Model weights never committed | `.gitignore`: `models/`, `*.gguf`, `*.onnx`, `*.bin` | **enforced** |
+
+Every URL and hash in `assets.ts` was verified against the bytes actually
+downloaded before being hardcoded. Never trust a hash you did not compute
+yourself.
+
+---
+
+## 8 · Untrusted domain content
+
+**What.** A domain's free text is attacker-reachable the moment it crosses into a
+prompt: `Module.body`, memo-style fields, imported files, OCR output.
+
+| Rule | Enforcement | Status |
+|---|---|---|
+| Rule 15 — domain content is untrusted in a prompt | declaration-site comments only (`domain-modules/src/entities.ts:27,38`, `domain-finance/src/entities.ts:44,46`) | **convention — and currently VIOLATED, see below** |
+
+> ### ⚠️ Open violation — Rule 15, `domain-modules/src/use-cases.ts`
+>
+> The entity comment says *"UNTRUSTED — model-consolidated prose. Fence before
+> this reaches a prompt."* **There is no fence function anywhere in the
+> repository**, and three sites interpolate untrusted content straight into a
+> prompt:
+>
+> - `merge()` — `` prompt: `Existing module body:\n${existing.body}\n\nNew material:\n${rawSource}` ``
+>   — `existing.body` is the field marked UNTRUSTED, and `rawSource` is raw user,
+>   file, or OCR input.
+> - `shortlistJudge()` — interpolates `module.title`, `module.summary`,
+>   `extracted.title` and `extracted.summary` into the judge prompt.
+>
+> Reachable by saving a note whose text is an instruction, then saving a second
+> note that merges into it. Not fixed in this pass: `use-cases.ts` carries another
+> session's uncommitted WP-15 work, and editing a dirty file this session does not
+> own would take that work with it.
+>
+> The fix is a fence helper in `core-inference` (delimit, label untrusted, strip
+> the delimiter from the content) applied at all three sites, plus a golden-set
+> adversarial entry. That is a change to the registered domain's write path and
+> wants its own branch.
+
+---
+
+## 9 · The pipeline and the branching contract
+
+**What.** `.github/workflows/ci.yml` and `.claude/hooks/`.
+
+**Blast radius.** These are what make every rule above hold when nobody is
+looking. A gate that passes vacuously is worse than no gate — it buys confidence
+it has not earned. (Section 1 has this pass's example.)
+
+| Rule | Enforcement | Status |
+|---|---|---|
+| Only `develop` may merge to production | CI `guard-production` job; `.claude/hooks/guard-git.mjs` for the local case CI never sees | **partial — see below** |
+| Branch from `develop`, never from production | `guard-git.mjs`, plus `branch-check.mjs` at every context boundary | **enforced (agents only)** |
+| Never stage broadly in this shared tree | `guard-git.mjs` denies `git add -A`, `git add .`, `git commit -a` | **enforced (agents only)** |
+| Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced (added 2026-09-09)** |
+| High and critical CVEs block | CI `audit` job (`pnpm audit --audit-level high`) | **enforced** |
+
+> ⚠️ **No CI job in this repository can block a merge.** Measured 2026-09-09:
+> `GET /repos/andrecpramos/AI-Interface/branches/{develop,main}/protection`
+> returns **403 — "Upgrade to GitHub Pro or make this repository public to
+> enable this feature."** Branch protection is *unavailable on this plan*, not
+> declined.
+>
+> This was previously recorded here as a deliberate choice — "no ruleset, so the
+> human keeps a direct push path". That framing was too generous. The
+> consequences are wider than production:
+>
+> - `guard-production` fails the run and **prevents nothing**. It is advisory.
+> - Every `"blocking": true` in `sdlc.config.json` means *policy says do not
+>   merge this*, not *the platform will not let you*.
+> - The local hooks are the only layer that actually **denies** anything — and
+>   they bind agents, not humans.
+>
+> Not a reason to remove the jobs: a red build a human respects is real
+> enforcement, and it is what this repo has. It is a reason to stop describing
+> them as mechanical. See [../sdlc/branching.md](../sdlc/branching.md).
 
 ---
 
 ## Gates seen failing on purpose
 
-A gate nobody has seen fail is a gate nobody knows works. This table starts nearly
-empty, which is the honest state.
+A gate nobody has seen fail is a gate nobody knows works. Section 1's vacuous
+staleness gate is the standing proof: green for weeks, checking nothing.
+
+Every new gate is made to fail deliberately once, and that is recorded here.
+The table starts mostly empty, which is the honest state — fill one row per
+session rather than claiming the set.
 
 | Gate | Last seen failing correctly | How it was made to fail |
 |---|---|---|
-| `guard-git` (broad staging) | 2026-09-09 | Piped `git add -A` to the hook; got a deny naming explicit staging as the alternative |
+| `guard-git` (broad staging) | 2026-09-09 | Piped `git add -A`; got a deny naming explicit staging |
 | `guard-git` (production write) | 2026-09-09 | Piped `git push origin main`; got a deny naming `develop` |
-| `guard-git` (branch from production) | 2026-09-09 | Piped `git checkout -b feature/x main`; got a deny with the correct command |
-| `guard-git` (echoed text false positive) | 2026-09-09 | Piped a payload *containing* `git add -A` as echoed text; correctly allowed |
-| `check-gates` (post-edit failure) | 2026-09-09 | Throwaway repo with a `postEdit` command exiting 1; hook surfaced it and still exited 0 |
-| `doc-links` | 2026-09-09 | Added a link to a non-existent file; gate exited 1 naming `file:line` and the target |
+| `guard-git` (branch from production) | 2026-09-09 | Piped `git checkout -b feature/x main`; deny + correct command |
+| `guard-git` (echoed-text false positive) | 2026-09-09 | Piped a payload *containing* `git add -A` as echoed text; correctly **allowed** |
+| `check-gates` (post-edit failure) | 2026-09-09 | Throwaway repo, `postEdit` command exiting 1; surfaced it and still exited 0 |
+| `doc-links` | 2026-09-09 | Added a link to a non-existent file; exited 1 naming `file:line` |
 | `import-boundaries` | — | not yet deliberately broken |
 | `registry-check` | — | not yet deliberately broken |
+| `check-thresholds` | — | not yet deliberately broken |
 | `scorecard` | — | not yet deliberately broken |
 
-Fill one row per session rather than claiming the set.
+---
+
+## Rule to enforcement matrix
+
+| # | Rule | Enforced by | Kind |
+|---|---|---|---|
+| 1 | `core-*` never imports a domain | `check-import-boundaries.mjs`, CI, PostToolUse hook | **gate** |
+| 2 | Model never computes a user-visible number | comments; review | convention |
+| 3 | Model never emits SQL or a raw route | `dispatcher.test.ts`; query engine design | **test** |
+| 4 | Model-produced ids validated against the registry | `dispatcher.test.ts`, `cascade.ts`, `stages.ts` | **test** |
+| 5 | Policy is code; unclassified refuses | `dispatcher.test.ts` | **test** |
+| 6 | Money is integer minor units | `data.test.ts` (structural), `money.ts` | **test** |
+| 7 | Every AI-reachable screen reachable without AI | both domains' tests; `apps/cli` menu path | **test** |
+| 8 | Device is the source of truth | verified by inspection | convention |
+| 9 | Every turn produces a TurnTrace | `cascade.test.ts`, `trace.test.ts` | **test** |
+| 10 | Every capability ships >=3 examples | `validate.ts` + `registry:check`, CI | **gate** |
+| 11 | Deterministic slots beat model-extracted | `slots.test.ts` | **test** |
+| 12 | A routing bug becomes a permanent golden entry | none | convention |
+| 13 | Limits declared in the registry | `unsupported` kind, `defineBoundary`, domain tests | **test** |
+| 14 | Thresholds calibrated per encoder | `check-thresholds.mjs`, CI | **gate (new)** |
+| 15 | Domain content untrusted in a prompt | declaration comments only | convention — **violated** |
+| 16 | The installer never modifies the adopter's source | none yet — WP-25 and WP-26 acceptance both require a mechanical check (`git status` in the target shows only new files) | **none — new rule, 2026-09-09** |
+| 17 | An unreachable capability is absent from the user's registry | none yet — WP-25 acceptance requires a test that diffs two role registries | **none — new rule, 2026-09-09** |
+
+---
+
+## Enforcement gaps, ranked
+
+1. **Rule 15 has no mechanism and is violated today.** Section 8. Highest
+   priority: it is a prompt-injection path in the registered domain's write flow.
+2. **The registry's shared `OUT_INTENT` path.** Section 1. One domain's build
+   silently clobbers another's. Survivable with two domains and a documented
+   order; not survivable with three.
+3. **Rule 2 has no test.** The rule that "the model never computes a number the
+   user sees" is held up entirely by comments and review, and it has already
+   produced one real bug (PLAN.md section 6). A test asserting arithmetic origin
+   on the render path would close it.
+4. **Rule 12 is unenforceable mechanically** — but a PR touching `core-intent`
+   with no `golden-set.jsonl` change is a cheap heuristic a reviewer or a hook
+   could flag.
+5. **Rule 8 is verified, not gated.** A check that runtime packages reference no
+   non-loopback host outside the asset manifest would keep it that way.
+6. **Rules 16 and 17 have no mechanism at all** — they were added on 2026-09-09 with
+   the repositioning and describe a product that is not built yet. Both have a
+   mechanical check written into the acceptance of the work package that will first
+   need them (WP-25 for role scoping, WP-26 for the additive install). **Rule 17 is a
+   security property**: shipping one registry to every role would leak the shape of an
+   admin surface to a user who must not see it. It ranks here, not lower, because the
+   first code that could violate it has not been written — which is the cheapest moment
+   to add the gate.
+
+---
+
+## Related
+
+- [PLAN.md](../../PLAN.md) section 2 — the seventeen rules as stated
+- [decisions/](../decisions/) — the ADRs the rules come from
+- [.claude/README.md](../README.md) — the hooks, skills and agents that apply them
+- [sdlc/ci-cd.md](../sdlc/ci-cd.md) — what each CI job gates and why

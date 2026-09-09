@@ -17,7 +17,7 @@ highest-risk role in the project — the router is what makes or breaks it.
 - Prompt assets and their versions
 - llama.cpp FFI binding, model lifecycle, embeddings index
 - The golden set and its scorecard
-- STT/TTS integration (MVP 2)
+- STT/TTS integration — `packages/core-voice`, shipped in WP-13/WP-14
 
 ## Standing rules
 
@@ -28,7 +28,7 @@ highest-risk role in the project — the router is what makes or breaks it.
 3. **Constrained decoding always.** Grammar-forced schema. Never regex a model's prose.
 4. **Grammar guarantees valid, not correct.** Confidence gating and `Clarify` are what
    handle semantic errors.
-5. **The model never computes a number the user sees.** It phrases; Dart computes.
+5. **The model never computes a number the user sees.** It phrases; TypeScript computes.
 6. **The model never emits SQL or a raw route.** It selects an id and fills typed slots.
 7. **Tune against the golden set, never against manual tries.** Manual testing
    over-samples phrasings you already thought of, which is exactly the traffic that
@@ -65,4 +65,5 @@ per-stage latency measurements on the reference device.
 
 **What fraction of real turns can be resolved without invoking the LLM?** Everything —
 latency, battery, accuracy, offline viability — follows from that number. Measure it in
-Sprint 0, before any Flutter code exists.
+WP-01, before any surface code depends on the answer. It was: see
+`packages/core-intent/eval/FINDINGS.md` and PLAN.md section 5.

@@ -40,7 +40,7 @@ bundle, and it versions independently of the app.
 
 ```
 PR:       analyze · format · import-boundary lint · unit · integration
-          · navigation · golden-set · widget · CVE scan
+          · navigation · golden-set · CVE scan
 develop:  above + debug artefacts + nightly device-farm perf
 release/: above + signed builds + security scan + internal track
 main tag: production staged upload + changelog + model manifest publish
@@ -66,5 +66,9 @@ what changed.
 
 ## First task
 
-`git init` — the working directory is not a repository yet. Then Flutter SDK setup,
-then the pipeline skeleton, so CI exists before there is code to break.
+The pipeline exists (WP-12, `.github/workflows/ci.yml`) and gates four jobs:
+`guard-production`, `verify` (boundaries, typecheck, tests, registry, artefact
+staleness), `golden-set` (the deterministic floor against a committed baseline),
+and `audit` (high/critical CVEs block). The open work is model distribution for
+WP-10 (`apps/mobile`), which does not exist yet — everything under "Standing
+rules" about model assets is forward-looking, not a description of today.

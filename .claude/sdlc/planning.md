@@ -19,8 +19,8 @@ optional, because they are what AI coding agents read.
 ## Planning rules
 
 1. **Risk-first ordering.** The item most likely to invalidate the architecture goes
-   first. That is why Sprint 0 is a router spike and not a Flutter scaffold — a
-   beautiful app shell around a router that can't route is a wasted month.
+   first. That is why WP-01 was a router spike and not an app scaffold — a
+   beautiful app shell around a router that cannot route is a wasted month.
 2. **Every item has an exit criterion**, expressed as a measurement. "Improve intent
    accuracy" is not an item. "Stage 1+2 resolution ≥ 65% on the golden set" is.
 3. **Capability items include their registry entry and examples.** A feature without

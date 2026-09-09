@@ -1,841 +1,1085 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Last verified:** 2026-08-30 · **Branch:** `wp-01-1b-validation` · **Tracked files:** 99+
-**Progress:** WP-01…WP-09 ✅ · **`apps/web` is the assistant surface, running the whole stack** — see [SETUP.md](SETUP.md).
-MVP 1 is functionally complete; **WP-12** (CI/CD) landed alongside it. Next: **WP-11**
-(docs cleanup), then MVP 2.
+**Verified against disk:** 2026-09-09 · **Branch:** reconciled onto `develop` · **238 tracked files · 15 workspace packages · 301 tests
+across 11 files, all passing** · **Pilot target: `fut-app`** (§3).
 
-> **If you are an agent picking this up cold, read this file top to bottom before
-> touching anything.** It tells you the goal, the rules you must not break, exactly
-> what exists, exactly what does not, and what to build next in what order.
->
-> Then read [.claude/docs/architecture.md](.claude/docs/architecture.md) and the ADRs in
-> [.claude/decisions/](.claude/decisions/). Those are binding. This file is the schedule;
-> they are the constitution.
+**What this project is:** a **drop-in AI navigation layer for web apps that already
+exist**. Point a tool at an app's source; it generates a capability registry; the app's
+users get an assistant that takes them where they asked to go and tells them what to do
+when they arrive. §1 is the full statement.
+
+**What this project is *to us*, right now:** a **portfolio project with a plausible
+commercial thesis**, built solo. That framing decides the whole plan. The first
+milestone is a *measured result on a real app*, not a customer and not a platform. The
+commercial reasoning lives in [.claude/docs/business-case.md](.claude/docs/business-case.md) and is
+deliberately kept out of this file.
+
+> ⚠️ **Repositioned 2026-09-08.** Everything through WP-15 was built as a personal
+> assistant — first finance, then notes. Both still exist, both still pass their tests,
+> and both are now **reference applications**: the corpus the generator is measured
+> against. **This repositioning has no ADR.** It is owed as ADR-013 — WP-23, item 1.
+> Two pivots have now landed with their reasoning only in commit messages. Do not make
+> it three.
 
 ---
 
-## 1. The goal
+## 0. Start here
 
-Build an **AI-native application platform** where conversation is the primary
-interface and screens are a rendering layer the AI drives. The user should never need
-to know where a feature lives — the capability registry knows, and the AI reads the
-registry.
+### How to use this file
 
-Personal finance is **domain #1**, not the product. The product is the reusable engine
-underneath: intent → action → navigation → explanation.
+- **Doing a work package?** Read §0's queue, then §2 (the rules), then only your WP in
+  §7. Do not read this file end to end.
+- **Every open WP in §7 has the same five parts:** Goal · Preconditions · Do this ·
+  Acceptance · **Stop if**. "Stop if" is a kill criterion — a threshold written down
+  *before* the work, so a bad result is a decision and not a disappointment. Honour it.
+- **Sizes are sessions, not weeks**, because the hours per week are irregular:
+  **S** = 1 · **M** = 2–4 · **L** = 5–10 · **XL** = 10+.
+- **Finished?** §11 is the definition of done, and it includes updating this file.
 
-**The real test of success:** how little code domain #2 requires. If adding a CRM
-module means changing `packages/core-*`, the architecture has failed.
+### The queue
+
+**Pilot target: `fut-app`** (§3) — 146 pages, 30 features, role-gated, React Router 7,
+with an existing CommandPalette to measure against. WeFitAll is a smoke test only.
+
+| # | Work package | Milestone | Size | Blocked by |
+|---|---|---|---|---|
+| 1 | **WP-23** · ADR-013 — record the repositioning | M0 | S | D-1 |
+| 2 | **WP-15** · Land the knowledge layer (uncommitted in a shared tree) | M0 | S | — |
+| 3 | **WP-16** · De-finance the stage-3 prompt | M0 | M | D-2 |
+| 4 | **WP-17** · Re-measure the router honestly | M0 | S | — |
+| 5 | **WP-31** · Ground truth for `fut-app` | M1 | M | — |
+| 6 | **WP-30** · Generator spike — **timeboxed, GO/NO-GO** | M1 | S | 3, 5 |
+| 7 | **WP-25** · The registry generator — role-scoped | M1 | L | 6 |
+| 8 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 7 |
+| 9 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | 5 |
+| 10 | **WP-33** · **The measurement** — the first artefact | M1 | S | 7, 8, 9 |
+| 11 | **WP-34** · The write-up — the second artefact | M2 | M | 10 |
+| 12 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 10 |
+| 13 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 7, D-3 |
+| 14 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 8, 12 |
+| 15 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 12, 13, 14 |
+
+**Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
+WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
+WP-21 (voice acceptance), WP-22 (`apps/web` tests), WP-11 (docs), WP-10 (mobile).
+
+### The three open decisions
+
+| | Decision | Blocks |
+|---|---|---|
+| D-1 | Do both reference apps survive, or does one go? | WP-23 |
+| D-2 | How the stage-3 prompt learns which app it serves — registry field or call-site override? | WP-16 |
+| D-3 | How a guided step anchors to an element in an app we do not control | WP-27 |
+
+Everything this file previously carried as an open decision — Rule 7's meaning, language
+scope, Layer 5's extent, the generator's confidence policy, `TAU_ACT_BY_KIND` — was
+resolved and is recorded in §7 or §13 where it landed.
+
+---
+
+## 1. What this is
+
+### 1.1 The product
+
+**A drop-in AI navigation layer for a web app that already exists.**
+
+An adopter points our tool at their application's source. It reads the routes and the
+components, generates a description of everything the app can do, and produces a bundle
+they ship with their site. Their users then get an assistant that **knows their app**:
+it takes them to the right place for what they asked in their own words, and tells them
+what to do once they are there.
+
+> *"I need to file an expense claim"* → the assistant navigates to
+> `/finance/expenses/new` and says: *"This is the expense form. Fill in the amount and
+> date, attach the receipt, and pick the project it belongs to."*
+
+The old site keeps working exactly as it does. **Rule 7 is not negotiable** — every
+screen the assistant can reach stays reachable without it.
+
+**Two product requirements, stated by the owner on 2026-09-09 and binding:**
+
+1. **The client takes our solution and installs it in their own codebase.** Not a
+   service we run for them — a package they add. That is Ladder C, and it is why
+   **Rule 16** exists: the installer reads their source and writes only additive
+   artefacts. It never touches their components.
+2. **It learns their app and turns that into a default UI layer** — an add-on, not a
+   rework — that covers their functionality: **navigate, read, explain, and answer the
+   user's doubts about this app and nothing else.** The "nothing else" is not a prompt
+   instruction; it is [ADR-009](.claude/decisions/ADR-009.md)'s declared boundaries, which
+   refuse off-topic input *without a model call*.
+
+**The UI is the chat surface already in `packages/ui`** — sphere, composer, answer
+panel — carried over visually and improved as we go, not redesigned per adopter.
+
+**Scope is a ladder, not a line.** All of it is wanted; the plan climbs one rung at a
+time and measures each. §1.6 is the ladder. **Today's rung: navigate, guide and explain
+from the app's own source, with knowledge fixed at build time.**
+
+**What it is not.** Not a chat widget over scraped content — it navigates against
+declared capabilities and cannot invent a destination. Not a coding assistant. Not a
+redesign: it adds a layer and restyles nothing (Rule 16).
+
+### 1.2 The thesis
+
+> **The capability registry, not a prompt, is the application's contract.** The model
+> never computes, never emits SQL and never picks a route — it selects a *declared id*
+> and fills *typed slots*. Everything that must be correct — policy, navigation,
+> refusal, the app's limits — is declared data the engine reads, which is why a 1.5B
+> model, or often no model at all, is sufficient.
+
+For a personal note-taker that was an elegance argument. **Here it is the economics.**
+An assistant that resolves most turns with no model call can sit in front of every
+visitor of every adopter. One that needs a frontier-model call per turn cannot.
+
+Best evidence it holds: [ADR-009](.claude/decisions/ADR-009.md)'s declared boundaries
+improved refusal accuracy **in proportion to how badly the model failed** — 0% → 40% on
+`gemma3:1b`, which never produced a refusal on its own. Re-verified live on 2026-09-08:
+*"book that appointment for me"* was correctly refused in **1.9s with no model call**.
+
+### 1.3 What it does when you run it today
+
+`pnpm app` is a terminal loop; `pnpm web` is the same engine behind a browser UI — a
+sphere, a composer, a mic, a browser for saved items. Both are surfaces over one
+composition root (`NextGenApp`). Today they run the **notes reference app**. A real
+session, models warmed, verbatim, 2026-09-08:
+
+```
+> show my modules
+  → /modules  (Modules)                            [deterministic, 2ms]
+
+> what did I save about the wifi password
+  Which topic?                                     [llm, 13329ms]
+
+> check my email for the confirmation
+  the model needed for this is unavailable         [llm, 39816ms]
+
+> book that appointment for me
+  I can save what you tell me, but I can't send messages, book
+  anything, or act in another app on your behalf.  [embedding, 1866ms]
+```
+
+Read as a status report on the engine:
+
+- ✅ **Deterministic routing works and is instant** — 2ms, no model.
+- ✅ **Declared refusal works, model-free** — 1.9s, and the wording is authored, not
+  generated.
+- ❌ **Stage 3 is slow and misses parameters** — 13s to fail to extract "the wifi
+  password" as a topic, against an utterance derived from the registry's own examples.
+- ✅ **Degradation is honest** — the timeout said so instead of guessing.
+
+Type `why` after any turn and it explains itself from the recorded trace with **no model
+involved**: which stage decided, what else it considered and by what margin, which values
+came from code versus the model. That is a product feature, not a debug tool — *"prove
+why it sent this user here"* is what a regulated adopter asks first.
+
+### 1.4 What it will do for an adopter
+
+**Build time, once** (WP-25):
+
+1. Point the generator at the app's **source** — at rung C1 that means a React Router 7
+   route config, its feature folders, and any nav manifest the app already keeps.
+2. It produces a **capability registry**: every destination and action, with a kind, a
+   route, typed params, ≥3 example utterances, and **declared boundaries** — what this
+   app deliberately does not do.
+3. It resolves **which roles may reach each destination**, and emits **one registry per
+   role** (Rule 17) — an unreachable capability is absent, not hidden.
+4. It **precomputes the embedding index** for each registry.
+5. Out comes a bundle shipped with the app.
+
+**Run time, per turn** (WP-24):
+
+1. **Stage 1, deterministic** — pattern match. ~2ms, in the browser, no network.
+2. **Stage 2, embedding** — cosine against the precomputed index. Milliseconds, in the
+   browser, **no model server and no network**. Declared refusals are caught here.
+3. **Stage 3, the model** — only for what 1 and 2 could not settle, against an endpoint
+   the adopter configures. Unavailable ⇒ it asks a question, never guesses.
+
+**This is the answer to "where does inference run."** The registry is static, so its
+embeddings are computed once and shipped. Most turns then cost nothing, work offline,
+and never send the visitor's words anywhere. It preserves
+[ADR-008](.claude/decisions/ADR-008.md)'s intent under a deployment ADR-008 never imagined.
+
+⚠️ **Both pieces already exist** — `codegen` precomputes the index, `HashingEmbedder` has
+no dependencies. WP-24 is wiring and hardening, not invention.
+
+### 1.5 The abstractions
+
+| | Abstraction | What it is | Where |
+|---|---|---|---|
+| 1 | **Capability** | The atom, and the integration contract. `id`, `kind`, `route`, typed params, ≥3 examples. One definition generates both the URL and the thing the router selects, so they cannot drift | `core-capability` |
+| 2 | **Kind** | `read` · `write` · `navigate` · `destructive` · `unsupported`, mapped by a policy table **in code**: read executes, write confirms, destructive confirms + undoes, unclassified **refuses**. Policy attaches to the kind, never to how the user arrived | `core-dispatch` |
+| 3 | **The registry** | The app's identity as data — and here, **the deliverable**. WP-25 generates it, WP-24 ships it, everything else consumes it. **One per role** (Rule 17), so "the registry" is really "the registry this user is entitled to" | `eval/registry.json` |
+| 4 | **The cascade** | Deterministic → embedding → model, cheapest first, with the model constrained to choosing an id from a shortlist of three. It never sees the full list | `core-intent` |
+| 5 | **Engine vs application** | `core-*` knows no subject matter. **This is now the product boundary** — an adopter's app sits exactly where `domain-modules` sits | Rule 1 |
+| 6 | **TurnTrace** | Every turn produces a record, including failures. `why` renders from it with no model. No field a model sentence can land in | `core-trace` |
+| 7 | **Declared explanation** *(WP-36 — does not exist)* | The answer to "what is this / what does this page do", **written at build time and served verbatim**, never generated per turn. Refusals already work this way (ADR-009); this extends the same move to "read and explain". It is what keeps rung A1 model-free | — |
+| 8 | **Guided step** *(WP-27 — does not exist)* | A route gets you to a page; a **step** tells you what to do there. The abstraction the product description needs and the codebase cannot express | — |
+
+### 1.6 The capability ladder
+
+**The full vision is all of this. The plan is to climb, not to leap.** Every rung below
+is wanted; the decision taken on 2026-09-09 is to ship rung 1 of each ladder, measure,
+and only then climb. Recorded here so deferred scope is *scheduled* rather than
+forgotten.
+
+**A rung is not started until the one below it is measured and its entry criterion is
+met.** That is the whole discipline — without it this becomes a two-year project.
+
+#### Ladder A — what the assistant knows
+
+| Rung | Scope | Entry criterion | WP |
+|---|---|---|---|
+| **A1 · now** | **Navigate · guide · explain, from the app's own source.** Page purposes, i18n labels, headings, form fields, repo docs. Plus `why` — explaining its own decisions from the trace. **Nothing outside the app's topic**, enforced by declared boundaries (ADR-009) | — | WP-25, WP-36, WP-27 |
+| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | A1 measured at ≥60% model-free (WP-33), and an adopter API exists to read | — |
+| **A3 · later** | **Both, fluidly** — a question answered from data *and* a route to act on it | A2 shipped and its permission model proven | — |
+
+⚠️ **A1's Q&A must stay model-free to keep the economics.** The mechanism is the same one
+that already works for refusals: **explanations are declared, not generated per turn.**
+The generator pre-writes an explanation per capability at build time; the runtime
+retrieves it by embedding and serves it verbatim. Only genuinely novel questions escalate
+to a model. Generating answers per turn would be a chat widget with our name on it, and
+would forfeit both the cost advantage and Rule 9.
+
+#### Ladder B — what the installed knowledge is
+
+| Rung | Scope | Entry criterion | WP |
+|---|---|---|---|
+| **B1 · now** | **Fixed at build time.** Registry and index generated when the adopter builds, shipped as static files, regenerated on each deploy. No server, no storage, no privacy surface, fully reproducible | — | WP-25, WP-24 |
+| **B2 · next** | **Build-time base + a feedback loop.** Traces of what users asked — and what failed — feed the next generation. This is the demand-intelligence asset in [business-case](.claude/docs/business-case.md) §3.1 and it compounds | B1 shipped; a hosted trace store and a GDPR position exist | — |
+| **B3 · later** | **Continuous runtime learning** | ⚠️ **Has a cost B2 does not**: it breaks reproducibility and auditability, which are the differentiators. Do not climb here without deciding what replaces "prove why it did that" | — |
+
+#### Ladder C — how it is delivered
+
+| Rung | Scope | Entry criterion | WP |
+|---|---|---|---|
+| **C1 · now** | **Installed by us into one real app** (`fut-app`) to produce a measurement | — | WP-33, WP-35 |
+| **C2 · next** | **An installable package the client adds to their own codebase** — requirement #1 of the product | A1/B1 measured and defensible | WP-26 |
+| **C3 · later** | **A script tag** for apps with no build step | C2 shipped | WP-29 |
+
+#### Not on any ladder yet
+
+| | Why | When |
+|---|---|---|
+| **Write or destructive capabilities** | Undo does not work (§4 defect 3), and nothing needs them yet | After WP-18, never before |
+| **Crawling a running site** | Source-reading was chosen precisely to avoid crawlers and auth walls | Only if a target demands it |
+| **Restyling the adopter's app** | It is an add-on, not a redesign (Rule 16) | Never |
 
 ---
 
 ## 2. Non-negotiable rules
 
-Any agent working in this repo must respect these. They are enforced by tests, ADRs,
-or package boundaries — breaking them is a defect, not a style choice.
+Enforced by tests, ADRs, or package boundaries — breaking one is a defect, not a style
+choice. Which are *actually* enforced is the register in
+[.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md); read it before
+trusting that something is protected.
+
+**These used to protect one app the author controlled. They now protect apps we do not
+control, in front of users we will never meet.**
 
 | # | Rule | Where it comes from |
 |---|---|---|
-| 1 | `packages/core-*` **never** imports `domain-finance`. Domains register into the engine. | [architecture.md](.claude/docs/architecture.md), enforced by pnpm workspace deps |
-| 2 | The model **never computes a number the user sees.** It phrases; code computes. | [ADR-003](.claude/decisions/ADR-003.md) — and a real bug caught by it, see §6 |
+| 1 | `packages/core-*` **never** imports an application package. Applications register into the engine. | [architecture.md](.claude/docs/architecture.md), enforced by `check-import-boundaries.mjs`. **Now the product boundary** |
+| 2 | The model **never computes a number the user sees.** It phrases; code computes. | [ADR-003](.claude/decisions/ADR-003.md) — and a real bug caught by it, §6 |
 | 3 | The model **never emits SQL** and never a raw route. It selects an id + typed slots. | [ADR-007](.claude/decisions/ADR-007.md) |
 | 4 | Every model-produced identifier is **validated against the registry** before use. | [ADR-003](.claude/decisions/ADR-003.md) |
 | 5 | Policy is **code in the dispatcher**, never prompt text. read→execute, write→confirm, destructive→confirm+undo, unclassified→**refuse**. | [ADR-004](.claude/decisions/ADR-004.md) |
-| 6 | Money is **integer minor units + currency code**. Never float. Not once. | [ADR-007](.claude/decisions/ADR-007.md) |
-| 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](.claude/decisions/ADR-005.md) |
-| 8 | **The device is the source of truth.** Nothing on the critical path requires network. | [ADR-008](.claude/decisions/ADR-008.md) |
+| 6 | Money is **integer minor units + currency code**. Never float. | [ADR-007](.claude/decisions/ADR-007.md) · [ADR-010](.claude/decisions/ADR-010.md). **Scope note:** governs `domain-finance` and `packages/data`, which still ship it. Not a rule of the navigation layer — but it becomes one the moment an adopter declares a capability carrying an amount, so it stays |
+| 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](.claude/decisions/ADR-005.md). **Now a promise to adopters** — installing this must not make any part of their site AI-only |
+| 8 | **Nothing on the critical path requires network.** | [ADR-008](.claude/decisions/ADR-008.md), re-read for this product: stages 1–2 always work in the browser; only escalation may need a network (§1.4) |
 | 9 | Every turn produces a **TurnTrace**. Explainability is a record, never model narration. | [architecture.md](.claude/docs/architecture.md), enforced by `core-trace` |
-| 10 | Every new capability ships with **≥3 examples** and golden-set entries. | [.claude/docs/coding-standards.md](.claude/docs/coding-standards.md) |
-| 11 | Deterministic slot values **always win** over model-extracted ones. | §6, learned the hard way |
+| 10 | Every capability ships with **≥3 examples** and golden-set entries. | [.claude/docs/coding-standards.md](.claude/docs/coding-standards.md), enforced by `pnpm registry:check`. **WP-25's generator must satisfy this mechanically** |
+| 11 | Deterministic slot values **always win** over model-extracted ones. | §6; enforced by nominal types |
 | 12 | A routing bug is not fixed until it is a **permanent golden-set entry**. | [.claude/sdlc/testing.md](.claude/sdlc/testing.md) |
-| 13 | The application's **limits are declared in the registry**, not left to the model to infer. | [ADR-009](.claude/decisions/ADR-009.md) |
-| 14 | Thresholds are **calibrated per encoder**, never hand-set and never copied between encoders. | Findings 1 and 11 — cost accuracy three times |
+| 13 | The application's **limits are declared in the registry**, not inferred by the model. | [ADR-009](.claude/decisions/ADR-009.md). The generator **synthesises** these; it never skips them |
+| 14 | Thresholds are **calibrated per encoder**, never hand-set or copied. | Findings 1 and 11; enforced by `check-thresholds.mjs`. **Now per adopter too** — margins are an artefact of the registry, and every app has a different one |
+| 15 | **An application's content is untrusted the moment it crosses into a prompt.** | [security.md](.claude/docs/security.md). **Now third-party page and component text we never reviewed** |
+| 16 | **The installer never modifies the adopter's source.** It reads their code and writes only new, additive artefacts — a registry, an index, a bundle. It is an add-on layer, and removing it must leave the app exactly as it was. | Decided 2026-09-09. A tool that edits a repo it does not own cannot be trusted, cannot be cleanly uninstalled, and turns every upgrade into a merge conflict |
+| 17 | **A capability the current user cannot reach is not in the registry they receive.** Not filtered at render — **absent**, so an unreachable route is never offered and its existence is never revealed. | Decided 2026-09-09, forced by `fut-app`'s role-gated routes. Shipping one registry to every role would leak the shape of the admin surface to a guardian. This is a security property, not a UX filter |
 
 ---
 
-## 3. Original blueprint → what actually happened
+## 3. Where the work stands
 
-Traceability against the founding prompt. Nothing here is aspirational — "Done" means
-verified on disk.
+### The pilot target — `fut-app`
 
-### Documentation & process
+**Chosen 2026-09-09**, replacing WeFitAll. Verified on disk the same day at
+`c:/Users/andre/Documents/GitHub/fut-app/frontend`.
 
-| Blueprint asked for | Status | Where |
-|---|---|---|
-| `.claude/` folder structure | ✅ Done | [.claude/](.claude/) — 27 files |
-| `project.md`, `vision.md`, `roadmap.md`, `architecture.md` | ✅ Done | [.claude/](.claude/) |
-| `coding-standards.md`, `ui-guidelines.md`, `security.md`, `testing.md`, `deployment.md` | ✅ Done | [.claude/](.claude/) |
-| `sdlc/` × 7 phase docs | ✅ Done | [.claude/sdlc/](.claude/sdlc/) |
-| `agents/` × 6 role briefs | ✅ Done | [.claude/roles/](.claude/roles/) |
-| `decisions/` ADR-001…003 | ✅ Done — **12 ADRs**, not 3 | [.claude/decisions/](.claude/decisions/) |
-| SDLC Phase 1 Planning (vision, roadmap, metrics, risks) | ✅ Done | [roadmap.md](.claude/docs/roadmap.md) |
-| SDLC Phase 2 Requirements (FR + NFR) | ✅ Done — IDs assigned, testable | [sdlc/requirements.md](.claude/sdlc/requirements.md) |
-| SDLC Phase 3 Design (ERD, sequence diagrams, nav flow) | ✅ Done | [sdlc/design.md](.claude/sdlc/design.md) |
-| SDLC Phase 4–7 (dev, test, deploy, maintain) | ✅ Documented, ⛔ not executed | [.claude/sdlc/](.claude/sdlc/) |
+| | |
+|---|---|
+| Stack | React 18 · **React Router 7** · Vite — the same adapter serves WeFitAll |
+| Size | **30 feature areas · 146 page components** — academy, squad, training, performance, competition, medical, nutrition, psychology, compliance, finance, guardian, tactics, video, … |
+| Access control | **Role-gated routes** — `ROUTE_ROLES`, `BackendRole` (STAFF, COACH, GUARDIAN, ADMIN). This forces **Rule 17** |
+| Generator input | `src/lib/deepLinks.ts` — a hand-maintained manifest of **36 routes with i18n labels, icons, roles and a written *reason* each**, plus `navConfigs` and a `navGate.test.ts` drift gate |
+| Language | Portuguese, via i18n keys |
+| Baseline to beat | **It already has a `CommandPalette`** |
 
-### Architecture — the five AI layers
+**Why this is the right target.** 146 pages across 30 features, multi-role, used
+occasionally by guardians and coaches who do not know the internal vocabulary — that is
+precisely the ICP in [business-case](.claude/docs/business-case.md) §2. It proves *value* as well
+as mechanism, which WeFitAll's 3 routes never could.
 
-| Layer | Blueprint | Status |
-|---|---|---|
-| 1 · Conversation (voice, text, history) | required | ◐ **Text built — WP-08/09.** Voice is WP-13 |
-| 2 · Intent Recognition | required | ✅ **Built & measured at 1B** — `packages/core-intent` |
-| 3 · Action (intent → execution) | required | ◐ **Dispatcher + policy built** — `core-dispatch`; query/undo impls in WP-04 |
-| 4 · Navigation (AI controls routing) | required | ✅ **Built** — `NavigationEngine`, routes generated from the registry |
-| 5 · Knowledge (domain intelligence) | required | ⛔ Not built — MVP 3 |
+**Two things it gives us for free.** `deepLinks.ts` and `navConfigs` are hand-written by
+a developer for an unrelated purpose, which makes them **unbiased partial ground truth**
+— better than a ground truth written to score a generator. And the existing
+`CommandPalette` is a **baseline to measure against**: *"does asking in your own words
+beat the command palette?"* is a far stronger claim than any absolute number.
 
-**Persistence** (not an AI layer, but everything above needs it): ✅ `packages/data` — schema, migrations, the fixed query set, undo journal, seeded fixtures.
+**WeFitAll is retained as a smoke test** — a 3-route single-page gym site with ~11 scroll
+sections. It answers "does the adapter still work on a trivial app", in about twenty
+minutes. It is not a value test and must never be reported as one.
 
-### Tech stack
+### What exists, and whether rung A1 can use it
 
-| Blueprint proposed | Decision | Why |
-|---|---|---|
-| Flutter + Riverpod + GoRouter | ❌ **Rejected** | [ADR-006](.claude/decisions/ADR-006.md) — no Dart experience; TS monorepo instead |
-| Drift / Isar | ❌ **Rejected** | [ADR-007](.claude/decisions/ADR-007.md) — Drizzle; SQLite reasoning kept. **Built in WP-04**, on `node:sqlite` |
-| Local-first, no backend | ⚠️ **Amended** | [ADR-008](.claude/decisions/ADR-008.md) — backend exists, device stays source of truth |
-| llama.cpp / ONNX inference | ✅ **Interface built — WP-06** | Ollama live; `llama.rn` / WebGPU declared, gated by WP-10 / WP-09 |
-| Whisper STT + Piper TTS | ✅ Accepted, ⛔ not built | |
-| Gemma 3 1B / Qwen 2.5 1.5B | ✅ **Tested — WP-01** | `qwen2.5:1.5b` selected; `gemma3:1b` rejected. [FINDINGS Part II](packages/core-intent/eval/FINDINGS.md) |
-| Registry-based AI navigation | ✅ **Built — WP-03** | `defineCapability()` + codegen; route and intent generated together |
+| Built | Reusable? |
+|---|---|
+| Three-stage cascade, calibration, thresholds | ✅ **after WP-16** removes the hardcoded finance framing |
+| Policy table and dispatcher | ✅ unchanged |
+| Declared boundaries / model-free refusal | ✅ and it is the core safety property |
+| Registry format, `defineCapability`, codegen, validation | ✅ it becomes the **integration contract** |
+| `TurnTrace` + `explain()` | ✅ and it becomes a selling feature |
+| `packages/ui` | ◐ needs to survive a host page's CSS (WP-35) |
+| `core-voice` | ◐ interfaces yes; the runtimes are desktop binaries, so a browser needs a different transport |
+| `core-inference` runtime seam | ✅ the seam is right; the browser transport is new (WP-24) |
+| `data`, `domain-modules`, `domain-finance` | ◐ **reference applications** now — the generator's ground truth |
+| `apps/cli`, `apps/web` | ◐ reference implementations |
 
-### MVP roadmap
+### What does not exist
 
-| | Blueprint scope | Status |
-|---|---|---|
-| **MVP 1** — prove AI navigation | chat, local LLM, intent, AI routing, finance CRUD | ✅ **Complete** — engine, data, trace, inference, domain, design system and web surface all built and wired |
-| **MVP 2** — voice + analytics | Whisper, Piper, spending analytics | 0% |
-| **MVP 3** — coaching + domain #2 | goals, predictions, second domain | 0% |
+The **generator** (WP-25), **declared explanations** (WP-36), the **browser runtime**
+(WP-24), **guided steps** (WP-27), the **installable package** (WP-26), and any
+measurement against a registry we did not write (WP-33).
+
+**Nothing that makes this a product exists yet.** The engine is built and it is good;
+the packaging, the generation and the evidence are all ahead. That asymmetry is the
+single most important thing to understand about this repo.
+
+### The five AI layers
+
+| Layer | Status |
+|---|---|
+| 1 · Conversation | ✅ text; voice built but never acceptance-tested (WP-21, deferred) |
+| 2 · Intent Recognition | ✅ built — but measured against a registry no longer loaded (WP-17) and still asserting it is a finance app (WP-16) |
+| 3 · Action | ✅ built. Rung A1 uses `read` + `navigate` only |
+| 4 · Navigation | ◐ **engine built, surface missing.** `NavigationEngine` resolves a route and refuses rather than emitting a broken URL — but **no browser navigation exists in the turn path**: `NextGenApp` sets `this.route`, the API echoes it, no client reads it. **For this product that is the main event**, closed by WP-35 |
+| 5 · Knowledge | ◐ WP-15, in the reference app |
+
+### Tests
+
+301 across 11 files, green 2026-09-08. `apps/web`, `packages/ui` and `services/api` have
+none.
+
+| Package | Tests | | Package | Tests |
+|---|---|---|---|---|
+| `core-intent` | 59 (2 files) | | `data` | 51 |
+| `domain-modules` | 38 (incl. WP-15 uncommitted) | | `domain-finance` | 34 |
+| `core-capability` | 30 | | `core-trace` | 28 |
+| `core-dispatch` | 26 | | `core-inference` | 18 |
+| `apps/cli` | 13 | | `core-voice` | 4 (asset store only) |
 
 ---
 
-## 4. What exists right now (verified)
+## 4. The tree, and what is broken in it
 
 ```
 NextGen_Interface/
-├── .claude/                       27 docs, 12 ADRs         ✅ COMPLETE
+├── .claude/docs/              26 docs + 12 ADRs + history.md + business-case.md
+│                     ⚠️ most prose still describes the pre-repositioning product (WP-11)
 ├── apps/
-│   ├── cli/                   TypeScript, strict        ✅ COMPOSITION ROOT
-│   │   └── src/               app · index · 10 tests — the whole stack, runnable
-│   ├── web/                   Next.js 15, React 19       ✅ ASSISTANT SURFACE (WP-09)
-│   │   ├── app/               layout · page · Assistant · api/{session,turn,confirm,navigate}
-│   │   └── lib/               engine (singleton + pending decisions) · render · store · wire
-│   ├── mobile/                EMPTY
-│   └── desktop/               EMPTY
+│   ├── cli/          ✅ COMPOSITION ROOT — 13 tests
+│   ├── web/          ✅ REFERENCE IMPLEMENTATION — ⚠️ 0 tests
+│   └── (no mobile/, no desktop/)      ⬜ WP-10, deferred
 ├── packages/
-│   ├── core-intent/           TypeScript, strict        ✅ IMPLEMENTED
-│   │   ├── src/               types · cascade · stages · embedder · slots · text · config · registry
-│   │   ├── src/*.test.ts      42 unit tests (dates · money · enums · rules)
-│   │   └── eval/              200-entry golden set · evaluate · calibrate · inspect · compare · 9 scorecards
-│   ├── core-capability/       TypeScript, strict        ✅ IMPLEMENTED
-│   │   └── src/               types · define · validate · codegen · audit · 30 tests
-│   ├── core-dispatch/         TypeScript, strict        ✅ IMPLEMENTED (new, WP-03)
-│   │   └── src/               policy · dispatcher · engines · 26 tests
-│   ├── core-trace/            TypeScript, strict        ✅ IMPLEMENTED
-│   │   └── src/               types · recorder · store · explain · 28 tests
-│   ├── core-inference/        TypeScript, strict        ✅ IMPLEMENTED (WP-06)
-│   ├── core-voice/            5 lines                  ⬜ scaffold
-│   ├── domain-finance/        TypeScript, strict        ✅ IMPLEMENTED
-│   │   ├── src/               capabilities · entities · events · use-cases · 34 tests
-│   │   └── generated/         routes.json · golden.generated.jsonl
-│   ├── data/                  TypeScript, strict        ✅ IMPLEMENTED
-│   │   └── src/               money · schema/{spec,sqlite,postgres} · migrate
-│   │                          repositories · query-engine · undo · fixtures · 43 tests
-│   └── ui/                    TypeScript, strict        ✅ DESIGN SYSTEM (WP-08)
-│       └── src/               tokens.css · ui.css · Sphere · Composer · Answer
-│                              ConfirmationCard · NavDrawer · TracePanel · types
-├── services/api/              4 lines                  ⬜ empty by design (ADR-008)
-├── infrastructure/            dirs only
-├── tooling/                   eslint-config · tsconfig
-└── PLAN.md                    this file
+│   ├── core-intent/      ✅ cascade · stages · embedder · slots · registry · 59 tests
+│   │                     ⚠️ stages.ts hardcodes finance — defect 1
+│   ├── core-capability/  ✅ define · validate · codegen (precomputes the index) · 30 tests
+│   ├── core-dispatch/    ✅ policy · dispatcher · engines · 26 tests
+│   ├── core-trace/       ✅ recorder · store · explain · 28 tests
+│   ├── core-inference/   ✅ runtimes · ModelStore · 18 tests — WebGpuRuntime throws by design
+│   ├── core-voice/       ✅ whisper · piper · assets · ⚠️ 4 tests, asset store only
+│   ├── domain-modules/   ◐ REFERENCE APP — 38 tests
+│   ├── domain-finance/   ◐ REFERENCE APP — 34 tests
+│   ├── data/             ✅ money · schema · repositories · query-engine · undo · 51 tests
+│   └── ui/               ✅ tokens · Sphere · Composer · ConfirmationCard · … ⚠️ 0 tests
+├── services/api/     6 lines, `export {}`   ⬜ empty by design (ADR-008)
+├── models/           voice/                 — gitignored, downloaded assets
+├── tooling/scripts/  check-import-boundaries · check-scorecard · check-thresholds
+└── PLAN.md · README.md · SETUP.md · CLAUDE.md
 ```
 
-**Toolchain:** Node 25.1.0 · pnpm 11.1.2 · git 2.51.2 · Ollama with `llama3.1:8b`,
-`qwen2.5:1.5b`, `gemma3:1b` + `nomic-embed-text`. All 15 workspace packages resolve.
+**Toolchain:** Node 25.1.0 · pnpm 11.1.2 · Ollama with `qwen2.5:1.5b`, `llama3.1:8b`,
+`qwen2.5vl:7b`, `nomic-embed-text`.
 
-### Known gaps in the scaffold itself
+### Live defects
 
-1. ~~**No package owns the dispatcher, action engine, navigation engine, or query
-   engine.**~~ ✅ **Fixed by WP-03** — `packages/core-dispatch` holds the ADR-004
-   policy table, `NavigationEngine`, and the `QueryEngine` / `UndoJournal`
-   interfaces. The query and undo implementations are WP-04.
-2. ~~**`core-intent` is JavaScript, not TypeScript.**~~ ✅ **Fixed by WP-02.** Ported
-   under `strict` with `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`;
-   Rules 4, 5 and 11 are now compile errors rather than review items. The `eval/`
-   harness stays `.js` and imports the `.ts` sources directly via Node's native type
-   stripping, so there is still no build step between changing the router and
-   measuring it.
-3. **Several `.claude/` docs contain Dart examples** — `coding-standards.md`,
-   `architecture.md`, `ui-guidelines.md`, and the agent briefs. The architecture they
-   describe is language-neutral and correct; only the syntax is stale. Fixed by
-   **WP-11**.
+| | Defect | Why it matters | Fixed by |
+|---|---|---|---|
+| **1** | **The stage-3 prompt hardcodes finance.** [stages.ts:213](packages/core-intent/src/stages.ts#L213) asserts *"This is a personal finance application…"* on every routing call; line 215 then says that if input is about finance but vague, pick the closest and **do not** refuse | **Fatal to the product** — the engine cannot serve arbitrary apps while asserting it is one specific app. **Demonstrated:** *"transfer 500 euros to my brother"* routed to `module.revert`, a destructive capability, instead of being refused. The policy gate held; nothing was deleted | **WP-16** |
+| **2** | **`llama3.1:8b` took >4 min to load, then timed out a turn** (2026-09-08) | Makes every §5 latency figure suspect and may make the reference app's capture path unusable locally | **WP-17** |
+| **3** | **Undo is unimplemented for the shipping reference app.** [undo.ts:103](packages/data/src/undo.ts#L103) returns *"no undo is defined for module.delete"* while the CLI says undo is available | Rule 5's destructive path is nominal. Contained only because no rung ships a write capability | **WP-18**, deferred |
+| **4** | **Generated golden fixtures are 0 bytes** in both reference apps; CI diffs them | An artefact that asserts nothing inside a gate. **Decide the example format before WP-25 generates examples at scale** | **WP-19**, deferred but ordered before WP-25 |
+
+### Dead weight — swept 2026-09-09
+
+A full repo sweep for ideas the plan no longer contains. **Verified, not suspected.**
+Removing the first three is WP-37 (§7.5); the rest need a decision, not a cleanup.
+
+| Item | Evidence | Verdict |
+|---|---|---|
+| `tooling/tsconfig` | `base.json` is **byte-identical** to the root `tsconfig.base.json`, and all **13** tsconfigs in the repo extend the root one. No package depends on it | **Dead — delete** |
+| `tooling/eslint-config` | Contains **only a `package.json`** — no `index.js`, no ESLint dependency, no dependents. The *absence of lint* is deliberate and documented; the empty package is not | **Dead — delete** |
+| `eval/scorecards/hashing-llama3.1_8b.txt` | **0 bytes**, tracked, sitting beside a real `.json`. Not recorded anywhere until now | **Dead — delete** |
+| `services/api` | 3 files, `src/index.ts` is `export {}`, zero dependents | **Decision, not cleanup** — [ADR-008](.claude/decisions/ADR-008.md) keeps a backend tier deliberately. WP-23 should say whether that survives the repositioning |
+| **`domain-finance` is orphaned** | **No workspace package depends on it.** `apps/cli` neither imports nor can register it — so the "swap the application and prove the engine is agnostic" test **is not currently executable** | **Blocks D-1 and WP-16.** Either wire it as a dev dependency of `apps/cli` so the swap test can exist, or retire it — but stop claiming it is registrable |
+| `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead.** WP-21 verifies it; a browser transport is unscoped work nobody has costed |
+| Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
+| `.claude/docs/roadmap.md` | Plans a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened. 7 Flutter mentions | **Dead — delete.** `docs/runbook` already does |
+| 7 product docs | `.claude/docs/vision.md` · `.claude/docs/project.md` · `.claude/docs/roadmap.md` · `SETUP.md` · `README.md` · `apps/web/README.md` · `packages/core-voice/README.md` all describe finance or a voiceless product; **none mentions the navigation layer** | **WP-11** |
+| `golden.generated.jsonl` ×2 | 0 bytes, and CI diffs them — `registry:check` reports "0 generated golden entries" every run | **WP-19** |
+| `apps/cli` → `@nextgen/core-capability` | Declared as a dependency, **never imported** in `apps/cli/src` | **Dead — drop the dependency.** Folded into WP-37 |
+
+**Checked and clean**, so nobody re-runs these: ADR-001 and ADR-002 are correctly marked
+SUPERSEDED and no other ADR status has drifted · all 13 tsconfigs extend one base ·
+**every non-index source file under `packages/*/src` is imported somewhere** (verified,
+not assumed) · **zero** TODO/FIXME/XXX/HACK comments in `packages`, `apps` or `tooling` ·
+every `package.json` script target exists · all 334 markdown links across the repo
+resolve, the only three failures being deliberate `ADR-0NN` placeholders in the
+`write-adr` template · `check-import-boundaries.mjs` and `check-thresholds.mjs` both
+green.
+
+⚠️ **The two dead `tooling/` packages are named in six `.claude/docs/` documents and pinned in
+`pnpm-lock.yaml`.** Deleting them is a coherent change — lockfile, workspace globs, six
+doc references — not a drive-by. That is why it is WP-37 and not a footnote.
+### Branch state
+
+| Branch | Ahead of `develop` | Carries |
+|---|---|---|
+| `develop` | — | everything through WP-14 |
+| `chore/claude-workflow` | 2 | `.claude/` workflow + hooks, `CLAUDE.md`, `check-thresholds.mjs`, `.claude/docs/critical-infrastructure.md`, the CI registry-drift fix |
+| `docs/plan-restructure` | 3 | this file, `.claude/docs/history.md`, `.claude/docs/business-case.md` — **you are here** |
+| `docs/runbook` | 2 | adds `RUNNING.md`; **deletes `SETUP.md` and `.claude/docs/roadmap.md`** — unmerged |
+| `feature/modules-knowledge-layer` | 0 | nothing — WP-15 is uncommitted in the working tree |
+
+⚠️ **`RUNNING.md` does not exist on this branch.** The operations doc here is
+[SETUP.md](SETUP.md), dated 2026-08-30 and describing the finance app.
 
 ---
 
 ## 5. Measured results — the router
 
 From [packages/core-intent/eval/FINDINGS.md](packages/core-intent/eval/FINDINGS.md).
-Reproduce with `pnpm router:eval`; compare models with `node eval/compare.js`.
 
-### Stage-3 model comparison — WP-01, the decisive run
+⚠️ **Treat this section as unreliable until WP-17 runs.** Every stage-3 number was
+measured in August against the *finance* registry, and a live session on 2026-09-08
+disagreed by two orders of magnitude:
 
-The question the whole architecture rested on: **can a phone-class model do stage-3
-work?** Answer: **yes, if it is `qwen2.5:1.5b` and not `gemma3:1b`.**
+| | §5 claims (Aug, finance) | Observed 2026-09-08 (modules, warm) |
+|---|---|---|
+| Stage-3 latency | **151ms p95** | **13.3s**, one turn timing out at 39.8s |
+| Deterministic stage | — | 2ms ✅ |
+| Declared refusal (stage 2, model-free) | — | 1.9s ✅ correct |
+| Param extraction | 98.2% exactness | failed to extract `topic` from a registry-derived utterance |
+
+**Either explanation matters and neither is known.** Nothing here should be quoted.
+
+### The model-free floor — the number that decides the product
+
+Stages 1+2 only, no LLM, modules registry, 81-entry golden set, 2026-08-31.
+
+| Gate | Target | Measured |
+|---|---|---|
+| Top-1 capability accuracy | ≥90% | **30.4%** |
+| Param exactness | ≥85% | 100.0% |
+| Ambiguous → clarify | ≥95% | 100.0% |
+| Out-of-scope detected | ≥95% | 66.7% |
+| Model-free resolution | ≥65% | 100.0% (of the subset resolved at all) |
+| Adversarial → destructive | 0 | 0 |
+
+**This is the most important table in the file.** WP-24 makes stages 1+2 the entire
+runtime for most turns, and
+[.claude/docs/business-case.md](.claude/docs/business-case.md) §5 shows the pricing model hinges on this
+rate. **30.4% top-1 is not yet a product.** Raising it is what WP-25's example synthesis
+is really for, and WP-33 is the measurement that decides whether the thesis survives.
+
+### Stage-3 model comparison — WP-01 (finance registry)
 
 | | `llama3.1:8b` | `qwen2.5:1.5b` | `gemma3:1b` |
 |---|---|---|---|
 | Top-1, direct+paraphrase | 90.0% | **84.0%** | 73.0% |
-| Top-1, whole corpus | 82.4% | 78.4% | 67.2% |
 | Out-of-scope detected | 85.0% | 30.0% | **0.0%** |
 | Turn latency p95 | 941ms | **151ms** | 375ms |
 | Safety violations | 0 | 0 | 0 |
 | Size | 4.9 GB | 986 MB | 815 MB |
 
-**The stop-criterion was not triggered.** Two results changed the plan, though — both are
-mechanisms that worked on the 8B and quietly stop working at 1B:
+Two mechanisms that work on the 8B and stop at 1B: **out-of-scope detection**, closed by
+[ADR-009](.claude/decisions/ADR-009.md)'s declared boundaries — the single most important
+mechanism for this product; and **`TAU_ACT_BY_KIND`**, which reads a signal small models
+do not produce (0.7% of calls on 1.5B). **Decision taken 2026-09-08: replace it with
+stage-2/stage-3 agreement, or delete it. Not left as a no-op that reads as a
+safeguard.** Folded into WP-17.
 
-- **No out-of-scope detection exists on target hardware.** Stage 2 cannot do it (either
-  encoder); stage 3 cannot at 1B. `gemma3:1b` never once emitted the sentinel in 140
-  constrained calls and answered "what is the capital of France" with `settings.currency`
-  at 0.95 confidence. Needs a model-independent mechanism — **new ADR, folded into WP-03**.
-- **`TAU_ACT_BY_KIND` no longer catches anything.** It held back 15.7% of stage-3 calls
-  on the 8B, 0.7% on `qwen2.5:1.5b`. Small models report high confidence unconditionally.
+Everything delegated to *structure* held on every model: the schema enum (0 hallucinated
+ids in ~1000 calls), registry validation, the policy table, deterministic-slot
+precedence, adversarial safety 20/20.
 
-Everything delegated to *structure* rather than model competence held on every model: the
-schema enum (0 hallucinated ids in ~1000 calls), registry validation, the ADR-004 policy
-table, deterministic-slot precedence, and adversarial safety at 20/20.
-
-### The 8B harness baseline
-
-| Gate | Target | Measured | |
-|---|---|---|---|
-| Top-1 capability accuracy | ≥90% | 82.4% | ❌ |
-| Param exactness | ≥85% | 98.3% | ✅ |
-| Ambiguous → clarify | ≥95% | 43.3% | ❌ * |
-| Out-of-scope detected | ≥95% | 90.0% | ❌ |
-| Model-free resolution | ≥65% | 30.0% | ❌ * |
-| Adversarial → destructive | 0 | **0** | ✅ |
-| Turn latency p95 | <2000ms | 964ms | ✅ ** |
-
-\* Both are depressed by test-design artefacts, not only by router quality — see
-FINDINGS §"What the number actually means". The golden set is deliberately 35%
-un-resolvable-before-stage-3, and the ambiguous bucket conflates two different
-requirements.
-\*\* Desktop, 8B model. Says nothing about phone-class inference. WP-01 measured that
-separately, above.
-
-These are the numbers from the original harness run. A same-config re-run during WP-01
-gave 82.4% / 98.3% / 46.7% / **85.0%** / 30.0% / 0 / **941ms** — identical on four gates,
-one entry apart on the other two. That variance is real and is Finding 10; do not read any
-single run as exact.
+**The gates are not deterministic** — two identical 8B runs at temperature 0 flipped 7 of
+200 entries (Finding 10). Never gate CI on scorecard equality.
 
 ---
 
-## 6. Bugs already found and fixed — do not reintroduce these
+## 6. Bugs and findings already logged — do not reintroduce these
 
-| Bug | Symptom | Fix | Lesson |
+| Bug / finding | Symptom | Fix | Lesson |
 |---|---|---|---|
 | `tauHigh` guessed at 0.62; TF-IDF cosine maxes at 0.572 | Every turn escalated; 10.4% accuracy | Calibrate per encoder | **Thresholds are an artefact of the encoder, never a constant** |
-| Param spread order reversed | Model answered "last month" as *30 days back*, overwrote correct calendar month | `{ ...model, ...deterministic }` | Rule 11. Enforce with types, not convention |
-| `forbidKinds` asserted on utterances that genuinely request deletion | 3 false safety violations | Split assertion: gate-holds vs never-selected | Test design is part of the system |
-| Stage-2 `tauFloor` used for out-of-scope | No feasible operating point on **either** encoder | `__out_of_scope__` sentinel at stage 3 | Domain membership is semantic, not lexical |
+| Param spread order reversed | "last month" read as *30 days back*, overwriting the correct calendar month | `{ ...model, ...deterministic }` | Rule 11. Enforce with types, not convention |
+| `forbidKinds` asserted on utterances that genuinely request deletion | 3 false safety violations | Split: gate-holds vs never-selected | Test design is part of the system |
+| Stage-2 `tauFloor` used for out-of-scope | No feasible operating point on either encoder | Declared boundaries (ADR-009) | Domain membership is semantic, not lexical |
+| `fromMajorUnits` used `Math.round(value * 100)` | `1.005 * 100` is `100.49999999999999` — a cent short; `+ EPSILON` does not save it | Parse the decimal **string** digit by digit | Float error is relative to the value's scale, not to 1 |
+| Cascade fixture inherited production `boundaryMargin` | False refusal on a 5-capability toy registry — every real capability scored 0.000 | Calibrate per registry | **`boundaryMargin` is an artefact of the registry too.** Every adopter needs their own calibration — now a product requirement (Rule 14) |
+| WP-14: `body` after `title`/`summary` in the extraction schema | Model returned a bare 24-char header for a multi-section document — schema-valid, useless | Put `body` **first**; output went to 1056 chars | **Field order in a schema is not cosmetic** — small models are lazy about long fields ordered last |
+| WP-14: system prompt stacked several instructions | Laziness recurred once instructions competed | One instruction alone; the rest into field `description`s | Attention degrades with each instruction sharing the message |
+| WP-14: capture inherited the router's 200-token budget | A document truncated to a one-line blurb regardless of wording | `CONTENT_MAX_TOKENS = 1600` | A budget sized for routing is not sized for writing |
+| WP-14: `calibrate.js` filtered on `expect.capability` | Silently skipped the `ambiguous` bucket; a margin of 0 passed because nothing checked it | Filter on the bucket, not the field | **A validation that silently matches nothing reports success** |
+| 2026-09-08: hardcoded finance framing in the stage-3 prompt | *"transfer 500 euros to my brother"* routed to `module.revert` rather than refused | WP-16 | A prompt asserting the wrong identity produces confidently wrong routing that looks like a model failure |
 
 ---
 
 ## 7. Work packages
 
-Ordered by dependency. **WP-01 first** — it can invalidate the architecture.
+Completed packages WP-01…WP-09 and WP-12…WP-14 are in
+[.claude/docs/history.md](.claude/docs/history.md).
 
 ---
 
-### WP-01 · Validate a 1B model ✅ **COMPLETE — 2026-08-29**
-
-**Goal:** Determine whether a phone-class model can do stage-3 work at all.
-
-**Outcome: it can.** `qwen2.5:1.5b` at `topK: 3` reaches **84–86% top-1** on
-direct+paraphrase against the 8B's 90%, runs **6× faster** (151ms p95 vs 941ms), and
-records zero safety violations. The stop-criterion (<~70% ⇒ redesign) was not triggered.
-`gemma3:1b` was tested and **rejected**: 73%, and it never emits the out-of-scope
-sentinel.
-
-**Delivered**
-- Scorecards for both 1B models, plus a same-session 8B baseline, in
-  [eval/scorecards/](packages/core-intent/eval/scorecards/)
-- [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) — Findings 7–10
-- [ADR-003](.claude/decisions/ADR-003.md) status: provisional → **Accepted**, with three
-  claims amended inline
-- `eval/compare.js` — side-by-side scorecard comparison; `--topk=<n>` flag on the
-  evaluator; per-bucket top-1, per-bucket stage-3 latency and stage-3 health counters
-  added to the scorecard
-
-**What it changed for everything downstream**
-
-Two mechanisms this plan assumed were working are model-dependent and stop working at 1B.
-Neither blocks WP-02; both must be closed before MVP 1 ships.
-
-1. **Out-of-scope detection does not exist on target hardware** (Finding 7). Stage 2
-   cannot do it with either encoder; stage 3 cannot at 1B. Needs a mechanism that does not
-   depend on model capability — a fitted stage-2 rejection classifier over (top score,
-   margin, entropy), a dedicated binary in-domain classifier, or accepting misroutes and
-   making recovery trivial in the UI. **Choose in WP-03 and write the ADR.**
-2. **`TAU_ACT_BY_KIND` reads a signal small models do not produce** (Finding 8). Replace
-   self-reported confidence with something the model cannot inflate — stage-2 margin, or
-   stage-2/stage-3 agreement. **Fold into WP-02's type work and WP-03's dispatcher.**
-
-Also learned, and load-bearing for WP-12: **the gates are not deterministic.** Two
-identical 8B runs at temperature 0 flipped 7 of 200 entries. CI must gate on tolerances,
-not exact scorecard equality (Finding 10).
+## 7.1 · M0 — Foundation: clear the decks
 
 ---
 
-### WP-02 · Port `core-intent` to TypeScript ✅ **COMPLETE — 2026-08-29**
+### WP-23 · ADR-013, the repositioning ⬜ · **S** · queue 1 · **D-1**
 
-**Goal:** The engine was the one untyped package. Types are the enforcement mechanism
-for Rules 4, 5 and 11.
+**Goal.** Put this repositioning in [.claude/decisions/](.claude/decisions/), where an agent that
+reads the ADR directory instead of `git log` will find it.
 
-**Outcome:** ported under `strict`, `noUncheckedIndexedAccess` and
-`exactOptionalPropertyTypes`. `pnpm -r typecheck` and `pnpm -r test` are both green
-across all 11 workspace packages.
+**Preconditions.** D-1 answered.
 
-**The point of the exercise — three rules that are now compile errors**
+**Do this.** Write ADR-013 with the [write-adr](.claude/skills/write-adr/SKILL.md) skill,
+covering: the WP-14 domain pivot (superseded), this repositioning, D-1's answer on the
+reference apps, what ADR-008 now means (§1.4), and the reversibility test.
 
-```
-error TS2345: Argument of type 'DeterministicParams' is not assignable to
-parameter of type 'ModelParams'.
-```
+**Acceptance.**
+- [ ] ADR-013 exists in house format and supersedes nothing silently
+- [ ] It states what Rule 8 means for a browser deployment rather than leaving it broken
+- [ ] §1 of this file and ADR-013 do not disagree
 
-That is what you get for writing the merge backwards. `mergeParams(model, deterministic)`
-takes two distinct nominal types, so **Rule 11 has exactly one spelling that compiles**.
-Verified by deliberately reintroducing the original bug — the one that cost 44 points of
-param exactness and passed review — and confirming it no longer builds.
+**Stop if.** Writing it reveals the repositioning cannot be reconciled with ADR-005 or
+ADR-008 — then the conflict is the finding, and resolve it before any M1 work.
 
-- **Rule 5** — `Capability.kind` is typed `string`, *not* `CapabilityKind`, because the
-  registry is data. Narrowing at the boundary would have made ADR-004's "unclassified →
-  refuse" path unreachable code and silently deleted the check. `isCapabilityKind()`
-  narrows at the point of use instead.
-- **Rule 4** — stage 3 returns a capability id only after a registry lookup; an unknown
-  id becomes `hallucinatedId` and can never become a route.
+---
 
-**Also done**
+### WP-15 · Land the knowledge layer ◐ **uncommitted** · **S** · queue 2
 
-- `src/types.ts`: `Utterance`, `ScreenContext`, `Capability`, `ParamSpec`,
-  `CapabilityKind`, `TurnTrace`, and the `Outcome` discriminated union from
-  architecture.md (`Navigate | Answer | Perform | Clarify | OutOfScope`) with
-  `toOutcome()` as the single place the kind → outcome mapping is written down. The
-  dispatcher that consumes it is WP-03.
-- Stage-3 confidence renamed **`selfReportedConfidence`** throughout. It is not a
-  calibrated probability and at 1B it is nearly a constant (Finding 8); the type should
-  not imply otherwise.
-- 42 vitest unit tests for `slots.ts` — month boundaries, leap years, DST transitions,
-  ISO weeks, number words, currency, integer-minor-unit invariants, enum roll-up and
-  longest-match, plus Rules 5 and 11 directly.
-- `package.json`: `test` is now vitest, and the golden-set floor moved to `eval:floor`.
-  A `test` script that always exits 1 by design is a `test` script people stop reading.
-  **`pnpm router:eval` now defaults to `qwen2.5:1.5b --topk=3`** — the model WP-01
-  selected — with `router:baseline` keeping the 8B for comparison.
+**Goal.** Get WP-15 out of the working tree. It is a reference-app feature now; its value
+is that it stops being at risk in a checkout other sessions write to.
 
-**Acceptance — met**
+**Preconditions.** None.
 
-- `pnpm --filter @nextgen/core-intent typecheck` passes under `strict` ✅
-- `pnpm router:floor` produces a scorecard **byte-identical** to the pre-port run:
-  same gates, same buckets, same stage mix, all 96 failure records unchanged ✅
-- Stage-3 path re-verified on `qwen2.5:1.5b`: 80.0% top-1, 98.2% param exactness,
-  40.0% out-of-scope, 0 safety violations, 145ms p95 — every figure matching the
-  pre-port run within the ±1-entry noise band Finding 10 documents ✅
+**Do this.** `relatedModules()` and the body-inclusive corpus are already written. Run the
+gates, add the missing test, commit explicit paths.
 
-> **On "identical scorecard numbers":** only `--embedder=hashing --no-stage3` is
-> genuinely deterministic, and that is the run used as the regression net. Any run that
-> invokes a model cannot be byte-compared — Finding 10 measured 7 of 200 entries
-> flipping between two identical 8B runs. Do not read a one-entry bucket change after a
-> refactor as a regression.
+**Acceptance.**
+- [ ] `pnpm -r typecheck`, `pnpm -r test`, `pnpm registry:check`, `check-import-boundaries.mjs` all green
+- [ ] `CORPUS_BODY_CHARS` truncation asserted by a test, not only a comment
+- [ ] Committed; the commit message notes that no registry or golden-set change was needed
+- [ ] Working tree clean of WP-15 files
 
-**Three defects the unit tests found, all in `resolveMoney`, all left as decisions**
+**Stop if.** The gates fail for a reason that predates WP-15 — fix that first, separately.
 
-Money semantics belong to the domain, not to a domain-agnostic router, so these are
-pinned by tests and marked `DECISION OWED` rather than fixed here:
+---
 
-| Input | Result | Problem |
+### WP-16 · De-finance the stage-3 prompt ⬜ · **M** · queue 3 · **D-2** · fixes defect 1
+
+**Goal.** Remove the last application knowledge from `core-*`. **This is fatal, not
+cosmetic** — §5 shows it already causes misroutes, and the product cannot serve arbitrary
+apps while the engine claims to be a finance tracker.
+
+**Preconditions.** D-2 answered. WP-17's baseline exists, or run it first.
+
+**Do this.** Add the application description to the registry (or to `Stage3Options`, per
+D-2), have both reference apps supply their own, and delete the hardcoded strings at
+[stages.ts:213-215](packages/core-intent/src/stages.ts#L213).
+
+**Acceptance.**
+- [ ] `grep -rin "finance\|transaction\|budget" packages/core-intent/src/` returns nothing outside comments and fixtures
+- [ ] Swapping the registered application changes **zero** lines in any `core-*` package — asserted by a test that swaps the registry and inspects the generated prompt
+- [ ] *"transfer 500 euros to my brother"* against the modules registry is **refused**, added as a permanent golden-set entry (Rule 12)
+- [ ] Accuracy not regressed against WP-17's baseline, within Finding 10's tolerance
+
+**Stop if.** Removing the description drops top-1 by more than the tolerance — then the
+prompt was carrying real signal, and the generator (WP-25) must synthesise an equivalent
+description per app. That is a finding, not a failure.
+
+---
+
+### WP-17 · Re-measure the router honestly ⬜ · **S** · queue 4
+
+**Goal.** Make §5 true. It currently mixes August finance-registry numbers with a live
+session that disagreed by two orders of magnitude.
+
+**Preconditions.** Ollama running; **models warmed** (§10).
+
+**Do this.** Run `router:eval` and `router:baseline` against the modules registry,
+sequentially, warm. Commit scorecards. Investigate the 151ms ↔ 13.3s gap and
+`llama3.1:8b`'s load time. Resolve `TAU_ACT_BY_KIND` (§5) — replace with stage-2/3
+agreement or delete it.
+
+**Acceptance.**
+- [ ] Scorecards committed; `check-thresholds.mjs` green
+- [ ] **The latency discrepancy explained**, not averaged away
+- [ ] Defect 2 (`llama3.1:8b` load time) recorded with a cause
+- [ ] `TAU_ACT_BY_KIND` either reads a signal the model cannot inflate, or is gone
+- [ ] §5 rewritten around the new numbers
+
+**Stop if.** Stage-3 latency is genuinely >5s on target hardware — then stage 3 is not
+viable in a live UI, the model-free rate becomes the *only* thing that matters, and M1's
+targets must be raised before proceeding.
+
+---
+
+## 7.2 · M1 — The measured result (first artefact)
+
+> **The milestone question: can a usable, role-scoped registry be generated from
+> `fut-app`'s source, and what fraction of real questions does it resolve with no model
+> call — against the CommandPalette that app already has?**
+>
+> Everything in M1 exists to answer that. Nothing in M1 is a product.
+
+---
+
+### WP-31 · Ground truth for `fut-app` ⬜ · **M** · queue 5
+
+**Goal.** You cannot score a generator without knowing the right answer. Assemble the
+registry a careful developer would produce for `fut-app`.
+
+**Preconditions.** None. **Do this before WP-30**, so the spike is scored against
+something written independently of it.
+
+**Do this.** Do *not* hand-write 146 pages. Three sources, in this order:
+
+1. **`src/lib/deepLinks.ts`** — 36 entries with i18n labels, icons, roles and a written
+   reason each. Hand-maintained by a developer for an unrelated purpose, which makes it
+   **unbiased** ground truth, better than anything written to score a test.
+2. **`navConfigs`** — the per-role navigation trees. Together with (1) these cover the
+   intended information architecture, and `navGate.test.ts` already asserts they are
+   complete.
+3. **A hand-written sample of three feature areas** (~20 pages) chosen for contrast —
+   one simple, one role-gated, one deep. This is where examples, params and boundaries
+   get written by hand.
+
+Declare ≥2 `unsupported` boundaries. Write examples in the words a **guardian or coach**
+would use, in Portuguese and English — not the developer's vocabulary.
+
+**Acceptance.**
+- [ ] Passes `pnpm registry:check`
+- [ ] Covers all 36 deep-link routes plus the three sampled feature areas
+- [ ] **Role-scoped**: each capability carries the roles that may reach it (Rule 17)
+- [ ] ≥3 examples per capability in the sampled areas; ≥2 boundaries
+- [ ] Written **before** looking at any generator output
+- [ ] Notes which capabilities need live data and are therefore **Ladder A2**, not A1
+
+**Stop if.** `deepLinks.ts` and `navConfigs` turn out to be stale against the router —
+then the app's own IA is drifting, and that is a finding worth reporting to the app's
+owner before measuring anything against it.
+
+---
+
+### WP-30 · Generator spike ⬜ · **S, TIMEBOXED to one session** · queue 6 · **GO/NO-GO**
+
+**Goal.** Find out whether the premise is feasible **before** building anything.
+Throwaway code, deliberately.
+
+**Preconditions.** WP-16 landed. WP-31 exists.
+
+**Do this.** A script that reads `fut-app/frontend/src` — `lib/deepLinks.ts`, the
+`navConfigs`, `features/*/pages/*Page.tsx`, and the i18n label files — and emits a draft
+registry: destinations, a `kind`, roles, and three example utterances each. Use
+`llama3.1:8b` for the language parts. Do not integrate it, do not generalise it, do not
+clean it up.
+
+**Acceptance.**
+- [ ] A draft registry exists for `fut-app`
+- [ ] Scored against WP-31: **precision and recall recorded**
+- [ ] Scored separately on the 36 deep-link routes, where ground truth is exact
+- [ ] A written verdict: what it got right, what it invented, what it missed
+- [ ] A note on whether roles were extracted correctly — a role error is a Rule 17
+      violation, not a quality issue
+
+**Stop if.** Precision or recall **below 70%** after one session, **or any role
+mis-assignment at all**. Then "fully automatic" is dead as a promise — fall back to
+*generated draft + developer edit*, record it in
+[.claude/docs/business-case.md](.claude/docs/business-case.md) §8, and re-scope WP-25 before writing a
+line of it.
+
+---
+
+### WP-25 · The registry generator ⬜ · **L** · queue 7
+
+**Goal.** The real thing: read an app's source, emit a valid **role-scoped** registry,
+no human step.
+
+**Preconditions.** WP-30 passed GO/NO-GO. WP-31 exists. **WP-19's example format
+decided** — do not generate examples at scale into a format about to change.
+
+**Do this — the eight pieces.**
+
+1. **Route discovery** — React Router 7 route config, plus `deepLinks.ts` and
+   `navConfigs` where an app has them (they are a far richer signal than JSX)
+2. **Feature-folder discovery** — `features/*/pages/*Page.tsx` is the real IA in this
+   codebase, and route paths alone under-describe it
+3. **Purpose understanding** — what each destination is *for*, from headings, i18n
+   labels, page copy and component names
+4. **Role extraction** — which roles may reach each route (**Rule 17**)
+5. **Capability synthesis** — id, `kind`, route, typed params
+6. **Example synthesis** — ≥3 natural utterances each, in the end user's vocabulary and
+   the app's language (Rule 10)
+7. **Boundary synthesis** — what the app deliberately does not do (Rule 13, ADR-009)
+8. **Calibration** — per-registry thresholds (Rule 14), and **per role-scoped registry**,
+   since each role sees a different corpus
+
+**Decided 2026-09-08 (was D-4):** anything not confidently `read` or `navigate` is
+**omitted**, never guessed into a dangerous kind. A missing capability degrades safely —
+Rule 7 guarantees the app still works. A wrongly declared one sends users confidently to
+the wrong place. The generator emits a **report** of what it skipped and why.
+
+**Acceptance.**
+- [ ] Output passes `pnpm registry:check` unmodified
+- [ ] **Precision and recall against WP-31 recorded** — the only honest quality measure
+- [ ] Also run against `domain-finance` and `domain-modules`, and against WeFitAll as a
+      smoke test
+- [ ] **Rule 17 holds**: a GUARDIAN's registry contains no ADMIN-only capability, proven
+      by a test that diffs two role registries
+- [ ] **Rule 16 holds**: a test asserts the generator writes nothing inside the target
+      repo's existing files — `git status` in the target is clean but for new artefacts
+- [ ] ≥2 boundary entries; refusal proven model-free against them
+- [ ] Deterministic: same source ⇒ same registry, or the diff is explainable
+- [ ] Skipped-capability report exists and is legible
+- [ ] **The format accommodates a Ladder A2 data capability** without redesign —
+      demonstrated by sketching one against `fut-app`'s backend, not by building it
+
+**Stop if.** Recall stays below 70% after the L budget, or role extraction is ever
+wrong, or generation is non-deterministic in ways that cannot be explained. Then the
+honest product is *generated draft + developer edit*, and
+[business-case](.claude/docs/business-case.md) A1 has failed.
+
+---
+
+### WP-36 · Declared explanations — Ladder A1's "read and explain" ⬜ · **M** · queue 8
+
+**Goal.** *"What is a training cycle?"*, *"What does this page do?"*, *"Where do I record
+an injury?"* — answered about **this app and nothing else**.
+
+**Preconditions.** WP-25.
+
+**The mechanism, and why it is not a chat widget.** **Explanations are declared, not
+generated per turn** — the same move ADR-009 made for refusals. At build time the
+generator pre-writes a short explanation per capability from the app's own source and
+docs. At run time the assistant retrieves it by embedding and serves it **verbatim**.
+That keeps it model-free, reproducible, auditable, and consistent with Rule 9. Only
+genuinely novel questions escalate to a model.
+
+⚠️ **Generating answers per turn would forfeit the entire cost advantage and make this a
+chat widget with our name on it.** Do not.
+
+**Do this.** Extend the capability format with an `explanation` field. Generate it from
+page copy, i18n strings, headings and repo docs (`fut-app` has `PRODUCT.md`,
+`COMPONENT_LIBRARY.md`, `TUTORIAL_SYSTEM_PLAN.md`). Retrieve and serve it.
+
+**Acceptance.**
+- [ ] Every capability carries a declared explanation; `registry:check` enforces it
+- [ ] An explanation request resolves **model-free** and is served verbatim
+- [ ] Off-topic questions are refused by declared boundaries, not by a model
+- [ ] Rule 15: source text reaching a prompt at build time is treated as untrusted, and
+      a prompt-injection attempt in a page string cannot alter a generated explanation
+- [ ] The explanation is traceable to its source file, so a wrong answer is fixable
+
+**Stop if.** Declared explanations answer fewer than half the golden set's "what/why"
+questions — then A1's Q&A needs runtime generation, the economics change, and that is a
+decision to take deliberately rather than drift into.
+
+---
+
+### WP-32 · Golden set, and the CommandPalette baseline ⬜ · **M** · queue 9
+
+**Goal.** Measure against questions we did not invent, **and against the incumbent**.
+`fut-app` already has a CommandPalette — the thing this product competes with — which
+makes a comparison possible that almost no product gets to run.
+
+**Preconditions.** WP-31.
+
+**Do this.** Collect ≥80 questions a real guardian, coach or staff member would ask, in
+their words, mostly in Portuguese. Sources in order of preference: real support messages
+if any exist; questions from people who have never seen the app; questions generated by
+a model *from the app's rendered copy* then filtered by hand. Record provenance per
+entry. Then run each one through the **existing CommandPalette** and record whether it
+finds the right destination.
+
+**Acceptance.**
+- [ ] ≥80 entries with expected capability or outcome, **tagged by role**
+- [ ] Provenance recorded; **no entry written by whoever wrote the registry**
+- [ ] ≥15% out-of-scope, ≥20% "what/why" questions for WP-36, majority Portuguese
+- [ ] **CommandPalette result recorded per entry** — this is the baseline
+- [ ] Committed as a golden set the evaluator can run
+
+**Stop if.** The only available source is model-generated questions from the app's own
+copy — then the measurement is partly circular and WP-33 must say so prominently.
+
+---
+
+### WP-33 · The measurement ⬜ · **S** · queue 10 · **THE ARTEFACT**
+
+**Goal.** One defensible sentence: *"On a 146-page app I did not design for this, X% of
+real user questions resolved with no model call, at Y ms — against Z% for the app's
+existing command palette."*
+
+**Preconditions.** WP-25, WP-36, WP-32, models warmed.
+
+**Do this.** Run the cascade over WP-32's golden set with WP-25's generated registry.
+Report model-free rate, top-1, out-of-scope recall, explanation coverage, latency per
+stage — **per role**. Then run it twice more: with WP-31's hand-written ground truth, and
+against the CommandPalette baseline.
+
+**The three numbers that matter:**
+
+| | Number | Why |
 |---|---|---|
-| `"-50"` | `+5000` | Leading minus silently dropped — a refund is indistinguishable from a charge |
-| `"minus 50 euros"` | `+5000` | `"minus"` is not a number word |
-| `"convert 50 euros to dollars"` | `EUR` | First currency wins by declaration order, with no signal to the caller |
-| `"12.345"` | `1234` | Truncated, not rounded |
+| 1 | **Model-free resolution rate** | The economics ([business-case](.claude/docs/business-case.md) §5) |
+| 2 | **Generated vs hand-written gap** | The cost of automation — the most interesting number in the project |
+| 3 | **Assistant vs CommandPalette** | Whether this beats the incumbent it replaces |
 
-None is exercised by the golden set, which is why they survived. **Owed by WP-04** (which
-defines the money column) and **WP-07** (which defines what a transaction amount means).
+**Acceptance.**
+- [ ] All three runs committed as scorecards
+- [ ] All three numbers stated explicitly, per role
+- [ ] Latency per stage, models warmed, run sequentially
+- [ ] Failures categorised: bad declaration, bad example, bad threshold, or genuinely hard
+- [ ] §5 and [business-case](.claude/docs/business-case.md) §6 updated with the real numbers
+
+**Stop if.** Model-free resolution is **below 60%**, or the assistant does not beat the
+CommandPalette. The first kills the cost argument; the second kills the reason to adopt
+at all. Either way **write the number down** — a negative result here is a real finding
+and a publishable one.
+
+## 7.3 · M2 — The write-up (second artefact)
+
+### WP-34 · Architecture and findings write-up ⬜ · **M** · queue 11
+
+**Goal.** The portfolio piece. Cheap, fully under your control, and it forces you to
+state what you actually proved.
+
+**Preconditions.** WP-33.
+
+**Do this.** Write up: the registry-as-contract thesis; declared boundaries outperforming
+model refusal *in proportion to model weakness*; thresholds as an artefact of the
+registry; schema field order changing extraction quality; and WP-33's numbers including
+the automation gap.
+
+**Acceptance.**
+- [ ] Every claim traceable to a committed scorecard or a test
+- [ ] Negative results included — 30.4% floor, the latency discrepancy, the automation gap
+- [ ] Someone who has not seen the repo can follow it
+- [ ] Links to `.claude/docs/history.md` for the reasoning behind each mechanism
+
+**Stop if.** Writing it reveals a claim that cannot be traced to evidence — remove the
+claim, or go and measure it.
 
 ---
 
-### WP-03 · `core-capability` + `core-dispatch` ✅ **COMPLETE — 2026-08-29**
+## 7.4 · M3 — The live demo (third artefact)
 
-**Goal:** The contract between engine and domains, and a home for the dispatcher.
+> Only start M3 if WP-33's numbers justify it. A deployed demo of a thing that resolves
+> 30% of questions is worse than no demo.
 
-**Built**
+### WP-24 · Ship stages 1+2 to the browser ⬜ · **L** · queue 12
 
-- **`packages/core-capability`** — `defineCapability()` / `defineBoundary()` /
-  `defineRegistry()`; the registry validator; codegen; `similarityAudit()` promoted
-  here from `core-intent`. Depends on nothing else in the workspace.
-- **`packages/core-dispatch`** (new package, closes scaffold gap #1) — the ADR-004
-  policy table as code, `NavigationEngine`, and the `QueryEngine` / `UndoJournal`
-  interfaces WP-04 implements.
-- **`packages/domain-finance/src/capabilities.ts`** — the 20 finance capabilities as
-  real definitions, plus 7 declared limits. `pnpm registry:build` generates
-  `eval/registry.json`, `routes.json` and golden fixtures from it.
+**Goal.** Make the common path free: precomputed index, deterministic + embedding
+matching in the browser, no network.
 
-**One definition, four artefacts.** `capabilityDocument()` is the piece that matters:
-it is the exact text stage 2 embeds, and both the runtime loader and the codegen call
-it. Previously the loader built that string inline, so any precomputed embedding index
-would have had to reimplement it and hope.
+**Preconditions.** WP-33 met its bar.
 
-**ADR-009 — out-of-scope is declared, not judged**
+**Do this.** Emit the precomputed index from codegen, version it, load it in the runtime
+instead of embedding at startup (open since WP-03). Make stage-3 escalation an injectable
+transport.
 
-This is the substantial part, and it closes the largest risk WP-01 opened.
+**Acceptance.**
+- [ ] Stages 1+2 run in a browser with **zero** network calls — a test fails if any request is made
+- [ ] Bundle size measured and stated at 10, 50 and 200 capabilities
+- [ ] Absent stage-3 transport degrades to "ask a question", never to a guess
+- [ ] Thresholds calibrated per registry and shipped with the bundle (Rule 14)
+- [ ] Browser model-free rate matches the Node figure from WP-33
 
-Before choosing, the obvious alternative was measured: Finding 2 had concluded "stage 2
-cannot detect out-of-scope" from *a single scalar cut on the top score*. Sweeping five
-features (top, margin, mean, entropy, spread) reached **20% recall** — the conclusion
-survives the stronger test, and the distributions show why it is not a matter of a
-better boundary:
+**Stop if.** The bundle exceeds ~500KB gzipped at 50 capabilities — then the index needs
+quantising or the embedder needs changing, and that is the work before anything else.
 
-| Utterance | | Top score |
-|---|---|---|
-| "what's my credit score" | out of scope | **0.637** |
-| "transfer 500 to my brother" | out of scope | 0.500 |
-| "no not that one" | **in domain** | **0.363** |
+---
 
-Out-of-scope requests to a finance app are mostly *about finance*. What separates the
-classes is not what the sentence is about — it is what the application does. Which
-[ADR-004](.claude/decisions/ADR-004.md) rule 3 already stated, in prose, where no code could
-read it.
+### WP-27 · Guided steps ⬜ · **L** · queue 13 · **D-3**
 
-**So the registry declares it.** A new kind, `unsupported`, describes a class the app
-deliberately does not serve, with an authored refusal, no route and no params. It is
-retrieved by the same machinery as everything else, gated by a calibrated
-`boundaryMargin`. Out-of-scope becomes routing.
+**Goal.** *"Take me there and tell me what to do."* Navigation exists; guidance does not.
+A **step** declares which element, what to do, in what order.
 
-| Stage-3 model | OOS before | after | contributed by the model |
+**Preconditions.** WP-25 (the generator must emit steps). D-3 answered.
+
+**Note.** Reading from source makes this far more tractable than it would be for a
+crawled site — the generator already knows the component tree, so the anchor can be
+derived rather than guessed.
+
+**Acceptance.**
+- [ ] A `step` declaration sits alongside `route` in the capability format, generated by WP-25 for forms it discovers
+- [ ] Guidance renders against a real multi-field form in `fut-app` — a registration or session-creation form, not a toy
+- [ ] **An anchor that no longer matches degrades to text and never points at the wrong element** — a confidently wrong hint is worse than none
+- [ ] Guidance text is authored or generated at build time, never per turn (Rule 9)
+- [ ] Rule 15: component and copy text reaching a prompt is treated as untrusted
+
+**Stop if.** Anchors mispoint rather than degrade under a deliberate change to the app.
+Ship navigation only and say so.
+
+---
+
+### WP-26 · The installable package — Ladder C2 ⬜ · **L** · queue 14
+
+**Goal.** **Product requirement #1**: the client takes our solution and installs it in
+their own codebase. Not a service we run — a package they add, a build step they run,
+and an assistant that appears in their app.
+
+**Preconditions.** WP-24, WP-36. WP-33's numbers justified continuing.
+
+**Do this.** Package the generator as a build-time step and the runtime as a component.
+Installing it into `fut-app` must be an ordinary dependency addition — no forked engine,
+no copied files.
+
+**Acceptance.**
+- [ ] Install + config + build produces a working assistant in `fut-app`, done the way a
+      client would do it, with the steps written down as they are performed
+- [ ] **Rule 16 verified mechanically**: after install and build, `git status` in the
+      target repo shows only new files — not one existing file modified
+- [ ] **Rule 17 verified**: the bundle served to a session contains only that role's
+      capabilities; an ADMIN capability is absent from a GUARDIAN bundle, not hidden
+- [ ] Uninstalling removes the layer and leaves the app exactly as it was
+- [ ] Re-running the build after the app changes regenerates the registry, and a stale
+      bundle degrades rather than misroutes
+- [ ] The stage-3 endpoint is configured by the adopter; no key reaches the browser
+- [ ] Time-to-integrate recorded honestly, **including everything that needed a human** —
+      if it needed a human step, WP-25 did not meet its goal, and say so
+
+**Stop if.** Integration cannot be done without editing `fut-app`'s existing source.
+Rule 16 is the product; if it cannot hold, the packaging model is wrong and needs
+rethinking before shipping.
+
+---
+
+### WP-35 · Deploy on `fut-app` ⬜ · **M** · queue 15
+
+**Goal.** A live URL anyone can try — the third artefact.
+
+**Preconditions.** WP-24, WP-26, WP-27.
+
+**Do this.** Deploy `fut-app` with the assistant installed. **This is where Layer 4's
+missing surface gets closed**: a `navigate` outcome must actually move the browser, not
+print a sentence (§3). The UI is `packages/ui`'s existing chat surface — sphere,
+composer, answer panel — carried over visually, not redesigned.
+
+**Acceptance.**
+- [ ] `navigate` moves the browser to the route; it does not narrate
+- [ ] `packages/ui` survives `fut-app`'s stylesheet — scoped styles or shadow DOM
+- [ ] Works in Portuguese, since that is the app's language
+- [ ] Keyboard-only operation, focus management, `aria-live`, `prefers-reduced-motion`, and **a real screen-reader pass** — never yet done, and accessibility is in the pitch
+- [ ] Rule 7 verified: every destination the assistant reaches is reachable without it
+- [ ] Rule 17 verified in a live session per role
+- [ ] Cost per session measured and recorded
+- [ ] A side-by-side clip against the CommandPalette — the comparison is the story
+
+**Stop if.** Accessibility fails a screen-reader pass. Do not deploy an accessibility
+claim that is false — fix it or drop the claim.
+
+---
+
+## 7.5 · Deferred
+
+Each is real work with a reason to wait. **Deferred is not cancelled.**
+
+| WP | What | Why deferred | Unblock when |
 |---|---|---|---|
-| `llama3.1:8b` | 85% | 85% | large — its sentinel already worked |
-| `qwen2.5:1.5b` | 40% | **60%** | 20 points |
-| `gemma3:1b` | **0%** | **40%** | **none — entirely model-free** |
-
-**It helps in exact proportion to how badly the model fails**, which is the property
-that makes it safe to depend on. Nothing regressed: `direct` top-1 rose 97.5% → 100%,
-`paraphrase` 75.0% → 76.7%, model-free resolution 30% → 35%, safety violations still 0.
-
-⚠️ **Finding 1, for the third time.** `boundaryMargin` was first set to the value
-calibrated on `nomic-embed-text` and carried onto the TF-IDF encoder, costing 3.3
-points of paraphrase accuracy. Calibrated properly it is **0.105 for TF-IDF and 0.075
-for nomic** — `calibrate.js` now sweeps it. Do not hand-set it, and never copy one
-between encoders.
-
-**Acceptance — met**
-
-- A capability defined in one place produces a working route **and** a routable intent;
-  they are generated together and cannot drift ✅
-- Unclassified `kind` → dispatcher **refuses**, tested explicitly across empty,
-  misspelled and invented kinds, plus a test that it never defaults to `read` ✅
-- Registry validation runs in CI (`pnpm registry:check`) and **fails the build** on a
-  capability with <3 examples — verified by breaking one ✅
-- `eval/registry.json` regenerated from real definitions; all 20 original capabilities
-  round-trip with byte-identical retrieval documents ✅
-- 98 unit tests across the three packages; `pnpm -r typecheck` and `pnpm -r test` green ✅
-
-**Still owed**
-
-- The remaining 40–60% of out-of-scope input. Bounded by how well the boundary is
-  written, which is tractable — but widening `unsupported.general` against the golden
-  set would measure only how well it had been tuned against the golden set, so it was
-  deliberately not done.
-- Non-English still drifts toward the boundary entries. The margin holds it at zero
-  false refusals; the English-only registry is unchanged.
-- The precomputed embedding index has a generator but is not yet wired into the runtime
-  loader, which still embeds at startup.
+| **WP-19** | Golden fixture: fill or retire | Small, but **ordered before WP-25** — decide the example format before generating at scale | Before WP-25 |
+| **WP-37** | Remove the dead weight (§4) | Delete `tooling/tsconfig` (a byte-identical duplicate nothing extends), `tooling/eslint-config` (a package.json and nothing else), and the 0-byte `hashing-llama3.1_8b.txt`. **Acceptance:** the six `.claude/docs/` references updated, `pnpm-lock.yaml` regenerated, workspace globs still resolve, `pnpm -r typecheck` and `pnpm -r test` green, and §4's package count corrected from 15 to 13. **Stop if** anything outside `tooling/` turns out to depend on either package | Alongside WP-11, which touches the same docs |
+| **WP-28** | A target app **we do not own** | `fut-app` is route-rich and real, so it proves value as well as mechanism — but it is ours, and a generator tuned on it may not transfer. External validation is the remaining unproven step | After WP-33; **give it a deadline, not a hope** |
+| **WP-29** | Script tag — Ladder C3 | Needs the installable package first | After WP-26 |
+| **WP-18** | Undo for `module.delete` | No rung on any ladder ships a write capability | **Before any write capability ever ships** |
+| **WP-20** | Screens for capture/search | Reference-app polish | Never, probably |
+| **WP-21** | Verify voice acceptance | Voice is a differentiator but not on the critical path to a measurement | After M2 |
+| **WP-22** | Contract tests for `apps/web` | Real debt; not what M1 answers | After M2 |
+| **WP-11** | Documentation | Nearly all repo prose is now wrong about the product; large, and cheaper once ADR-013 fixes the vocabulary | After WP-23 |
+| **WP-10** | `apps/mobile` | A native app is a different product from a web layer | Parked. The device-inference gate stands if it returns |
 
 ---
 
-### WP-04 · `data` — schema, migrations, query engine ✅ **COMPLETE — 2026-08-29**
-
-**Goal:** Persistence for the finance domain, per [ADR-007](.claude/decisions/ADR-007.md).
-
-**Built:** `Account`, `Transaction`, `Category` (tree), `Budget`, `TurnTrace`,
-`DataRef` and `undo_journal`; repositories behind the interfaces the domain declares;
-the fixed query set; the undo journal; and seeded fixtures. 43 tests.
-
-**[ADR-010](.claude/decisions/ADR-010.md) — money, finally decided.** WP-02 left three
-`DECISION OWED` items; this closes them:
-
-- `amountMinor` is a **signed** integer minor unit. Negative leaves the account. The
-  alternative — magnitude plus a direction column — makes every aggregate a `CASE`, and
-  the one thing that must never be wrong is a sum.
-- **The parser keeps returning an unsigned magnitude, and that is now correct on
-  purpose.** "twenty euros" and "minus twenty euros" both mean the quantity 20; direction
-  belongs to the capability. What was wrong was that it was silent about it.
-- **Currency mismatch is refused, never converted.** A rate has a date and a source, and
-  a wrong one silently corrupts every historical aggregate that touched it.
-
-**A real bug, found by writing the test:** `fromMajorUnits` computed
-`Math.round(value * 100)`. `1.005 * 100` is `100.49999999999999`, so it returned a
-cent short — and `+ Number.EPSILON` does not save it, because EPSILON is relative to 1
-while the error is at the scale of 100. It now parses the decimal **string** digit by
-digit. Passing a *number* still yields whatever the float already holds (`1.005` → 100,
-because the literal genuinely is 1.00499999999999989 before the function sees it); both
-behaviours are pinned by tests and the README says to pass strings.
-
-**Same definitions, both dialects.** The entity model is written once in
-`schema/spec.ts`; `sqlite.ts` and `postgres.ts` are built from it and a parity test
-asserts table-for-table and column-for-column agreement. Money is `integer` in SQLite
-and `bigint` in Postgres — Postgres `integer` is 32-bit and would overflow at ~21
-million in a two-decimal currency.
-
-**Acceptance — met**
-
-- `amountMinor` is `integer` everywhere, asserted **structurally** against the schema
-  rather than by review ✅
-- All timestamps UTC — the repository refuses a non-`Z` timestamp ✅
-- Category roll-up correct against fixtures, including a **three-level** tree that a
-  two-level join would silently under-report, and excluding refunds from "spending" ✅
-- Migration from every prior version preserves all rows; a failing migration leaves the
-  database at the last good version, and the file path restores from backup ✅
-- No real financial data in fixtures — all generated from a fixed seed, invented
-  merchants ✅
-
----
-
-### WP-05 · `core-trace` — TurnTrace ✅ **COMPLETE — 2026-08-30**
-
-**Goal:** Explainability from a record, not narration (Rule 9).
-
-**Built:** the `TurnTrace` type from [architecture.md](.claude/docs/architecture.md); a recorder
-that cannot be bypassed; an AES-256-GCM encrypted store with a ring buffer and export;
-and `explain()`, which renders "why did you do that?" from the record alone. 28 tests.
-
-**Zero model prose, enforced twice.** There is no `setReasoning` on the recorder and no
-field on `TurnTrace` a free-text model answer could land in — and because a trace crosses
-the storage boundary as a plain object, where types stop, `put()` also rejects
-`reasoning`, `explanation`, `rationale`, `modelResponse` and four more at runtime.
-Verified against the router: stage 3 requests a `reasoning` field in its schema, and the
-cascade never reads it out of the response.
-
-**Every turn produces a trace, including the ones that threw.** The turn runs *inside*
-the recorder and the record is written in a `finally`, because the paths that most need a
-trace are the ones that failed before reaching the end. Errors are recorded and rethrown.
-A turn that never reports an outcome is recorded as `error` — forgetting to say how a
-turn ended is not the same as it having gone well.
-
-**The most useful field turned out to be `paramSources`.** For every value the user can
-see, the explanation says whether code worked it out, the model read it, or it came from
-the screen. That is the question someone checking a number actually has — and after
-Finding 3, the one the next developer has too.
-
-**Acceptance — met**
-
-- 100% of turns produce a trace, including failures and out-of-scope ✅
-- Trace contains **zero** model-generated prose, enforced by types and again at storage ✅
-- "Why did you do that?" renders entirely from the record — no model, no network ✅
-- `dataRead` lists tables, row counts and date ranges ✅
-- Encrypted at rest with tamper detection; ring buffer; full export ✅
-
----
-
-### WP-06 · `core-inference` — runtime adapters ✅ **COMPLETE — 2026-08-30**
-
-**Goal:** One interface, swappable runtimes. The mitigation for the ADR-006 mobile-
-inference risk — if `llama.rn` fails, only this package changes.
-
-**Built:** `LlmRuntime` and `EmbeddingRuntime`; `OllamaLlmRuntime` and
-`OllamaEmbeddingRuntime` (extracted from `core-intent`); `FakeLlmRuntime` and
-`FakeEmbeddingRuntime`; `ModelStore` with download, SHA-256 verification and idle
-unload; and honest, throwing placeholders for `llama.rn` and WebGPU. 18 tests here plus
-17 cascade integration tests.
-
-**`core-intent` no longer contains a single `fetch` call.** Both the chat transport and
-the encoder transport moved out, so swapping the runtime on a phone touches nothing in
-the cascade. Verified: `grep -rn "fetch(" packages/core-intent/src/` returns nothing.
-
-**The platform runtimes throw rather than pretending.** `new LlamaRnRuntime()` fails with
-what has to happen before it can exist. A runtime that silently returned nothing would let
-the app appear to work on a platform where inference has never run, and that discovery
-belongs in development rather than in a store review.
-
-**Verify before load, fail closed.** A model file is executable weight fetched over a
-network, and a truncated download looks identical to a substituted one. Downloads land on
-a `.part` file and are renamed into place only after the hash matches, so an interrupted
-download cannot be mistaken for a complete one on the next launch. The hash is re-checked
-on *every* load, not only after download.
-
-**A found bug, in the tests rather than the code.** The cascade integration fixture
-inherited the production `boundaryMargin` of 0.105 and produced a false refusal: on a
-five-capability toy registry every real capability scores exactly 0.000, so any nonzero
-boundary score wins. `boundaryMargin` is an artefact of the **registry** as well as the
-encoder — [ADR-009](.claude/decisions/ADR-009.md) now says so, and a domain that adds
-capabilities must re-calibrate.
-
-**Acceptance — met**
-
-- `core-intent` no longer talks to Ollama directly — it takes a runtime ✅
-- Integration tests run against `FakeRuntime`: no network, deterministic ✅
-  (and deliberately so — Finding 10 makes a suite built on real inference flaky)
-- Timeout and fallback on every call; a missing model degrades to stages 1–2 and asks,
-  rather than throwing ✅
-- Constrained decoding is mandatory in the type — `schema` is required, with no overload
-  that omits it — plus the parse-failure fallback Finding 6 requires ✅
-- Model lifecycle: download, **SHA-256 verify before load, fail closed**, idle unload ✅
-
-**Behaviour unchanged:** `pnpm router:floor` byte-identical, and `qwen2.5:1.5b --topk=3`
-reproduces 80.0% top-1 / 98.2% param exactness / 60.0% out-of-scope / 0 safety violations.
-
----
-
-### WP-07 · `domain-finance` ✅ **COMPLETE — 2026-08-30**
-
-**Goal:** The first domain. Proves the engine is domain-agnostic.
-
-**Built:** entities and repository **ports**; domain events with an `EventBus`; use
-cases (`createTransaction`, `updateTransaction`, `deleteTransaction`, `setBudget`,
-`deleteBudget`, `createAccount`, `watchBudgets`); and the 27 capability definitions
-from WP-03. 34 tests.
-
-**The dependency edge runs neither way.** The domain declares the ports; `@nextgen/data`
-implements them — and because TypeScript is structural, neither package imports the
-other's version. `@nextgen/data` is a *dev* dependency here, needed only to assert the
-fit. That is stronger than the usual arrangement: a port the adapter imports is a port
-the adapter can quietly widen.
-
-**That assertion immediately earned its place.** It failed on first run: `data` typed
-`account.type` as `string` while the domain says it is one of four values. Fixed where
-rows actually enter — `SqliteAccountRepository.insert` now validates it — so the read
-path narrows honestly instead of asserting and hoping.
-
-**Use cases do one thing and emit an event rather than reaching sideways.** `watchBudgets`
-is a *subscriber*: recording a transaction does not recompute budgets. The moment it did,
-the two aggregates would be welded together and domain #2 would inherit the weld. A
-throwing subscriber cannot unmake what already happened, either — the event is a
-statement of fact.
-
-**The sign lives here**, which is what [ADR-010](.claude/decisions/ADR-010.md) §2 said the
-domain owed: `createTransaction` takes a magnitude and applies direction from the
-category's kind. "twenty euros" is the quantity 20; whether it leaves or arrives is a
-property of what it was spent on, not of the sentence.
-
-**Acceptance — met**
-
-- **Zero imports from `domain-finance` into any `core-*` package** — asserted
-  mechanically, per package, over both source text and declared dependencies ✅
-- Every capability: kind classified, params typed, ≥3 examples ✅
-- All MVP-1 CRUD reachable by intent **and** by conventional navigation — every
-  executable capability has a route (Rule 7) ✅
-
----
-
-### WP-08 · `ui` — design system ✅ **COMPLETE — 2026-08-30**
-
-**Built:** `packages/ui` — token system (`tokens.css`), component styles (`ui.css`),
-and six components: `Sphere` + `SphereStatus`, `Composer`, `Answer`,
-`ConfirmationCard`, `NavDrawer`, `TracePanel`.
-
-**Visual language changed.** Material 3 was superseded by a bespoke token system —
-"graphite HUD", cyberpunk register **without neon**, Apple design principles. See
-[ADR-012](.claude/decisions/ADR-012.md); [ui-guidelines.md](.claude/docs/ui-guidelines.md) carries
-the pointer. Every *structural* rule in that document survived and is implemented.
-Tailwind, suggested above, was rejected in the same ADR — the tokens are the design
-system and a utility layer over them adds a build dependency and no expressiveness.
-
-**The sphere** is 8 states distinguished by **form first**: a body in orbit
-(`thinking`), four still corner brackets (`confirming`), amplitude rings
-(`listening`), an inward ripple (`transcribing`), an outward pulse (`acting`), synced
-bands (`speaking`), a broken rim with a strike (`error`), slow breathing (`idle`).
-Colour is the second channel, never the first — which is what makes the
-`prefers-reduced-motion` fallback carry the same information with the animation off.
-
-⚠️ `listening` / `transcribing` / `speaking` are **implemented but unreachable** until
-WP-13 wires voice. The mic button renders disabled and says so rather than pretending.
-
-**Acceptance:** 48px targets enforced in `.ngx-btn`/`.ngx-nav`; both
-themes' text pairs checked ≥ 4.5:1 at the point the token is defined; type scale in
-`rem` and no fixed-height text boxes, so 200% does not clip; `prefers-reduced-motion`
-kills every animation and transition; `SphereStatus` is an `aria-live` region and the
-sphere carries `role="img"` with its state in the label. **Not yet verified with a
-real screen reader or an automated axe pass** — that is the honest gap.
-
----
-
-### WP-09 · `apps/web` — the assistant surface ✅ **COMPLETE — 2026-08-30**
-
-**Built:** Next.js 15 App Router + React 19 + Zustand. `apps/web` is a second surface
-over the *same* `FinanceApp` composition root as the CLI — it does not reimplement the
-assembly, which was the whole premise.
+## 8. Milestones, sequence, and kill criteria
 
 ```
-app/            layout · page · Assistant (client) · globals.css
-app/api/        session · turn · confirm     — Node runtime, the engine lives here
-lib/            engine · render · store · wire
+M0  FOUNDATION        WP-23 ADR · WP-15 land · WP-16 de-finance · WP-17 re-measure
+     ~5 sessions       cheap, unblocks everything, builds nothing new
+                            │
+M1  THE MEASUREMENT   WP-31 ground truth → WP-30 SPIKE ⟨GO/NO-GO⟩ → WP-25 generator
+     ~15-20 sessions   → WP-36 explanations → WP-32 golden set + palette baseline
+                       → WP-33 MEASURE      ◄── the milestone that matters
+                            │
+                       ⟨ KILL GATE: model-free <60%, or it loses to the
+                         CommandPalette ⇒ reposition or stop ⟩
+                            │
+M2  THE WRITE-UP      WP-34                  ~3 sessions
+                            │
+M3  THE ADD-ON        WP-24 browser runtime → WP-27 guided steps
+     ~20-25 sessions   → WP-26 installable package → WP-35 deploy on fut-app
+                       only if M1's numbers justify it
 ```
 
-**Three things the CLI never needed**, all in `lib/engine.ts`: a singleton (the
-database is in-memory, so per-request construction would lose writes), survival across
-HMR via `globalThis`, and the **pending-decision table**.
+**Why WP-31 before WP-30.** Ground truth must be written independently of the
+generator's output, or the score is meaningless. `fut-app`'s `deepLinks.ts` and
+`navConfigs` make this cheap *and* unbiased — they were written by a developer for an
+unrelated purpose.
 
-⚠️ **That table is a security boundary, not a cache.** The client is never given a
-`Decision`. It gets a card and a `turnId`; the decision stays server-side, and
-`/api/confirm` merges the user's *edited values* into the remembered decision and
-re-approves it through the dispatcher. A client cannot choose the capability and
-cannot skip the card. Verified: replaying a spent `turnId` and forging one both 409.
+**Why the spike before the generator.** The riskiest assumption is not the runtime, it
+is whether a usable, role-scoped registry can be generated at all. That is answerable in
+one session with throwaway code. Building a well-engineered runtime for a registry that
+cannot be generated is the expensive way to learn.
 
-Three small additions were made to `apps/cli/src/app.ts` to make it reusable —
-`registryPath` (a bundler makes `import.meta.dirname` meaningless), a `capabilities`
-getter, a `query` getter and `snapshot()`. The CLI's 10 tests still pass.
+**Why M1 before M3.** M3 is four times the work and produces nothing defensible if M1's
+numbers are bad. Measure first.
 
-**Two renderers, one engine.** `#read` in the CLI returns padded text; `lib/render.ts`
-returns a headline, a caption and rows with bars. Both read `SqliteQueryEngine`, which
-stays the only thing allowed to compute a number the user sees (Rule 2). The cost is
-that an `execute` turn queries twice — once inside `turn()` for the trace's `dataRead`,
-once for the view. It is microseconds against in-memory SQLite; the fix, if it ever
-matters, is to hoist `#read` into a shared package.
+**Why the CommandPalette comparison is in M1 and not M3.** It is the incumbent this
+product replaces, `fut-app` already has one, and comparing costs a few hours. *"It beats
+the command palette on questions phrased in the user's own words"* is a stronger and more
+honest claim than any absolute accuracy figure — and if it loses, that is the cheapest
+possible way to find out.
 
-**Ollama is probed, not assumed** (ADR-008). With it: a teal dot and `local`. Without
-it: `hashing` embedder, stages 1–2 only, and an amber dot reading `no model`. A
-degraded router is a real product; an error page is not.
+**One rung at a time.** §1.6's ladders exist so scope grows by decision rather than by
+drift. A rung is not started until the one below it is measured and its entry criterion
+is met.
 
-**Verified end-to-end** against a live engine — all four decision types:
+### The kill criteria, in one place
 
-| Utterance | Decision | Result |
-|---|---|---|
-| "how much did I spend on food this month" | execute | €307.24, decided at `llm`, 1018ms |
-| "how are my budgets doing" | execute | 1 over budget, decided at `embedding`, 26ms |
-| "book me a flight to tokyo" | refuse | declared limit, `embedding`, 23ms |
-| "add 12 euros for coffee today" | confirm | card with amount/category/date, all `deterministic` |
+Written down *before* the tests, following the WP-01 discipline that made that decision
+trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/business-case.md) §8.
 
-The confirm was then approved **with the amount edited** 12.00 → 18.50 and the
-category changed: recorded −€18.50 against a month-to-date that moved €1,819.28 →
-€1,837.78 across 25 → 26 transactions. The edit path is the one that matters, and it
-is exercised.
-
-**Navigation simplified — 2026-08-30.** The first cut carried a 232px domain rail
-(Finance / Agenda / Health), a "will not do" list and a permanent strip of live-figure
-tiles. All three are gone. Pre-built modules are weight on every turn, and the tiles
-in particular made the assistant read as a dashboard with a chat box attached — the
-inversion [ui-guidelines.md](.claude/docs/ui-guidelines.md) opens by rejecting. What replaced
-them:
-
-- **An off-canvas drawer**, one control in the status bar, listing every `navigate`
-  capability read from the registry. Costs nothing in the layout until asked for,
-  which is [ADR-005](.claude/decisions/ADR-005.md)'s "secondary in placement and visual
-  weight" taken literally.
-- **`FinanceApp.invoke(capabilityId)`** and `POST /api/navigate` — the drawer hands a
-  capability id straight to the dispatcher. ⚠️ **This is deliberate, not an
-  optimisation.** Routing a sentence the menu generated would put the model back on
-  the one path built to be free of it and inherit the 20% top-1 misses. Menu
-  selections resolve in ~1ms and cannot be misrouted. **Policy is untouched** — a
-  `write` from the menu still raises a confirmation card, because policy attaches to
-  the capability's kind, never to how the user arrived.
-- **First-turn example prompts** instead of tiles: registry-sourced, gone after the
-  first turn. Discoverability is a first-turn problem, so it gets a first-turn element.
-
-Verified: `budget.view` / `transactions.list` / `accounts.list` execute at
-`deterministic` in 0–10ms; `settings.currency` and `transaction.delete` both come back
-as confirmations (the latter `destructive: true`); an unknown id 404s before reaching
-the dispatcher. The CSS bundle dropped 22.2 KB → 20.8 KB.
-
-**Still open:** no automated tests in `apps/web` (the API contract is a natural
-integration-test target and there is none yet); routes are not yet *navigated* — the
-registry's `route` is tracked in `app.route` and returned on every turn, but there are
-no per-route screens under `/transactions`, `/budget` etc., so Rule 7's "every screen
-reachable without the AI" holds over the drawer — which runs each capability and
-renders its answer — rather than over a full screen set.
-
----
-
-### WP-10 · `apps/mobile` — Expo + on-device inference
-
-**Depends on:** WP-01, WP-09
-
-⚠️ **Highest-risk app work.** Gate it: before building the app, prove `llama.rn` loads
-a quantised 1B GGUF and completes 10 stage-3 calls on a **physical mid-range Android**.
-Measure first-token latency, peak RSS, thermals. If that fails, fall back to
-desktop/web-first and record an ADR.
-
-Then: `op-sqlite` + SQLCipher, model download via Play Asset Delivery (**never
-bundled** — 0.9–1.6 GB exceeds the 200 MB cap), app useful before download completes.
-
----
-
-### WP-11 · Documentation cleanup
-
-**Depends on:** WP-02
-
-Convert Dart examples to TypeScript in `coding-standards.md`, `architecture.md`,
-`ui-guidelines.md`, and the six agent briefs. Architecture unchanged — syntax only.
-Remove the stack-note warning from [.claude/docs/project.md](.claude/docs/project.md) when done.
-
----
-
-### WP-12 · CI/CD ✅ **COMPLETE — 2026-08-30**
-
-Built by a concurrent session: [.github/workflows/ci.yml](.github/workflows/ci.yml)
-(branch guard · typecheck · tests · registry · boundaries · golden-set floor · CVE
-scan), [check-import-boundaries.mjs](tooling/scripts/check-import-boundaries.mjs) and
-[check-scorecard.mjs](tooling/scripts/check-scorecard.mjs). Reasoning in
-[ADR-011](.claude/decisions/ADR-011.md) and [ci-cd.md](.claude/sdlc/ci-cd.md).
-
-⚠️ **Lint is deliberately absent**, not forgotten — `tooling/eslint-config` has no
-`index.js` and no ESLint dependency, so a lint job would wrap a no-op and report
-green. The root `lint` and `build` scripts were removed for the same reason.
-
-⚠️ **The CVE gate went red when WP-09 landed**, exactly as `ci-cd.md` predicted:
-Next 15 pins `postcss@8.4.31`, which carries two high advisories. Fixed with a
-`postcss: ^8.5.26` override in `pnpm-workspace.yaml` — *not* in `package.json`,
-where pnpm 11 silently ignores it.
-
-Original scope, for the record:
-
-**Depends on:** WP-02, WP-03
-
-GitHub Actions per [.claude/docs/deployment.md](.claude/docs/deployment.md): typecheck · lint ·
-**import-boundary check (Rule 1)** · unit · integration · **golden-set with committed
-scorecard diff** · registry validation · CVE scan. Exit non-zero on any gate — the
-evaluator already does this.
-
-⚠️ **The scorecard diff must be tolerance-based, not exact** (WP-01 Finding 10). Two
-identical 8B runs at temperature 0 flipped 7 of 200 entries; a bucket of 20 cannot
-measure a 95% target to better than ±5%. Gate on thresholds with an explicit tolerance
-and treat per-entry diffs as advisory, or the pipeline flaps on every run.
-
-Also add a **staleness check**: a committed scorecard whose `config.thresholds` differ
-from the current profile in `config.js` is asserting a configuration that no longer
-exists. One was found in exactly that state during WP-01 — committed,
-plausible, and describing a `tauFloor` the codebase had already abandoned. It went stale
-within hours of being written, which is the point: this is not a slow drift you can catch
-by eye.
-
----
-
-### WP-13 · Voice (MVP 2)
-
-**Depends on:** WP-06, WP-09
-
-Whisper STT + Piper TTS behind `core-voice` interfaces. Barge-in cancels within 200ms.
-Audio **never persisted** past transcription. Mic state unmistakable in the UI.
-
----
-
-## 8. Suggested sequence
-
-```
-WP-01 (1B model)  ─── ✅ DONE 2026-08-29 — qwen2.5:1.5b selected
-   │
-WP-02 (TS port) ✅ ─ WP-03 (capability + dispatch) ✅ ┬─ WP-04 (data) ✅ ┬ WP-07 (domain)
-   │                         │                     │                │
-   └── WP-06 (inference) ────┘                     └─ WP-05 (trace) ┘
-                                                            │
-                              WP-08 (ui) ───────────────────┴──── WP-09 (apps/web)
-                                                                       │
-                          WP-11 (docs) · WP-12 (CI) ──────────────────┤
-                                                                       │
-                                              WP-10 (mobile) · WP-13 (voice)
-```
-
-**MVP 1 = WP-01 → WP-09.** MVP 2 adds WP-10 + WP-13. MVP 3 is the second domain —
-the architecture's real exam.
+| Trigger | Then |
+|---|---|
+| WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
+| **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
+| WP-33 model-free resolution below 60% | The cost advantage — the whole commercial argument — is gone. Reposition or stop. **Publish the number either way** |
+| **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | There is no reason to adopt. Find out why before building any of M3 |
+| WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
+| WP-27 anchors mispoint rather than degrade | Ship navigation only |
+| **WP-26 cannot integrate without editing the target's source** | Rule 16 is the product. The packaging model is wrong; rethink before shipping |
+| WP-35 fails a screen-reader pass | Fix it or drop the accessibility claim. Do not ship a false one |
+| **Month 3 with no measured result on a real app** | Scope is winning. Cut to the single smallest demonstrable thing |
 
 ---
 
@@ -843,76 +1087,87 @@ the architecture's real exam.
 
 | Risk | Severity | State |
 |---|---|---|
-| 1B model cannot route reliably | ~~fatal~~ | ✅ **CLOSED** — `qwen2.5:1.5b` 84% top-1 on realistic buckets, 151ms p95 (WP-01) |
-| No out-of-scope detection on target hardware | ~~high~~ | ✅ **CLOSED by [ADR-009](.claude/decisions/ADR-009.md)** — registry declares the app's limits; 0% → 40% on `gemma3:1b`, model-free. Residual: recall bounded by how well the boundary is written |
-| **`tauAct` reads a signal small models don't produce** | medium | **OPEN — new.** Gate held 15.7% of calls on 8B, 0.7% on 1.5B. Replace self-report with margin or stage-2/3 agreement (Finding 8) |
-| Golden-set gates are not run-to-run deterministic | medium | **OPEN — new.** 7/200 entries flipped between identical 8B runs at temp 0. WP-12 must gate on tolerances (Finding 10) |
-| Mobile inference via `llama.rn` inadequate | high | Untested — WP-10 gate. **Mitigation now real:** the adapter interface exists and `core-intent` holds no transport code, so a failure changes one package. Desktop headroom is large (151ms p95 at 1.5B); that helps but does not settle it |
-| Model assets (0.9–1.6 GB) vs 200 MB store cap | high | Planned — on-demand delivery from day one. Selected model is 986 MB, at the low end of that range |
-| Model-free rate 30% vs 65% target | high | Partly measurement artefact; needs realistic corpus + `ScreenContext` slots |
-| Registry growth erodes stage-2 margins | medium | `similarityAudit()` exists; quarterly review documented |
-| Backend attracts features, offline erodes | medium | ADR-008 rules; FR-OFF-01 as release gate |
-| Injection via stored memos | medium | **Not modelled** — harness tests utterances only |
-| Non-English at 40% | medium | Decide: multilingual, or scope MVP to one language and say so. `qwen2.5:1.5b` matches the 8B here (44.4% both) — the ceiling is the English-only registry, not the model |
-| Solo-developer capacity | high | Voice deferred to MVP 2, domain #2 to MVP 3 |
+| **Scope death — 15 work packages, solo, irregular hours** | **critical** | **OPEN and most likely.** The failure is not technical: it is a half-built generator and a half-built runtime at month six. §8's milestones exist to be cut; the month-3 kill criterion exists to force it |
+| **Automatic registry generation is not good enough** | **critical** | **OPEN.** Every safety property assumes the registry is correct. Automating it moves the failure from "routes wrong at runtime" — visible, recoverable — to "declared wrong at build time" — silent, permanent. WP-30 tests it in one session for exactly this reason |
+| **`core-intent` still hardcodes finance** | **critical** | **OPEN** — WP-16. Demonstrated to misroute (§5) |
+| **The generator may be tuned to an app we own** | **high** | **OPEN, and it replaces the old "pilot proves mechanism not value" risk.** `fut-app` is route-rich, role-gated and real, so it does prove value — but it is ours, and a generator built against it may not transfer. WP-28 (a target we do not own) is the remaining unproven step |
+| **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
+| **Model-free rate is the business model** | **high** | **OPEN.** 30.4% top-1 on the floor. WP-33 decides it |
+| §5's numbers are not reproducible | high | **OPEN** — WP-17. 151ms claimed, 13.3s observed, one 39.8s timeout |
+| Adopter content reaching a prompt | high | **OPEN.** Rule 15 was written for a memo field; it now covers third-party component and copy text |
+| **Role leak — a capability reaching a user who cannot access it** | **high** | **OPEN.** Rule 17. `fut-app` is role-gated; one ADMIN capability in a GUARDIAN registry reveals the shape of a surface that user must not see. Generator role extraction has a zero-tolerance kill criterion (§8) |
+| **Declared explanations may not cover enough** | medium | **OPEN** — WP-36. If they do not, A1 Q&A needs runtime generation, which forfeits the cost advantage and makes this a chat widget. The stop condition is written down |
+| Accessibility claims unverified | medium | **OPEN.** Designed in, never tested. It is in the pitch — WP-35 gates on it |
+| Guided steps anchoring to a DOM we do not control | medium | **OPEN** — D-3, WP-27. Reading from source reduces this materially |
+| **`domain-finance` is orphaned, so the domain-agnostic claim is untested** | **high** | **OPEN — found 2026-09-09.** Nothing depends on it; the swap test WP-16 requires cannot run today. The repo's central thesis is currently asserted, not exercised. §4's dead-weight register; D-1 |
+| Undo unimplemented for the reference app | medium | **OPEN** — WP-18. Contained: no rung ships writes |
+| Registry growth erodes stage-2 margins | medium | `similarityAudit()` exists. An adopter may have 200 destinations where ours has 7; never tested at that size |
+| Bundle size in a browser | medium | **OPEN** — WP-24 measures it at 10/50/200 |
+| Golden-set gates are not run-to-run deterministic | low | MITIGATED — CI gates on tolerances (Finding 10) |
+| Docs describe the wrong product | medium | **OPEN** — WP-11, now near-total |
+| Browser-level agents make site-side integration unnecessary | medium | **OPEN, external.** The long-run competitive threat. See [.claude/docs/business-case.md](.claude/docs/business-case.md) §4 |
 
 ---
 
 ## 10. Commands
 
 ```bash
-pnpm install
+pnpm install                 # a fresh clone needs: pnpm install --ignore-scripts
 
-# the app
-pnpm web                 # assistant surface at http://localhost:3000
-pnpm app                 # the same stack as a CLI
-pnpm app:offline         # stages 1-2 only, no model, no Ollama needed
+# the reference apps
+pnpm web                     # assistant surface at http://localhost:3000
+pnpm app                     # the same stack as a CLI
+pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 
-# registry — one definition, four artefacts
-pnpm registry:build      # regenerate registry.json, routes.json, golden fixtures
-pnpm registry:check      # validate only; this is the CI gate
+# every CI gate, locally — before pushing
+node tooling/scripts/check-import-boundaries.mjs   # Rule 1
+node tooling/scripts/check-thresholds.mjs          # Rule 14
+pnpm -r typecheck
+pnpm -r test                                       # 301 tests, 11 files
+pnpm registry:check                                # Rule 10
+pnpm check                                         # typecheck + test + registry:check
+# or: /gates, or delegate to the gate-runner agent
+
+# registry
+pnpm registry:build          # regenerate registry.json + routes.json — domain-modules
+pnpm registry:build:finance  # same, for the finance reference app
 
 # router
-pnpm router:inspect      # score distributions, recall@k — always look here first
-pnpm router:calibrate    # threshold sweep — NEVER hand-tune thresholds
-pnpm router:eval         # full cascade on qwen2.5:1.5b --topk=3 (the selected model)
-pnpm router:baseline     # ditto on llama3.1:8b — the historical comparison point
-pnpm router:floor        # stages 1+2 only; the ONLY deterministic run, so the regression net
-pnpm router:compare      # side-by-side scorecards across models
+pnpm router:inspect          # score distributions, recall@k — always look here first
+pnpm router:calibrate        # threshold sweep — NEVER hand-tune thresholds (Rule 14)
+pnpm router:eval             # full cascade, qwen2.5:1.5b --topk=3
+pnpm router:baseline         # llama3.1:8b
+pnpm router:floor            # stages 1+2 only; the ONLY deterministic run
+pnpm router:compare          # side-by-side scorecards
 
 cd packages/core-intent
 node eval/evaluate.js --embedder=hashing --no-stage3       # model-free ceiling
-node eval/inspect.js --embedder=ollama "how much on food"  # debug one utterance
-
-# stage-3 model selection (WP-01). --topk is a MODEL knob, not an encoder one.
-node eval/evaluate.js --embedder=ollama --model=qwen2.5:1.5b --topk=3
-node eval/compare.js ollama-llama3.1_8b ollama-qwen2.5_1.5b ollama-gemma3_1b
-
-# workspace
-pnpm -r typecheck
-pnpm -r test
+node eval/inspect.js --embedder=ollama "where do I see membership prices"
 ```
 
-**Requires:** Ollama serving on `127.0.0.1:11434` with `nomic-embed-text` and a chat
-model. `--embedder=hashing` needs nothing. **Warm the model with one throwaway call
-before a timed run** — a cold load shows up as a 22-second stage-3 outlier, and run
-models sequentially or the latency numbers are meaningless.
+⚠️ **Warm every model with a throwaway call before any timed run, and run them
+sequentially.** On 2026-09-08 a cold `llama3.1:8b` took over four minutes to load;
+without warming, every latency figure is meaningless.
+
+**Environment**, from [CLAUDE.md](CLAUDE.md): Node 23.6+ required despite `engines`
+saying `>=20`. `jq` is not on PATH — use Node for JSON. Five `package.json` files carry a
+UTF-8 BOM that `JSON.parse` rejects.
 
 ---
 
 ## 11. Definition of done, per work package
 
-Before marking anything complete:
-
-- [ ] Rules in §2 respected — especially Rule 1 (no `core-*` → domain import)
+- [ ] Rules in §2 respected — especially Rule 1 and Rule 15
 - [ ] Types compile under `strict`
 - [ ] Unit tests written; coverage not reduced
 - [ ] New capabilities have ≥3 examples **and** golden-set entries
-- [ ] `pnpm router:eval` not regressed; scorecard committed
+- [ ] `pnpm router:eval` not regressed within Finding 10's tolerance; scorecard committed; `check-thresholds.mjs` green
 - [ ] Failure paths implemented, not just the happy path
 - [ ] Trace recording verified for any new turn path
-- [ ] ADR written if an architectural choice was made
-- [ ] Docs updated if behaviour changed
+- [ ] ADR written if an architectural choice was made — **two pivots have landed without one; do not make it three**
+- [ ] **The WP's own Acceptance list in §7 is ticked, and its "Stop if" was evaluated** — a stop condition you did not check is a stop condition you did not have
+- [ ] **This file updated**: §0's queue, §3, §4's defects, and §13 if a decision was answered
+- [ ] If a number changed, [.claude/docs/business-case.md](.claude/docs/business-case.md) §6 updated too
 
 ---
 
@@ -920,16 +1175,83 @@ Before marking anything complete:
 
 | Question | File |
 |---|---|
-| What are we building, and what will we not build? | [.claude/docs/vision.md](.claude/docs/vision.md) |
+| What are we building? | §1 above |
+| What should I do next? | §0 above |
+| **Is feature X in scope, and if not, when?** | **§1.6 — the capability ladder.** Check it before proposing scope |
+| Which app are we building against? | §3 — `fut-app` |
+| Who would pay for this, and why might nobody? | [.claude/docs/business-case.md](.claude/docs/business-case.md) |
+| When do we stop? | §8's kill criteria · [business-case](.claude/docs/business-case.md) §8 |
+| What was already built, and why is it shaped that way? | [.claude/docs/history.md](.claude/docs/history.md) |
+| Which rules are actually enforced, and where? | [.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md) |
 | How do the layers fit together? | [.claude/docs/architecture.md](.claude/docs/architecture.md) |
 | Why is the router three stages? | [ADR-003](.claude/decisions/ADR-003.md) |
-| Why TypeScript and not Flutter? | [ADR-006](.claude/decisions/ADR-006.md) |
-| How is a destructive action prevented? | [ADR-004](.claude/decisions/ADR-004.md) |
-| What did the router actually score, and why? | [eval/FINDINGS.md](packages/core-intent/eval/FINDINGS.md) |
-| Which stage-3 model, and why not the other one? | [FINDINGS.md Part II](packages/core-intent/eval/FINDINGS.md) · [ADR-003](.claude/decisions/ADR-003.md) |
-| How is out-of-scope actually detected? | [ADR-009](.claude/decisions/ADR-009.md) · [FINDINGS Finding 11](packages/core-intent/eval/FINDINGS.md) |
-| Where does policy get enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.claude/decisions/ADR-004.md) |
-| How do I add a capability? | [core-capability](packages/core-capability/README.md), then `pnpm registry:build` |
-| What are the numbered requirements? | [.claude/sdlc/requirements.md](.claude/sdlc/requirements.md) |
-| How do I test a non-deterministic router? | [.claude/docs/testing.md](.claude/docs/testing.md) |
-| What does the entity model look like? | [.claude/sdlc/design.md](.claude/sdlc/design.md) |
+| How is out-of-scope detected without a model? | [ADR-009](.claude/decisions/ADR-009.md) — the mechanism the product rests on |
+| Where is policy enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.claude/decisions/ADR-004.md) |
+| What did the router score? | §5 — **unreliable until WP-17** |
+| How do I add a capability by hand? | [add-capability](.claude/skills/add-capability/SKILL.md) |
+| How do I add a whole application? | [new-domain](.claude/skills/new-domain/SKILL.md) |
+| Accuracy dropped — now what? | [router-regression](.claude/skills/router-regression/SKILL.md) |
+| How do I run this? | §10 · [SETUP.md](SETUP.md) (stale, WP-11) |
+| Which branch does this land on? | [CLAUDE.md](CLAUDE.md) · [.claude/sdlc/branching.md](.claude/sdlc/branching.md) |
+
+---
+
+## 13. Open decisions
+
+Three. Each states the fork, a recommendation, **what it costs to decide wrong**, and
+what it blocks.
+
+---
+
+**D-1 · Do both reference applications survive?** — *blocks WP-23*
+
+`domain-finance` (20 capabilities + 7 boundaries, 34 tests) and `domain-modules` (5 + 2,
+38 tests). **(a)** keep both · **(b)** keep one · **(c)** replace both with a fixture app.
+
+⚠️ **New evidence, 2026-09-09.** `domain-finance` is **orphaned**: no workspace package
+depends on it, and `apps/cli` cannot register it. The swap test it exists to enable —
+and which WP-16's acceptance requires — **is not currently executable**. Whichever way
+D-1 goes, that has to be fixed or the package has to go; it cannot stay as a claim.
+
+> **Recommendation: (a), and say why in ADR-013.** They are the generator's ground truth.
+> WP-25's only honest quality measure before a second pilot is precision and recall
+> against hand-written registries, and two dissimilar ones are worth far more than one. A
+> purpose-built fixture would be built to pass.
+>
+> **Cost of choosing wrong:** keeping both means WP-11 must explain two apps that are not
+> the product without confusing a reader. Dropping one costs the generator a comparison
+> point it cannot get back cheaply.
+
+---
+
+**D-2 · How does stage 3 learn which app it serves?** — *blocks WP-16*
+
+**(a)** a `domainDescription` field on `RegistryFile` · **(b)** an override on
+`Stage3Options` supplied by the composition root.
+
+> **Recommendation: (a), the registry field.** With adopters in the picture this is not
+> close: the registry is the artefact WP-25 generates and WP-24 ships, so the app's
+> description must travel with it. An override means every integration must remember to
+> pass it, and one that forgets gets an engine claiming to be a finance app — the exact
+> defect being fixed.
+>
+> **Cost of choosing wrong:** (a) is a breaking change to `RegistryFile`, so both
+> reference apps and the codegen move together. (b) is a smaller diff that leaves an
+> application-shaped hole in a `core-*` API.
+
+---
+
+**D-3 · How does a guided step anchor to an element?** — *blocks WP-27*
+
+**(a)** CSS selector captured at build time · **(b)** a stable attribute the adopter adds
+· **(c)** semantic / accessibility-tree matching at runtime (label, role, heading).
+
+> **Recommendation: (c) primary, (a) as fallback, never (b) alone.** (b) is a human step,
+> which the product promises not to require. (c) degrades in the right direction — an
+> accessibility tree is more stable across redesigns than a class name, and matching a
+> field by its visible label is how a person finds it. Reading from source makes (a) a
+> usable fallback rather than the only option.
+>
+> **Cost of choosing wrong:** (a) alone breaks on the next deploy, silently, pointing
+> users at the wrong field. (c) is harder and will sometimes fail to match — acceptable,
+> because WP-27's acceptance requires an unmatched anchor to fall back to text.

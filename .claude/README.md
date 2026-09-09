@@ -30,8 +30,8 @@ bug.
 1. **[`decisions/`](decisions/)** — binding. Superseded ADRs stay with a
    forward-pointing `Status:`. Cited from production source — `cascade.ts`,
    `money.ts`, `core-capability/src/types.ts`.
-2. **[`docs/rules.md`](docs/rules.md)** — the fourteen invariants, each traced to
-   **what actually enforces it**. The register PLAN.md §2 does not have.
+2. **[PLAN.md](../PLAN.md) §2** — the seventeen non-negotiable rules. Their
+   enforcement is mapped in the register below, not restated here.
 3. **[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md)** — read
    this before assuming a rule is protected. It maps every rule to the gate, hook
    or test holding it up, and lists the gaps. It never claims protection that does
@@ -60,7 +60,10 @@ Review with `/hooks`. A newly created `settings.json` may not be picked up until
 
 | Skill | For |
 |---|---|
-| [`new-feature`](skills/new-feature/SKILL.md) | The development loop: branch, declaration first, failing test, codegen, gates, ship. |
+| [`add-capability`](skills/add-capability/SKILL.md) | A new or changed capability: declaration, codegen, golden set, and the check that it did not crowd its neighbours. **The most common task in this repo.** |
+| [`new-domain`](skills/new-domain/SKILL.md) | A whole new domain package. The platform thesis under test — how little code, and did `core-*` have to change. |
+| [`router-regression`](skills/router-regression/SKILL.md) | Accuracy dropped. Diagnose from the scorecard, fix at the declaration, **never** by raising a threshold. |
+| [`new-feature`](skills/new-feature/SKILL.md) | The generic development loop, for work that is not a capability. |
 | [`ship-it`](skills/ship-it/SKILL.md) | Finished work → gates → explicit staging → conventional commit → PR into `develop`. |
 | [`write-adr`](skills/write-adr/SKILL.md) | An architectural choice was made. Includes the reversibility test. |
 | [`sdlc-bootstrap`](skills/sdlc-bootstrap/SKILL.md) | Install this SDLC into another repo. Needs the `sdlc-kit` folder, which lives **outside this repo** — ask the user for its path. |
@@ -73,13 +76,14 @@ Review with `/hooks`. A newly created `settings.json` may not be picked up until
 | [`sdlc-auditor`](agents/sdlc-auditor.md) | What is claimed vs what is enforced. Returns the ranked gap list. |
 | [`boundary-auditor`](agents/boundary-auditor.md) | Review a change against Rule 1 and the layer boundaries. |
 | [`docs-keeper`](agents/docs-keeper.md) | Doc drift, verified against the tree rather than against other documents. |
+| [`router-analyst`](agents/router-analyst.md) | Investigate router behaviour — a failing golden set, a bucket that dropped, stage mix, latency. |
 
 ## Commands
 
 | Command | Does |
 |---|---|
 | `/gates` | Runs every gate locally, PASS/FAIL with causes. |
-| `/rules-check` | Audits the working diff against the fourteen rules. |
+| `/rules-check` | Audits the working diff against the seventeen rules. |
 | `/sdlc-audit` | Finds every rule written down and enforced by nothing. |
 | `/handoff` | End-of-session: state, drift, where the next session picks up. |
 

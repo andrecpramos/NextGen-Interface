@@ -38,9 +38,15 @@ to be unreachable for this encoder.
 that produces the scores. Changing encoder invalidates every threshold. **Calibrate
 per encoder; never hand-set, never copy between encoders.**
 
-**Enforcement:** Rule 14 — currently `convention` on this branch. A `postEdit`
-reminder fires on `packages/core-intent/eval/**`. The real gate,
-`check-thresholds.mjs`, is on `docs/plan-restructure` and unmerged.
+**Enforcement:** Rule 14 — **now a gate.** `tooling/scripts/check-thresholds.mjs`
+compares the shipped operating point in `config.ts` against the calibration output
+in `eval/scorecards/thresholds-<kind>.json` and fails on any divergence, in CI.
+
+The gap it closes is precise: `pnpm router:calibrate` writes its recommendation to
+a file **nothing reads at run time** — the shipped thresholds are hand-transcribed
+literals. So the exact edit the rule forbids was also the edit nothing would
+notice. A `postEdit` reminder on `packages/core-intent/eval/**` still fires at the
+moment of temptation, which is the cheaper half of the defence.
 
 ---
 
@@ -115,11 +121,16 @@ nothing. **Precision matters more than coverage for anything that denies.**
 
 ## L6 · A gate can pass while checking nothing
 
-**What happened.** The CI step "Registry artefacts are current" runs
-`pnpm registry:build` — which builds **domain-modules** — and then diffs
+**What happened.** The CI step "Registry artefacts are current" ran
+`pnpm registry:build` — which builds **domain-modules** — and then diffed
 `packages/domain-finance/generated/*`, files that build never writes. Two of its
-three paths pass unconditionally. It has been green for weeks while real drift in
-the authoritative domain went ungated.
+three paths passed unconditionally. It was green for weeks while real drift in the
+authoritative domain went ungated.
+
+**Fixed.** The step now diffs `packages/domain-modules/generated/*`. The comment
+above it records what it used to diff and why, so the next person to touch the
+paths knows what the trap looked like. The underlying `OUT_INTENT` shared-path
+collision is *not* fixed — a third domain forces that issue.
 
 **The lesson.** A job name is marketing; the `run:` lines are the truth. **A gate
 nobody has seen fail is a gate nobody knows works.** Make every new gate fail on
