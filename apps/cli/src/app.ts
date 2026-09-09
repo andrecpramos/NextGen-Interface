@@ -22,6 +22,7 @@ import {
   commitCapture,
   deleteModule,
   proposeCapture,
+  relatedModules,
   revertModule,
   searchModules,
   EventBus,
@@ -298,6 +299,11 @@ export class NextGenApp {
 
   getModule(id: string): Module | null {
     return this.#repositories.modules.get(id);
+  }
+
+  /** Same mechanism as search()/capture-time shortlist, scoped to a saved module. */
+  async relatedModules(id: string): Promise<readonly ModuleMatch[]> {
+    return relatedModules(this.#useCaseDeps, id);
   }
 
   listEntries(moduleId: string): readonly ModuleEntry[] {

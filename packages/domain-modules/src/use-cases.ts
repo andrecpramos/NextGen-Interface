@@ -176,11 +176,30 @@ export interface ModuleMatch {
 const SHORTLIST_GATE = 0.5;
 const SHORTLIST_SIZE = 5;
 
+/** Body characters folded into the search/relatedness corpus (~350-500 words). */
+const CORPUS_BODY_CHARS = 2000;
+
+/**
+ * The text a module contributes to the search/shortlist/relatedness corpus.
+ * title/summary first (unmodified — preserves today's ranking for the common
+ * case where they already carry the match), body appended and truncated. Not
+ * a hard technical limit — the encoder can take more — it's a signal choice:
+ * an unbounded body would let one long capture swamp every comparison it
+ * appears in, diluting the cosine signal SHORTLIST_GATE was tuned against.
+ * 2000 chars covers a typical capture (a password, a renewal date) in full.
+ * A fact past that point in an unusually long module still won't be found by
+ * search — a real limit of this pass, not something silently hidden.
+ */
+function moduleCorpusText(m: Module): string {
+  const body = m.body.length > CORPUS_BODY_CHARS ? m.body.slice(0, CORPUS_BODY_CHARS) : m.body;
+  return `${m.title}. ${m.summary}\n\n${body}`;
+}
+
 async function shortlist(deps: UseCaseDeps, extracted: ExtractedContent): Promise<readonly ModuleMatch[]> {
   const modules = deps.repositories.modules.list();
   if (modules.length === 0) return [];
 
-  const corpus = modules.map((m) => `${m.title}. ${m.summary}`);
+  const corpus = modules.map(moduleCorpusText);
   // The hashing embedder needs a vocabulary fit to this corpus; the neural one
   // ignores the call (EmbeddingRuntime.fit is optional). Either way this must
   // be a *separate* embedder instance from the capability router's, or the
@@ -497,7 +516,7 @@ export async function searchModules(deps: UseCaseDeps, query: string): Promise<r
   const modules = deps.repositories.modules.list();
   if (modules.length === 0 || !trimmed) return [];
 
-  const corpus = modules.map((m) => `${m.title}. ${m.summary}`);
+  const corpus = modules.map(moduleCorpusText);
   deps.embedder.fit?.(corpus);
   const [q, vectors] = await Promise.all([deps.embedder.embed(trimmed), deps.embedder.embedAll(corpus)]);
 
@@ -505,6 +524,40 @@ export async function searchModules(deps: UseCaseDeps, query: string): Promise<r
     .map((m, i) => ({ module: m, score: cosine(q, vectors[i] ?? []) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, SHORTLIST_SIZE);
+}
+
+export interface RelatedModulesOptions {
+  readonly limit?: number;
+}
+
+/**
+ * Similar modules to an already-saved one — same mechanism as
+ * `searchModules`/capture-time `shortlist`, scoped to a module already in the
+ * repository instead of a fresh query or extraction. Powers the module detail
+ * page's "Related modules" section — a passively-rendered enhancement, not a
+ * new AI-reachable action (Rule 7: every screen reachable by AI is reachable
+ * without it).
+ */
+export async function relatedModules(
+  deps: UseCaseDeps,
+  moduleId: string,
+  opts?: RelatedModulesOptions,
+): Promise<readonly ModuleMatch[]> {
+  const modules = deps.repositories.modules.list();
+  const targetIndex = modules.findIndex((m) => m.id === moduleId);
+  if (targetIndex === -1 || modules.length <= 1) return [];
+
+  const corpus = modules.map(moduleCorpusText);
+  deps.embedder.fit?.(corpus);
+  const vectors = await deps.embedder.embedAll(corpus);
+  const query = vectors[targetIndex] ?? [];
+
+  return modules
+    .map((m, i) => ({ module: m, score: cosine(query, vectors[i] ?? []) }))
+    .filter((s) => s.module.id !== moduleId)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, opts?.limit ?? SHORTLIST_SIZE)
+    .filter((s) => s.score >= SHORTLIST_GATE);
 }
 
 // -------------------------------------------------------- delete / revert --

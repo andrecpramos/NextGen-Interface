@@ -19,8 +19,8 @@ export type {
 export { EventBus, type DomainEvent, type EventHandler } from './events.ts';
 
 export {
-  commitCapture, deleteModule, proposeCapture, revertModule, searchModules,
+  commitCapture, deleteModule, proposeCapture, relatedModules, revertModule, searchModules,
   type CaptureCandidate, type CaptureDecision, type CaptureInput, type CaptureProposal,
   type CommitCaptureInput, type CommitOutcome,
-  type ModuleMatch, type Result, type UseCaseDeps,
+  type ModuleMatch, type RelatedModulesOptions, type Result, type UseCaseDeps,
 } from './use-cases.ts';
