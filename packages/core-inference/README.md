@@ -7,7 +7,7 @@ no transport code at all — no `fetch`, no host, no `/api/chat`.
 
 ## Why this package exists
 
-Not as an abstraction habit. [ADR-006](../../.ai/decisions/ADR-006.md) moved the stack to
+Not as an abstraction habit. [ADR-006](../../.claude/decisions/ADR-006.md) moved the stack to
 TypeScript, which means on-device inference runs through `llama.rn` — and **nobody has
 proved that works**. WP-10 gates the mobile app on loading a quantised 1B GGUF and
 completing 10 stage-3 calls on a physical mid-range Android, measuring first-token
@@ -35,7 +35,7 @@ store review.
 
 A missing model, a timeout, an unreachable server — these are ordinary conditions on a
 device. `complete()` returns `unavailable` and the cascade degrades to stages 1–2 and
-asks, which is the behaviour [sdlc/design.md](../../.ai/sdlc/design.md) specifies.
+asks, which is the behaviour [sdlc/design.md](../../.claude/sdlc/design.md) specifies.
 Throwing would turn a graceful clarify into a crash on a financial write path.
 
 The encoder is deliberately asymmetric: embedding failures **do** throw. A missing chat

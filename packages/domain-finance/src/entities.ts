@@ -5,7 +5,7 @@
  * engine had to know it exists: no `core-*` package imports anything from here,
  * and the boundary test asserts it.
  *
- * Money follows [ADR-010](../../../.ai/decisions/ADR-010.md): signed integer minor
+ * Money follows [ADR-010](../../../.claude/decisions/ADR-010.md): signed integer minor
  * units, currency bound to the amount, negative leaves the account.
  */
 

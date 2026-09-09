@@ -70,7 +70,7 @@ sense.
 There is deliberately **no `build` and no `lint` at the root.** The workspace runs
 TypeScript directly via Node's native type stripping, so no package defines `build`;
 the only real build in the repo is `pnpm web:build`. ESLint is not wired up yet — see
-[ci-cd.md](.ai/sdlc/ci-cd.md), which explains why a job wrapping a no-op is worse than
+[ci-cd.md](.claude/sdlc/ci-cd.md), which explains why a job wrapping a no-op is worse than
 no job.
 
 ## 5. Run the web app
@@ -134,7 +134,7 @@ pnpm app:offline
 
 Same app, **no language model at all** — stages 1 and 2 only. Notice what still works:
 `budgets` still resolves, and "transfer 500 to my brother" is still refused, in about
-0ms, because [ADR-009](.ai/decisions/ADR-009.md) made out-of-scope a matter of routing
+0ms, because [ADR-009](.claude/decisions/ADR-009.md) made out-of-scope a matter of routing
 rather than a judgement the model makes. Anything the first two stages cannot settle
 becomes a *question* instead of a guess. That is the degradation path, and it is worth
 seeing before trusting anything else.
@@ -256,7 +256,7 @@ number.
 
 There is **no `pnpm build` and no `pnpm lint`.** Both were removed rather than left to
 fail: no package defines `build` (the workspace runs TypeScript directly), and ESLint
-is not wired up. [ci-cd.md](.ai/sdlc/ci-cd.md) explains why a green job that certifies
+is not wired up. [ci-cd.md](.claude/sdlc/ci-cd.md) explains why a green job that certifies
 nothing is worse than an absent one.
 
 ---

@@ -32,7 +32,7 @@ next-env.d.ts.timestamp
 *.sqlite
 *.sqlite3
 
-# model weights — distributed on demand, never in the repo (see .ai/deployment.md)
+# model weights — distributed on demand, never in the repo (see .claude/docs/deployment.md)
 models/
 *.gguf
 *.onnx
@@ -58,7 +58,13 @@ infrastructure/supabase/.branches/
 infrastructure/supabase/.temp/
 
 # NOTE: eval/scorecards/ is intentionally NOT ignored.
-# Golden-set accuracy must be visible in the diff — see .ai/sdlc/testing.md.
+# Golden-set accuracy must be visible in the diff — see .claude/sdlc/testing.md.
 
-# Claude Code — personal, per-machine overrides. Project settings.json IS committed.
+# Claude Code — personal, per-machine overrides. Everything else under .claude/
+# IS committed: the ADRs are cited from source, and the hooks are the only layer
+# that actually enforces the branching contract.
 .claude/settings.local.json
+
+# The portable SDLC kit lives outside this repo and is reused across projects.
+# Ignored here so a working copy dropped in for a bootstrap is never committed.
+sdlc-kit/

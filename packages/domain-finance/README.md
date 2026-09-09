@@ -39,7 +39,7 @@ unmake what already happened, either: the event is a statement of fact.
 
 ## The sign lives here
 
-[ADR-010](../../.ai/decisions/ADR-010.md) §2 left this owed to the domain, and this is
+[ADR-010](../../.claude/decisions/ADR-010.md) §2 left this owed to the domain, and this is
 where it is paid. `createTransaction` takes an unsigned **magnitude** and applies the
 direction from the category's kind.
 

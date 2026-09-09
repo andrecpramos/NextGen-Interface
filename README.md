@@ -7,16 +7,16 @@ but finance is the proof, not the product.
 ## Stack
 
 TypeScript everywhere, pnpm workspace monorepo. See
-[ADR-006](.ai/decisions/ADR-006.md) for why this supersedes the original Flutter
+[ADR-006](.claude/decisions/ADR-006.md) for why this supersedes the original Flutter
 decision.
 
 | Layer | Choice |
 |---|---|
 | Web | Next.js (App Router) + React 19 + Zustand |
-| Design system | Bespoke CSS design tokens — no UI framework ([ADR-012](.ai/decisions/ADR-012.md)) |
+| Design system | Bespoke CSS design tokens — no UI framework ([ADR-012](.claude/decisions/ADR-012.md)) |
 | Mobile | Expo / React Native |
-| Local DB | SQLite + Drizzle ([ADR-007](.ai/decisions/ADR-007.md)) |
-| Backend | Supabase — optional, off the critical path ([ADR-008](.ai/decisions/ADR-008.md)) |
+| Local DB | SQLite + Drizzle ([ADR-007](.claude/decisions/ADR-007.md)) |
+| Backend | Supabase — optional, off the critical path ([ADR-008](.claude/decisions/ADR-008.md)) |
 | Inference | Ollama (desktop) · llama.rn (mobile) · WebGPU (web) |
 | Testing | Vitest + the golden-set harness |
 
@@ -28,7 +28,7 @@ packages/       the product — domain-agnostic engine + finance domain
 services/       optional backend (empty through MVP 2, deliberately)
 infrastructure/ supabase · docker · ci
 tooling/        shared eslint + tsconfig
-.ai/            architecture, ADRs, SDLC process
+.claude/            architecture, ADRs, SDLC process
 ```
 
 The boundary that matters: **`packages/core-*` never imports `domain-finance`.**
@@ -102,14 +102,14 @@ with no model at all.
 2. **The router is a cascade** — deterministic, then embedding, then a
    grammar-constrained LLM over only the top candidates. Most turns should never reach
    the model; that is how the offline latency budget is met.
-   ([ADR-003](.ai/decisions/ADR-003.md))
+   ([ADR-003](.claude/decisions/ADR-003.md))
 3. **The dispatcher enforces action policy, not the prompt.** Read executes, write
    confirms, destructive confirms and journals, unclassified refuses.
-   ([ADR-004](.ai/decisions/ADR-004.md))
+   ([ADR-004](.claude/decisions/ADR-004.md))
 4. **AI-first, not AI-only.** Every screen reachable without the AI.
-   ([ADR-005](.ai/decisions/ADR-005.md))
+   ([ADR-005](.claude/decisions/ADR-005.md))
 5. **The device is the source of truth.** A backend exists; nothing on the critical
-   path requires it. ([ADR-008](.ai/decisions/ADR-008.md))
+   path requires it. ([ADR-008](.claude/decisions/ADR-008.md))
 6. **The model never computes a number the user sees, never emits SQL, and never
    produces an identifier that isn't validated against the registry.**
 

@@ -1,7 +1,7 @@
 ﻿{
     "version":  "0.1.0",
     "name":  "@nextgen/api",
-    "description":  "Optional backend. Empty through MVP 1-2 by design - see .ai/decisions/ADR-008.md",
+    "description":  "Optional backend. Empty through MVP 1-2 by design - see .claude/decisions/ADR-008.md",
     "scripts":  {
                     "test":  "vitest run --passWithNoTests",
                     "typecheck":  "tsc --noEmit"

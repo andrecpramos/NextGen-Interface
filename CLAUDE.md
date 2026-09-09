@@ -1,8 +1,13 @@
 # CLAUDE.md
 
 Instructions for any AI agent working in this repository. Loaded automatically
-every session. The architecture rules live in [PLAN.md](PLAN.md) §2 and the ADRs
-in [.ai/decisions/](.ai/decisions/); this file is about **process**.
+every session; this file is about **process**.
+
+**Everything else lives in [`.claude/`](.claude/README.md)** — one directory for
+workflow *and* knowledge. The rules are [PLAN.md](PLAN.md) §2, with their real
+enforcement in [.claude/docs/rules.md](.claude/docs/rules.md); the ADRs are
+[.claude/decisions/](.claude/decisions/); the mistakes already made are
+[.claude/docs/lessons.md](.claude/docs/lessons.md).
 
 ## Branching — binding
 
@@ -30,8 +35,8 @@ develop    integration. Default branch. Everything lands here.
    work — questions, reviews, explanations that write no files — is exempt.
 
 A `SessionStart` / `PreCompact` hook restates this with live branch state; see
-[.ai/sdlc/branching.md](.ai/sdlc/branching.md) for the full policy and
-[.ai/agent-workflow.md](.ai/agent-workflow.md) for how it is enforced.
+[.claude/sdlc/branching.md](.claude/sdlc/branching.md) for the full policy and
+[.claude/sdlc/agent-workflow.md](.claude/sdlc/agent-workflow.md) for how it is enforced.
 
 ## This tree is shared
 
@@ -50,13 +55,47 @@ CI gates these; running them locally first is faster than a red build.
 
 ```bash
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1: core never imports a domain
+node tooling/scripts/check-doc-links.mjs           # every relative doc link resolves
 pnpm -r typecheck
 pnpm -r test
 pnpm registry:check                                # Rule 10: >=3 examples per capability
 ```
 
 The golden-set gate and its tolerances are described in
-[.ai/sdlc/ci-cd.md](.ai/sdlc/ci-cd.md); the reasoning is [ADR-011](.ai/decisions/ADR-011.md).
+[.claude/sdlc/ci-cd.md](.claude/sdlc/ci-cd.md); the reasoning is [ADR-011](.claude/decisions/ADR-011.md).
+
+`/gates` runs all of it and reports PASS/FAIL per gate, or delegate it to the
+`gate-runner` agent to keep it out of your context. The gate list itself lives in
+[.claude/sdlc.config.json](.claude/sdlc.config.json) — hooks and commands read that file,
+so it and CI must not drift.
+
+**Which rule is actually enforced where** — and which are only written down — is
+the register in
+[.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md). Read it before
+trusting that something is protected. Its top entry is not theoretical: the CI
+staleness gate currently diffs a directory the build never writes.
+
+## The workflow is in `.claude/`
+
+Don't re-derive these procedures — they are written down. Full map:
+[.claude/README.md](.claude/README.md).
+
+| You are… | Use |
+|---|---|
+| adding or changing a capability | `new-feature` skill |
+| making an architectural choice | `write-adr` skill — the reversibility test is in it |
+| finishing work: gates → commit → PR | `ship-it` skill |
+| checking a diff against the rules | `/rules-check` |
+| asking what is actually enforced | `/sdlc-audit`, or the `sdlc-auditor` agent |
+| ending a session | `/handoff` |
+| suspicious the docs have drifted | `docs-keeper` agent |
+| installing this SDLC in another repo | `sdlc-bootstrap` skill (the `sdlc-kit` folder lives outside this repo) |
+| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — eight of them, with what each cost |
+
+Three hooks enforce what you would otherwise have to remember: the branching
+contract at every context boundary, a guard denying broad staging and writes to
+production, and an immediate gate check on edits that could break Rule 1 or the
+calibration discipline. Review them with `/hooks`.
 
 ## Environment
 

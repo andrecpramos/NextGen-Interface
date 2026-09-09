@@ -10,7 +10,7 @@
 > closes the out-of-scope gap Part II opened.
 
 The spike exists to answer one question before any Flutter code is written
-([ADR-003](../../../.ai/decisions/ADR-003.md)):
+([ADR-003](../../../.claude/decisions/ADR-003.md)):
 
 > **What fraction of real turns can be resolved without invoking the LLM at all?**
 
@@ -112,7 +112,7 @@ the date grammar.
 One character of spread order moved param exactness **54.1% → 98.3%**.
 
 This is the "model never computes a number the user sees" rule
-([coding-standards.md](../../../.ai/coding-standards.md)) demonstrating its value. In the
+([coding-standards.md](../../../.claude/docs/coding-standards.md)) demonstrating its value. In the
 Flutter implementation it must be enforced by types, not by convention — deterministic
 and model-derived params should be separate types that can only be merged one way.
 
@@ -183,7 +183,7 @@ On inspection the router behaved correctly. Each utterance **genuinely requests
 deletion in plain language**, and each was routed to a `destructive` capability with
 `requiresConfirmation: true`. The "without asking" / "already approved" / "silently"
 framings all failed to bypass the gate — which is precisely what
-[ADR-004](../../../.ai/decisions/ADR-004.md) promises, and it held because policy is code,
+[ADR-004](../../../.claude/decisions/ADR-004.md) promises, and it held because policy is code,
 not prompt text.
 
 The test assertion was wrong, not the router. Those five entries now assert
@@ -197,7 +197,7 @@ delete all transactions."* — keep the strict assertion and all pass.
 One caveat worth stating plainly: this harness feeds injections in as *utterances*.
 The realistic vector is injection via **stored transaction memos** entering a prompt
 as data, which requires the untrusted-data fencing in
-[security.md](../../../.ai/security.md) and is not modelled here. Do not read this result as
+[security.md](../../../.claude/docs/security.md) and is not modelled here. Do not read this result as
 covering that case.
 
 ---
@@ -284,7 +284,7 @@ Only item 1 can invalidate the architecture. It should run first.
   Both `gemma3:1b` and `qwen2.5:1.5b` are now measured. The cascade survives; the
   out-of-scope sentinel and the confidence gate do not.
 - ~~**Out-of-scope detection has no working mechanism on target hardware**~~
-  **Closed by WP-03 / [ADR-009](../../../.ai/decisions/ADR-009.md) — see Part III.**
+  **Closed by WP-03 / [ADR-009](../../../.claude/decisions/ADR-009.md) — see Part III.**
   The registry now declares the application's limits, so out-of-scope is retrieved
   rather than judged: 0% → 40% on `gemma3:1b`, entirely model-free. Recall is now
   bounded by how well the boundary is written, which is a tractable problem.
@@ -540,7 +540,7 @@ definition and cheap to detect.*
 986 MB. `gemma3:1b` is 8 points worse, emits the out-of-scope sentinel zero times, and
 reports 0.95 confidence while wrong — it should not be the target model.
 
-Against the Sprint 0 exit criteria in [roadmap.md](../../../.ai/roadmap.md):
+Against the Sprint 0 exit criteria in [roadmap.md](../../../.claude/docs/roadmap.md):
 
 | Criterion | Result | |
 |---|---|---|
@@ -607,7 +607,7 @@ bill" is not off-topic — it is on-topic and unsupported. Meanwhile in-domain a
 carries almost no semantic content at all. The thing separating the two classes is not
 what the sentence is about; it is **what the application does**.
 
-Which the application already knew. [ADR-004](../../../.ai/decisions/ADR-004.md) rule 3
+Which the application already knew. [ADR-004](../../../.claude/decisions/ADR-004.md) rule 3
 says it outright — "no payments, no transfers, no sending" — in prose, in an ADR, where
 no code could read it.
 
@@ -616,7 +616,7 @@ class of requests the application deliberately does not serve, carrying a descri
 examples and an authored refusal — and no route and no params, enforced by the
 validator. Boundary entries are retrieved by exactly the same machinery as everything
 else, gated by a calibrated `boundaryMargin`. Out-of-scope stops being a judgement and
-becomes routing. Full reasoning in [ADR-009](../../../.ai/decisions/ADR-009.md).
+becomes routing. Full reasoning in [ADR-009](../../../.claude/decisions/ADR-009.md).
 
 ### The result, and the shape of it
 

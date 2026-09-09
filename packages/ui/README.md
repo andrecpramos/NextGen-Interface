@@ -20,8 +20,8 @@ No build step. Consumers compile the TypeScript source (`transpilePackages` in
 ## The visual language
 
 "Graphite HUD" — the cyberpunk register **without neon**, built with Apple's design
-principles. See [ADR-012](../../.ai/decisions/ADR-012.md) for why this supersedes the
-Material 3 line in [ui-guidelines.md](../../.ai/ui-guidelines.md).
+principles. See [ADR-012](../../.claude/decisions/ADR-012.md) for why this supersedes the
+Material 3 line in [ui-guidelines.md](../../.claude/docs/ui-guidelines.md).
 
 Depth comes from layered translucency, hairline borders and a top-edge highlight.
 **Every shadow token is neutral and dark** — a coloured shadow is a glow, and glow is

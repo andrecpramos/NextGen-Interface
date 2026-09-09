@@ -10,7 +10,7 @@ import { OllamaLlmRuntime } from '@nextgen/core-inference';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-// Gates from .ai/testing.md. These are the numbers Sprint 0 has to clear.
+// Gates from .claude/docs/testing.md. These are the numbers Sprint 0 has to clear.
 const GATES = {
   top1Accuracy: 0.90,
   paramExactness: 0.85,

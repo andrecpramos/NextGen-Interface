@@ -80,7 +80,7 @@ for (const pkg of cores) {
 if (violations.length > 0) {
   console.error('\n  Rule 1 VIOLATED — packages/core-* must not import a domain.\n');
   for (const v of violations) console.error(`    ${v}`);
-  console.error(`\n  ${violations.length} violation(s). Domains register into the engine; see .ai/architecture.md.\n`);
+  console.error(`\n  ${violations.length} violation(s). Domains register into the engine; see .claude/docs/architecture.md.\n`);
   process.exit(1);
 }
 
