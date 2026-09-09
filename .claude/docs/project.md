@@ -28,32 +28,55 @@ AI reads the registry.
 
 ## Current state
 
+"Complete" means it does its job under test, not that files exist.
+
 | Area | Status |
 |---|---|
-| `.claude/` documentation foundation | ✅ complete — 8 ADRs |
-| Monorepo scaffold (pnpm workspace) | ✅ complete |
+| `.claude/` knowledge base | ✅ complete — 12 ADRs, rules + enforcement register, lessons |
+| Monorepo scaffold (pnpm workspace) | ✅ complete — 10 packages, 2 apps, 1 service |
 | Intent router (`packages/core-intent`) | ✅ built, calibrated, measured |
-| Capability registry | schema defined, codegen not started |
-| Data layer | scaffold only |
-| Inference adapters | Ollama working; mobile/web runtimes not started |
-| Voice (STT/TTS) | not started |
-| Apps (web / mobile) | scaffold only |
-| Backend | intentionally empty through MVP 2 ([ADR-008](../decisions/ADR-008.md)) |
+| Capability registry + codegen | ✅ `registry:build` generates the registry, route table and golden fixtures from one declaration |
+| Data layer (`packages/data`) | 🟡 schema, money, query engine, undo, migrations present; not exercised end-to-end |
+| Inference adapters (`core-inference`) | 🟡 Ollama working; mobile/web runtimes not started |
+| Voice (`core-voice`) | 🟡 package exists; STT/TTS not wired |
+| Apps (`apps/web`, `apps/cli`) | 🟡 both run; the assistant surface landed in WP-08/09 |
+| Backend (`services/api`) | ⛔ intentionally empty through MVP 2 ([ADR-008](../decisions/ADR-008.md)) |
 
-## Environment facts (verified 2026-08-29)
+## Environment facts (verified 2026-09-09)
 
-- Working dir: `c:\Users\andre\Desktop\NextGen_Interface` — git repo on `main`
-- `node` 25.1.0, `pnpm` 11.1.2, `git` 2.51.2 — available
-- `ollama`: `llama3.1:8b` (chat) + `nomic-embed-text` (embeddings)
+- Working dir: `C:\Users\andre\Desktop\NextGen_Interface`
+- Default branch is `develop`; `main` is production and moves only on request
+- `node` v25.1.0, `pnpm` 11.1.2, `git` 2.51.2 — available.
+  **Node 23.6+ is required** despite `engines` saying `>=20`: the repo runs
+  TypeScript through `node` directly and uses `node:sqlite`. On Node 20 install
+  succeeds and everything fails at run time.
+- `ollama`: `qwen2.5:1.5b` (the selected stage-3 model), `gemma3:1b`,
+  `qwen2.5vl:7b`, `nomic-embed-text` (embeddings)
+- A fresh clone needs `pnpm install --ignore-scripts` — see [../../CLAUDE.md](../../CLAUDE.md)
 - `flutter` / `dart`: not installed — **no longer relevant**, see
   [ADR-006](../decisions/ADR-006.md)
 
 ## Open risk
 
-**No 1B-class model has been tested.** Every measurement so far ran against
-`llama3.1:8b` on a desktop. Nothing about it predicts phone-class inference, and the
-ADR-003 go/no-go gate stays open until that runs. See
-[FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).
+The 1B question is **closed**: WP-01 measured `qwen2.5:1.5b` at 84–86% top-1 and
+151ms p95, and it is the selected stage-3 model. `gemma3:1b` was rejected. Full
+register: [PLAN.md](../../PLAN.md) §9.
+
+The largest *open* risk is now **mobile inference via `llama.rn` is untested**
+(WP-10). Desktop headroom is large, which helps and does not settle it. The
+mitigation is real rather than aspirational: the adapter interface exists and
+`core-intent` holds no transport code, so a failure changes one package.
+
+Two smaller risks are worth knowing before touching the router:
+
+- **`tauAct` reads a signal small models do not produce.** The gate held 15.7% of
+  calls on 8B and 0.7% on 1.5B — small models report high confidence
+  unconditionally.
+- **Golden-set runs are not deterministic.** 7 of 200 entries flipped between
+  identical 8B runs at temperature 0, which is why the gate compares against a
+  committed baseline with a tolerance rather than an absolute threshold.
+
+Measurements: [FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).
 
 ## Document map
 
@@ -67,16 +90,27 @@ ADR-003 go/no-go gate stays open until that runs. See
 | [security.md](./security.md) | Encryption, prompt injection, PII, LLM threat model |
 | [testing.md](./testing.md) | Including how you test a non-deterministic router |
 | [deployment.md](./deployment.md) | CI/CD, model distribution, store constraints |
-| [sdlc/](../../.claude/sdlc) | Per-phase process definitions |
-| [agents/](../../.claude/agents) | Role briefs for AI coding agents working this repo |
-| [decisions/](../../.claude/decisions) | ADRs — the binding technical choices |
+| [rules.md](./rules.md) | The fourteen invariants — and what actually enforces each |
+| [lessons.md](./lessons.md) | Mistakes already made. Read before repeating one |
+| [critical-infrastructure.md](./critical-infrastructure.md) | What is protected, what only looks protected |
+| [../sdlc/](../sdlc/) | Per-phase process definitions |
+| [../roles/](../roles/) | Role briefs for agents working this repo |
+| [../decisions/](../decisions/) | ADRs — the binding technical choices |
+| [../README.md](../README.md) | The map of `.claude/` itself: hooks, skills, agents, commands |
 
 > **Stack note:** ADR-001 (Flutter) and ADR-002 (Drift) are **superseded** by
-> [ADR-006](../decisions/ADR-006.md) and [ADR-007](../decisions/ADR-007.md). Several
-> documents below still carry Dart/Flutter examples — `coding-standards.md`,
-> `architecture.md`, `ui-guidelines.md`, and the agent briefs. The *architecture*
-> they describe is unchanged and language-neutral; only the syntax in the examples
-> is stale. Rewriting them is tracked as a follow-up.
+> [ADR-006](../decisions/ADR-006.md) and [ADR-007](../decisions/ADR-007.md).
+> `coding-standards.md`, `../sdlc/development.md` and the role briefs in
+> `../roles/` were rewritten against the real TypeScript stack.
+>
+> **Still stale:** `architecture.md` (Dart examples, `build_runner`, GoRouter),
+> `security.md` (SQLCipher via Drift, `flutter_secure_storage`), and
+> `../sdlc/requirements.md` NFR-SEC-01. The *architecture* those documents
+> describe is unchanged and language-neutral — only the syntax and the named
+> libraries are stale. They are deliberately left for a human call rather than
+> rewritten by an agent, because what replaces SQLCipher here has not actually
+> been decided, and an agent's plausible guess would become a cited decision
+> nobody made.
 
 ## Non-negotiables
 

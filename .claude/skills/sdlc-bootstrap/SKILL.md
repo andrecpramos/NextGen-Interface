@@ -71,7 +71,7 @@ Classify:
 
 ## Phase 2 — Write `.claude/sdlc.config.json`
 
-Validate against `sdlc-kit/sdlc.config.schema.json`. Two rules matter more than
+Validate against `<kit>/sdlc.config.schema.json`. Two rules matter more than
 the rest:
 
 **Every `gates[].command` is the command CI actually runs.** Not an equivalent,
@@ -87,7 +87,7 @@ Order `gates` cheapest-first. Keep `postEdit` commands under a second.
 
 ## Phase 3 — Install
 
-Copy per the table in `sdlc-kit/INSTALL.md` §2. Then fill the templates:
+Copy per the table in `<kit>/BOOTSTRAP.md` §3. Then fill the templates:
 
 - Replace each `{{PLACEHOLDER}}` with a surveyed value, **or** delete the section
   and leave a one-line `TODO:` naming what is missing and who can answer it.

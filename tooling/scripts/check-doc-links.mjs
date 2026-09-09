@@ -17,14 +17,11 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative, resolve } from 'node:path';
 
 const ROOT = process.cwd();
-const SKIP = /(^|\/)(node_modules|\.git|dist|\.next|\.turbo|coverage)(\/|$)/;
-
-// sdlc-kit/templates/ is excluded on purpose. Its links are written to resolve
-// at the template's DESTINATION (.claude/sdlc/agent-workflow.md links to
-// ../hooks/guard-git.mjs), not at its location inside the kit. Checking them
-// here would report ~11 permanent failures and train everyone to ignore this
-// gate -- the exact failure mode a noisy check produces.
-const TEMPLATES = /^sdlc-kit\/templates\//;
+// sdlc-kit is skipped: it lives outside this repo and is gitignored here, and
+// its templates carry links that resolve at their DESTINATION rather than in
+// place. Checking them would report permanent failures and train everyone to
+// ignore this gate -- the exact failure mode a noisy check produces.
+const SKIP = /(^|\/)(node_modules|\.git|dist|\.next|\.turbo|coverage|sdlc-kit)(\/|$)/;
 
 const files = [];
 const walk = (dir) => {
@@ -45,7 +42,6 @@ const broken = [];
 let checked = 0;
 
 for (const file of files) {
-  if (TEMPLATES.test(file)) continue;
   const lines = readFileSync(join(ROOT, file), 'utf8').split('\n');
 
   lines.forEach((line, i) => {

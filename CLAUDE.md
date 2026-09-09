@@ -89,7 +89,7 @@ Don't re-derive these procedures — they are written down. Full map:
 | asking what is actually enforced | `/sdlc-audit`, or the `sdlc-auditor` agent |
 | ending a session | `/handoff` |
 | suspicious the docs have drifted | `docs-keeper` agent |
-| installing this SDLC in another repo | `sdlc-bootstrap` skill, and [sdlc-kit/](sdlc-kit/) |
+| installing this SDLC in another repo | `sdlc-bootstrap` skill (the `sdlc-kit` folder lives outside this repo) |
 | about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — eight of them, with what each cost |
 
 Three hooks enforce what you would otherwise have to remember: the branching

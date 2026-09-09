@@ -63,7 +63,7 @@ Review with `/hooks`. A newly created `settings.json` may not be picked up until
 | [`new-feature`](skills/new-feature/SKILL.md) | The development loop: branch, declaration first, failing test, codegen, gates, ship. |
 | [`ship-it`](skills/ship-it/SKILL.md) | Finished work → gates → explicit staging → conventional commit → PR into `develop`. |
 | [`write-adr`](skills/write-adr/SKILL.md) | An architectural choice was made. Includes the reversibility test. |
-| [`sdlc-bootstrap`](skills/sdlc-bootstrap/SKILL.md) | Install this SDLC into another repo, from [`sdlc-kit/`](../sdlc-kit/). |
+| [`sdlc-bootstrap`](skills/sdlc-bootstrap/SKILL.md) | Install this SDLC into another repo. Needs the `sdlc-kit` folder, which lives **outside this repo** — ask the user for its path. |
 
 ## Agents — delegated work in their own context
 
@@ -100,4 +100,4 @@ agents, not humans. Detail in
 
 - [../CLAUDE.md](../CLAUDE.md) — the always-loaded contract
 - [../PLAN.md](../PLAN.md) — §2 the rules, §7 the work packages
-- [../sdlc-kit/](../sdlc-kit/) — the portable version of all this, for other repos
+- `sdlc-kit` — the portable version of all this, kept outside this repo so it can be reused across projects. Not tracked here.
