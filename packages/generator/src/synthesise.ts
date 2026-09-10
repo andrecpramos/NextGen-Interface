@@ -89,7 +89,7 @@ function systemPrompt(languages: readonly string[]): string {
     '',
     'Return ONLY a JSON object:',
     '{',
-    '  "description": string  — one sentence, under 25 words, saying what a person does on this screen. No component names, no the word "page".',
+    `  "description": string  — one sentence, under 25 words, saying what a person does on this screen, written in ${names[0] ?? 'English'}. No component names, no the word "page".`,
     `  "examples": string[]   — exactly ${EXAMPLES_PER_CAPABILITY} short things a real user would type to ask to be taken here, in their own words, never the developer's. Spread them evenly across these languages, using each one exactly as written: ${names.join('; ')}.`,
     '}',
   ].join('\n');

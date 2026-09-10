@@ -1034,7 +1034,7 @@ decision to take deliberately rather than drift into.
 
 ---
 
-### WP-32 · Golden set, and the CommandPalette baseline ⬜ · **M** · queue 3
+### WP-32 · Golden set, and the CommandPalette baseline ✅ **COMPLETE — 2026-09-10**
 
 **Goal.** Measure against questions we did not invent, **and against the incumbent**.
 `fut-app` already has a CommandPalette — the thing this product competes with — which
@@ -1049,15 +1049,63 @@ a model *from the app's rendered copy* then filtered by hand. Record provenance 
 entry. Then run each one through the **existing CommandPalette** and record whether it
 finds the right destination.
 
+**Delivered.** [eval/fut-app/GOLDEN_SET.md](eval/fut-app/GOLDEN_SET.md) —
+`golden-set.jsonl` (**210 entries**), `build-golden-set.mjs` (cached, so the fixture is
+reproducible), `palette.mjs` + `palette-baseline.mjs` (the incumbent, driven through its
+*own* imported command list and its one-line matcher), and `evaluate-golden.mjs`.
+
+**The baseline: 45.5%.** Two numbers, because there are two honest questions —
+
+| | Right destination offered |
+|---|---|
+| The user's question typed in verbatim (what the assistant gets) | **0.6%** (1/176) |
+| Best result from any content word in it — how a palette is really used | **45.5%** (80/176), 42.6% at rank 1 |
+
+The second is the number to beat, and it is **deliberately generous**: it tries every
+content word and keeps the best, where a real person gets one guess. The first is not a
+fair test and is reported only to show why — a substring matcher cannot match a sentence
+against a menu label, so it was never being asked a question at all.
+
+**Two findings the baseline produced on its own**, both about who the incumbent serves
+worst: a **`PARENT` finds the right screen 18.8% of the time against a `COACH`'s 57.7%**
+(10 palette commands versus 53), and **Portuguese does worse than English — 37.1% against
+61.7% — in a Portuguese application**, because "treinos" does not substring-match
+"Treino". The role with the least familiarity and the language the app is actually used in
+are the two the palette fails most. That is the ICP argument in
+[business-case](.claude/docs/business-case.md) §2, measured rather than asserted.
+
 **Acceptance.**
-- [ ] ≥80 entries with expected capability or outcome, **tagged by role**
-- [ ] Provenance recorded; **no entry written by whoever wrote the registry**
-- [ ] ≥15% out-of-scope, ≥20% "what/why" questions for WP-36, majority Portuguese
-- [ ] **CommandPalette result recorded per entry** — this is the baseline
-- [ ] Committed as a golden set the evaluator can run
+- [x] ≥80 entries — **210**, each with an expected route+capability or outcome, **tagged
+      by role** (8 of 10 roles; `COACH` 104 and `PARENT` 48 carry the comparison, `STAFF`
+      and `ADMIN` have 4 each and are illustrative only)
+- [x] Provenance recorded per entry; **not written by whoever wrote the registry** — the
+      expected answers are WP-31's hand-written ground truth, the questions come from the
+      app's *rendered copy* (never the registry), and a different model wrote them
+      (`qwen2.5vl:7b` vs the registry's `llama3.1:8b`)
+- [x] **16.2%** out-of-scope (≥15%), **42.4%** what/why (≥20%), **62.9%** Portuguese
+      (majority)
+- [x] **CommandPalette result recorded per entry** — both numbers, on every entry
+- [x] Committed as a golden set the evaluator can run — `evaluate-golden.mjs` runs it
+      against the ten generated role registries, matching **by route, not by id**
 
 **Stop if.** The only available source is model-generated questions from the app's own
 copy — then the measurement is partly circular and WP-33 must say so prominently.
+⚠️ **TRIGGERED.** There are no support messages for `fut-app` and no access to people who
+have never seen it, so the third and weakest source is the one that was available.
+GOLDEN_SET.md states it at the top and narrows it three ways; **WP-33 must carry the
+caveat into any number it publishes.** The 34 out-of-scope entries are hand-written and
+unaffected.
+
+**Unplanned finding, and it changed the generator.** Running the golden set through the
+cascade returned **0.0%** top-1 — not a routing failure but two defects the golden set was
+the first thing able to expose. (1) The shipped `hashing` profile accepts nothing on this
+registry, so every turn degraded to a clarify (Rule 14, again). (2) **The registry was in
+the wrong language**: `languages` listed `en` first, so titles and descriptions were
+English while 63% of real questions are Portuguese — and the stage-2 encoder matches
+lexically, so *"o que é o centro clínico"* scored `competition.matches_detail` above
+`medical.centre`. The config now leads with `pt-PT`, the generator writes descriptions in
+the application's own language, and `GeneratorConfig.languages` says why in the type
+itself.
 
 ---
 

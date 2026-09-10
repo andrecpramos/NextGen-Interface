@@ -130,7 +130,17 @@ export interface GeneratorConfig {
   readonly manifests: readonly string[];
   /** `i18n/locales/<lang>/<namespace>.json`. */
   readonly localesDir: string | null;
-  /** Languages to resolve labels in; the first is the primary. */
+  /**
+   * Languages to resolve labels in. **The first is the application's own
+   * language**, and it decides the language of every title and description in
+   * the registry.
+   *
+   * This is not cosmetic. The document stage 2 embeds is title + description +
+   * examples, and the hashing embedder matches lexically: an English
+   * description in a Portuguese application cannot be reached by a Portuguese
+   * question. Measured on the pilot target — with `en` first, "o que é o centro
+   * clínico" scored `competition.matches_detail` above `medical.centre`.
+   */
   readonly languages: readonly string[];
   /**
    * What this application is, in one or two sentences. Supplied only when the
