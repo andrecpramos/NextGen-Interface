@@ -203,10 +203,6 @@ importers:
 
   services/api: {}
 
-  tooling/eslint-config: {}
-
-  tooling/tsconfig: {}
-
 packages:
 
   '@drizzle-team/brocli@0.10.2':

@@ -108,5 +108,6 @@ calibration discipline. Review them with `/hooks`.
   a populated `node_modules` leaves no builds to ignore. Nothing here needs a
   native build, so skipping them is safe; CI does exactly this.
 - `jq` is **not** on PATH here. Use Node for JSON in scripts and hooks.
-- Five `package.json` files carry a PowerShell UTF-8 BOM that `JSON.parse`
-  rejects. Strip it when reading a manifest.
+- `services/api/package.json` carries a PowerShell UTF-8 BOM that `JSON.parse`
+  rejects. Strip it when reading a manifest. *(This said "five" until WP-37 counted
+  them.)*

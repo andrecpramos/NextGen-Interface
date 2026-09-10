@@ -289,7 +289,7 @@ Honest status. The engine is complete; the product surface is not.
 | **Tests for `apps/web`** | — | the API contract is the natural integration-test target |
 | **`apps/mobile`** | WP-10 | on-device inference; **gated** on proving `llama.rn` works at all |
 | **Voice** | WP-13 | MVP 2 — the mic button renders disabled and says so |
-| **Lint** | WP-12 | `tooling/eslint-config` has no `index.js` and no ESLint dependency — deliberately left out of CI rather than wrapped in a green no-op |
+| **Lint** | WP-12 | No ESLint dependency anywhere — deliberately left out of CI rather than wrapped in a green no-op. The empty `tooling/eslint-config` stub was deleted in WP-37 |
 
 
 ### Gaps I found while wiring this up, which the plan did not name

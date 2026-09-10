@@ -92,10 +92,13 @@ export type Result<T> =
   Not in an entity, not in a DTO, not in a test fixture ([ADR-010](../decisions/ADR-010.md)).
 - All timestamps stored UTC; converted at the presentation edge only.
 
-> **No linter is configured.** `tooling/eslint-config` is an empty stub — its
-> manifest names a `main` that does not exist, and there is no root lint script.
-> Typecheck and tests are the only automated style gates today. Do not claim a
+> **No linter is configured.** There is no root lint script and no package defines
+> one. Typecheck and tests are the only automated style gates today. Do not claim a
 > lint rule enforces something; none does.
+>
+> *(The empty `tooling/eslint-config` stub that used to stand in for this was deleted
+> in WP-37 — the absence of lint is deliberate and documented; an empty package
+> pretending otherwise was not.)*
 
 ## Capability declarations
 

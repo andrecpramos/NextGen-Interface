@@ -555,9 +555,10 @@ scan), [check-import-boundaries.mjs](../../tooling/scripts/check-import-boundari
 [check-scorecard.mjs](../../tooling/scripts/check-scorecard.mjs). Reasoning in
 [ADR-011](../decisions/ADR-011.md) and [ci-cd.md](../sdlc/ci-cd.md).
 
-⚠️ **Lint is deliberately absent**, not forgotten — `tooling/eslint-config` has no
-`index.js` and no ESLint dependency, so a lint job would wrap a no-op and report
-green. The root `lint` and `build` scripts were removed for the same reason.
+⚠️ **Lint is deliberately absent**, not forgotten — there is no ESLint dependency
+anywhere, so a lint job would wrap a no-op and report green. The root `lint` and
+`build` scripts were removed for the same reason. The `tooling/eslint-config` stub
+that used to hold the place was deleted in WP-37.
 
 ⚠️ **The CVE gate has gone red twice**, both fixed with `pnpm-workspace.yaml`
 overrides (not `package.json`, where pnpm 11 silently ignores them): `postcss` when

@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **16 workspace packages · 384 tests
+**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **14 workspace packages · 384 tests
 across 21 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -463,9 +463,9 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 
 | Item | Evidence | Verdict |
 |---|---|---|
-| `tooling/tsconfig` | `base.json` is **byte-identical** to the root `tsconfig.base.json`, and all **13** tsconfigs in the repo extend the root one. No package depends on it | **Dead — delete** |
-| `tooling/eslint-config` | Contains **only a `package.json`** — no `index.js`, no ESLint dependency, no dependents. The *absence of lint* is deliberate and documented; the empty package is not | **Dead — delete** |
-| `eval/scorecards/hashing-llama3.1_8b.txt` | **0 bytes**, tracked, sitting beside a real `.json`. Not recorded anywhere until now | **Dead — delete** |
+| ~~`tooling/tsconfig`~~ | Byte-identical to the root `tsconfig.base.json`, extended by nothing | **DELETED 2026-09-10 (WP-37)** |
+| ~~`tooling/eslint-config`~~ | Only a `package.json` — no `index.js`, no ESLint dependency, no dependents | **DELETED 2026-09-10 (WP-37)** |
+| ~~`hashing-llama3.1_8b.txt`~~ | 0 bytes, tracked, beside a real `.json`. Its real path was `packages/core-intent/eval/scorecards/`, not the `eval/scorecards/` recorded here | **DELETED 2026-09-10 (WP-37)** — and it was the only 0-byte tracked file left in the repo |
 | `services/api` | 3 files, `src/index.ts` is `export {}`, zero dependents | **Decided in [ADR-013](.claude/decisions/ADR-013.md), 2026-09-09** — keep, empty, reserved for Ladder B2's hosted trace store; use for nothing on rungs A1/B1/C1 without a new ADR |
 | ~~**`domain-finance` is orphaned**~~ | **RESOLVED 2026-09-09 (WP-16)** — a `devDependency` of `apps/cli`; `domain-swap.test.ts` runs the real router against it. `NextGenApp` still cannot *register* it (its use cases are module-specific) — a separate, larger question | Closed |
 | `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead.** WP-21 verifies it; a browser transport is unscoped work nobody has costed |
@@ -473,7 +473,7 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | `.claude/docs/roadmap.md` | Plans a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened. 7 Flutter mentions | **Dead — delete.** `docs/runbook` already does |
 | 7 product docs | `.claude/docs/vision.md` · `.claude/docs/project.md` · `.claude/docs/roadmap.md` · `SETUP.md` · `README.md` · `apps/web/README.md` · `packages/core-voice/README.md` all describe finance or a voiceless product; **none mentions the navigation layer** | **WP-11** |
 | ~~`golden.generated.jsonl` ×2~~ | **RESOLVED 2026-09-10 (WP-19)** — 24 and 81 entries respectively; the CI diff now has something to be stale about | Closed |
-| `apps/cli` → `@nextgen/core-capability` | Declared as a dependency, **never imported** in `apps/cli/src` | **Dead — drop the dependency.** Folded into WP-37 |
+| ~~`apps/cli` → `@nextgen/core-capability`~~ | **NOT dead — this entry was stale.** WP-16 added `domain-swap.test.ts`, which imports `capabilityDocument` from it. Re-verified 2026-09-10 before WP-37 would have deleted a live dependency | **Keep** |
 
 **Checked and clean**, so nobody re-runs these: ADR-001 and ADR-002 are correctly marked
 SUPERSEDED and no other ADR status has drifted · all 13 tsconfigs extend one base ·
@@ -484,9 +484,12 @@ resolve, the only three failures being deliberate `ADR-0NN` placeholders in the
 `write-adr` template · `check-import-boundaries.mjs` and `check-thresholds.mjs` both
 green.
 
-⚠️ **The two dead `tooling/` packages are named in six `.claude/docs/` documents and pinned in
-`pnpm-lock.yaml`.** Deleting them is a coherent change — lockfile, workspace globs, six
-doc references — not a drive-by. That is why it is WP-37 and not a footnote.
+✅ **Done 2026-09-10 (WP-37).** Deleting them was the coherent change it was billed as —
+lockfile, workspace globs, seven doc references — and re-verifying first was worth it:
+one row of the table above was **stale** (`apps/cli` genuinely uses `core-capability` now),
+one had the **wrong path**, and a related environment note in `CLAUDE.md` overstated the
+number of BOM-carrying manifests by five to one. **A sweep that is not re-verified before
+it is acted on is a sweep that deletes something live.**
 ### Branch state
 
 **Verified against `origin` 2026-09-09.** `feature/sdlc-kit` and `feature/reconcile-plan-restructure`
@@ -1646,7 +1649,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | WP | What | Why deferred | Unblock when |
 |---|---|---|---|
 | ~~**WP-19**~~ ✅ | Golden fixture: **filled**, 2026-09-10 | **Decided: fill.** Declaring an utterance as a capability's example *is* the assertion that it resolves there; demanding a second hand-written `expect` block meant nothing was ever asserted. `expect` now refines (params, `maxStage`), never gates. The format WP-25 generates into is therefore plain example strings — no per-example fixture authoring at scale | Done |
-| **WP-37** | Remove the dead weight (§4) | Delete `tooling/tsconfig` (a byte-identical duplicate nothing extends), `tooling/eslint-config` (a package.json and nothing else), and the 0-byte `hashing-llama3.1_8b.txt`. **Acceptance:** the six `.claude/docs/` references updated, `pnpm-lock.yaml` regenerated, workspace globs still resolve, `pnpm -r typecheck` and `pnpm -r test` green, and §4's package count corrected from 15 to 13. **Stop if** anything outside `tooling/` turns out to depend on either package | Alongside WP-11, which touches the same docs |
+| ~~**WP-37**~~ ✅ | Dead weight removed, 2026-09-10 | `tooling/tsconfig`, `tooling/eslint-config` and the 0-byte scorecard are gone; seven doc references updated, `pnpm-lock.yaml` regenerated (0 remaining references), workspace globs resolve, typecheck and 384 tests green. **Every claim was re-verified before deleting, and one was false**: `apps/cli` → `@nextgen/core-capability` is *live* — WP-16's `domain-swap.test.ts` imports it, and the table had not been updated. **A second was wrong about the path**, and a third — "five `package.json` files carry a BOM" — was 5× too high; it is one. §4's count is now 14 workspace packages | Done |
 | **WP-28** | A target app **we do not own** | `fut-app` is route-rich and real, so it proves value as well as mechanism — but it is ours, and a generator tuned on it may not transfer. External validation is the remaining unproven step | After WP-33; **give it a deadline, not a hope** |
 | **WP-29** | Script tag — Ladder C3 | Needs the installable package first | After WP-26 |
 | **WP-18** | Undo for `module.delete` | No rung on any ladder ships a write capability | **Before any write capability ever ships** |
