@@ -1,90 +1,113 @@
 # NextGen Interface
 
-An AI-native application platform: conversation is the primary interface, screens are
-a rendering layer the AI drives. The first domain built on it is personal finance —
-but finance is the proof, not the product.
+**A drop-in AI navigation layer for a web app that already exists.**
 
-## Stack
+Point a tool at an application's source. It reads the routes and the components,
+generates a description of everything the app can do, and produces a bundle shipped
+with the site. The app's users then get an assistant that **knows their app**: it takes
+them where they asked in their own words, and tells them what they will find there.
 
-TypeScript everywhere, pnpm workspace monorepo. See
-[ADR-006](.claude/decisions/ADR-006.md) for why this supersedes the original Flutter
-decision.
+> *"I need to file an expense claim"* → navigates to `/finance/expenses/new` and says
+> *"This is the expense form. Fill in the amount and date, attach the receipt, and pick
+> the project it belongs to."*
 
-| Layer | Choice |
-|---|---|
-| Web | Next.js (App Router) + React 19 + Zustand |
-| Design system | Bespoke CSS design tokens — no UI framework ([ADR-012](.claude/decisions/ADR-012.md)) |
-| Mobile | Expo / React Native |
-| Local DB | SQLite + Drizzle ([ADR-007](.claude/decisions/ADR-007.md)) |
-| Backend | Supabase — optional, off the critical path ([ADR-008](.claude/decisions/ADR-008.md)) |
-| Inference | Ollama (desktop) · llama.rn (mobile) · WebGPU (web) |
-| Testing | Vitest + the golden-set harness |
+The old site keeps working exactly as it does. **Every screen the assistant can reach
+stays reachable without it** — that one is not negotiable
+([ADR-005](.claude/decisions/ADR-005.md)).
+
+## Does it work?
+
+Measured on a real 146-page application it was never designed for, against a registry
+no human wrote:
+
+| | Assistant | The app's own command palette |
+|---|---|---|
+| Right screen, 176 real questions | **52.3%** | 45.5% |
+| Portuguese — the app's own language | **57.8%** | 37.1% |
+| Guardians — infrequent users | **45.8%** | 18.8% |
+| **Settled without a model call** | **2.4%** | — |
+
+**It beats the incumbent. It does not yet beat the incumbent for free** — the mechanism
+meant to make most turns cost nothing does not survive 145 capabilities.
+
+**[WRITEUP.md](WRITEUP.md) is the whole story**, negative results first, every claim
+linked to the artefact that backs it. Read that before anything else here.
+
+## The idea
+
+> **The capability registry, not a prompt, is the application's contract.** The model
+> never computes, never emits SQL and never picks a route — it selects a *declared id*
+> and fills *typed slots*. Everything that must be correct — policy, navigation,
+> refusal, the app's limits — is declared data the engine reads.
+
+A three-stage cascade routes each turn, cheapest first:
+
+1. **Deterministic** — phrase match. ~2ms, no model.
+2. **Embedding** — cosine against a precomputed index. Milliseconds, no model.
+3. **The model** — only for what 1 and 2 cannot settle, choosing an id from a shortlist
+   of three. It never sees the full list. ([ADR-003](.claude/decisions/ADR-003.md))
+
+Type `why` after any turn and it explains itself from the recorded trace **with no model
+involved** — which stage decided, what else it considered and by what margin. That is a
+product feature, not a debug tool: *"prove why it sent this user there"* is what a
+regulated adopter asks first.
 
 ## Structure
 
 ```
-apps/           cli (composition root) · web (assistant surface) · mobile · desktop
-packages/       the product — domain-agnostic engine + finance domain
-services/       optional backend (empty through MVP 2, deliberately)
-infrastructure/ supabase · docker · ci
-tooling/        shared eslint + tsconfig
-.claude/            architecture, ADRs, SDLC process
+packages/
+  generator/       reads an app's source, emits one registry per role   <- the build step
+  core-capability/ registry schema, validation, codegen — the contract
+  core-intent/     the three-stage router, calibration, eval harness
+  core-dispatch/   policy table, confirmation, undo, navigation
+  core-trace/      TurnTrace records; explainability from a record
+  core-inference/  swappable LLM + embedding runtimes
+  core-voice/      Whisper STT + Piper TTS adapters
+  data/            node:sqlite schema, migrations, repositories
+  ui/              sphere, composer, confirmation cards
+  domain-modules/  reference application — the registered one
+  domain-finance/  reference application — proof the engine is domain-agnostic
+
+apps/cli           composition root, and the fastest way to see a turn
+apps/web           the assistant surface (Next.js)
+eval/fut-app       the measurement: ground truth, golden set, scorecards
+tooling/scripts    the CI gates that are not tests
 ```
 
-The boundary that matters: **`packages/core-*` never imports `domain-finance`.**
-Domains register into the engine. Workspace package boundaries enforce this — an
-unlisted dependency will not resolve, which is stronger than a lint rule.
+**The boundary that matters:** `packages/core-*` never imports an application package.
+Applications register *into* the engine. This is now the product boundary — an adopter's
+app sits exactly where `domain-modules` sits — and it is gated, not merely intended:
+`node tooling/scripts/check-import-boundaries.mjs`.
 
-| Package | Does |
-|---|---|
-| `core-intent` | Three-stage router. **Built and measured.** |
-| `core-capability` | Registry schema + codegen — the engine↔domain contract |
-| `core-trace` | TurnTrace records; explainability from a record, not narration |
-| `core-inference` | Swappable LLM runtime adapters |
-| `core-voice` | Whisper STT + Piper TTS adapters |
-| `domain-finance` | Entities, use cases, capability registrations |
-| `data` | Drizzle schema, migrations, repositories |
-| `ui` | Sphere states, confirmation cards, trace viewer. **Built.** |
-
-## Status
-
-MVP 1 is functionally complete — WP-01 through WP-09.
-
-| | |
-|---|---|
-| Documentation foundation | ✅ complete — 12 ADRs |
-| Monorepo scaffold | ✅ complete — 15 workspace projects |
-| Intent router | ✅ built, calibrated, measured on a 1.5B model |
-| Engine, data, trace, inference, domain | ✅ complete |
-| `apps/cli` · `apps/web` | ✅ both run the whole stack |
-| CI/CD | ✅ complete — gates on every push (WP-12) |
-| Voice · mobile | not built — WP-10, WP-13 |
-
-**Open risk:** top-1 routing accuracy is 80% against a 90% target, and the closest
-capability pair (`spending.total` / `spending.by_category`, cosine 0.83) is where it
-fails. The trace makes each failure visible rather than hiding it — see
-[FINDINGS.md](packages/core-intent/eval/FINDINGS.md).
+`domain-modules` and `domain-finance` are **reference applications**, not the product.
+They are what the generator is measured against.
 
 ## Run it
 
 ```bash
-pnpm install
-pnpm web          # the assistant surface — http://localhost:3000
+pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
+pnpm app                         # the reference app in a terminal
+pnpm app:offline                 # stages 1-2 only, no model, no Ollama needed
+pnpm web                         # the same stack behind a browser UI
+pnpm check                       # typecheck + 384 tests + registry validation
 ```
 
-That is the product. Ollama is probed, not required: without it the router drops to
-its deterministic stages and the status bar says so, rather than failing.
+Ollama is probed, not required. Without it the router drops to its deterministic stages
+and says so, rather than guessing.
+
+### Generate a registry from an application
 
 ```bash
-pnpm app          # the same stack in a terminal
-pnpm app:offline  # stages 1-2 only, no model at all
-pnpm check        # typecheck + 248 tests + registry validation
+node --experimental-strip-types packages/generator/src/cli.ts <config.json> \
+  [--model llama3.1:8b] [--no-model]
 ```
 
-Full command list in [SETUP.md](SETUP.md#command-reference), which is also where the
-prerequisites and the `ollama pull` lines live.
+It emits one `registry.<ROLE>.json` per role, a master inventory for review, and a
+report of every route it refused to declare and why. **It writes nothing into the
+application it reads** — that is asserted by fingerprinting the whole target tree
+before and after a run.
 
-### Measuring the router
+### Measure the router
 
 ```bash
 pnpm router:inspect     # score distributions, recall@k — always look here first
@@ -92,35 +115,48 @@ pnpm router:calibrate   # sweep thresholds — never hand-tune them
 pnpm router:eval        # full cascade against the golden set
 ```
 
-Requires Ollama with `nomic-embed-text` and a chat model. `--embedder=hashing` runs
-with no model at all.
+Warm every model with a throwaway call first and run them sequentially, or every latency
+figure is meaningless.
 
 ## The load-bearing ideas
 
-1. **The capability registry is the contract.** Generated from one source, feeding both
-   routing and the intent engine, so they cannot drift.
-2. **The router is a cascade** — deterministic, then embedding, then a
-   grammar-constrained LLM over only the top candidates. Most turns should never reach
-   the model; that is how the offline latency budget is met.
-   ([ADR-003](.claude/decisions/ADR-003.md))
-3. **The dispatcher enforces action policy, not the prompt.** Read executes, write
-   confirms, destructive confirms and journals, unclassified refuses.
+1. **The registry is the contract.** One declaration generates the route and the thing
+   the router selects, so they cannot drift.
+2. **The cascade escalates only when it must**, and the model is constrained to a
+   shortlist it did not choose. ([ADR-003](.claude/decisions/ADR-003.md))
+3. **Policy is code in the dispatcher, never prompt text.** Read executes, write
+   confirms, destructive confirms and undoes, unclassified **refuses**.
    ([ADR-004](.claude/decisions/ADR-004.md))
-4. **AI-first, not AI-only.** Every screen reachable without the AI.
-   ([ADR-005](.claude/decisions/ADR-005.md))
-5. **The device is the source of truth.** A backend exists; nothing on the critical
-   path requires it. ([ADR-008](.claude/decisions/ADR-008.md))
-6. **The model never computes a number the user sees, never emits SQL, and never
-   produces an identifier that isn't validated against the registry.**
+4. **The application declares its own limits**, and a request outside them is refused by
+   retrieval rather than by a model's judgement.
+   ([ADR-009](.claude/decisions/ADR-009.md)) — *and see WRITEUP.md §6 for where this
+   stops working.*
+5. **A capability a user cannot reach is absent from the registry they receive**, not
+   hidden in it. ([ADR-014](.claude/decisions/ADR-014.md))
+6. **The installer never modifies the adopter's source.** It reads their code and writes
+   only new, additive artefacts.
+7. **The model never computes a number the user sees, never emits SQL, and never
+   produces an identifier that is not validated against the registry.**
 
-## Next
+## Where to look
 
-1. **WP-11 — docs cleanup.** The last Dart examples in `coding-standards.md` and the
-   agent briefs still describe a stack that ADR-006 replaced.
-2. **Per-route screens.** The registry's `route` is tracked and returned on every turn
-   but there is nothing to navigate *to*. The drawer runs each capability and renders
-   its answer inline; Rule 7 holds over that rather than over a real screen set.
-3. **WP-13 — voice.** Whisper in, Piper out. Three sphere states are already built and
-   waiting on it.
-4. **Domain #2.** The real test: if adding it means touching `packages/core-*`, the
-   architecture has failed.
+| Question | File |
+|---|---|
+| Does this work, and what is the evidence? | **[WRITEUP.md](WRITEUP.md)** |
+| What is the plan, and what is next? | [PLAN.md](PLAN.md) |
+| How do I run it? | [SETUP.md](SETUP.md) |
+| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 15 ADRs |
+| What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
+| What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
+| Working in this repo as an agent? | [CLAUDE.md](CLAUDE.md) |
+
+## Status
+
+The engine is built and measured. The generation works. **What is unresolved is the cost
+model**: 2.4% of turns settle without a model call against a 60% target, which was a
+pre-committed kill criterion and it triggered. The number is published rather than
+buried, and the decision it forces is open — [PLAN.md](PLAN.md) §13, D-4.
+
+Not built: the browser runtime, guided steps, the installable package, and a live
+deployment. Nothing here is production-ready — 61.8% of out-of-scope requests are
+currently answered with a navigation instead of a refusal.

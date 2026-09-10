@@ -471,7 +471,7 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead.** WP-21 verifies it; a browser transport is unscoped work nobody has costed |
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
 | `.claude/docs/roadmap.md` | Plans a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened. 7 Flutter mentions | **Dead — delete.** `docs/runbook` already does |
-| 7 product docs | `.claude/docs/vision.md` · `.claude/docs/project.md` · `.claude/docs/roadmap.md` · `SETUP.md` · `README.md` · `apps/web/README.md` · `packages/core-voice/README.md` all describe finance or a voiceless product; **none mentions the navigation layer** | **WP-11** |
+| ~~7 product docs~~ | **5 of 7 done 2026-09-10 (WP-11, partial).** `README.md` rewritten around the navigation layer and its measured numbers; `vision.md` now scores each of its four goals against evidence (goal 1 is half-met and its offline half failed); `project.md` was already current; `apps/web/README.md` named a `FinanceApp` root that no longer exists; `core-voice/README.md` claimed "not yet implemented" for code that ships and is imported. **Left: `SETUP.md` (dated, finance-era) and `roadmap.md` (plans a Flutter build ADR-006 rejected — the unmerged `docs/runbook` branch already deletes it, so deleting it here would collide)** | **WP-11**, partial |
 | ~~`golden.generated.jsonl` ×2~~ | **RESOLVED 2026-09-10 (WP-19)** — 24 and 81 entries respectively; the CI diff now has something to be stale about | Closed |
 | ~~`apps/cli` → `@nextgen/core-capability`~~ | **NOT dead — this entry was stale.** WP-16 added `domain-swap.test.ts`, which imports `capabilityDocument` from it. Re-verified 2026-09-10 before WP-37 would have deleted a live dependency | **Keep** |
 
@@ -1656,7 +1656,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | **WP-20** | Screens for capture/search | Reference-app polish | Never, probably |
 | **WP-21** | Verify voice acceptance | Voice is a differentiator but not on the critical path to a measurement | After M2 |
 | **WP-22** | Contract tests for `apps/web` | Real debt; not what M1 answers | After M2 |
-| **WP-11** | Documentation | Nearly all repo prose is now wrong about the product; large, and cheaper once ADR-013 fixes the vocabulary | After WP-23 |
+| **WP-11** ◐ | Documentation — **the product-facing half is done** (§4). `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | Remaining: **`SETUP.md`** is finance-era throughout and needs a rewrite, and **`roadmap.md`** should be deleted — but the unmerged `docs/runbook` branch already deletes it, so resolve that branch first rather than creating a conflict | Before a release |
 | **WP-10** | `apps/mobile` | A native app is a different product from a web layer | Parked. The device-inference gate stands if it returns |
 
 ---
