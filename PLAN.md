@@ -45,7 +45,7 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 |---|---|---|---|---|
 | — | ⚠️ **D-4 — the owner's decision.** WP-33's kill criterion triggered. **Nothing in M3 starts until this is answered** | — | — | — |
 | 1 | **WP-38** · The three model-free levers, on a fixed budget — triggers, a real browser encoder, per-section registries | M1 | M | D-4 |
-| 2 | **WP-40** · ADR: out-of-scope needs a signal that is not topic similarity | M1 | M | — |
+| 2 | **WP-40** · ADR-015 written (`Proposed`); **implementation awaits the owner accepting it** | M1 | M | owner |
 | 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
 | 4 | **WP-34** · The write-up — the second artefact | M2 | M | — |
 
@@ -1345,7 +1345,7 @@ at something else.**
 
 ---
 
-### WP-40 · ADR: out-of-scope needs a signal that is not topic similarity ⬜ · **M** · queue 2
+### WP-40 · ADR: out-of-scope needs a signal that is not topic similarity ◐ **ADR WRITTEN — 2026-09-10, status `Proposed`**
 
 **Goal.** Amend [ADR-009](.claude/decisions/ADR-009.md) with what WP-39 measured. The
 declared-boundary mechanism is sound and it is the safety property the product rests on —
@@ -1377,18 +1377,50 @@ never refused on its own).
 > keeps the property model-free where it can be and does not pretend a 1B model will
 > volunteer a refusal.
 
+**Delivered so far.** [ADR-015](.claude/decisions/ADR-015.md) (status `Proposed`) and
+[experiment-action-verbs.mjs](eval/fut-app/experiment-action-verbs.mjs), which measured the
+mechanism **before** the ADR proposed it.
+
+**The signal works.** Split 40/60 by destination, `nomic-embed-text`, on WP-32's golden set:
+
+| | Flagged as an action request |
+|---|---|
+| The 34 **hand-written** out-of-scope requests | **88.2%** |
+| The 176 in-domain questions | **2.8%** |
+
+| Held-out split, at zero false refusals | Today | With the verb signal |
+|---|---|---|
+| Out-of-scope refused, **model-free** | 20.0% | **45.0%** |
+| In-domain wrongly refused | 0.0% | **0.0%** |
+
+**45% model-free beats the 38.2% that currently needs a model call** — the mechanism gets
+better *and* cheaper. Compare topic similarity, which separated the two populations not at
+all (WP-39).
+
+Two refinements the measurement forced, both in the ADR: the discriminator is **not**
+imperativeness (navigation is imperative too — *"abre o calendário"*), and an instructional
+frame is **not** an action request (*"Como criar uma nova época?"* is a user asking how to
+do it themselves — in-domain false flags fell 11.4% → 2.8% on that alone).
+
 **Acceptance.**
-- [ ] ADR written, amending rather than superseding ADR-009 — the mechanism is not wrong,
+- [x] ADR written, amending rather than superseding ADR-009 — the mechanism is not wrong,
       its input is insufficient
-- [ ] Re-measured against WP-32's **hand-written** 34 out-of-scope entries
-- [ ] **No in-domain turn wrongly refused** — the constraint that has governed
-      `boundaryMargin` throughout, and the expensive error
-- [ ] Whatever ships is measured model-free and with stage 3, separately
+- [x] Re-measured against WP-32's **hand-written** 34 out-of-scope entries, held out
+- [x] **No in-domain turn wrongly refused** — 0.0% on both splits, and it is the constraint
+      `actionBoundaryMargin` is calibrated against
+- [ ] ⏸ **Whatever ships is measured model-free and with stage 3, separately** — blocked on
+      the ADR being **accepted**, which an agent does not do. Implementation touches
+      `core-intent`'s safety path and **must** carry ADR-015's guard: the gate may not fire
+      when the top-ranked capability is itself `write`/`destructive`, or `domain-modules`
+      would start refusing its own `module.delete`
 
 **Stop if.** Detection cannot pass ~70% without wrongly refusing in-domain turns under
 *either* mechanism. Then out-of-scope detection is not solvable at this registry size, and
 the honest product ships with a much smaller declared surface per session — which is a
 scope decision, not a routing one.
+**Did not trigger, and is not cleared either.** 45% model-free at zero false refusals is
+a real gain on a number that had not moved at all, but it is not 70% and it is not 92%.
+§9 keeps the row open.
 
 ---
 
