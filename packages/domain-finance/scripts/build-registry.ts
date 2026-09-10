@@ -1,8 +1,9 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  checkRegistryOwnership,
   formatValidation,
   generateCapabilitiesJson,
   generateGoldenEntries,
@@ -54,6 +55,24 @@ console.log(`  ${routes.length} routes, ${golden.length} generated golden entrie
 if (checkOnly) {
   console.log('\n  --check: valid, nothing written\n');
   process.exit(0);
+}
+
+// OUT_INTENT is shared by every domain's build script. This one is NOT the
+// authoritative build — `pnpm registry:build` runs domain-modules — so an
+// unguarded run here is precisely the documented way to break the router:
+// it replaces the registry the app loads with a different application's
+// capabilities, and everything downstream keeps working, on the wrong app.
+// Identical guard in domain-modules' script, duplicated rather than shared so
+// neither build script reaches into a sibling domain.
+if (!process.argv.includes('--force') && existsSync(OUT_INTENT)) {
+  const verdict = checkRegistryOwnership(
+    readFileSync(OUT_INTENT, 'utf8'),
+    registry.capabilities.map((c) => c.id),
+  );
+  if (!verdict.safe) {
+    console.error(`\n  refusing to write — ${verdict.reason}\n`);
+    process.exit(1);
+  }
 }
 
 mkdirSync(OUT_GEN, { recursive: true });

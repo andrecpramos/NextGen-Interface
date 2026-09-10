@@ -51,6 +51,31 @@ subsystem reads.
 > passed vacuously while real drift went ungated.** Fixed; the underlying
 > shared-path collision is not. A third domain forces the issue.
 >
+> ### The clobber is now loud — 2026-09-10
+>
+> `checkRegistryOwnership` (`core-capability/src/registry-owner.ts`, 14 tests)
+> runs in both build scripts before either writes. If the registry on disk
+> describes a **different application** — judged by capability namespaces, with
+> `unsupported` excluded because both domains declare boundaries under it — the
+> build refuses and names both sides. `--force` overrides.
+>
+> **This does not fix the collision, and must not be read as fixing it.** Where
+> generated artefacts should live is an architectural question: per-domain paths
+> change what the evaluator loads and what the staleness gate diffs, and that is
+> owed an ADR rather than an inference by whoever edited the file last. What
+> changed is only that a silent default became an explicit one.
+>
+> **There was already a `guard-git`-style hook denying `pnpm registry:build:finance`,
+> and it is not a substitute.** It matches a command string, so
+> `node packages/domain-finance/scripts/build-registry.ts` walked straight past
+> it — which is how this was verified. Like every hook here it also binds agents
+> and not humans (§9). The guard is in the build script because that is the one
+> place both a human and an agent must go through.
+>
+> The guard is **symmetric**: after a wrong build, the correct build refuses too,
+> for the same reason. Recovery is `--force` on the build you actually want, and
+> the refusal says so.
+>
 > **Decided 2026-09-11:** ADR-016, option B (one registry file per app), was accepted by
 > the owner. The ADR lives on `feature/rule-15-untrusted-fence` (PR #7). It is
 > implemented as PLAN.md WP-47, after both open PRs merge.
@@ -359,9 +384,13 @@ What remains of it is #6 below, which is a smaller problem, and a different one 
 one that topped this list.)*
 
 1. **The registry's shared `OUT_INTENT` path.** Section 1. One domain's build
-   silently clobbers another's. Survivable with two domains and a documented
-   order; not survivable with three. *(ADR-016 option B was accepted on 2026-09-11,
-   and PLAN.md WP-47 implements it.)*
+   overwrites another's. **No longer silent** — `checkRegistryOwnership` refuses
+   a cross-application write in both build scripts since 2026-09-10 — but the
+   shared path itself is unchanged, and a documented build order is still what
+   keeps the artefacts coherent. **Still ranked first, because the guard buys
+   time rather than a solution:** it makes the mistake visible at the moment it
+   is made, and does nothing for a third domain. *(ADR-016 option B was accepted on
+   2026-09-11, and PLAN.md WP-47 implements it.)*
 2. **Derived artefacts are not gated.** Section 4. On 2026-09-11 a one-line change to
    `normalize()` left ten shipped indexes and two threshold profiles stale, and CI stayed
    green. Only a manual parity run noticed. Every adopter's browser would have received
