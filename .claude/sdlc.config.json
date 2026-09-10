@@ -72,6 +72,15 @@
       "fix": "Wrap the value: fence('what this is', value), or redactTag('tagname', value) if the prompt already delimits with tags. If the prompt genuinely needs no fence, say why in the source with a `// rule15-ok: <reason>` comment next to the call. Note what this gate can and cannot see: it proves a fence was applied near a prompt, not that it covered the right value — fencing legitimately happens upstream. Reading for that is the boundary-auditor agent's job."
     },
     {
+      "id": "adversarial-live",
+      "title": "Adversarial bucket against a real model (local only)",
+      "command": "node tooling/scripts/check-adversarial.mjs",
+      "blocking": true,
+      "rule": "15",
+      "localOnly": true,
+      "fix": "A NEW entry made the router select a forbidden capability. Establish which layer moved before recording it: did the fence stop applying (check-prompt-fencing.mjs), or did the model disregard an intact fence (Finding 14's case — print the prompt and count the delimiters before assuming a bypass)? This gate is deliberately absent from CI: GitHub Actions has no model server, which is exactly why the adversarial bucket passed trivially there for so long and why three of Finding 14's four violations had never been seen. It skips cleanly with a loud message when Ollama is unreachable."
+    },
+    {
       "id": "network-egress",
       "title": "Rule 8 — the device is the source of truth",
       "command": "node tooling/scripts/check-network-egress.mjs",

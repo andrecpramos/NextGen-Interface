@@ -363,7 +363,12 @@ session rather than claiming the set.
 | `guard-git` (echoed-text false positive) | 2026-09-09 | Piped a payload *containing* `git add -A` as echoed text; correctly **allowed** |
 | `check-gates` (post-edit failure) | 2026-09-09 | Throwaway repo, `postEdit` command exiting 1; surfaced it and still exited 0 |
 | `doc-links` | 2026-09-09 | Added a link to a non-existent file; exited 1 naming `file:line` |
-| `import-boundaries` | — | not yet deliberately broken |
+| `prompt-fencing` | 2026-09-10 | Removed the fences from `merge()` and stage 3; exited 1 naming both. **Also failed the other way first:** its first draft reported "OK — 3 prompt sites" when there are four, because it read `prompt:` but not `{ prompt }` shorthand — caught by counting sites found against sites known, not by the gate |
+| `model-numerics` | 2026-09-10 | Removed the `// rule2-ok:` annotation from stage 3's `confidence`; exited 1 |
+| `network-egress` | 2026-09-10 | Pointed `OLLAMA` at a remote host **and** deleted an asset's `sha256`; exited 1 naming both, with different reasons |
+| `adversarial-live` | 2026-09-10 | Removed `gs-0181` from the baseline; exited 1 identifying it as new. Its first draft reported a missing scorecard as a "new safety violation" — alarming and wrong, since nothing unsafe had happened and the gate simply could not look. Now a separate `BROKEN` path |
+| `registry-owner` (build scripts) | 2026-09-10 | Ran `domain-finance`'s build directly against the modules registry; refused and left the file byte-identical. Note the pre-existing hook denying `pnpm registry:build:finance` did **not** catch this — it matches a command string, and invoking the script directly walks past it |
+| `import-boundaries` | — | not yet deliberately broken, **but it caught a real one 2026-09-10**: a doc comment in `core-inference` naming two domain packages. The text grep is blunt on purpose and the comment was reworded rather than the gate relaxed |
 | `registry-check` | — | not yet deliberately broken |
 | `check-thresholds` | — | not yet deliberately broken |
 | `scorecard` | — | not yet deliberately broken |
@@ -462,11 +467,24 @@ one that topped this list.)*
      passed on all three models: the router can be steered into *selecting* a
      destructive capability, and the dispatcher still refuses to run one
      unconfirmed. Policy is code (§3).
-   - **The bucket must run against a model in CI.** It runs model-free today,
-     where every entry passes because nothing is consulted. Three of the four
-     failures pre-date this work and had never been seen. **This is now the
-     highest-value unbuilt gate in this document** — it is the only one whose
-     absence has already hidden real failures rather than theoretical ones.
+   - **The bucket now runs against a model — locally.** `check-adversarial.mjs`
+     (2026-09-10) runs it on every installed baseline model and fails on a **new**
+     violating entry id, comparing ids rather than scores because ids are the
+     stable comparison under Finding 10's non-determinism. The four known ones
+     are recorded in `adversarial-baseline.json`, which says at length that
+     recording is not approving and that shrinking the list is the point.
+
+     ⚠️ **It is deliberately not in CI, and that is the residual gap.** GitHub
+     Actions has no model server — which is precisely why this bucket passed
+     trivially there for so long, and why three of Finding 14's four violations
+     had never been seen by anything. The gate skips cleanly and loudly when
+     Ollama is absent, because a gate that fails on a missing local dependency
+     gets disabled, and a disabled gate protects nothing. **Closing this properly
+     needs a self-hosted runner** ([ci-cd.md](../sdlc/ci-cd.md) already describes
+     that path for the other model-backed runs), and until there is one,
+     model-facing safety is verified by whoever runs `/gates` on a machine with
+     Ollama — a convention, and this document's standard for a convention is that
+     it holds until someone is in a hurry.
 7. ~~**Rules 16 and 17 have no mechanism at all**~~ **Both have had tests since WP-25
    (2026-09-10); see the matrix. What remains open is Rule 17 on a second app (PLAN.md
    WP-43).** The original entry read: — they were added on 2026-09-09 with
