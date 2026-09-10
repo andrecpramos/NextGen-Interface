@@ -540,7 +540,9 @@ definition and cheap to detect.*
 986 MB. `gemma3:1b` is 8 points worse, emits the out-of-scope sentinel zero times, and
 reports 0.95 confidence while wrong — it should not be the target model.
 
-Against the Sprint 0 exit criteria in [roadmap.md](../../../.claude/docs/roadmap.md):
+Against the Sprint 0 exit criteria — written before any code, and preserved in
+[history.md](../../../.claude/docs/history.md#sprint-0-and-the-original-success-metrics)
+now that `roadmap.md` is deleted:
 
 | Criterion | Result | |
 |---|---|---|

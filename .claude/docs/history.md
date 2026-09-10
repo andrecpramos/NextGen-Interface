@@ -691,12 +691,12 @@ verified on disk.
 | Blueprint asked for | Status | Where |
 |---|---|---|
 | `.claude/docs/` folder structure | ✅ Done | [.claude/docs/]() — 36 files (24 docs + 12 ADRs) |
-| `project.md`, `vision.md`, `architecture.md` | ⚠️ Done, **stale since WP-14** — see the header. `roadmap.md` deleted 2026-09-07 | [.claude/docs/]() |
+| `project.md`, `vision.md`, `architecture.md` | ✅ Done, and **re-verified against the repositioning 2026-09-10** (WP-11). `roadmap.md` deleted 2026-09-10, its two surviving parts moved to [§ Sprint 0](#sprint-0-and-the-original-success-metrics) below | [.claude/docs/]() |
 | `coding-standards.md`, `ui-guidelines.md`, `security.md`, `testing.md`, `deployment.md` | ✅ Done | [.claude/docs/]() |
 | `sdlc/` × 7 phase docs | ✅ Done | [.claude/sdlc/](../sdlc/) |
 | `agents/` × 6 role briefs | ✅ Done | [.claude/roles/](../agents/) |
 | `decisions/` ADR-001…003 | ✅ Done — **12 ADRs**, not 3. **A 13th is owed** for the WP-14 pivot | [.claude/decisions/](../decisions/) |
-| SDLC Phase 1 Planning (vision, roadmap, metrics, risks) | ⚠️ Superseded — `roadmap.md` deleted 2026-09-07 (it planned a Flutter build and a `git init`); §7–§8 here is the roadmap | §7–§8 |
+| SDLC Phase 1 Planning (vision, roadmap, metrics, risks) | ⚠️ Superseded — `roadmap.md` deleted 2026-09-10 (it planned a Flutter build and a `git init`). PLAN.md §0/§7 is the roadmap and §9 the risk register; the **metrics** and Sprint 0's gate are kept [below](#sprint-0-and-the-original-success-metrics) | PLAN.md · §Sprint 0 |
 | SDLC Phase 2 Requirements (FR + NFR) | ✅ Done — IDs assigned, testable | [sdlc/requirements.md](../sdlc/requirements.md) |
 | SDLC Phase 3 Design (ERD, sequence diagrams, nav flow) | ✅ Done | [sdlc/design.md](../sdlc/design.md) |
 | SDLC Phase 4–7 (dev, test, deploy, maintain) | ✅ Documented, ⛔ not executed | [.claude/sdlc/](../sdlc/) |
@@ -746,6 +746,56 @@ longer matches what shipped** — voice and "domain #2" both landed together via
 for a different reason (the product pivot) than either row anticipated. Read this
 table as a record of the original plan, not the current one. The current one is §7's
 work-package list and §8's sequence.
+
+---
+
+### Sprint 0 and the original success metrics
+
+`.claude/docs/roadmap.md` was deleted 2026-09-10 (WP-11): it planned a Flutter build
+[ADR-006](../decisions/ADR-006.md) rejected, and a `git init` that had already happened.
+Two things in it were not dead, and are preserved here because **numbers still being
+cited today are scored against them**.
+
+#### Sprint 0 exit criteria, and WP-01's result
+
+Written before any code, as the gate on the whole architecture — *"if these fail, the
+architecture changes before code is written, not after."* Measured 2026-08-29 in
+[FINDINGS Part II](../../packages/core-intent/eval/FINDINGS.md):
+
+| Exit criterion | Result | |
+|---|---|---|
+| ≥65% of the golden set resolved at stages 1+2 | 30% | ❌ — a corpus artefact, see FINDINGS Part I |
+| Stage-3 top-1 ≥85% on the remainder, 1–1.5B model | 86% on direct+paraphrase, 80% overall | ⚠️ met on the realistic buckets only |
+| p95 < 2s end to end on desktop | 151ms | ✅ by an order of magnitude |
+
+The architecture did not change, and the reasoning is in FINDINGS' WP-01 verdict:
+ADR-003's *cascade* held at 1B, and what failed was narrower — the two places the design
+delegated a judgement to the model's own competence (*is this in scope?*, *how sure am
+I?*). Both were later replaced with something structural.
+
+#### The success metrics, with their measurement definitions
+
+The blueprint's targets. The definitions are the reason these were ever checkable:
+
+| Metric | Target | How it was to be measured |
+|---|---|---|
+| Actions completed via AI | 90% | trace: outcomes reached without the user touching conventional nav |
+| Intent recognition latency | p95 < 2s | trace `latency`, per stage, on the reference device |
+| Navigation depth | < 3 steps | trace: screens between utterance and outcome |
+| Manual navigation reduction | 80% | conventional-nav taps per session vs. a control build |
+| Router top-1 accuracy | ≥ 90% | golden set, run in CI on every commit |
+| Wrong-action rate (write ops) | < 0.5% | golden set + confirmation-rejection rate in traces |
+| **Model-free resolution rate** | **≥ 65%** | share of turns decided at stage 1 or 2 |
+
+⚠️ **The last row is the ancestor of the kill criterion that triggered.** PLAN.md's D-4
+asks what the product is now that model-free resolution measured **2.4%** on a real
+146-page application — against a threshold this table set at 65% before a line of the
+router existed, and which PLAN.md later relaxed to 60%. It has never been met: 30% at
+WP-01, 2.4% at WP-33. That is the single most consistent negative result in the project,
+and it is worth knowing it was pre-committed rather than invented afterwards.
+
+The original risk register that sat beside these is superseded by PLAN.md §9, which
+carries the live risks with their current status.
 
 ---
 

@@ -46,28 +46,31 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | — | ⚠️ **D-4 — the owner's decision.** WP-33's kill criterion triggered. **Nothing in M3 starts until this is answered** | — | — | — |
 | 1 | **WP-38** · The three model-free levers, on a fixed budget — triggers, a real browser encoder, per-section registries | M1 | M | D-4 |
 | 2 | **WP-40** · ADR-015 written (`Proposed`); **implementation awaits the owner accepting it** | M1 | M | owner |
-| 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
+| 3 | ◐ **WP-36** · Declared explanations — **built and serving 2026-09-10**. What is left is only the *detection* of a what/why question, and it **reuses ADR-015's frame layer** rather than adding a second one | M1 | S | owner (ADR-015) |
 | 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
+| 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding** | M3 | L | D-4, 1 |
+| 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
+| 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
+| 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
 
 ~~WP-39~~ ✅ **attempted and reverted 2026-09-10** — section-scoped boundaries raised the
 boundary's score (0.594 → 0.690) and moved detection by **nothing** (38.2% either way).
 Its "Stop if" triggered, which is what promotes the problem to **WP-40, an ADR**: cosine
 similarity ranks by *topic*, and what makes "book my son an appointment" out-of-scope is
 its *verb*.
-| 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding** | M3 | L | D-4, 1 |
-| 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
-| 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
-| 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
 
 ✅ **WP-34 landed — [WRITEUP.md](WRITEUP.md).** M1 produced a real result with a negative
 half, and the write-up is where that became an artefact instead of a disappointment.
 **M2 is closed.** Everything remaining is either the owner's decision (D-4, plus accepting
 three ADRs that sit at `Proposed`) or gated behind it.
 
-**Landed this session:** WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1), **WP-23**
-— ADR-013 written (status `Proposed`, awaiting the owner's acceptance) — **WP-19** (§7.5)
-and **WP-25 — the generator** (§7.2, [ADR-014](.claude/decisions/ADR-014.md), also
-`Proposed`), plus D-1 and D-2 decided (§13), on `feature/plan-execution`.
+**Landed this session** — 22 commits on `feature/plan-execution`, unpushed, in order:
+WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1), **WP-23** — ADR-013 written (status
+`Proposed`, awaiting the owner's acceptance) — **WP-19** (§7.5), **WP-25 — the generator**
+(§7.2, [ADR-014](.claude/decisions/ADR-014.md), also `Proposed`), **WP-32**, **WP-33**,
+**WP-39 (reverted)**, **WP-40** ([ADR-015](.claude/decisions/ADR-015.md), `Proposed`),
+**WP-36**, **WP-34**, **WP-37**, **WP-11 (partial)** and **WP-22**, plus D-1 and D-2
+decided (§13) and defect 3's false undo claim removed.
 
 **M1 is measured, and its headline result is split.** WP-19, WP-25, WP-32 and WP-33 all
 landed in this session on `feature/plan-execution`. The assistant **beats** the incumbent
@@ -79,7 +82,7 @@ else.** The next move is a decision (D-4), not a work package.
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
-WP-21 (voice acceptance), WP-11 (docs, near-complete), WP-10 (mobile). ~~WP-22~~ ✅ done.
+WP-21 (voice acceptance), WP-10 (mobile). ~~WP-22~~ and ~~WP-11~~ ✅ both done 2026-09-10.
 
 ### The three open decisions
 
@@ -470,8 +473,8 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | ~~**`domain-finance` is orphaned**~~ | **RESOLVED 2026-09-09 (WP-16)** — a `devDependency` of `apps/cli`; `domain-swap.test.ts` runs the real router against it. `NextGenApp` still cannot *register* it (its use cases are module-specific) — a separate, larger question | Closed |
 | `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead.** WP-21 verifies it; a browser transport is unscoped work nobody has costed |
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
-| `.claude/docs/roadmap.md` | Plans a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened. 7 Flutter mentions | **Dead — delete.** `docs/runbook` already does |
-| ~~7 product docs~~ | **5 of 7 done 2026-09-10 (WP-11, partial).** `README.md` rewritten around the navigation layer and its measured numbers; `vision.md` now scores each of its four goals against evidence (goal 1 is half-met and its offline half failed); `project.md` was already current; `apps/web/README.md` named a `FinanceApp` root that no longer exists; `core-voice/README.md` claimed "not yet implemented" for code that ships and is imported. `SETUP.md` named `domain-finance` as the registry source in two places — it has been `domain-modules` since WP-14, so anyone following it edited the wrong file. **Left: `roadmap.md` only** (plans a Flutter build ADR-006 rejected — the unmerged `docs/runbook` branch already deletes it, so deleting it here would collide) | **WP-11**, near-complete |
+| ~~`.claude/docs/roadmap.md`~~ | Planned a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened | **DELETED 2026-09-10 (WP-11)** — but **not wholly dead, and this row was wrong to say so.** Four live doc links pointed into it, one of them load-bearing: FINDINGS scores WP-01's verdict against its Sprint 0 exit criteria. Those, and the success-metrics table that first set model-free resolution at ≥65%, are preserved in [history.md](.claude/docs/history.md#sprint-0-and-the-original-success-metrics) |
+| ~~7 product docs~~ | ✅ **DONE 2026-09-10 (WP-11).** `README.md` rewritten around the navigation layer and its measured numbers; `vision.md` now scores each of its four goals against evidence (goal 1 is half-met and its offline half failed); `project.md` was already current; `apps/web/README.md` named a `FinanceApp` root that no longer exists; `core-voice/README.md` claimed "not yet implemented" for code that ships and is imported. `SETUP.md` named `domain-finance` as the registry source in two places — it has been `domain-modules` since WP-14, so anyone following it edited the wrong file. `roadmap.md` deleted, its two surviving parts moved to `history.md` | **WP-11** ✅ |
 | ~~`golden.generated.jsonl` ×2~~ | **RESOLVED 2026-09-10 (WP-19)** — 24 and 81 entries respectively; the CI diff now has something to be stale about | Closed |
 | ~~`apps/cli` → `@nextgen/core-capability`~~ | **NOT dead — this entry was stale.** WP-16 added `domain-swap.test.ts`, which imports `capabilityDocument` from it. Re-verified 2026-09-10 before WP-37 would have deleted a live dependency | **Keep** |
 
@@ -502,16 +505,25 @@ never advanced — WP-15 landed instead on `feature/plan-execution`.
 | Branch | Ahead of `develop` | Carries |
 |---|---|---|
 | `develop` | — | everything through the PR #3/#4/#5 reconciliation (sdlc-kit, plan restructure, WP-14) |
-| `feature/plan-execution` (current) | 1 | WP-15 — commit `ca9ff6d`, this file's plan-execution updates |
+| `feature/plan-execution` (current) | **22** | WP-15 through WP-22 — the whole of M1's measurement and M2's write-up. **Unpushed**, so `origin` still shows this branch at `ca9ff6d` |
 | `chore/claude-workflow` | 2 | **superseded** — pre-rename `.ai/` workflow; landed on `develop` renamed to `.claude/` |
 | `docs/plan-restructure` | 6 | **superseded** — pre-rename version of this file; landed on `develop` via the reconciliation |
-| `docs/runbook` | 2 | adds `RUNNING.md`; **deletes `SETUP.md` and `.claude/docs/roadmap.md`** — genuinely unmerged, still real work |
+| `docs/runbook` | 2 | adds `RUNNING.md`; deletes `SETUP.md`. ⚠️ **Re-verified 2026-09-10 and this row was wrong**: it deletes `.ai/roadmap.md`, a **pre-rename path that no longer exists on `develop`** — so merging it would not have removed `.claude/docs/roadmap.md` at all. Unmerged, but smaller than it looked |
 | `feature/modules-knowledge-layer` | 0 | nothing — superseded by `feature/plan-execution` |
 | `feature/reconcile-plan-restructure` | 0 | fully merged (PR #5); local-only leftover |
 | `feature/sdlc-kit` | 0 | fully merged (PR #4); local-only leftover |
 
 ⚠️ **`RUNNING.md` does not exist on this branch.** The operations doc here is
-[SETUP.md](SETUP.md), dated 2026-08-30 and describing the finance app.
+[SETUP.md](SETUP.md) — rewritten 2026-09-10 (WP-11) and now correct about which registry
+the router loads. That makes `docs/runbook` a **merge decision, not a cleanup**: it would
+delete a `SETUP.md` that is now current in favour of a `RUNNING.md` written before the
+repositioning. The owner should read both before merging it.
+
+**A caution this table earned.** Two of its rows were stale in the same way: they
+described what a branch *was for* rather than what its diff *does*. `docs/runbook`'s
+deletion of `roadmap.md` targeted `.ai/roadmap.md` — dead since the `.ai` → `.claude`
+rename — and that phantom blocked WP-11's last item for two days. **Re-run
+`git diff --name-status develop...<branch>` before believing any row here.**
 
 ---
 
@@ -1656,7 +1668,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | **WP-20** | Screens for capture/search | Reference-app polish | Never, probably |
 | **WP-21** | Verify voice acceptance | Voice is a differentiator but not on the critical path to a measurement | After M2 |
 | ~~**WP-22**~~ ✅ | Contract tests for `apps/web`, 2026-09-10 | **16 tests, the first this app has ever had** — `render.ts` is where every view the surface receives is built, so a mistake there is one the user sees. Three of the properties are safety, not cosmetics: the drawer may offer **only** `navigate` capabilities (a one-tap `destructive` entry would bypass ADR-004's confirmation entirely), a confirmation card must hide the raw uploaded source text it carries internally while showing every value being approved, and a rendered trace must carry the runners-up (Rule 9). Needed a vitest alias — the web layer declares `import 'server-only'`, which Next injects and which resolves nowhere else | Done |
-| **WP-11** ◐ | Documentation — **the product-facing docs are done** (§4), including SETUP.md’s three wrong claims about which file is the registry source. `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | Remaining: **`roadmap.md`** should be deleted — it plans a Flutter build ADR-006 rejected — but the unmerged `docs/runbook` branch already deletes it, so resolve that branch first rather than creating a conflict | Before a release |
+| ~~**WP-11**~~ ✅ | Documentation — **complete 2026-09-10.** `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`, and SETUP.md's three wrong claims about which file is the registry source; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | `roadmap.md` deleted last. It was **not** blocked by `docs/runbook` — that branch deletes a pre-rename path (§12) — and it was **not** wholly dead: FINDINGS scores WP-01 against its Sprint 0 gate, so that gate and the success-metrics table moved to [history.md](.claude/docs/history.md#sprint-0-and-the-original-success-metrics) rather than being lost | Done |
 | **WP-10** | `apps/mobile` | A native app is a different product from a web layer | Parked. The device-inference gate stands if it returns |
 
 ---

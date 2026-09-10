@@ -97,7 +97,7 @@ Measurements: [FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).
 | File | Answers |
 |---|---|
 | [vision.md](./vision.md) | Why this exists, what it refuses to be |
-| [roadmap.md](./roadmap.md) | MVP 1 / 2 / 3, sprint-level |
+| [../../PLAN.md](../../PLAN.md) | **The plan.** §0's queue, §7's work packages, §9's risks — replaced `roadmap.md`, deleted 2026-09-10 |
 | [architecture.md](./architecture.md) | The five layers, and how they talk |
 | [coding-standards.md](./coding-standards.md) | Clean Architecture, SOLID, folder rules |
 | [ui-guidelines.md](./ui-guidelines.md) | The sphere, and the AI-first-not-AI-only rule |
