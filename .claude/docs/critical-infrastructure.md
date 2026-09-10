@@ -65,6 +65,13 @@ subsystem reads.
 > owed an ADR rather than an inference by whoever edited the file last. What
 > changed is only that a silent default became an explicit one.
 >
+> **That ADR is now written: [ADR-016](../decisions/ADR-016.md), status
+> `Proposed`.** It recommends per-domain output paths with the eval scripts
+> taking `--registry=`, and sequences the change so the first step — adding the
+> flag with today's path as its default — is provable by an unchanged scorecard.
+> An agent does not accept an ADR; until the owner rules on it, the guard and the
+> documented order are what this repo has.
+>
 > **There was already a `guard-git`-style hook denying `pnpm registry:build:finance`,
 > and it is not a substitute.** It matches a command string, so
 > `node packages/domain-finance/scripts/build-registry.ts` walked straight past
@@ -389,8 +396,11 @@ one that topped this list.)*
    shared path itself is unchanged, and a documented build order is still what
    keeps the artefacts coherent. **Still ranked first, because the guard buys
    time rather than a solution:** it makes the mistake visible at the moment it
-   is made, and does nothing for a third domain. *(ADR-016 option B was accepted on
-   2026-09-11, and PLAN.md WP-47 implements it.)*
+   is made, and does nothing for a third domain. **The ADR it had been owed since the
+   collision was first written down is [ADR-016](../decisions/ADR-016.md). The owner
+   accepted it, option B, on 2026-09-11.** The gap closes when PLAN.md WP-47 implements
+   it, not before. An accepted decision that is not yet implemented is the same problem
+   with a document attached.
 2. **Derived artefacts are not gated.** Section 4. On 2026-09-11 a one-line change to
    `normalize()` left ten shipped indexes and two threshold profiles stale, and CI stayed
    green. Only a manual parity run noticed. Every adopter's browser would have received
