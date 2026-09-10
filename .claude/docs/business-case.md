@@ -120,14 +120,42 @@ Per-seat is the wrong shape — visitors are not seats. Candidates:
 2. **Tiered by app size + traffic** — number of capabilities × monthly sessions.
    Predictable; the most likely fit.
 3. **Flat per site** — simplest, leaves money on the table with large adopters.
-4. **Free tier by capability count** — a genuine option *because the marginal cost of a
-   model-free turn is approximately zero.* Nobody else in this category can offer that,
-   and it is a distribution advantage worth more than the revenue it forgoes.
+4. ~~**Free tier by capability count**~~ — this rested on the marginal cost of a
+   model-free turn being approximately zero. **It is not available.** See below.
 
 The economics hinge on one number: **the model-free resolution rate.** At 90% the
 product is nearly free to run and option 4 is viable. At 40% every turn has a model
-cost and the pricing must cover it. **Nothing here can be decided before that number is
-measured** — which is why it is the first milestone in PLAN.md.
+cost and the pricing must cover it.
+
+### ⚠️ That number is measured, and it is 8.1%
+
+**Do not price this as a cheap product.** On `fut-app` — 146 real pages, 210 questions
+written from the app's own screens, a real sentence encoder — **8.1% of turns are settled
+correctly without a model call.** 193 of 210 reach the model.
+
+The history is worth keeping, because the target was pre-committed and has never once been
+met: **65%** in the original roadmap before a line of the router existed, **30%** measured
+at WP-01, **2.4%** at [WP-33](../../eval/fut-app/MEASUREMENT.md) on a real application, and
+**8.1%** at [WP-38](../../eval/fut-app/WP38.md) after deliberately spending a budget to fix
+it. Three of the four are measurements, not estimates.
+
+WP-38 is the one that closes the question, because it tried the three untried levers and
+reported what each was worth: the free stage had never been switched on, switching it on is
+worth ~6 points, the structural alternative fails its own precondition at 25.6%, and the
+third lever was never about this number. **There is no cheap fix left that anyone has
+identified.**
+
+**What this does to each option above.** 1, 2 and 3 survive unchanged — they were never
+premised on a near-zero marginal cost. Option 4 does not: a free tier now gives away a
+model call per turn, and the pricing floor is inference cost, not hosting.
+
+**What survives, and it is the thing to sell.** The product beats the incumbent it
+replaces — **58.0% vs 45.5%** for `fut-app`'s own command palette, and **60.3% vs 37.1%**
+in Portuguese, the language most of its users speak. That is a better-navigation argument
+and it is measured. It is not a cheaper-navigation argument, and §4's comparison against a
+chat widget must stop implying otherwise: *"it costs a model call per turn"* is no longer
+a point of difference on cost, only on what the model is allowed to do — a registry-bound
+model cannot invent a page, and that is a correctness claim rather than an economic one.
 
 ---
 
@@ -138,7 +166,8 @@ Falsifiable claims, in the order they should be tested. Each maps to a work pack
 | | Claim | Test | Fails if |
 |---|---|---|---|
 | A1 | A usable, role-scoped registry can be generated from an app's source with no human editing | Generate for `fut-app`; score against its `deepLinks.ts`/`navConfigs` plus a hand-written sample | Precision or recall below ~70%, or **any** role mis-assignment |
-| A2 | Most real questions resolve with no model call | Golden set from real user questions; measure model-free rate | Below 60% |
+| ~~A2~~ | ~~Most real questions resolve with no model call~~ | ⚠️ **TESTED AND FAILED.** 2.4% at WP-33, **8.1%** after WP-38 spent a budget on it, against a 60% bar. §5 and the rungs in PLAN.md §1.6 are repriced accordingly | ~~Below 60%~~ — it failed |
+| **A2′** | *Replaces A2.* The assistant beats the navigation the adopter already ships | Same golden set, against `fut-app`'s own CommandPalette | It loses, or wins only in English. **Currently: 58.0% vs 45.5%, and 60.3% vs 37.1% in pt-PT — holds** |
 | A3 | Guidance can anchor to elements without breaking on the adopter's next deploy | Anchor, then change the app, then re-run | Anchors mispoint rather than degrade |
 | A4 | Navigation + guidance alone is worth paying for | Ask three people in a candidate vertical | Everyone says "only if it answers with my data" |
 | A5 | Data answering (phase 2) is achievable without owning the adopter's backend | Design against WeFitAll's NestJS bookings API | Requires bespoke work per adopter |
@@ -193,12 +222,19 @@ measuring, and it is the reason that decision was trustworthy. The same applies 
 
 Worth stating, because it changes how much risk is acceptable:
 
-- A working demonstration of registry-bounded AI navigation with **model-free
-  resolution** and a **provable decision record** is a strong engineering portfolio
-  piece regardless of adoption.
+- A working demonstration of registry-bounded AI navigation with a **provable decision
+  record**, measured against the navigation a real application already ships, is a strong
+  engineering portfolio piece regardless of adoption. *(This said "with model-free
+  resolution" until WP-38 measured it at 8.1%. The demonstration is real; that particular
+  adjective was not.)*
 - The findings are publishable and non-obvious: schema field order changing extraction
   quality, declared boundaries outperforming model refusal *in proportion to model
-  weakness*, thresholds as an artefact of the registry rather than the encoder.
+  weakness*, thresholds as an artefact of the registry rather than the encoder, and
+  **improving topical retrieval making out-of-scope refusal measurably worse** — a
+  trade-off that is invisible until both are measured in the same run (WP-38).
+- **The negative result is itself the strongest part.** A pre-committed threshold, missed
+  four times across four measurements, with the levers tried and costed rather than
+  hand-waved, is a rarer artefact than a project that hit its number.
 - The architecture survived two product pivots without core changes, which is itself
   the evidence for the thesis.
 

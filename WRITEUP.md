@@ -97,25 +97,33 @@ why: nobody types a sentence into a command palette.
 ## 5. The result
 
 > On a 146-page application it was never designed for, against a registry no human wrote,
-> the assistant sent users to the right screen for **52.3%** of real questions — against
-> **45.5%** for the command palette that application already ships — but only **2.4%** of
+> the assistant sent users to the right screen for **58.0%** of real questions — against
+> **45.5%** for the command palette that application already ships — but only **8.1%** of
 > turns were settled correctly **without a model call**, against a target of 60%.
 
 | Cut | Assistant | Palette | |
 |---|---|---|---|
-| **Portuguese** (116 questions) | **57.8%** | 37.1% | **+20.7** |
-| **Guardians** (48) | **45.8%** | 18.8% | **+27.0** |
-| Coaches (104) | 56.7% | 57.7% | −1.0 |
-| **English** (60) | 41.7% | **61.7%** | −20.0 |
+| **Guardians** (48) | **47.9%** | 18.8% | **+29.2** |
+| **Portuguese** (116 questions) | **60.3%** | 37.1% | **+23.3** |
+| Coaches (104) | **62.5%** | 57.7% | +4.8 |
+| **English** (60) | 53.3% | **61.7%** | −8.3 |
 
-**It wins exactly where it was aimed and nowhere else.** A guardian — infrequent user, no
-internal vocabulary — more than doubles. Portuguese, the language the application is
-actually used in, gains 21 points. A coach, who already knows the menu, gains nothing. And
-it **loses in English**, because English questions borrow the English menu words the
-substring matcher is looking for.
+**It wins where it was aimed, and by the most where the user knows least.** A guardian —
+infrequent user, no internal vocabulary — more than doubles. Portuguese, the language the
+application is actually used in, gains 23 points. A coach who already knows the menu gains
+a little. It still **loses in English**, because English questions borrow the English menu
+words the substring matcher is looking for.
 
 That last row is the useful one. The assistant is not better at search; it is better at
 *not needing you to know the words*.
+
+> **These are the numbers after WP-38.** The first measurement (WP-33) read 52.3% / 2.4%,
+> and the shape of the result was the same: won in Portuguese and for guardians, lost in
+> English, drew with coaches. WP-38 improved every cut — coaches moved from −1.0 to +4.8,
+> so "wins where it was aimed *and nowhere else*", which this section used to say, is no
+> longer true. **The English row is the one that did not flip**, and it is the honest limit
+> of the result. Both runs are in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and
+> [WP38.md](eval/fut-app/WP38.md).
 
 ## 6. What failed, and why
 
@@ -152,6 +160,35 @@ it settles go to the wrong screen.
 **And stage 1 never fires at all** — the generator emits no trigger phrases, so the 2ms
 no-model path is dead weight on every turn. That is the cheapest untried lever and it is
 not counted as an excuse above, because it is unmeasured.
+
+#### It has since been measured, and it was worth 6 points
+
+That last paragraph was written as an admission. The lever was then tried, and the honest
+follow-up is that it **did not rescue the number** — 2.4% became **8.1%**, not 60%.
+
+Three things came out of it that are worth more than the six points
+([WP38.md](eval/fut-app/WP38.md)):
+
+**Triggers helped accuracy for a reason unrelated to triggers.** The embedded document for
+a capability includes its trigger phrases, so adding 245 of them changed every stage-2
+score as well as switching stage 1 on. Isolating the two — same registry, stage 1 disabled
+— splits the +5.7 points of top-1 into **+5.1 from the richer document and +0.6 from stage
+1 itself**. Nav labels turn out to be good *description* text. The model-free gain is the
+mirror image: **all of it is stage 1**, because stage 2 has never accepted a single turn on
+this registry at any calibrated threshold.
+
+**The structural alternative failed its own precondition in twenty minutes.** Per-section
+registries — score against ~5 capabilities instead of 145 — require picking the right
+section first. Section recall@1 is **25.6%**. That caps hierarchical retrieval at 26%
+against the flat registry's 58%, so it was abandoned before it was built. The previous
+attempt at a structural fix was built first and reverted after.
+
+**Improving retrieval made refusal worse.** Out-of-scope detection fell **32.4% → 26.5%**,
+and the isolation run shows it is the document change, not stage 1: rank real capabilities
+higher and the model is offered more plausible wrong answers, so it refuses less. Better
+topical retrieval actively damages the thing topical retrieval was supposed to do. That is
+the single most useful finding in the project, and it is the argument for the open proposal
+that out-of-scope needs a *verb* signal rather than a better boundary.
 
 ### Declared limits collapse at scale
 

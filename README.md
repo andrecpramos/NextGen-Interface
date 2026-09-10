@@ -22,13 +22,16 @@ no human wrote:
 
 | | Assistant | The app's own command palette |
 |---|---|---|
-| Right screen, 176 real questions | **52.3%** | 45.5% |
-| Portuguese — the app's own language | **57.8%** | 37.1% |
-| Guardians — infrequent users | **45.8%** | 18.8% |
-| **Settled without a model call** | **2.4%** | — |
+| Right screen, 176 real questions | **58.0%** | 45.5% |
+| Portuguese — the app's own language | **60.3%** | 37.1% |
+| Guardians — infrequent users | **47.9%** | 18.8% |
+| **Settled without a model call** | **8.1%** | — |
 
-**It beats the incumbent. It does not yet beat the incumbent for free** — the mechanism
-meant to make most turns cost nothing does not survive 145 capabilities.
+**It beats the incumbent. It does not beat it for free.** The mechanism meant to make most
+turns cost nothing does not survive 145 capabilities — and that is settled rather than
+open: a fixed budget was spent on every lever anyone had identified
+([WP38.md](eval/fut-app/WP38.md)), which moved the number from 2.4% to 8.1% against a
+60% target. **The product is a better way to navigate, not a cheaper one.**
 
 **[WRITEUP.md](WRITEUP.md) is the whole story**, negative results first, every claim
 linked to the artefact that backs it. Read that before anything else here.
@@ -152,10 +155,13 @@ figure is meaningless.
 
 ## Status
 
-The engine is built and measured. The generation works. **What is unresolved is the cost
-model**: 2.4% of turns settle without a model call against a 60% target, which was a
-pre-committed kill criterion and it triggered. The number is published rather than
-buried, and the decision it forces is open — [PLAN.md](PLAN.md) §13, D-4.
+The engine is built and measured. The generation works. **The cost model is resolved, and
+it resolved against us**: 8.1% of turns settle without a model call, against a 60% target
+that was a pre-committed kill criterion and triggered. A fixed budget was then spent trying
+to fix it, every lever was measured, and the claim was withdrawn rather than restated —
+[PLAN.md](PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
+[business-case.md](.claude/docs/business-case.md) §5. The numbers are published rather than
+buried, which is the point.
 
 Not built: the browser runtime, guided steps, the installable package, and a live
 deployment. Nothing here is production-ready — 61.8% of out-of-scope requests are

@@ -74,8 +74,15 @@ decided (§13) and defect 3's false undo claim removed.
 
 **M1 is measured, and its headline result is split.** WP-19, WP-25, WP-32 and WP-33 all
 landed in this session on `feature/plan-execution`. The assistant **beats** the incumbent
-command palette on a real 146-page app (52.3% vs 45.5%, and by 21–27 points in Portuguese
-and for guardians), and the **model-free rate is 2.4% against a 60% kill criterion**.
+command palette on a real 146-page app — **58.0% vs 45.5%** after WP-38, and **60.3% vs
+37.1%** in Portuguese — and the **model-free rate is 8.1% against a 60% kill criterion**.
+
+**Both halves are now final.** WP-38 spent D-4's budget on the three untried levers and
+[reported what each was worth](eval/fut-app/WP38.md): the free stage had never been
+switched on and switching it on bought ~6 points; the structural alternative fails its own
+precondition at 25.6%; the third lever was never about this number. **There is no cheap fix
+left that anyone has identified**, and the claim has been repositioned accordingly
+([business-case.md](.claude/docs/business-case.md) §5).
 
 **Read [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) before doing anything
 else.** The next move is a decision (D-4), not a work package.
@@ -88,7 +95,7 @@ WP-21 (voice acceptance), WP-10 (mobile). ~~WP-22~~ and ~~WP-11~~ ✅ both done 
 
 | | Decision | Blocks |
 |---|---|---|
-| **D-4** | **The model-free rate is 2.4%, and the assistant still beats the palette. What is the product now?** | **all of M3** |
+| ~~**D-4**~~ | ✅ **ANSWERED 2026-09-10, in session: option (b) — spend WP-38's budget first.** Spent. Model-free reached **8.1%**, not 60%, so WP-38's own "Stop if" fired and the answer resolves to **(c), reposition the claim** — done in [business-case.md](.claude/docs/business-case.md) §5. **M3 is unblocked** | ~~all of M3~~ |
 | D-3 | How a guided step anchors to an element in an app we do not control | WP-27 |
 | ~~D-1~~ | ✅ decided — both reference apps survive (ADR-013) | — |
 | ~~D-2~~ | ✅ decided — `registry.domainDescription` (ADR-013) | — |
@@ -262,15 +269,21 @@ met.** That is the whole discipline — without it this becomes a two-year proje
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **A1 · now** | **Navigate · guide · explain, from the app's own source.** Page purposes, i18n labels, headings, form fields, repo docs. Plus `why` — explaining its own decisions from the trace. **Nothing outside the app's topic**, enforced by declared boundaries (ADR-009) | — | WP-25, WP-36, WP-27 |
-| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **entry criterion NOT met** — A1 measured at **2.4%** model-free, not ≥60% (WP-33). Blocked behind D-4 | — |
+| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **The old entry criterion is retired, not met.** It was ≥60% model-free; measured **2.4%** (WP-33) then **8.1%** (WP-38), and D-4 resolved to repositioning rather than chasing it. **The replacement criterion is A2′ in [business-case.md](.claude/docs/business-case.md) §6: beat the navigation the adopter already ships** — currently 58.0% vs 45.5%, which holds | — |
 | **A3 · later** | **Both, fluidly** — a question answered from data *and* a route to act on it | A2 shipped and its permission model proven | — |
 
-⚠️ **A1's Q&A must stay model-free to keep the economics.** The mechanism is the same one
-that already works for refusals: **explanations are declared, not generated per turn.**
-The generator pre-writes an explanation per capability at build time; the runtime
-retrieves it by embedding and serves it verbatim. Only genuinely novel questions escalate
-to a model. Generating answers per turn would be a chat widget with our name on it, and
-would forfeit both the cost advantage and Rule 9.
+⚠️ **A1's Q&A stays declared rather than generated — and the reason has changed.** The
+mechanism is the same one that already works for refusals: **explanations are declared, not
+generated per turn.** The generator pre-writes an explanation per capability at build time;
+the runtime retrieves it by embedding and serves it verbatim.
+
+This used to be justified by economics. **It no longer is, and the justification that
+remains is the better one.** At 8.1% model-free the cost saving from declared explanations
+is marginal — but a declared explanation is *authored by the adopter*, identical on every
+turn, traceable to the source file that produced it (`explanationSource`), and editable
+without recalibrating anything. A generated one is none of those. **Rule 9 is now the whole
+argument**: generating answers per turn would make the assistant's output unauditable, and
+that was always the more durable half of the case.
 
 #### Ladder B — what the installed knowledge is
 
@@ -1697,6 +1710,8 @@ M1  THE MEASUREMENT   WP-31 ✅ → WP-30 SPIKE ✅ GO → WP-25 generator ✅
      2026-09-10        → WP-33 MEASURE ✅   ◄── the milestone that mattered
                             │
                        ⟨ KILL GATE: model-free <60%  ⇒ ⚠️ TRIGGERED at 2.4%
+                         → D-4 answered (b): WP-38 spent the budget ✅
+                         → 8.1%. Still under. Resolves to (c): repositioned
                          loses to the CommandPalette ⇒ ✅ did not: 52.3% vs 45.5% ⟩
                             │
                        ⚠️ D-4 — the owner decides: accept a model call per turn,
@@ -1742,7 +1757,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 |---|---|
 | WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
 | **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
-| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%.** The cost advantage — the whole commercial argument — is gone as stated. Reposition or stop: **D-4**. The number is published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
+| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** ([business-case.md](.claude/docs/business-case.md) §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 58.0% vs 45.5%. Published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and [WP38.md](eval/fut-app/WP38.md) |
 | ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 52.3% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
 | WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
 | WP-27 anchors mispoint rather than degrade | Ship navigation only |
@@ -1762,7 +1777,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | **high** | **OPEN, and it replaces the old "pilot proves mechanism not value" risk.** `fut-app` is route-rich, role-gated and real, so it does prove value — but it is ours, and a generator built against it may not transfer. WP-28 (a target we do not own) is the remaining unproven step |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
-| **Model-free rate is the business model** | **critical** | ⚠️ **MEASURED AND FAILED 2026-09-10 — WP-33: 2.4%**, against a 60% kill criterion. Not a near miss. Two measured causes: the browser-capable encoder gets 4.0% recall@1 at 145 capabilities, and no threshold gives both coverage and precision. **This is now D-4, an open decision, not a risk** |
+| ~~**Model-free rate is the business model**~~ | ~~critical~~ | ✅ **RESOLVED 2026-09-10 — by ceasing to be the business model.** Measured 2.4% (WP-33), then **8.1%** after WP-38 spent D-4's budget on every lever anyone had identified. Three measured causes: stage 1 was never switched on, stage 2 has never accepted a turn on this registry (`tauHigh: 1` at every precision floor), and the browser-capable encoder gets 4.0% recall@1. **No longer a risk because the claim it threatened has been withdrawn** ([business-case.md](.claude/docs/business-case.md) §5). The replacement claim — beats the incumbent — is measured and holds |
 | **The browser-capable encoder does not work at adopter scale** | **critical** | **OPEN — new, 2026-09-10 (WP-33).** `hashing` (TF-IDF, zero-dependency, the one ADR-008's offline claim and WP-24's design both rest on) scores **4.0% recall@1** against `nomic-embed-text`'s 48.9%. §9 logged this as "never tested at that size"; it is now tested and it fails. WP-24 needs a real sentence encoder in the browser or a different plan |
 | **Declared boundaries lose to a large registry** | **high** | **OPEN, and now diagnosed — 2026-09-10 (WP-33, WP-39).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% on the 7-capability reference app; measured on the hand-written third of the golden set, so not circular. **The obvious fix was built and reverted:** section-scoped boundaries raised the boundary's score 0.594 → 0.690 and moved detection **0.0 points**. Cause: cosine similarity ranks by *topic*, and out-of-scope-ness here is carried by the *verb* — "show me my son's medical status" and "book my son an appointment" are the same topic and opposite requests. **Needs an ADR-009 amendment, not a bigger catalogue → WP-40** |
 | §5's numbers are not reproducible | high | **RESOLVED 2026-09-09** — WP-17. Cold-start artefact; warm numbers match the original claim. See §5 |
@@ -1910,9 +1925,23 @@ breaking change to `RegistryFile`, so both reference apps and the codegen move t
 
 ---
 
-**D-4 · The model-free rate is 2.4%. What is the product now?** — ⚠️ **OPEN, and it
-blocks M3 entirely.** *Raised 2026-09-10 by [WP-33](eval/fut-app/MEASUREMENT.md), whose
-kill criterion triggered.*
+**D-4 · The model-free rate is 2.4%. What is the product now?** — ✅ **ANSWERED
+2026-09-10 by the owner, in session: (b), spend WP-38's fixed budget first.** *Raised the
+same day by [WP-33](eval/fut-app/MEASUREMENT.md), whose kill criterion triggered.*
+
+> **What (b) bought, and where it landed.** [WP-38](eval/fut-app/WP38.md) tried all three
+> levers. Model-free went **2.4% → 8.1%** and top-1 **52.3% → 58.0%**; lever 2 was killed
+> by a twenty-minute precondition measurement (section recall@1 = 25.6%) and lever 3 turned
+> out to be a deployment question that could never have moved this number. 8.1% is still
+> under 60%, so WP-38's own "Stop if" fired and **(b) resolves into (c): reposition.**
+>
+> **Done.** [business-case.md](.claude/docs/business-case.md) §5 retires the cheap-to-run
+> claim and the free tier that depended on it; claim A2 is replaced by **A2′ — beat the
+> navigation the adopter already ships**, which is measured at 58.0% vs 45.5% and holds.
+> **M3 is unblocked.**
+>
+> The options below are kept as written, because the reasoning that chose (b) is only
+> legible alongside what was rejected.
 
 The measurement says two things at once: the assistant **beats** the command palette it
 replaces (52.3% vs 45.5%, and by 21–27 points in Portuguese and for guardians), and the
