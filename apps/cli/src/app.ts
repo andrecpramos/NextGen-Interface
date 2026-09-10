@@ -12,6 +12,7 @@ import { FakeLlmRuntime, OllamaLlmRuntime, type EmbeddingRuntime, type LlmRuntim
 import { PiperTtsEngine, VoiceAssetStore, WhisperCppSttEngine, type SttResult } from '@nextgen/core-voice';
 import { Dispatcher, type Decision } from '@nextgen/core-dispatch';
 import {
+  canUndo,
   openMemoryDatabase,
   SqliteModuleCategoryRepository,
   SqliteModuleEntryRepository,
@@ -702,10 +703,19 @@ export class NextGenApp {
    * wrong guess is caught and edited here rather than silently saved.
    */
   #describeConfirmation(decision: Extract<Decision, { type: 'confirm' }>): string[] {
-    const lines = [
-      decision.destructive ? `⚠  ${decision.title} — this cannot be undone without the journal.` : `${decision.title}?`,
-      '',
-    ];
+    // The warning is *derived*, not asserted. It used to read "this cannot be
+    // undone without the journal" for every destructive action — which promises a
+    // journal that can, and for `module.delete` and `module.revert` no restore
+    // path exists at all (PLAN.md §4 defect 3, WP-18). Telling a user an action is
+    // recoverable at the moment they confirm it, when it is not, is the worst
+    // possible place to be wrong.
+    const reversible = decision.destructive && canUndo(decision.capabilityId);
+    const headline = decision.destructive
+      ? reversible
+        ? `⚠  ${decision.title} — you can undo this afterwards.`
+        : `⚠  ${decision.title} — this is permanent and cannot be undone.`
+      : `${decision.title}?`;
+    const lines = [headline, ''];
     for (const [name, value] of Object.entries(decision.params)) {
       // provenance/internal, not something to review as its own line
       if (name === 'sourceExcerpt' || name === 'sourceType' || name === 'candidatesJson') continue;

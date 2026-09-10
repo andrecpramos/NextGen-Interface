@@ -11,7 +11,7 @@ import {
   SqliteModuleCategoryRepository, SqliteModuleRepository, SqliteModuleEntryRepository,
 } from './repositories.ts';
 import { SqliteQueryEngine } from './query-engine.ts';
-import { SqliteUndoJournal } from './undo.ts';
+import { canUndo, REVERSIBLE_CAPABILITIES, SqliteUndoJournal } from './undo.ts';
 import { seed } from './fixtures.ts';
 import { moneyColumns, TABLES, untrustedColumns } from './schema/spec.ts';
 import { schema as sqliteSchema } from './schema/sqlite.ts';
@@ -618,5 +618,51 @@ describe('fixtures', () => {
     expect(summed).toBe(total);
     expect(q.spendingTrend({ from: '2025-03-01', to: '2026-08-29', currency: 'EUR' }).rows).toHaveLength(18);
     expect(q.budgetStatus({ currency: 'EUR', on: '2026-08-15' }).rows.length).toBe(3);
+  });
+});
+
+/**
+ * PLAN.md §4 defect 3. The journal reverses exactly two capabilities, and both
+ * belong to `domain-finance` — the *registered* application is
+ * `domain-modules`, whose `module.delete` and `module.revert` have no restore
+ * path at all.
+ *
+ * This set exists so a surface can **ask** instead of assume. The CLI used to
+ * tell a user "this cannot be undone without the journal" before every
+ * destructive action, which promises a journal that can — and at the moment
+ * someone confirms a permanent deletion is the worst possible place to be wrong.
+ */
+describe('undo journal — what it actually claims it can reverse', () => {
+  it('declares only the capabilities the switch really handles', () => {
+    expect([...REVERSIBLE_CAPABILITIES].sort()).toEqual(['budget.delete', 'transaction.delete']);
+  });
+
+  it('says no for the registered application’s destructive capabilities', () => {
+    expect(canUndo('module.delete')).toBe(false);
+    expect(canUndo('module.revert')).toBe(false);
+  });
+
+  it('says yes only for what it can restore', () => {
+    expect(canUndo('transaction.delete')).toBe(true);
+    expect(canUndo('budget.delete')).toBe(true);
+    expect(canUndo('anything.else')).toBe(false);
+  });
+
+  // The set and the switch are two statements of the same fact, so a capability
+  // listed here that the switch cannot restore would be the same lie one level down.
+  it('refuses at run time exactly where it says it will', () => {
+    const db = openMemoryDatabase();
+    migrate(db);
+    const journal = new SqliteUndoJournal(db);
+    const token = journal.record({
+      capabilityId: 'module.delete',
+      params: {},
+      describedAs: 'Deleted a module',
+      payload: {},
+      recordedAt: '2026-09-10T00:00:00.000Z',
+    });
+    const outcome = journal.undo(token);
+    expect(outcome.ok).toBe(false);
+    expect(canUndo('module.delete')).toBe(false);
   });
 });

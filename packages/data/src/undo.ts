@@ -25,6 +25,29 @@ export interface UndoEntry {
 
 export type UndoOutcome = { ok: true } | { ok: false; reason: string };
 
+/**
+ * The capabilities this journal can actually reverse.
+ *
+ * **Declared, so that a surface can ask instead of assume.** The `undo` switch
+ * below handles exactly these two, and both are `domain-finance` capabilities —
+ * the *registered* reference application is `domain-modules`, whose
+ * `module.delete` and `module.revert` have no restore path at all. Until PLAN.md
+ * WP-18 gives them one, a confirmation prompt that says "this can be undone" is
+ * false for every destructive action the shipping app actually offers.
+ *
+ * Keep this in step with the switch in `undo()`. It exists precisely so the
+ * claim a user reads is derived from the code that would have to honour it.
+ */
+export const REVERSIBLE_CAPABILITIES: ReadonlySet<string> = new Set([
+  'transaction.delete',
+  'budget.delete',
+]);
+
+/** Can this action be taken back once it has run? */
+export function canUndo(capabilityId: string): boolean {
+  return REVERSIBLE_CAPABILITIES.has(capabilityId);
+}
+
 export class SqliteUndoJournal {
   private counter = 0;
 

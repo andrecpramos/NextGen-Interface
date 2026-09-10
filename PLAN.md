@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **14 workspace packages · 400 tests
+**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **14 workspace packages · 404 tests
 across 22 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -403,7 +403,7 @@ thing to understand about this repo.
 
 ### Tests
 
-400 across 22 files, green 2026-09-10. `packages/ui` and `services/api` have none;
+404 across 22 files, green 2026-09-10. `packages/ui` and `services/api` have none;
 `apps/web` had none until WP-22 and now has 16.
 
 | Package | Tests | | Package | Tests |
@@ -453,7 +453,7 @@ NextGen_Interface/
 |---|---|---|---|
 | **1** | ~~**The stage-3 prompt hardcodes finance.**~~ **FIXED 2026-09-09 (WP-16)** — `stages.ts` now reads `registry.domainDescription` (D-2, ADR-013). *"transfer 500 euros to my brother"* is refused (`gs-0197`), permanently, against the modules registry. Removing the hardcoded text also **improved** top-1 accuracy 2–6 points on both models (FINDINGS Finding 13) | **Fatal to the product** — the engine cannot serve arbitrary apps while asserting it is one specific app. **Demonstrated:** *"transfer 500 euros to my brother"* routed to `module.revert`, a destructive capability, instead of being refused. The policy gate held; nothing was deleted | **WP-16** ✅ |
 | **2** | ~~`llama3.1:8b` took >4 min to load, then timed out a turn~~ (2026-09-08) | **RESOLVED as a false alarm 2026-09-09 (WP-17)** — did not reproduce: warm reload today took 8.7s on GPU. Likely a one-off (GPU contention or a CPU fallback that day), not a persistent defect. §5, FINDINGS Finding 12 | **WP-17** ✅ |
-| **3** | **Undo is unimplemented for the shipping reference app.** [undo.ts:103](packages/data/src/undo.ts#L103) returns *"no undo is defined for module.delete"* while the CLI says undo is available | Rule 5's destructive path is nominal. Contained only because no rung ships a write capability | **WP-18**, deferred |
+| **3** | **Undo is unimplemented for the shipping reference app** — `undo.ts` reverses `transaction.delete` and `budget.delete`, both `domain-finance`; the registered app's `module.delete` and `module.revert` have no restore path. **The false claim is fixed (2026-09-10)**: `canUndo()` is declared next to the switch that would have to honour it, and the CLI's confirmation now says *"this is permanent and cannot be undone"* where it used to promise a journal that could. **The undo itself is still missing** | Rule 5's destructive path is nominal. Contained only because no rung ships a write capability — but the *prompt* was lying at the exact moment a user confirms a permanent deletion | **WP-18** for the restore path; the claim is honest now |
 | **4** | ~~**Generated golden fixtures are 0 bytes** in both reference apps; CI diffs them~~ **FIXED 2026-09-10 (WP-19)** — `generateGoldenEntries` required a hand-written `expect` block before an example counted, and no example in either app had one. Every example now becomes an entry, its expectation derived from the capability; an `expect` block *refines* it (params, `maxStage`) rather than gating it. 24 entries for `domain-modules`, 81 for `domain-finance` | An artefact that asserts nothing inside a gate. **Decide the example format before WP-25 generates examples at scale** | **WP-19** ✅ |
 
 ### Dead weight — swept 2026-09-09
@@ -1771,7 +1771,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 pnpm -r typecheck
-pnpm -r test                                       # 400 tests, 22 files
+pnpm -r test                                       # 404 tests, 22 files
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
