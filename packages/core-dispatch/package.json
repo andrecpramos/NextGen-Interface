@@ -1,18 +1,26 @@
 {
   "name": "@nextgen/core-dispatch",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Dispatcher: ADR-004 policy, navigation, query and undo. Where enforcement lives.",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "types": "./dist/index.d.ts"
 }

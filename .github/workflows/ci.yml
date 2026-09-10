@@ -78,6 +78,20 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
+      # WP-26. The packages an adopter installs must be built JavaScript: Node
+      # refuses to strip types inside node_modules, so a package whose `main` is
+      # a .ts file installs cleanly and throws on the adopter's first import.
+      # Every package here was `private: true` with a .ts entry point until
+      # 2026-09-11, which made the product literally uninstallable.
+      #
+      # The build runs first because the gate reads built output — checking
+      # entry points that were never emitted would pass vacuously.
+      - name: Build the installable packages
+        run: pnpm build
+
+      - name: Packaging is importable (WP-26)
+        run: node tooling/scripts/check-packaging.mjs
+
       - name: Unit tests
         run: pnpm -r test
 

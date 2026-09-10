@@ -50,7 +50,7 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
 | 5 | ◐ **WP-24** · Ship stages 1+2 to the browser — **engine done 2026-09-10**, bundle 47KB gz at the largest role against a 500KB gate, 210/210 decision parity with the server path. **The encoder finding that rewrote this was retracted** ([L10](.claude/docs/lessons.md)). Left: mount it in a page | M3 | S | — |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
-| 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
+| 7 | ◐ **WP-26** · The installable package — **installable 2026-09-11**. Six packages build to dist and were installed from tarballs into an outside consumer that routed real turns with no network. Left: a live page (WP-35) | M3 | S | — |
 | 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
 
 ~~WP-39~~ ✅ **attempted and reverted 2026-09-10** — section-scoped boundaries raised the
@@ -1735,7 +1735,36 @@ Ship navigation only and say so.
 
 ---
 
-### WP-26 · The installable package — Ladder C2 ⬜ · **L** · queue 8
+### WP-26 · The installable package — Ladder C2 ◐ **INSTALLABLE — 2026-09-11** · deployment pending
+
+> **The packages were literally uninstallable, and that was the finding.** Every one was
+> `private: true` with `main: ./src/index.ts` — raw TypeScript. Node refuses to strip types
+> inside `node_modules` (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), so nobody outside
+> this workspace could import them. Invisible from inside, where every import resolves
+> through the workspace to source. Found by doing exactly what the acceptance says — pack
+> the tarballs, install them in a scratch directory, import them the way a client would.
+>
+> Now: six packages build to `dist`, declare `files`, and were installed from tarballs into
+> a consumer outside the repository, which **routed real `fut-app` turns with no network
+> and no model server**. [INSTALL.md](INSTALL.md) is the procedure, written by performing
+> it.
+>
+> | Acceptance | |
+> |---|---|
+> | Ordinary dependency addition | ✅ six packages, `npm install`, verified from outside the workspace |
+> | Rule 16 — only new files | ✅ `writeOutput` throws on any path inside the app's source; `generate.test.ts` fingerprints a whole fixture tree before and after a run |
+> | Rule 17 — role bundles | ✅ absent, not hidden; `emit.test.ts` diffs two role registries |
+> | Uninstall leaves it as it was | ✅ nothing is ever written outside `out` |
+> | No key reaches the browser | ✅ the stage-3 transport is injected, so an adopter proxies it |
+> | Time-to-integrate, honestly | ⚠️ **one human step remains** — the config naming routes, the role export and the nav manifests. WP-25's goal was "no human step"; this is one, and INSTALL.md says so rather than rounding it away |
+>
+> **A browser-safe entry point was also missing.** The root export re-exports
+> `loadRegistry`, which imports `node:fs` at module scope — so an adopter bundling for a
+> browser resolves `node:fs` whether or not they ever call it, and tree-shaking does not
+> help. `@nextgen/core-intent/browser` is the fix, and `check-packaging.mjs` is the gate
+> that stops the entry points rotting again.
+>
+> **Left:** mounting it in a live page, which is WP-35's job.
 
 **Goal.** **Product requirement #1**: the client takes our solution and installs it in
 their own codebase. Not a service we run — a package they add, a build step they run,

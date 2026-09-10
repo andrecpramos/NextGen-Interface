@@ -1,13 +1,22 @@
 {
   "name": "@nextgen/core-intent",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Three-stage intent router: deterministic → embedding → constrained LLM. Domain-agnostic.",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.ts",
-    "./config": "./src/config.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    }
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -18,11 +27,17 @@
     "eval:floor": "node eval/evaluate.js --embedder=hashing --no-stage3",
     "compare": "node eval/compare.js",
     "calibrate": "node eval/calibrate.js --embedder=ollama --defer-oos",
-    "inspect": "node eval/inspect.js --embedder=ollama"
+    "inspect": "node eval/inspect.js --embedder=ollama",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",
     "@nextgen/core-inference": "workspace:*"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "types": "./dist/index.d.ts"
 }
