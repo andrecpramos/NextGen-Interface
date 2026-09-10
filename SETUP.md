@@ -1,6 +1,10 @@
 # SETUP — running this
 
-**Last verified:** 2026-08-30 · Node 25.1.0 · pnpm 11.1.2 · Windows 11
+**Last verified:** 2026-09-10 · Node 25.1.0 · pnpm 11.1.2 · Windows 11
+
+⚠️ **This describes running the *reference* applications.** The product is a navigation
+layer generated for someone else's app — see [README.md](README.md) and
+[WRITEUP.md](WRITEUP.md). The two are the same engine; only the registry differs.
 
 There are two working apps: **`apps/web`**, the assistant surface in a browser, and
 `apps/cli`, the same stack as a terminal loop. There is **not** a mobile app — see
@@ -9,8 +13,9 @@ There are two working apps: **`apps/web`**, the assistant surface in a browser, 
 ## The short version
 
 ```bash
-pnpm install
-pnpm web          # http://localhost:3000  — the product
+pnpm install --ignore-scripts   # a fresh clone needs the flag; see CLAUDE.md
+pnpm app                       # the reference app in a terminal — the fastest look
+pnpm web                       # the same stack at http://localhost:3000
 ```
 
 Everything else on this page is detail.
@@ -171,7 +176,11 @@ Two warnings, both learned the hard way:
 
 ## 7. Changing capabilities
 
-`packages/domain-finance/src/capabilities.ts` is the source of truth. After editing:
+`packages/domain-modules/src/capabilities.ts` is the source of truth — it is the
+**registered** domain since WP-14, and it is what `pnpm registry:build` builds.
+`domain-finance` is a second reference application; building *it* writes the same global
+`registry.json` and would silently replace the one the router loads, which is why a hook
+blocks it. After editing:
 
 ```bash
 pnpm registry:build     # regenerates registry.json, routes.json, golden fixtures
@@ -211,7 +220,7 @@ Every root script, and what it is for. All run from the repo root.
 
 ### The registry
 
-`packages/domain-finance/src/capabilities.ts` is the source of truth.
+`packages/domain-modules/src/capabilities.ts` is the source of truth (see §7).
 
 | | |
 |---|---|
@@ -275,7 +284,9 @@ Honest status. The engine is complete; the product surface is not.
 | `core-inference` | runtime interfaces, Ollama and Fake adapters, model store |
 | `core-trace` | the explainability record, encrypted, with `explain()` |
 | `data` | schema, migrations, the fixed query set, undo journal, fixtures |
-| `domain-finance` | entities, ports, events, use cases, 27 capabilities |
+| `domain-modules` | **the registered reference app** — entities, use cases, 7 capabilities |
+| `domain-finance` | a second reference app — 27 capabilities, proof the engine is domain-agnostic |
+| `generator` | reads an application's source and emits one registry per role (WP-25) |
 | `apps/cli` | **the composition root** — the whole stack in a terminal |
 | `ui` | design system — sphere states, confirmation card, trace viewer (WP-08) |
 | `apps/web` | **the assistant surface** — Next.js, a second surface over the same root (WP-09) |
