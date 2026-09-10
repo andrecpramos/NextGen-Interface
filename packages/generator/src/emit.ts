@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
-import { validateRegistry, formatValidation, type Capability, type RegistryFile } from '@nextgen/core-capability';
+import { validateRegistry, formatValidation, capabilityDocument, type Capability, type RegistryFile } from '@nextgen/core-capability';
+import { makeEmbedder } from '@nextgen/core-intent';
 
 import type { AnnotatedCapability, GeneratorOutput, RoleName, SkippedRoute } from './types.ts';
 
@@ -165,4 +166,71 @@ export function writeOutput(outputDir: string, appRoot: string, output: Generato
   write('SKIPPED.md', formatSkipReport(output.skipped));
 
   return { files, invalid };
+}
+
+// ------------------------------------------------------- the shipped index --
+
+/**
+ * Emit the precomputed embedding index, one file per role (WP-24).
+ *
+ * The runtime can compute these itself — the zero-dependency encoder is pure
+ * arithmetic — so this is not about capability. It is about two things:
+ *
+ * **Startup cost.** Fitting TF-IDF over 145 documents builds a vocabulary of
+ * ~8,400 terms before the first question can be routed. That belongs in a build,
+ * not on the critical path of a user's first turn.
+ *
+ * **Removing a way to be wrong.** A fitted vocabulary is state; a vector means
+ * nothing except relative to the corpus it was fitted on. Shipping the vectors
+ * means the ranking a user gets is the ranking that was measured.
+ *
+ * ⚠️ **One embedder per registry, and this is not stylistic.** `fit()` replaces
+ * the encoder's vocabulary, so a single instance reused across ten roles leaves
+ * nine indexes describing a vector space that no longer exists. That exact bug
+ * stood as a headline finding in this project for two days — lessons.md L10 —
+ * and building the index is precisely where it would do the most damage,
+ * because the result would then be shipped rather than merely measured.
+ *
+ * Measured cost of what this writes: ~41KB gzipped at 50 capabilities, ~126KB at
+ * 145, against WP-24's ~500KB budget.
+ */
+export async function writeIndexes(
+  outputDir: string,
+  registries: ReadonlyMap<RoleName, RegistryFile>,
+  encoderName = 'hashing',
+): Promise<string[]> {
+  const target = resolve(outputDir);
+  mkdirSync(target, { recursive: true });
+  const written: string[] = [];
+
+  for (const [role, registry] of registries) {
+    const documents = registry.capabilities.map(capabilityDocument);
+
+    // A fresh encoder for this registry, every time. See the warning above.
+    const embedder = makeEmbedder(encoderName);
+    embedder.fit?.(documents);
+    const vectors = await embedder.embedAll(documents);
+
+    const index = {
+      schemaVersion: registry.schemaVersion,
+      encoder: encoderName,
+      generatedAt: new Date().toISOString(),
+      // Order is load-bearing: the runtime pairs capabilities[i] with
+      // vectors[i], and `assertIndexMatches` refuses an index whose ids do not
+      // appear in exactly this order.
+      entries: registry.capabilities.map((c, i) => ({
+        capabilityId: c.id,
+        // Four significant figures. Cosine is scale-invariant and the ranking is
+        // unchanged well above this precision, so the remaining digits are bytes
+        // a browser downloads and never uses.
+        vector: vectors[i]!.map((w) => Number(w.toFixed(4))),
+      })),
+    };
+
+    const name = `index.${role}.json`;
+    writeFileSync(join(target, name), `${JSON.stringify(index)}\n`, 'utf8');
+    written.push(name);
+  }
+
+  return written;
 }

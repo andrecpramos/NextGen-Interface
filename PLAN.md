@@ -48,7 +48,7 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | 2 | ~~**WP-40**~~ ✅ **BUILT AND MEASURED — 2026-09-10.** ADR-015 accepted; the action signal is live. Out-of-scope **26.5% → 41.2%**, model-free refusal **14.7% → 32.4%**, at an unchanged 1.1% false-refusal rate | M1 | M | done |
 | 3 | ~~**WP-36**~~ ✅ **COMPLETE — 2026-09-10.** Declared explanations built, served verbatim, and now *detected*: 94.4% recall on the golden set's what/why bucket at 2.3% false positives, reusing ADR-015's frame layer. Changes no routing decision | M1 | S | done |
 | 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
-| 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding**. Unblocked: D-4 answered, WP-38 done | M3 | L | — |
+| 5 | ◐ **WP-24** · Ship stages 1+2 to the browser — **engine done 2026-09-10**, bundle 47KB gz at the largest role against a 500KB gate, 210/210 decision parity with the server path. **The encoder finding that rewrote this was retracted** ([L10](.claude/docs/lessons.md)). Left: mount it in a page | M3 | S | — |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
 | 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
 | 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
@@ -1662,12 +1662,38 @@ and declared limits took the 1B model from **0% to 40%**.
 > Only start M3 if WP-33's numbers justify it. A deployed demo of a thing that resolves
 > 30% of questions is worse than no demo.
 
-### WP-24 · Ship stages 1+2 to the browser ⬜ · **L** · queue 6
+### WP-24 · Ship stages 1+2 to the browser ◐ **ENGINE DONE — 2026-09-10** · surface pending
 
-**Goal.** Make the common path free: precomputed index, deterministic + embedding
-matching in the browser, no network.
+> **Everything the acceptance asks for is built and measured, except mounting it in a
+> real page.** The "Stop if" does not trigger — by more than tenfold.
+>
+> | | |
+> |---|---|
+> | Zero network calls in stages 1+2 | ✅ enforced by a test that stubs `fetch`, `XMLHttpRequest` and `WebSocket` with throwing versions — **verified by swapping in a network encoder and watching it fail** |
+> | Bundle size | ✅ largest role (COACH, 78 capabilities) **47KB gzipped**, against a ~500KB budget. All ten roles together are 205KB, and a user downloads only their own (Rule 17) |
+> | Degrades without a stage-3 transport | ✅ ends in a clarify, never a guess |
+> | Thresholds shipped per registry | ✅ `thresholds.hashing.json` beside the indexes; still calibrated, never hand-set (Rule 14) |
+> | Browser figure matches Node | ✅ **210/210 turns, identical decision** — `verify-browser-parity.mjs` compares outcome, capability and deciding stage per turn rather than two summary percentages that could agree by coincidence |
+>
+> `registryFromIndex()` builds a routable registry from data alone — no file read, no
+> encoder fit, nothing to await. `assertIndexMatches` refuses a mismatched index, and is
+> strict about **order**, because the runtime pairs `capabilities[i]` with `vectors[i]`:
+> the right ids in the wrong order would route every question wrongly, confidently, with
+> no symptom.
+>
+> **This work package was blocked on a claim that turned out to be false.** Its
+> precondition read *"WP-33 met its bar"* and it was rewritten around
+> *"`hashing` gets 4.0% recall@1, so WP-24 needs a real sentence encoder in the browser
+> or a different plan."* That was a harness fault ([L10](.claude/docs/lessons.md)). The
+> zero-dependency encoder ties with `nomic-embed-text` at 50.0% recall@1 and settles
+> **more** turns model-free (13.3% vs 11.0%), so the offline design is intact as
+> originally specified.
+>
+> **What is left is a surface, not an engine**: mounting this in `apps/web` behind a real
+> page, which is WP-35's territory.
 
-**Preconditions.** WP-33 met its bar.
+**Preconditions.** ~~WP-33 met its bar.~~ It did not, and D-4 resolved that by
+repositioning rather than by blocking this.
 
 **Do this.** Emit the precomputed index from codegen, version it, load it in the runtime
 instead of embedding at startup (open since WP-03). Make stage-3 escalation an injectable

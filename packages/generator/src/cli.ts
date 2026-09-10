@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import { generate } from './generate.ts';
-import { formatRoleSummary, writeOutput } from './emit.ts';
+import { formatRoleSummary, writeOutput, writeIndexes } from './emit.ts';
 import { ollamaModel, type ProseCache } from './synthesise.ts';
 import type { GeneratorConfig } from './types.ts';
 
@@ -70,10 +70,16 @@ async function main(): Promise<void> {
   });
 
   const result = writeOutput(outputDir, appRoot, output);
+
+  // WP-24: the precomputed index, so stages 1+2 can run with no model server
+  // and no fit on the critical path of the first turn.
+  const indexes = await writeIndexes(outputDir, output.registries);
+
   writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
 
   console.log(`\n${formatRoleSummary(output)}\n`);
-  console.log(`  wrote ${result.files.length + 1} files to ${outputDir}`);
+  console.log(`  wrote ${result.files.length + indexes.length + 1} files to ${outputDir}`);
+  console.log(`  including ${indexes.length} precomputed embedding index/indexes (WP-24)`);
 
   if (result.invalid.length > 0) {
     console.error(`\n  ${result.invalid.length} role registry/registries failed validation:\n`);

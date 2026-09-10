@@ -13,6 +13,16 @@
 
 export { route, type RouteDeps } from './cascade.ts';
 export { loadRegistry, similarityAudit, type SimilarPair } from './registry.ts';
+
+// WP-24. `loadRegistry` reads a file and fits an embedder — neither is available
+// in a browser. This is the same construction from data already in memory: no
+// I/O, no embedder, no network.
+export {
+  registryFromIndex,
+  assertIndexMatches,
+  IndexMismatchError,
+  type ShippedIndex,
+} from './registry-browser.ts';
 export {
   stage1,
   stage2,
