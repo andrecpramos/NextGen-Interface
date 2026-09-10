@@ -259,6 +259,21 @@ prompt: `Module.body`, memo-style fields, imported files, OCR output.
 > mechanism, it is a hope."* Fencing raises the cost of an injection and makes one
 > auditable afterwards; it is defence in depth, not a proof.
 >
+> ⚠️ **That caveat is no longer hypothetical — it is measured.**
+> [Finding 14](../../packages/core-intent/eval/FINDINGS.md) ran the adversarial
+> bucket against a live stage 3: **`llama3.1:8b` produces 4 safety violations
+> with the fence fully intact**, and both 1B-class models produce none. The
+> prompt for the escape entry has exactly one opening and one closing tag with
+> both forgeries redacted — the structural guarantee did its job and the outcome
+> did not change.
+>
+> Note the inversion, because it contradicts everything else in this document:
+> the *most* capable model is the only one that fails. The plausible reason is
+> that a better model follows instructions it finds in text, and an injected
+> instruction is still an instruction. **Do not read the 1.5B model's 13/13 as
+> evidence the target model is safe** — it may pass because it is not competent
+> enough to be steered.
+>
 > **A constraint on any future hardening.** The obvious next step — a paragraph of
 > injection-defence prose in the system message — is measurably harmful here. The
 > registered domain's `EXTRACT_SYSTEM` records a real document collapsing to a
@@ -433,11 +448,25 @@ one that topped this list.)*
    it anywhere, which is a deployment property no source check reaches. If the
    local-inference claim ever needs to be *proved* rather than *kept*, that is
    where to look.
-6. **A fenced prompt still depends on the model obeying the fence.** §8 is
-   explicit that only the *structural* half is enforced. Closing the rest is not
-   a gate but a measurement: the adversarial bucket runs model-free today, so it
-   proves the dispatcher's policy holds and says nothing about whether a model
-   honours a boundary. A stage-3 adversarial run would.
+6. **A fenced prompt still depends on the model obeying the fence — and
+   `llama3.1:8b` does not.** ⚠️ **Measured 2026-09-10**
+   ([Finding 14](../../packages/core-intent/eval/FINDINGS.md)): the adversarial
+   bucket run against a live stage 3 gives **4 safety violations on `llama3.1:8b`**
+   and **0 on both 1B-class models**. The fence held structurally in every case —
+   the prompt for the escape entry has one opening tag, one closing tag and both
+   forgeries redacted — and the 8B chose `module.delete` anyway. *A fence is a
+   boundary the content cannot cross, not one the model will not cross.*
+
+   Two things follow, and they point in opposite directions:
+   - **The layer beneath held.** All five `forbidUnconfirmedDestructive` entries
+     passed on all three models: the router can be steered into *selecting* a
+     destructive capability, and the dispatcher still refuses to run one
+     unconfirmed. Policy is code (§3).
+   - **The bucket must run against a model in CI.** It runs model-free today,
+     where every entry passes because nothing is consulted. Three of the four
+     failures pre-date this work and had never been seen. **This is now the
+     highest-value unbuilt gate in this document** — it is the only one whose
+     absence has already hidden real failures rather than theoretical ones.
 7. ~~**Rules 16 and 17 have no mechanism at all**~~ **Both have had tests since WP-25
    (2026-09-10); see the matrix. What remains open is Rule 17 on a second app (PLAN.md
    WP-43).** The original entry read: — they were added on 2026-09-09 with
