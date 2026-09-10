@@ -195,7 +195,7 @@ prompt: `Module.body`, memo-style fields, imported files, OCR output.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 15 — domain content is untrusted in a prompt | `fence()` / `redactTag()` in `core-inference/src/untrusted.ts`, applied at all four prompt-building sites; 22 unit tests, 3 golden entries | **test (2026-09-10) — structurally enforced, see the limit below** |
+| Rule 15 — domain content is untrusted in a prompt | `fence()` / `redactTag()` in `core-inference/src/untrusted.ts`, applied at all four prompt-building sites; 22 unit tests, 3 golden entries; **`check-prompt-fencing.mjs` in CI** | **gate (2026-09-10) — structurally enforced, see the limit below** |
 
 > ### ◐ Rule 15 — what the fence does and does not buy
 >
@@ -249,8 +249,33 @@ it has not earned. (Section 1 has this pass's example.)
 | Only `develop` may merge to production | CI `guard-production` job; `.claude/hooks/guard-git.mjs` for the local case CI never sees | **partial — see below** |
 | Branch from `develop`, never from production | `guard-git.mjs`, plus `branch-check.mjs` at every context boundary | **enforced (agents only)** |
 | Never stage broadly in this shared tree | `guard-git.mjs` denies `git add -A`, `git add .`, `git commit -a` | **enforced (agents only)** |
-| Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced (added 2026-09-09)** |
+| Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced — but only from 2026-09-10; see below** |
+| A prompt never interpolates unfenced input | CI + `tooling/scripts/check-prompt-fencing.mjs` | **enforced (added 2026-09-10)**, §8 for its limits |
 | High and critical CVEs block | CI `audit` job (`pnpm audit --audit-level high`) | **enforced** |
+
+> ### ⚠️ This row was false for a day, and the way it was false is the point
+>
+> `doc-links` was added to `sdlc.config.json` on 2026-09-09 with
+> `"blocking": true`, recorded here as **enforced**, and **never added to
+> `ci.yml`**. `/gates` ran it locally; CI did not run it at all. For that period
+> a PR with a broken documentation link merged clean, while this register said it
+> could not.
+>
+> Found 2026-09-10 by diffing the gate list against the workflow — the check
+> [CLAUDE.md](../../CLAUDE.md) already asks for in words (*"hooks and CI read that
+> file, so it and CI must not drift"*) and which nothing performs. Fixed by adding
+> the step.
+>
+> **The general shape is worth more than the instance.** Section 1's vacuous
+> staleness gate diffed a directory the build never wrote. This one existed in the
+> config and not in the pipeline. Both passed while claiming to protect something,
+> and both were found by comparing a declaration against the thing that would have
+> to honour it — never by reading the declaration alone. *A register is only worth
+> what its last verification was worth.*
+>
+> `kit-sync` is still absent from CI and that is correct: it compares
+> `.claude/hooks` against `sdlc-kit/runtime/hooks`, and `sdlc-kit` is gitignored,
+> so a fresh CI clone has nothing to compare.
 
 > ⚠️ **No CI job in this repository can block a merge.** Measured 2026-09-09:
 > `GET /repos/andrecpramos/AI-Interface/branches/{develop,main}/protection`
@@ -348,10 +373,7 @@ one that topped this list.)*
    on the render path would close it.
 4. **Rule 12 is unenforceable mechanically** — but a PR touching `core-intent`
    with no `golden-set.jsonl` change is a cheap heuristic a reviewer or a hook
-   could flag. **A cheaper one now exists:** nothing stops a new prompt-building
-   site from interpolating raw. A grep gate — a `complete({` whose `prompt`
-   interpolates without `fence` or `redactTag` — would keep §8 closed as the
-   codebase grows, and is the natural next step there.
+   could flag.
 5. **Rule 8 is verified, not gated.** A check that runtime packages reference no
    non-loopback host outside the asset manifest would keep it that way.
 6. **A fenced prompt still depends on the model obeying the fence.** §8 is

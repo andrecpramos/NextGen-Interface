@@ -64,6 +64,14 @@
       "fix": "An entry point in main/types/exports either does not exist, is not covered by `files`, or is TypeScript source. Run `pnpm build` first — the gate reads built output. A .ts entry point cannot work at all: Node refuses to strip types inside node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), which is what made every package in this repo uninstallable until 2026-09-11. If a package is not meant to be installed, mark it private."
     },
     {
+      "id": "prompt-fencing",
+      "title": "Rule 15 — a prompt never interpolates unfenced input",
+      "command": "node tooling/scripts/check-prompt-fencing.mjs",
+      "blocking": true,
+      "rule": "15",
+      "fix": "Wrap the value: fence('what this is', value), or redactTag('tagname', value) if the prompt already delimits with tags. If the prompt genuinely needs no fence, say why in the source with a `// rule15-ok: <reason>` comment next to the call. Note what this gate can and cannot see: it proves a fence was applied near a prompt, not that it covered the right value — fencing legitimately happens upstream. Reading for that is the boundary-auditor agent's job."
+    },
+    {
       "id": "doc-links",
       "title": "Every relative documentation link resolves",
       "command": "node tooling/scripts/check-doc-links.mjs",
