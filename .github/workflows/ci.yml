@@ -95,6 +95,14 @@ jobs:
       # `kit-sync` is deliberately still absent: it compares .claude/hooks
       # against sdlc-kit/runtime/hooks, and sdlc-kit is gitignored, so in a
       # fresh CI clone it has nothing to compare and skips.
+      # Rule 2 — the model never computes a number the user sees. Guards the
+      # model's *output schema*: a model that never emits a number cannot
+      # compute one, whatever a render path later does. It does not check
+      # arithmetic our own code performs on model output — that needs a
+      # user-visible number to exist first, and none does yet.
+      - name: Model numerics (Rule 2)
+        run: node tooling/scripts/check-model-numerics.mjs
+
       - name: Documentation links resolve
         run: node tooling/scripts/check-doc-links.mjs
 

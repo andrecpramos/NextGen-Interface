@@ -328,7 +328,7 @@ session rather than claiming the set.
 | # | Rule | Enforced by | Kind |
 |---|---|---|---|
 | 1 | `core-*` never imports a domain | `check-import-boundaries.mjs`, CI, PostToolUse hook | **gate** |
-| 2 | Model never computes a user-visible number | comments; review | convention |
+| 2 | Model never computes a user-visible number | `check-model-numerics.mjs`, CI — the model's output schema may not declare a number without a `// rule2-ok:` reason | **gate (2026-09-10), half the rule** — arithmetic on model output is still convention, and untestable until a number is rendered anywhere |
 | 3 | Model never emits SQL or a raw route | `dispatcher.test.ts`; query engine design | **test** |
 | 4 | Model-produced ids validated against the registry | `dispatcher.test.ts`, `cascade.ts`, `stages.ts` | **test** |
 | 5 | Policy is code; unclassified refuses | `dispatcher.test.ts` | **test** |
@@ -367,10 +367,21 @@ one that topped this list.)*
    green. Only a manual parity run noticed. Every adopter's browser would have received
    vectors that no longer matched its own query encoder. PLAN.md WP-46 wires the three
    existing scripts into CI.
-3. **Rule 2 has no test.** The rule that "the model never computes a number the
-   user sees" is held up entirely by comments and review, and it has already
-   produced one real bug (PLAN.md section 6). A test asserting arithmetic origin
-   on the render path would close it.
+3. **Rule 2 is half-gated, and the other half cannot be tested yet.**
+   `check-model-numerics.mjs` (CI, 2026-09-10) fails any model output schema
+   declaring `type: 'number'` without a `// rule2-ok:` justification — a model
+   that never emits a number cannot compute one a user sees. Exactly one
+   justified case exists: stage 3's `selfReportedConfidence`.
+
+   **This entry used to say "a test asserting arithmetic origin on the render
+   path would close it". That test cannot be written.** Checked against the tree
+   2026-09-10: no user-visible number is rendered anywhere. `apps/web/lib/render.ts`
+   is the only `AnswerView` producer and its single `rows` construction sets
+   `value: ''`; `formatMoney` has no consumer outside `data` and its own tests;
+   `AnswerRow.bar` is never produced. The test would have asserted over an empty
+   set and passed — the third vacuous gate this document would have recommended
+   into existence. What remains open is arithmetic *our own code* does on model
+   output, and it stays open until there is a rendered number to do it to.
 4. **Rule 12 is unenforceable mechanically** — but a PR touching `core-intent`
    with no `golden-set.jsonl` change is a cheap heuristic a reviewer or a hook
    could flag.

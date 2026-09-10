@@ -253,6 +253,12 @@ export async function stage3(
   // WP-01 caveat: that only works if the model will actually pick it. gemma3:1b
   // never does, across 140 calls (FINDINGS Finding 7). The mechanism below is
   // correct and insufficient; do not assume out-of-scope input is caught here.
+  // rule2-ok: `confidence` is the only number the model is asked for anywhere in
+  // this codebase, and it is never shown to a user. It is routing telemetry —
+  // read by the dispatcher's threshold gate and recorded in the trace, which is
+  // exactly why it is named `selfReportedConfidence` at every point it is
+  // handled. FINDINGS Finding 8 measured it near-constant at 1B, so it is not
+  // even trustworthy as telemetry; displaying it would be worse than useless.
   const schema: JsonSchema = {
     type: 'object',
     properties: {
