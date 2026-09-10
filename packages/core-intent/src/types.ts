@@ -61,6 +61,19 @@ export interface Registry {
   readonly enums: Readonly<Record<string, EnumIndex>>;
   /** Ids of the declared limits (ADR-009). Precomputed; consulted on every turn. */
   readonly boundaryIds: ReadonlySet<string>;
+  /**
+   * Every action verb that appears anywhere in this registry's real
+   * capabilities (ADR-015's guard). Precomputed; consulted on every turn.
+   *
+   * **Registry-wide on purpose, not top-candidate.** The guard answers "does
+   * this application do this?", and that is a property of the registry — not of
+   * whatever retrieval happened to rank first. WP-40 measured the difference:
+   * asking the top candidate silenced *none* of the five in-domain false flags,
+   * because for all five the top candidate was the wrong screen. Basing a safety
+   * guard on the ranking makes it fail exactly when retrieval fails, which is
+   * when it is most needed.
+   */
+  readonly actionVocabulary: ReadonlySet<string>;
 }
 
 // --------------------------------------------------------------- embedding --

@@ -1,3 +1,4 @@
+import { actionVocabularyOf } from './action.ts';
 import { describe, expect, it } from 'vitest';
 import { capabilityDocument, defineCapability } from '@nextgen/core-capability';
 import type { CompletionRequest, CompletionResult, LlmRuntime } from '@nextgen/core-inference';
@@ -52,6 +53,7 @@ function registryWith(domainDescription: string): Registry {
     vectors: capabilities.map(() => []),
     enums: {},
     boundaryIds: new Set(),
+    actionVocabulary: actionVocabularyOf(capabilities),
   };
 }
 

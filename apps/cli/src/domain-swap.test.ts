@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { capabilityDocument } from '@nextgen/core-capability';
 import {
-  buildEnumIndex, HashingEmbedder, route, STAGE, OUTCOME,
+  buildEnumIndex, HashingEmbedder, route, STAGE, OUTCOME, actionVocabularyOf,
   type Registry, type RegistryFile,
 } from '@nextgen/core-intent';
 import type { CompletionRequest, CompletionResult, LlmRuntime } from '@nextgen/core-inference';
@@ -46,6 +46,7 @@ async function toRegistry(file: RegistryFile, embedder: HashingEmbedder): Promis
     vectors,
     enums,
     boundaryIds: new Set(capabilities.filter((c) => c.kind === 'unsupported').map((c) => c.id)),
+    actionVocabulary: actionVocabularyOf(capabilities.filter((c) => c.kind !== 'unsupported')),
   };
 }
 

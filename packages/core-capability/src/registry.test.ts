@@ -230,10 +230,42 @@ describe('capabilityDocument — the retrieval text', () => {
   });
 
   it('joins title, description, triggers and example phrasings', () => {
-    const c = ok({ triggers: ['transactions'], examples: ['show my transactions', 'b', 'c'] });
+    const c = ok({ triggers: ['spending report'], examples: ['show my transactions', 'b', 'c'] });
     expect(capabilityDocument(c)).toBe(
-      'Transactions. Browse and filter the full list of recorded transactions. transactions. show my transactions. b. c',
+      'Transactions. Browse and filter the full list of recorded transactions. spending report. show my transactions. b. c',
     );
+  });
+
+  /**
+   * WP-38 / WP-40. A trigger already present in the title or description adds
+   * WEIGHT, not signal — and weight here is a retrieval bug, not a nicety.
+   *
+   * The generator derives triggers from nav labels, and a nav label is usually
+   * the title, so 141 of 245 generated triggers were duplicates. Embedding them
+   * doubled the title's weight for every real capability while declared
+   * boundaries, which carry no triggers, got no such boost. Measured: capability
+   * ranking improved and out-of-scope refusal fell 32.4% → 26.5%.
+   */
+  it('does not count a trigger that the title or description already contains', () => {
+    const c = ok({ triggers: ['transactions'], examples: ['a', 'b', 'c'] });
+    // "transactions" appears in both the title and the description already.
+    expect(capabilityDocument(c)).toBe(
+      'Transactions. Browse and filter the full list of recorded transactions. a. b. c',
+    );
+  });
+
+  it('compares accent-insensitively, because a generated trigger is normalised', () => {
+    const c = ok({
+      title: 'Avaliações físicas',
+      description: 'Uma descrição.',
+      triggers: ['avaliacoes fisicas', 'physical assessments'],
+      examples: ['a', 'b', 'c'],
+    });
+    const doc = capabilityDocument(c);
+    // The normalised duplicate is dropped; the genuinely different English
+    // label survives, because it is phrasing the title does not carry.
+    expect(doc).not.toContain('avaliacoes fisicas');
+    expect(doc).toContain('physical assessments');
   });
 
   it('reads the `say` field of a rich example, not the object', () => {

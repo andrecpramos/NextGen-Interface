@@ -127,17 +127,18 @@ The economics hinge on one number: **the model-free resolution rate.** At 90% th
 product is nearly free to run and option 4 is viable. At 40% every turn has a model
 cost and the pricing must cover it.
 
-### ⚠️ That number is measured, and it is 8.1%
+### ⚠️ That number is measured, and it is 11.0%
 
 **Do not price this as a cheap product.** On `fut-app` — 146 real pages, 210 questions
-written from the app's own screens, a real sentence encoder — **8.1% of turns are settled
-correctly without a model call.** 193 of 210 reach the model.
+written from the app's own screens, a real sentence encoder — **11.0% of turns are settled
+correctly without a model call.** 187 of 210 reach the model.
 
 The history is worth keeping, because the target was pre-committed and has never once been
 met: **65%** in the original roadmap before a line of the router existed, **30%** measured
-at WP-01, **2.4%** at [WP-33](../../eval/fut-app/MEASUREMENT.md) on a real application, and
+at WP-01, **2.4%** at [WP-33](../../eval/fut-app/MEASUREMENT.md) on a real application,
 **8.1%** at [WP-38](../../eval/fut-app/WP38.md) after deliberately spending a budget to fix
-it. Three of the four are measurements, not estimates.
+it, and **11.0%** after WP-40 added a second, non-topical signal on top. Four of the five
+are measurements rather than estimates, and the gap to 60% is still more than five-fold.
 
 WP-38 is the one that closes the question, because it tried the three untried levers and
 reported what each was worth: the free stage had never been switched on, switching it on is
@@ -150,7 +151,7 @@ premised on a near-zero marginal cost. Option 4 does not: a free tier now gives 
 model call per turn, and the pricing floor is inference cost, not hosting.
 
 **What survives, and it is the thing to sell.** The product beats the incumbent it
-replaces — **58.0% vs 45.5%** for `fut-app`'s own command palette, and **60.3% vs 37.1%**
+replaces — **56.8% vs 45.5%** for `fut-app`'s own command palette, and **59.5% vs 37.1%**
 in Portuguese, the language most of its users speak. That is a better-navigation argument
 and it is measured. It is not a cheaper-navigation argument, and §4's comparison against a
 chat widget must stop implying otherwise: *"it costs a model call per turn"* is no longer
@@ -167,7 +168,7 @@ Falsifiable claims, in the order they should be tested. Each maps to a work pack
 |---|---|---|---|
 | A1 | A usable, role-scoped registry can be generated from an app's source with no human editing | Generate for `fut-app`; score against its `deepLinks.ts`/`navConfigs` plus a hand-written sample | Precision or recall below ~70%, or **any** role mis-assignment |
 | ~~A2~~ | ~~Most real questions resolve with no model call~~ | ⚠️ **TESTED AND FAILED.** 2.4% at WP-33, **8.1%** after WP-38 spent a budget on it, against a 60% bar. §5 and the rungs in PLAN.md §1.6 are repriced accordingly | ~~Below 60%~~ — it failed |
-| **A2′** | *Replaces A2.* The assistant beats the navigation the adopter already ships | Same golden set, against `fut-app`'s own CommandPalette | It loses, or wins only in English. **Currently: 58.0% vs 45.5%, and 60.3% vs 37.1% in pt-PT — holds** |
+| **A2′** | *Replaces A2.* The assistant beats the navigation the adopter already ships | Same golden set, against `fut-app`'s own CommandPalette | It loses, or wins only in English. **Currently: 56.8% vs 45.5%, and 59.5% vs 37.1% in pt-PT — holds** |
 | A3 | Guidance can anchor to elements without breaking on the adopter's next deploy | Anchor, then change the app, then re-run | Anchors mispoint rather than degrade |
 | A4 | Navigation + guidance alone is worth paying for | Ask three people in a candidate vertical | Everyone says "only if it answers with my data" |
 | A5 | Data answering (phase 2) is achievable without owning the adopter's backend | Design against WeFitAll's NestJS bookings API | Requires bespoke work per adopter |

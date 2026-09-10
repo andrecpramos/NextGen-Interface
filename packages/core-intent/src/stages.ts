@@ -1,4 +1,5 @@
 import { normalize, contentTokens } from './text.ts';
+import { actionSignalApplies } from './action.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
@@ -125,8 +126,26 @@ export async function stage2(
   const bestBoundary = boundary[0];
   const boundaryLead = bestBoundary ? bestBoundary.score - top.score : -Infinity;
 
+  // ADR-015. Topic similarity cannot tell a request *about* a subject from a
+  // request to *act on* it, because they are about the same subject — so an
+  // action verb is admitted as a second, independent signal, and a boundary is
+  // allowed to win on a smaller margin when one is present.
+  //
+  // `actionSignalApplies` carries the guard: it returns false when the best real
+  // candidate is itself `write` or `destructive`, so an application that really
+  // does offer deletion never starts refusing its own feature.
+  const actionMargin = thresholds.actionBoundaryMargin ?? thresholds.boundaryMargin;
+  const topCapability = registry.byId.get(top.capabilityId);
+  const requiredMargin = actionSignalApplies(
+    utterance,
+    topCapability?.kind,
+    registry.actionVocabulary,
+  )
+    ? actionMargin
+    : thresholds.boundaryMargin;
+
   let decision: Stage2Decision = 'escalate';
-  if (bestBoundary && boundaryLead >= thresholds.boundaryMargin) {
+  if (bestBoundary && boundaryLead >= requiredMargin) {
     // The application has said, in the registry, that it does not do this.
     decision = 'refuse';
   } else if (top.score < thresholds.tauFloor) {

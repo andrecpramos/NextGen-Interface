@@ -24,10 +24,34 @@ import { assertValidRegistry } from './validate.ts';
  * users actually produce, which is why coding-standards.md requires ≥3 examples.
  */
 export function capabilityDocument(cap: Capability): string {
+  // A trigger that already appears in the title or description contributes
+  // WEIGHT, not signal — and weight is exactly what must not be added here.
+  //
+  // WP-38 made this concrete. The generator derives triggers from nav labels,
+  // and a nav label is usually the title, so 141 of 245 generated triggers were
+  // already in the document. Embedding them doubled the title's weight for every
+  // real capability while declared boundaries — which have no triggers — got no
+  // such boost. Measured: capability ranking improved (top-1 +5.1) and
+  // out-of-scope refusal fell 32.4% → 26.5%, and it removed the separation
+  // ADR-015's action margin needs, taking a measured 20% → 45% refusal gain down
+  // to nothing on the same golden set.
+  //
+  // So the fix is not "stop embedding triggers" — a hand-written trigger like
+  // "how much have I spent" is real phrasing a title does not carry. It is to
+  // stop counting the same words twice.
+  // Accent-insensitive, because a generated trigger is already normalised:
+  // "avaliacoes fisicas" must be recognised as a duplicate of the title
+  // "Avaliações físicas". A plain lowercase compare misses every accented
+  // Portuguese label, which is most of them on the pilot application.
+  const flatten = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const seen = flatten(`${cap.title ?? ''} ${cap.description ?? ''}`);
+  const novel = (cap.triggers ?? []).filter((t) => !seen.includes(flatten(t)));
+
   return [
     cap.title,
     cap.description,
-    ...(cap.triggers ?? []),
+    ...novel,
     ...(cap.examples ?? []).map(exampleText),
   ].join('. ');
 }

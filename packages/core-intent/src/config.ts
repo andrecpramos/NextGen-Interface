@@ -32,6 +32,20 @@ export interface Thresholds {
    * can — so this is constrained, not traded off.
    */
   readonly boundaryMargin: number;
+  /**
+   * `boundaryMargin`, but for an utterance that asks the assistant to *do*
+   * something (ADR-015, accepted 2026-09-10).
+   *
+   * Always ≤ `boundaryMargin`: the verb is independent evidence of being
+   * out-of-scope, so a boundary needs to win by less. Measured, it takes
+   * model-free out-of-scope detection from 20.0% to 45.0% at **zero** in-domain
+   * false refusals — the same constraint `boundaryMargin` is calibrated under,
+   * because refusing a real request is the expensive error.
+   *
+   * Optional so a registry calibrated before this existed still loads; absent,
+   * the engine falls back to `boundaryMargin` and behaves exactly as it did.
+   */
+  readonly actionBoundaryMargin?: number;
 }
 
 export type EmbedderKind = 'hashing' | 'ollama';

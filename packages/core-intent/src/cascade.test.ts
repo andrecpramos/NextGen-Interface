@@ -4,6 +4,7 @@ import { defineBoundary, defineCapability, defineRegistry } from '@nextgen/core-
 import { capabilityDocument } from '@nextgen/core-capability';
 
 import { route } from './cascade.ts';
+import { actionVocabularyOf } from './action.ts';
 import { HashingEmbedder } from './embedder.ts';
 import { buildEnumIndex } from './slots.ts';
 import { OUTCOME, STAGE, type Registry, type ScreenContext } from './types.ts';
@@ -89,6 +90,7 @@ async function buildRegistry(): Promise<Registry> {
     vectors,
     enums: { Category: buildEnumIndex({ tree: { food: ['groceries', 'coffee'] } }) },
     boundaryIds: new Set(['unsupported.move_money']),
+    actionVocabulary: actionVocabularyOf(capabilities.filter((c) => c.kind !== 'unsupported')),
   };
 }
 

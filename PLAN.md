@@ -74,7 +74,7 @@ decided (§13) and defect 3's false undo claim removed.
 
 **M1 is measured, and its headline result is split.** WP-19, WP-25, WP-32 and WP-33 all
 landed in this session on `feature/plan-execution`. The assistant **beats** the incumbent
-command palette on a real 146-page app — **58.0% vs 45.5%** after WP-38, and **60.3% vs
+command palette on a real 146-page app — **56.8% vs 45.5%** after WP-38, and **60.3% vs
 37.1%** in Portuguese — and the **model-free rate is 8.1% against a 60% kill criterion**.
 
 **Both halves are now final.** WP-38 spent D-4's budget on the three untried levers and
@@ -269,7 +269,7 @@ met.** That is the whole discipline — without it this becomes a two-year proje
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **A1 · now** | **Navigate · guide · explain, from the app's own source.** Page purposes, i18n labels, headings, form fields, repo docs. Plus `why` — explaining its own decisions from the trace. **Nothing outside the app's topic**, enforced by declared boundaries (ADR-009) | — | WP-25, WP-36, WP-27 |
-| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **The old entry criterion is retired, not met.** It was ≥60% model-free; measured **2.4%** (WP-33) then **8.1%** (WP-38), and D-4 resolved to repositioning rather than chasing it. **The replacement criterion is A2′ in [business-case.md](.claude/docs/business-case.md) §6: beat the navigation the adopter already ships** — currently 58.0% vs 45.5%, which holds | — |
+| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **The old entry criterion is retired, not met.** It was ≥60% model-free; measured **2.4%** (WP-33) then **8.1%** (WP-38), and D-4 resolved to repositioning rather than chasing it. **The replacement criterion is A2′ in [business-case.md](.claude/docs/business-case.md) §6: beat the navigation the adopter already ships** — currently 56.8% vs 45.5%, which holds | — |
 | **A3 · later** | **Both, fluidly** — a question answered from data *and* a route to act on it | A2 shipped and its permission model proven | — |
 
 ⚠️ **A1's Q&A stays declared rather than generated — and the reason has changed.** The
@@ -1450,7 +1450,57 @@ at something else.**
 
 ---
 
-### WP-40 · ADR: out-of-scope needs a signal that is not topic similarity ◐ **ADR WRITTEN — 2026-09-10, status `Proposed`**
+### WP-40 · Out-of-scope needs a signal that is not topic similarity ✅ **BUILT AND MEASURED — 2026-09-10**
+
+> **[ADR-015](.claude/decisions/ADR-015.md) accepted by the owner in session, and
+> mechanism (a) is now live in `core-intent`.** Measured end to end on `fut-app`:
+>
+> | | WP-33 baseline | + WP-38 triggers | **+ WP-40 action signal** |
+> |---|---|---|---|
+> | top-1 | 52.3% | 58.0% | **56.8%** |
+> | settled free & correct | 2.4% | 8.1% | **11.0%** |
+> | out-of-scope refused | 32.4% | 26.5% | **41.2%** |
+> | …of those, **model-free** | 14.7% | 14.7% | **32.4%** |
+> | in-scope wrongly refused | 1.1% | 1.1% | **1.1%** |
+>
+> **Out-of-scope refusal more than doubles model-free, and the −1.2 top-1 is a
+> deliberate trade** (see "what it cost" below). Every number is above the WP-33
+> baseline it started from.
+>
+> **Three things the implementation had to discover, none of which were in the ADR:**
+>
+> 1. **The ADR's own guard was inert on a generated registry.** It said "do not
+>    apply the signal when the top candidate is `write`/`destructive`" — but the
+>    generator emits `kind: 'navigate'` for everything, because it derives
+>    capabilities from routes and a route has no verb. The guard never fired once.
+> 2. **Asking the *top candidate* is the wrong question anyway.** Rewritten to ask
+>    it, the guard still silenced none of the five in-domain false flags: for all
+>    five, retrieval had ranked the wrong screen. **A safety guard keyed to the
+>    ranking fails exactly when retrieval fails, which is when it is needed.** It
+>    now asks the whole registry — `Registry.actionVocabulary`.
+> 3. **The verb lists had to be grouped by concept, not language.** The app
+>    documents itself in Portuguese (*"pode **eliminar** uma tarefa"*) and users
+>    ask in English (*"**delete** a task"*). Flat per-language lists never meet, so
+>    four in-domain questions about the app's own delete screen stayed flagged —
+>    and under a zero-false-refusal constraint four is enough to block every
+>    margin. **This is why the ADR's measured 20% → 45% did not reproduce** until
+>    it was fixed.
+>
+> **What it cost, stated plainly.** `capabilityDocument` now drops a trigger
+> already present in the title or description. 141 of 245 generated triggers were
+> duplicates, and embedding them double-weighted every real capability's title
+> while boundaries got no such boost — which is what pushed out-of-scope down to
+> 26.5% in WP-38. Removing it costs **1.2 points of top-1** and buys **14.7 points
+> of out-of-scope refusal**. That trade is the right way round: sending a user to
+> a slightly worse screen is recoverable, telling them the app does something it
+> cannot is not.
+>
+> ⚠️ **The "Stop if" is neither triggered nor cleared.** It reads *"detection
+> cannot pass ~70% under **either** mechanism"*. Mechanism (a) reaches 41.2%;
+> mechanism (b) — asking stage 3 directly — remains untried, so the condition
+> cannot yet be evaluated. §9 keeps the row open.
+
+<details><summary>The ADR as originally proposed, and the evidence behind it</summary>
 
 **Goal.** Amend [ADR-009](.claude/decisions/ADR-009.md) with what WP-39 measured. The
 declared-boundary mechanism is sound and it is the safety property the product rests on —
@@ -1526,6 +1576,8 @@ scope decision, not a routing one.
 **Did not trigger, and is not cleared either.** 45% model-free at zero false refusals is
 a real gain on a number that had not moved at all, but it is not 70% and it is not 92%.
 §9 keeps the row open.
+
+</details>
 
 ---
 
@@ -1757,7 +1809,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 |---|---|
 | WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
 | **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
-| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** ([business-case.md](.claude/docs/business-case.md) §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 58.0% vs 45.5%. Published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and [WP38.md](eval/fut-app/WP38.md) |
+| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** ([business-case.md](.claude/docs/business-case.md) §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 56.8% vs 45.5%. Published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and [WP38.md](eval/fut-app/WP38.md) |
 | ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 52.3% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
 | WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
 | WP-27 anchors mispoint rather than degrade | Ship navigation only |
@@ -1937,7 +1989,7 @@ same day by [WP-33](eval/fut-app/MEASUREMENT.md), whose kill criterion triggered
 >
 > **Done.** [business-case.md](.claude/docs/business-case.md) §5 retires the cheap-to-run
 > claim and the free tier that depended on it; claim A2 is replaced by **A2′ — beat the
-> navigation the adopter already ships**, which is measured at 58.0% vs 45.5% and holds.
+> navigation the adopter already ships**, which is measured at 56.8% vs 45.5% and holds.
 > **M3 is unblocked.**
 >
 > The options below are kept as written, because the reasoning that chose (b) is only

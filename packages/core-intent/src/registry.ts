@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { capabilityDocument } from '@nextgen/core-capability';
 import { normalize } from './text.ts';
 import { buildEnumIndex } from './slots.ts';
+import { actionVocabularyOf } from './action.ts';
 import { similarityAudit as audit } from '@nextgen/core-capability';
 import type { Capability, Embedder, EnumIndex, Registry, RegistryFile, Vector } from './types.ts';
 
@@ -60,6 +61,10 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
     vectors,
     enums,
     boundaryIds: new Set(capabilities.filter((c) => c.kind === 'unsupported').map((c) => c.id)),
+    // ADR-015's guard, built from the REAL capabilities only — a declared limit
+    // says the application does *not* do the thing, so its verbs must not count
+    // as evidence that it does.
+    actionVocabulary: actionVocabularyOf(capabilities.filter((c) => c.kind !== 'unsupported')),
   };
 }
 

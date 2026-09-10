@@ -97,16 +97,16 @@ why: nobody types a sentence into a command palette.
 ## 5. The result
 
 > On a 146-page application it was never designed for, against a registry no human wrote,
-> the assistant sent users to the right screen for **58.0%** of real questions — against
-> **45.5%** for the command palette that application already ships — but only **8.1%** of
+> the assistant sent users to the right screen for **56.8%** of real questions — against
+> **45.5%** for the command palette that application already ships — but only **11.0%** of
 > turns were settled correctly **without a model call**, against a target of 60%.
 
 | Cut | Assistant | Palette | |
 |---|---|---|---|
-| **Guardians** (48) | **47.9%** | 18.8% | **+29.2** |
-| **Portuguese** (116 questions) | **60.3%** | 37.1% | **+23.3** |
-| Coaches (104) | **62.5%** | 57.7% | +4.8 |
-| **English** (60) | 53.3% | **61.7%** | −8.3 |
+| **Guardians** (48) | **45.8%** | 18.8% | **+27.1** |
+| **Portuguese** (116 questions) | **59.5%** | 37.1% | **+22.4** |
+| Coaches (104) | **61.5%** | 57.7% | +3.8 |
+| **English** (60) | 51.7% | **61.7%** | −10.0 |
 
 **It wins where it was aimed, and by the most where the user knows least.** A guardian —
 infrequent user, no internal vocabulary — more than doubles. Portuguese, the language the
@@ -117,13 +117,23 @@ words the substring matcher is looking for.
 That last row is the useful one. The assistant is not better at search; it is better at
 *not needing you to know the words*.
 
-> **These are the numbers after WP-38.** The first measurement (WP-33) read 52.3% / 2.4%,
-> and the shape of the result was the same: won in Portuguese and for guardians, lost in
-> English, drew with coaches. WP-38 improved every cut — coaches moved from −1.0 to +4.8,
-> so "wins where it was aimed *and nowhere else*", which this section used to say, is no
-> longer true. **The English row is the one that did not flip**, and it is the honest limit
-> of the result. Both runs are in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and
-> [WP38.md](eval/fut-app/WP38.md).
+> **These are the numbers after WP-38 and WP-40.** The first measurement (WP-33) read
+> 52.3% / 2.4%, and the shape of the result was the same: won in Portuguese and for
+> guardians, lost in English, drew with coaches. The two later work packages improved
+> every cut — coaches moved from −1.0 to +3.8, so "wins where it was aimed *and nowhere
+> else*", which this section used to say, is no longer true. **The English row is the one
+> that did not flip**, and it is the honest limit of the result.
+>
+> | | WP-33 | + WP-38 | + WP-40 |
+> |---|---|---|---|
+> | top-1 | 52.3% | 58.0% | **56.8%** |
+> | settled free & correct | 2.4% | 8.1% | **11.0%** |
+> | out-of-scope refused | 32.4% | 26.5% | **41.2%** |
+>
+> WP-40 trades **1.2 points of top-1 for 14.7 points of refusal**, deliberately: sending
+> someone to a slightly worse screen is recoverable, telling them the app cannot do
+> something it can is not. All three runs are in
+> [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and [WP38.md](eval/fut-app/WP38.md).
 
 ## 6. What failed, and why
 
@@ -187,8 +197,34 @@ attempt at a structural fix was built first and reverted after.
 and the isolation run shows it is the document change, not stage 1: rank real capabilities
 higher and the model is offered more plausible wrong answers, so it refuses less. Better
 topical retrieval actively damages the thing topical retrieval was supposed to do. That is
-the single most useful finding in the project, and it is the argument for the open proposal
-that out-of-scope needs a *verb* signal rather than a better boundary.
+the single most useful finding in the project, and it is the argument for the proposal that
+out-of-scope needs a *verb* signal rather than a better boundary.
+
+### Then the verb signal was built, and refusal went to 41.2%
+
+The proposal was accepted and implemented. What is inside an utterance's *verb* — book,
+pay, delete — is evidence about scope that cosine similarity cannot provide, because a
+medical page and a request to book a medical appointment are about the same subject.
+Out-of-scope refusal went **26.5% → 41.2%**, and the share of it done **without a model
+call** more than doubled, **14.7% → 32.4%**, at an unchanged 1.1% of real requests wrongly
+refused.
+
+Three things the implementation found that the proposal had not:
+
+- **Its own guard was inert.** The rule was "do not apply the signal when the top
+  candidate is a write or destructive capability" — but a *generated* registry marks
+  everything `navigate`, because it derives capabilities from routes and a route has no
+  verb.
+- **Keying the guard to the top candidate is wrong in principle.** Rewritten that way it
+  still silenced none of the five false flags, because for all five retrieval had ranked
+  the wrong screen. **A safety guard keyed to the ranking fails exactly when retrieval
+  fails, which is when it is needed.** It asks the whole registry instead.
+- **The verb lists had to be grouped by concept, not language.** The application documents
+  itself in Portuguese — *"pode **eliminar** uma tarefa"* — and users ask in English —
+  *"**delete** a task"*. Flat per-language lists never meet, so four in-domain questions
+  about the app's own delete screen stayed flagged, and four is enough to block every
+  operating point when the constraint is zero false refusals. This is why the original
+  measurement of the mechanism did not reproduce until it was fixed.
 
 ### Declared limits collapse at scale
 

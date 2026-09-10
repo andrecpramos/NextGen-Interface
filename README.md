@@ -22,16 +22,17 @@ no human wrote:
 
 | | Assistant | The app's own command palette |
 |---|---|---|
-| Right screen, 176 real questions | **58.0%** | 45.5% |
-| Portuguese — the app's own language | **60.3%** | 37.1% |
-| Guardians — infrequent users | **47.9%** | 18.8% |
-| **Settled without a model call** | **8.1%** | — |
+| Right screen, 176 real questions | **56.8%** | 45.5% |
+| Portuguese — the app's own language | **59.5%** | 37.1% |
+| Guardians — infrequent users | **45.8%** | 18.8% |
+| **Settled without a model call** | **11.0%** | — |
 
 **It beats the incumbent. It does not beat it for free.** The mechanism meant to make most
 turns cost nothing does not survive 145 capabilities — and that is settled rather than
 open: a fixed budget was spent on every lever anyone had identified
-([WP38.md](eval/fut-app/WP38.md)), which moved the number from 2.4% to 8.1% against a
-60% target. **The product is a better way to navigate, not a cheaper one.**
+([WP38.md](eval/fut-app/WP38.md)), and an accepted ADR added a second, non-topical signal
+on top. Together they moved the number from **2.4% to 11.0%** against a 60% target.
+**The product is a better way to navigate, not a cheaper one.**
 
 **[WRITEUP.md](WRITEUP.md) is the whole story**, negative results first, every claim
 linked to the artefact that backs it. Read that before anything else here.
@@ -156,7 +157,7 @@ figure is meaningless.
 ## Status
 
 The engine is built and measured. The generation works. **The cost model is resolved, and
-it resolved against us**: 8.1% of turns settle without a model call, against a 60% target
+it resolved against us**: 11.0% of turns settle without a model call, against a 60% target
 that was a pre-committed kill criterion and triggered. A fixed budget was then spent trying
 to fix it, every lever was measured, and the claim was withdrawn rather than restated —
 [PLAN.md](PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
