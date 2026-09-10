@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **16 workspace packages · 359 tests
-across 19 files, all passing** · **Pilot target: `fut-app`** (§3).
+**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **16 workspace packages · 362 tests
+across 20 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
 exist**. Point a tool at an app's source; it generates a capability registry; the app's
@@ -45,9 +45,15 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 |---|---|---|---|---|
 | — | ⚠️ **D-4 — the owner's decision.** WP-33's kill criterion triggered. **Nothing in M3 starts until this is answered** | — | — | — |
 | 1 | **WP-38** · The three model-free levers, on a fixed budget — triggers, a real browser encoder, per-section registries | M1 | M | D-4 |
-| 2 | **WP-39** · Boundary coverage at scale — 4 boundaries lose to 145 capabilities | M1 | S | — |
+| 2 | **WP-40** · ADR: out-of-scope needs a signal that is not topic similarity | M1 | M | — |
 | 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
 | 4 | **WP-34** · The write-up — the second artefact | M2 | M | — |
+
+~~WP-39~~ ✅ **attempted and reverted 2026-09-10** — section-scoped boundaries raised the
+boundary's score (0.594 → 0.690) and moved detection by **nothing** (38.2% either way).
+Its "Stop if" triggered, which is what promotes the problem to **WP-40, an ADR**: cosine
+similarity ranks by *topic*, and what makes "book my son an appointment" out-of-scope is
+its *verb*.
 | 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding** | M3 | L | D-4, 1 |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
 | 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
@@ -396,7 +402,7 @@ thing to understand about this repo.
 
 ### Tests
 
-359 across 19 files, green 2026-09-10 (`packages/generator` adds 49). `apps/web`,
+362 across 20 files, green 2026-09-10 (`packages/generator` adds 52). `apps/web`,
 `packages/ui` and `services/api` have none.
 
 | Package | Tests | | Package | Tests |
@@ -1288,7 +1294,7 @@ failure. **Write down which levers were tried and what each was worth.**
 
 ---
 
-### WP-39 · Boundary coverage at scale ⬜ · **S** · queue 2
+### WP-39 · Boundary coverage at scale ✅ **ATTEMPTED AND REVERTED — 2026-09-10** · ⚠️ **Stop if triggered**
 
 **Goal.** 61.8% of out-of-scope requests were wrongly executed on the generated registry,
 against 92.3% detection on the 7-capability reference app. Four declared boundaries cannot
@@ -1302,14 +1308,87 @@ boundaries proportional to the surface rather than from a fixed catalogue of fou
 appointments"), so a boundary competes against ~20 capabilities instead of 145. Re-measure
 `boundaryMargin` per registry afterwards.
 
+**Outcome: the fix was built, measured and reverted.** Full account in
+[MEASUREMENT.md](eval/fut-app/MEASUREMENT.md), "the obvious fix was tried".
+
+One boundary per section, carrying that section's own screen titles, role-scoped so a
+guardian's refusals may only name screens a guardian can already reach. It **raised the
+boundary's score materially** — for *"marca uma consulta no hospital para o meu filho"* the
+best boundary went 0.594 → **0.690** — and **changed detection by nothing**: 38.2% refused
+before and after, because the child-medical page the request must not reach scores **0.761**
+on the same words.
+
+**The reason is not fixable by writing better boundaries.** Stage 2 ranks by cosine
+similarity, which is dominated by **topic**; what makes *"book my son an appointment"*
+out-of-scope is its **verb**. *"Show me my son's medical status"* and *"book my son a
+medical appointment"* are near-identical as topics and opposite as requests.
+
 **Acceptance.**
-- [ ] Out-of-scope detection on WP-32's **hand-written** 34 entries, before and after
-- [ ] No in-domain turn wrongly refused — the constraint that governs `boundaryMargin`
-- [ ] The refusal still names what the app *does* do, in the app's own language
+- [x] Out-of-scope detection on WP-32's **hand-written** 34 entries, before and after —
+      **38.2% → 38.2%**
+- [x] No in-domain turn wrongly refused — **0 either way**, so the change was inert rather
+      than harmful
+- [x] The refusal still names what the app does do, in the app's own language — it did, and
+      it did not matter
+
+**Reverted, deliberately.** ~11 extra entries in every role's registry that every adopter's
+browser would download, for no measured gain, against §9's open risk that registry growth
+erodes stage-2 margins. The experiment is in this branch's history.
 
 **Stop if.** Detection cannot pass ~70% without wrongly refusing in-domain turns. Then
 declared boundaries do not scale, ADR-009 needs an amendment rather than a bigger
 catalogue, and that is an ADR, not a tweak.
+⚠️ **TRIGGERED.** ADR-009's mechanism needs a signal that is not topic similarity — an
+action-verb detector ahead of stage 2, or stage 3 asked explicitly whether the user wants
+an *action*. **That is an ADR, and it should not be attempted inside a work package aimed
+at something else.**
+
+---
+
+### WP-40 · ADR: out-of-scope needs a signal that is not topic similarity ⬜ · **M** · queue 2
+
+**Goal.** Amend [ADR-009](.claude/decisions/ADR-009.md) with what WP-39 measured. The
+declared-boundary mechanism is sound and it is the safety property the product rests on —
+it is also, as built, unable to separate a request *about* a subject from a request *to
+act on* that subject, because the only signal it has is topic overlap.
+
+**Preconditions.** None. Independent of D-4 — whichever way that goes, an assistant that
+executes 61.8% of the things it cannot do is not shippable.
+
+**Do this.** Write the ADR with the [write-adr](.claude/skills/write-adr/SKILL.md) skill.
+The evidence is already measured — [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md), "the
+obvious fix was tried" — so this is a decision, not an investigation. The two candidate
+mechanisms:
+
+**(a) An action-verb signal ahead of stage 2.** Imperative/action detection on the
+utterance ("marca", "paga", "envia", "apaga", "book", "pay", "send", "delete") gates
+whether a boundary may win, independently of similarity. Cheap, model-free, and it fails
+in the right direction — a missed action reads as a normal turn. Language-dependent, which
+is a real cost for a product that ships per adopter.
+
+**(b) Ask stage 3 the question directly.** One extra field: is this a request to *do*
+something, or to *see* something? A model is good at exactly this, and it costs the model
+call the turn was making anyway. But it puts a safety property behind a model call, which
+is the opposite of ADR-009's whole reason for existing (0% → 40% refusal on a model that
+never refused on its own).
+
+> **Recommendation: (a), with (b) as the escalation path** — a model-free gate that catches
+> the common imperatives, and stage 3 asked explicitly only for what survives it. That
+> keeps the property model-free where it can be and does not pretend a 1B model will
+> volunteer a refusal.
+
+**Acceptance.**
+- [ ] ADR written, amending rather than superseding ADR-009 — the mechanism is not wrong,
+      its input is insufficient
+- [ ] Re-measured against WP-32's **hand-written** 34 out-of-scope entries
+- [ ] **No in-domain turn wrongly refused** — the constraint that has governed
+      `boundaryMargin` throughout, and the expensive error
+- [ ] Whatever ships is measured model-free and with stage 3, separately
+
+**Stop if.** Detection cannot pass ~70% without wrongly refusing in-domain turns under
+*either* mechanism. Then out-of-scope detection is not solvable at this registry size, and
+the honest product ships with a much smaller declared surface per session — which is a
+scope decision, not a routing one.
 
 ---
 
@@ -1545,7 +1624,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
 | **Model-free rate is the business model** | **critical** | ⚠️ **MEASURED AND FAILED 2026-09-10 — WP-33: 4.3%**, against a 60% kill criterion. Not a near miss. Two measured causes: the browser-capable encoder gets 4.0% recall@1 at 145 capabilities, and no threshold gives both coverage and precision. **This is now D-4, an open decision, not a risk** |
 | **The browser-capable encoder does not work at adopter scale** | **critical** | **OPEN — new, 2026-09-10 (WP-33).** `hashing` (TF-IDF, zero-dependency, the one ADR-008's offline claim and WP-24's design both rest on) scores **4.0% recall@1** against `nomic-embed-text`'s 48.9%. §9 logged this as "never tested at that size"; it is now tested and it fails. WP-24 needs a real sentence encoder in the browser or a different plan |
-| **Declared boundaries lose to a large registry** | **high** | **OPEN — new, 2026-09-10 (WP-33).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% detection on the 7-capability reference app. Four boundaries cannot out-rank 145 capabilities. Nothing dangerous ran (every generated capability is `navigate`), but this is ADR-009's mechanism failing at scale — and it is measured on the hand-written third of the golden set, so it is not circular. WP-39 |
+| **Declared boundaries lose to a large registry** | **high** | **OPEN, and now diagnosed — 2026-09-10 (WP-33, WP-39).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% on the 7-capability reference app; measured on the hand-written third of the golden set, so not circular. **The obvious fix was built and reverted:** section-scoped boundaries raised the boundary's score 0.594 → 0.690 and moved detection **0.0 points**. Cause: cosine similarity ranks by *topic*, and out-of-scope-ness here is carried by the *verb* — "show me my son's medical status" and "book my son an appointment" are the same topic and opposite requests. **Needs an ADR-009 amendment, not a bigger catalogue → WP-40** |
 | §5's numbers are not reproducible | high | **RESOLVED 2026-09-09** — WP-17. Cold-start artefact; warm numbers match the original claim. See §5 |
 | **Injected text can make stage 2 itself rank a destructive capability first** | **high** | **OPEN — found 2026-09-09 (WP-17), `gs-0174`.** Contained only by Rule 5's unconditional confirm-before-destructive, not by any router-level gate — `REQUIRES_STAGE2_AGREEMENT` does not catch it because stage 2 and stage 3 agree on the wrong answer. Needs input sanitisation or injection detection; not scheduled on any WP yet. FINDINGS.md Finding 12 |
 | Adopter content reaching a prompt | high | **OPEN.** Rule 15 was written for a memo field; it now covers third-party component and copy text |
@@ -1577,7 +1656,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 pnpm -r typecheck
-pnpm -r test                                       # 359 tests, 19 files
+pnpm -r test                                       # 362 tests, 20 files
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
