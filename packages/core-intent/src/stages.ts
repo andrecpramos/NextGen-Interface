@@ -2,6 +2,7 @@ import { normalize, contentTokens } from './text.ts';
 import { actionSignalApplies } from './action.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
+import { redactTag } from '@nextgen/core-inference';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
 import { OUT_OF_SCOPE_ID } from './config.ts';
 import { STAGE, type Candidate, type Embedder, type Registry, type SlotValue, type Stage } from './types.ts';
@@ -287,7 +288,13 @@ export async function stage3(
     'Capabilities:',
     JSON.stringify(menu, null, 2),
     '',
-    `<utterance>${utterance}</utterance>`,
+    // Rule 15. The system message already tells the model that what is inside
+    // these tags is data — but the utterance was interpolated raw, so an input
+    // containing `</utterance>` closed the region early and everything after it
+    // arrived as prompt. The instruction was right; nothing enforced it.
+    // `redactTag` leaves every non-attacking utterance byte-identical, so the
+    // prompt this produces is unchanged and no recalibration is owed.
+    `<utterance>${redactTag('utterance', utterance)}</utterance>`,
   ].join('\n');
 
   const result = await opts.runtime.complete<{

@@ -40,6 +40,7 @@ export class FakeLlmRuntime implements LlmRuntime {
   readonly name = 'fake';
   readonly #options: FakeLlmOptions;
   #calls = 0;
+  #lastRequest: CompletionRequest | null = null;
 
   constructor(options: FakeLlmOptions = {}) {
     this.#options = options;
@@ -49,12 +50,25 @@ export class FakeLlmRuntime implements LlmRuntime {
     return this.#calls;
   }
 
+  /**
+   * The last request this runtime was handed, or `null` before the first call.
+   *
+   * Exists so a test can assert on the **prompt text itself**, which Rule 15
+   * needs and nothing could do before: a fence that is applied correctly and a
+   * fence that is forgotten produce identical model output through a fake, so
+   * the only way to tell them apart is to look at what was sent.
+   */
+  get lastRequest(): CompletionRequest | null {
+    return this.#lastRequest;
+  }
+
   async isAvailable(): Promise<boolean> {
     return this.#options.unavailable === undefined;
   }
 
   async complete<T>(request: CompletionRequest): Promise<CompletionResult<T>> {
     this.#calls++;
+    this.#lastRequest = request;
     const latencyMs = this.#options.latencyMs ?? 0;
 
     if (this.#options.unavailable !== undefined) {

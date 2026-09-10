@@ -1,7 +1,7 @@
 # Critical infrastructure and the rules that bind it
 
-**Audited against the tree:** 2026-09-09. Sections 1 and 4, the matrix and the gaps were
-updated on 2026-09-11.
+**Audited against the tree:** 2026-09-10 for §8 and the ranked gaps, and 2026-09-09 for
+the rest. Sections 1 and 4, the matrix and the gaps were updated again on 2026-09-11.
 Re-audit trigger: any change to `ci.yml`, any new gate, any new rule, or a release.
 
 What this is: every component whose failure is not a local bug, the rules that
@@ -195,30 +195,44 @@ prompt: `Module.body`, memo-style fields, imported files, OCR output.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 15 — domain content is untrusted in a prompt | declaration-site comments only (`domain-modules/src/entities.ts:27,38`, `domain-finance/src/entities.ts:44,46`) | **convention — and currently VIOLATED, see below** |
+| Rule 15 — domain content is untrusted in a prompt | `fence()` / `redactTag()` in `core-inference/src/untrusted.ts`, applied at all four prompt-building sites; 22 unit tests, 3 golden entries | **test (2026-09-10) — structurally enforced, see the limit below** |
 
-> ### ⚠️ Open violation — Rule 15, `domain-modules/src/use-cases.ts`
+> ### ◐ Rule 15 — what the fence does and does not buy
 >
-> The entity comment says *"UNTRUSTED — model-consolidated prose. Fence before
-> this reaches a prompt."* **There is no fence function anywhere in the
-> repository**, and three sites interpolate untrusted content straight into a
-> prompt:
+> **Closed 2026-09-10.** Until then the entity comments said *"UNTRUSTED — fence
+> before this reaches a prompt"* and **no fence function existed anywhere in the
+> repository** — an obligation the codebase could not discharge. There are now
+> two, and every site that interpolates attacker-reachable text calls one.
 >
-> - `merge()` — `` prompt: `Existing module body:\n${existing.body}\n\nNew material:\n${rawSource}` ``
->   — `existing.body` is the field marked UNTRUSTED, and `rawSource` is raw user,
->   file, or OCR input.
-> - `shortlistJudge()` — interpolates `module.title`, `module.summary`,
->   `extracted.title` and `extracted.summary` into the judge prompt.
+> **The escape that was live, and was not in the original write-up.** Auditing
+> the three known sites turned up a fourth: `core-intent`'s stage-3 prompt, the
+> one every single turn passes through. Its design was already right — the
+> utterance goes inside `<utterance>` tags and the system message says what is
+> inside them is data — but it interpolated **raw**, so an utterance containing
+> `</utterance>` ended the quoted region and everything after it arrived as
+> prompt. *An instruction the content itself can revoke is not a boundary.*
+> `redactTag` closes it and leaves the prompt byte-identical for every
+> non-attacking input, so no recalibration and no scorecard re-run were owed.
+> Proven by reverting the fix and watching the two new tests fail.
 >
-> Reachable by saving a note whose text is an instruction, then saving a second
-> note that merges into it. Not fixed in this pass: `use-cases.ts` carries another
-> session's uncommitted WP-15 work, and editing a dirty file this session does not
-> own would take that work with it.
+> **What is now structural:** untrusted content cannot terminate its own fence.
+> Markers are stripped from the content before they are put around it, matched by
+> *shape* rather than exact bytes — case, spacing and bracket-count variants all
+> redact.
 >
-> The fix is a fence helper in `core-inference` (delimit, label untrusted, strip
-> the delimiter from the content) applied at all three sites, plus a golden-set
-> adversarial entry. That is a change to the registered domain's write path and
-> wants its own branch.
+> **What is still model-dependent:** whether the model then treats fenced content
+> as data rather than instruction. Nothing here forces that, and this row should
+> never be read as saying otherwise. FINDINGS' WP-01 verdict is the standard to
+> hold it to — *"a mechanism that depends on the model being good is not a
+> mechanism, it is a hope."* Fencing raises the cost of an injection and makes one
+> auditable afterwards; it is defence in depth, not a proof.
+>
+> **A constraint on any future hardening.** The obvious next step — a paragraph of
+> injection-defence prose in the system message — is measurably harmful here. The
+> registered domain's `EXTRACT_SYSTEM` records a real document collapsing to a
+> 24-character stub when correct-but-additional instructions were stacked beside
+> the one governing quality. The notice that ships with the fence is one sentence,
+> and it sits in the prompt rather than the system message, for that reason.
 
 ---
 
@@ -302,7 +316,7 @@ session rather than claiming the set.
 | 12 | A routing bug becomes a permanent golden entry | none | convention |
 | 13 | Limits declared in the registry | `unsupported` kind, `defineBoundary`, domain tests | **test** |
 | 14 | Thresholds calibrated per encoder | `check-thresholds.mjs`, CI | **gate (new)** |
-| 15 | Domain content untrusted in a prompt | declaration comments only | convention — **violated** |
+| 15 | Domain content untrusted in a prompt | `fence()` / `redactTag()` in `core-inference`, at all four prompt sites; `untrusted.test.ts`, `cascade.test.ts`, golden `gs-0181..0183` | **test (2026-09-10)** — structural only; the model's *obedience* is not enforced, §8 |
 | 16 | The installer never modifies the adopter's source | `emit.test.ts` (`writeOutput` refuses an output dir inside `appRoot`) + `generate.test.ts` fingerprints the whole fixture tree before and after a run | **test (2026-09-10, WP-25)** |
 | 17 | An unreachable capability is absent from the user's registry | `emit.test.ts` diffs two role registries; `score-generated.mjs` re-checks all 10 generated registries against the master on every scoring run | **test (2026-09-10, WP-25)** |
 | — | Every capability can say what it is (WP-36) | `explanation-required` in `validate.ts`, gated by `pnpm registry:check` | **gate (2026-09-10)** |
@@ -315,15 +329,15 @@ session rather than claiming the set.
 
 ## Enforcement gaps, ranked
 
-1. **Rule 15 has no mechanism and is violated today.** Section 8. Highest
-   priority: it is a prompt-injection path in the registered domain's write flow.
-   *(2026-09-11: the fence and its CI gate are on `feature/rule-15-untrusted-fence`,
-   PR #7. This entry closes when that PR merges.)*
-2. **The registry's shared `OUT_INTENT` path.** Section 1. One domain's build
+*(Rule 15 was #1 here until 2026-09-10. It is now fenced at all four prompt sites (§8).
+What remains of it is #6 below, which is a smaller problem, and a different one from the
+one that topped this list.)*
+
+1. **The registry's shared `OUT_INTENT` path.** Section 1. One domain's build
    silently clobbers another's. Survivable with two domains and a documented
    order; not survivable with three. *(ADR-016 option B was accepted on 2026-09-11,
    and PLAN.md WP-47 implements it.)*
-2a. **Derived artefacts are not gated.** Section 4. On 2026-09-11 a one-line change to
+2. **Derived artefacts are not gated.** Section 4. On 2026-09-11 a one-line change to
    `normalize()` left ten shipped indexes and two threshold profiles stale, and CI stayed
    green. Only a manual parity run noticed. Every adopter's browser would have received
    vectors that no longer matched its own query encoder. PLAN.md WP-46 wires the three
@@ -334,10 +348,18 @@ session rather than claiming the set.
    on the render path would close it.
 4. **Rule 12 is unenforceable mechanically** — but a PR touching `core-intent`
    with no `golden-set.jsonl` change is a cheap heuristic a reviewer or a hook
-   could flag.
+   could flag. **A cheaper one now exists:** nothing stops a new prompt-building
+   site from interpolating raw. A grep gate — a `complete({` whose `prompt`
+   interpolates without `fence` or `redactTag` — would keep §8 closed as the
+   codebase grows, and is the natural next step there.
 5. **Rule 8 is verified, not gated.** A check that runtime packages reference no
    non-loopback host outside the asset manifest would keep it that way.
-6. ~~**Rules 16 and 17 have no mechanism at all**~~ **Both have had tests since WP-25
+6. **A fenced prompt still depends on the model obeying the fence.** §8 is
+   explicit that only the *structural* half is enforced. Closing the rest is not
+   a gate but a measurement: the adversarial bucket runs model-free today, so it
+   proves the dispatcher's policy holds and says nothing about whether a model
+   honours a boundary. A stage-3 adversarial run would.
+7. ~~**Rules 16 and 17 have no mechanism at all**~~ **Both have had tests since WP-25
    (2026-09-10); see the matrix. What remains open is Rule 17 on a second app (PLAN.md
    WP-43).** The original entry read: — they were added on 2026-09-09 with
    the repositioning and describe a product that is not built yet. Both have a

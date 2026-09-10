@@ -1,3 +1,4 @@
+import { fence, UNTRUSTED_NOTICE } from '@nextgen/core-inference';
 import type { EmbeddingRuntime, JsonSchema, LlmRuntime } from '@nextgen/core-inference';
 
 import type { EventBus } from './events.ts';
@@ -138,9 +139,16 @@ async function extract(
   text: string,
   images?: readonly string[],
 ): Promise<Result<ExtractedContent>> {
+  // Rule 15. `text` is raw user, file or OCR input — the most attacker-reachable
+  // string in the system, and here it *is* the entire prompt. The notice goes in
+  // the prompt rather than in EXTRACT_SYSTEM on purpose: see that constant's
+  // comment, where a second correct instruction in the system message measurably
+  // collapsed a real document to a 24-character stub.
   const result = await deps.llm.complete<ExtractedContent>({
     system: EXTRACT_SYSTEM,
-    prompt: text || 'Read the attached image and extract what it says.',
+    prompt: text
+      ? `${UNTRUSTED_NOTICE}\n\n${fence('source material', text)}`
+      : 'Read the attached image and extract what it says.',
     schema: EXTRACT_SCHEMA,
     maxTokens: CONTENT_MAX_TOKENS,
     ...(images && images.length > 0 ? { images } : {}),
@@ -239,8 +247,15 @@ async function judge(
 ): Promise<{ readonly decision: 'append' | 'create'; readonly targetModuleId: string | null }> {
   if (candidates.length === 0) return { decision: 'create', targetModuleId: null };
 
+  // Rule 15. Every field here is stored prose a previous capture wrote — the
+  // title and summary of a saved module, and the title and summary the model
+  // extracted from whatever was just uploaded. The id is ours and stays outside
+  // the fence, because it is the value the shortlist check below matches on.
   const listing = candidates
-    .map((c) => `id=${c.module.id} title="${c.module.title}" summary="${c.module.summary}"`)
+    .map(
+      (c) =>
+        `id=${c.module.id}\n${fence(`candidate ${c.module.id}`, `title="${c.module.title}" summary="${c.module.summary}"`)}`,
+    )
     .join('\n');
 
   const result = await deps.llm.complete<JudgeOutput>({
@@ -249,7 +264,8 @@ async function judge(
       'Only choose an existing module if the new note is genuinely about the same specific ' +
       'topic, not merely a related category. If in doubt, create a new module.',
     prompt:
-      `New note:\ntitle="${extracted.title}"\nsummary="${extracted.summary}"\n\n` +
+      `${UNTRUSTED_NOTICE}\n\n` +
+      `New note:\n${fence('new note', `title="${extracted.title}" summary="${extracted.summary}"`)}\n\n` +
       `Existing modules it might belong to:\n${listing}`,
     schema: JUDGE_SCHEMA,
   });
@@ -303,7 +319,15 @@ async function merge(
 ): Promise<Result<MergedContent>> {
   const result = await deps.llm.complete<MergedContent>({
     system: MERGE_SYSTEM,
-    prompt: `Existing module body:\n${existing.body}\n\nNew material:\n${rawSource}`,
+    // Rule 15, and the reachable one. `existing.body` is the field the entity
+    // marks UNTRUSTED — model-consolidated prose from an earlier capture — and
+    // `rawSource` is raw user, file or OCR input. Save a note whose text is an
+    // instruction, then save a second note that merges into it, and without
+    // these fences the first note's text arrives here as unquoted prompt.
+    prompt:
+      `${UNTRUSTED_NOTICE}\n\n` +
+      `Existing module body:\n${fence('existing module body', existing.body)}\n\n` +
+      `New material:\n${fence('new material', rawSource)}`,
     schema: MERGE_SCHEMA,
     maxTokens: CONTENT_MAX_TOKENS,
   });
