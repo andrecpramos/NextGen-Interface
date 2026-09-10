@@ -72,6 +72,14 @@
       "fix": "Wrap the value: fence('what this is', value), or redactTag('tagname', value) if the prompt already delimits with tags. If the prompt genuinely needs no fence, say why in the source with a `// rule15-ok: <reason>` comment next to the call. Note what this gate can and cannot see: it proves a fence was applied near a prompt, not that it covered the right value — fencing legitimately happens upstream. Reading for that is the boundary-auditor agent's job."
     },
     {
+      "id": "network-egress",
+      "title": "Rule 8 — the device is the source of truth",
+      "command": "node tooling/scripts/check-network-egress.mjs",
+      "blocking": true,
+      "rule": "8",
+      "fix": "A remote host in a runtime string literal falsifies the local-inference claim for every adopter. Loopback is fine. A model asset that must be downloaded belongs in packages/core-voice/src/assets.ts pinned by sha256, so a compromised host cannot substitute a different binary. Two things it cannot see: OLLAMA_HOST can be pointed anywhere by the environment, and a host assembled at run time from parts."
+    },
+    {
       "id": "model-numerics",
       "title": "Rule 2 — the model never returns a number",
       "command": "node tooling/scripts/check-model-numerics.mjs",

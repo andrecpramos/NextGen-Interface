@@ -103,6 +103,14 @@ jobs:
       - name: Model numerics (Rule 2)
         run: node tooling/scripts/check-model-numerics.mjs
 
+      # Rule 8 — the device is the source of truth. The product's claim is local
+      # inference; one request to a remote host falsifies it for every adopter.
+      # Loopback passes, and the asset manifest passes only where each URL is
+      # pinned by sha256 — an allowlisted host with no hash would be a weaker
+      # guarantee than that file appears to give.
+      - name: Network egress (Rule 8)
+        run: node tooling/scripts/check-network-egress.mjs
+
       - name: Documentation links resolve
         run: node tooling/scripts/check-doc-links.mjs
 

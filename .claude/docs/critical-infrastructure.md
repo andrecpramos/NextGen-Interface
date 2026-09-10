@@ -366,7 +366,7 @@ session rather than claiming the set.
 | 5 | Policy is code; unclassified refuses | `dispatcher.test.ts` | **test** |
 | 6 | Money is integer minor units | `data.test.ts` (structural), `money.ts` | **test** |
 | 7 | Every AI-reachable screen reachable without AI | both domains' tests; `apps/cli` menu path | **test** |
-| 8 | Device is the source of truth | verified by inspection | convention |
+| 8 | Device is the source of truth | `check-network-egress.mjs`, CI — no remote host in a runtime string literal; the asset manifest only where each URL is `sha256`-pinned | **gate (2026-09-10)** — blind to `OLLAMA_HOST` and to a host built at run time |
 | 9 | Every turn produces a TurnTrace | `cascade.test.ts`, `trace.test.ts` | **test** |
 | 10 | Every capability ships >=3 examples | `validate.ts` + `registry:check`, CI | **gate** |
 | 11 | Deterministic slots beat model-extracted | `slots.test.ts` | **test** |
@@ -424,8 +424,15 @@ one that topped this list.)*
 4. **Rule 12 is unenforceable mechanically** — but a PR touching `core-intent`
    with no `golden-set.jsonl` change is a cheap heuristic a reviewer or a hook
    could flag.
-5. **Rule 8 is verified, not gated.** A check that runtime packages reference no
-   non-loopback host outside the asset manifest would keep it that way.
+5. ~~**Rule 8 is verified, not gated.**~~ ✅ **Gated 2026-09-10** —
+   `check-network-egress.mjs`, built to this entry's own specification and then
+   made stricter than it: the asset manifest is not a host allowlist, because
+   every URL in it must sit beside a `sha256`. Hosts get compromised and mirrors
+   lie; a content hash is what actually holds. **What remains is not static:**
+   `OLLAMA.host` reads `process.env.OLLAMA_HOST` and the environment can point
+   it anywhere, which is a deployment property no source check reaches. If the
+   local-inference claim ever needs to be *proved* rather than *kept*, that is
+   where to look.
 6. **A fenced prompt still depends on the model obeying the fence.** §8 is
    explicit that only the *structural* half is enforced. Closing the rest is not
    a gate but a measurement: the adversarial bucket runs model-free today, so it
