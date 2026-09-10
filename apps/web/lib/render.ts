@@ -40,10 +40,14 @@ export async function renderAnswer(
     }
 
     default: {
-      // A navigate capability with nothing to read. The route already changed;
-      // saying so is the whole answer.
+      // A navigate capability with nothing to read. The route already changed —
+      // and the capability's *declared explanation* says what the user will find
+      // when they get there (WP-36). It was written when the registry was built
+      // and is served verbatim, so this costs nothing and cannot drift into
+      // narration.
       const cap = app.capabilities.find((c) => c.id === capabilityId);
-      return { caption: `Opened ${cap?.title ?? capabilityId}.` };
+      const headline = `Opened ${cap?.title ?? capabilityId}.`;
+      return cap?.explanation ? { headline, caption: cap.explanation } : { caption: headline };
     }
   }
 }

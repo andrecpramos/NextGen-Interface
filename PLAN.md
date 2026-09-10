@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **14 workspace packages · 384 tests
-across 21 files, all passing** · **Pilot target: `fut-app`** (§3).
+**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **14 workspace packages · 400 tests
+across 22 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
 exist**. Point a tool at an app's source; it generates a capability registry; the app's
@@ -79,7 +79,7 @@ else.** The next move is a decision (D-4), not a work package.
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
-WP-21 (voice acceptance), WP-22 (`apps/web` tests), WP-11 (docs), WP-10 (mobile).
+WP-21 (voice acceptance), WP-11 (docs, near-complete), WP-10 (mobile). ~~WP-22~~ ✅ done.
 
 ### The three open decisions
 
@@ -403,8 +403,8 @@ thing to understand about this repo.
 
 ### Tests
 
-384 across 21 files, green 2026-09-10 (`packages/generator` adds 67). `apps/web`,
-`packages/ui` and `services/api` have none.
+400 across 22 files, green 2026-09-10. `packages/ui` and `services/api` have none;
+`apps/web` had none until WP-22 and now has 16.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -424,7 +424,7 @@ NextGen_Interface/
 │                     ⚠️ most prose still describes the pre-repositioning product (WP-11)
 ├── apps/
 │   ├── cli/          ✅ COMPOSITION ROOT — 15 tests
-│   ├── web/          ✅ REFERENCE IMPLEMENTATION — ⚠️ 0 tests
+│   ├── web/          ✅ REFERENCE IMPLEMENTATION — 16 tests (WP-22)
 │   └── (no mobile/, no desktop/)      ⬜ WP-10, deferred
 ├── packages/
 │   ├── core-intent/      ✅ cascade · stages · embedder · slots · registry · 63 tests
@@ -1655,7 +1655,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | **WP-18** | Undo for `module.delete` | No rung on any ladder ships a write capability | **Before any write capability ever ships** |
 | **WP-20** | Screens for capture/search | Reference-app polish | Never, probably |
 | **WP-21** | Verify voice acceptance | Voice is a differentiator but not on the critical path to a measurement | After M2 |
-| **WP-22** | Contract tests for `apps/web` | Real debt; not what M1 answers | After M2 |
+| ~~**WP-22**~~ ✅ | Contract tests for `apps/web`, 2026-09-10 | **16 tests, the first this app has ever had** — `render.ts` is where every view the surface receives is built, so a mistake there is one the user sees. Three of the properties are safety, not cosmetics: the drawer may offer **only** `navigate` capabilities (a one-tap `destructive` entry would bypass ADR-004's confirmation entirely), a confirmation card must hide the raw uploaded source text it carries internally while showing every value being approved, and a rendered trace must carry the runners-up (Rule 9). Needed a vitest alias — the web layer declares `import 'server-only'`, which Next injects and which resolves nowhere else | Done |
 | **WP-11** ◐ | Documentation — **the product-facing docs are done** (§4), including SETUP.md’s three wrong claims about which file is the registry source. `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | Remaining: **`roadmap.md`** should be deleted — it plans a Flutter build ADR-006 rejected — but the unmerged `docs/runbook` branch already deletes it, so resolve that branch first rather than creating a conflict | Before a release |
 | **WP-10** | `apps/mobile` | A native app is a different product from a web layer | Parked. The device-inference gate stands if it returns |
 
@@ -1771,7 +1771,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 pnpm -r typecheck
-pnpm -r test                                       # 384 tests, 21 files
+pnpm -r test                                       # 400 tests, 22 files
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
