@@ -1,0 +1,24 @@
+{"id":"gen-0001","bucket":"generated","utterance":"remember that my passport expires in June 2027","expect":{"outcome":"execute","capability":"module.capture","requiresConfirmation":true}}
+{"id":"gen-0002","bucket":"generated","utterance":"save this: the wifi password is on the router label","expect":{"outcome":"execute","capability":"module.capture","requiresConfirmation":true}}
+{"id":"gen-0003","bucket":"generated","utterance":"note that the landlord's number is 555-0142","expect":{"outcome":"execute","capability":"module.capture","requiresConfirmation":true}}
+{"id":"gen-0004","bucket":"generated","utterance":"take a note about the car insurance renewal date","expect":{"outcome":"execute","capability":"module.capture","requiresConfirmation":true}}
+{"id":"gen-0005","bucket":"generated","utterance":"show my modules","expect":{"outcome":"execute","capability":"module.list"}}
+{"id":"gen-0006","bucket":"generated","utterance":"open my notes","expect":{"outcome":"execute","capability":"module.list"}}
+{"id":"gen-0007","bucket":"generated","utterance":"what have I saved","expect":{"outcome":"execute","capability":"module.list"}}
+{"id":"gen-0008","bucket":"generated","utterance":"take me to my saved modules","expect":{"outcome":"execute","capability":"module.list"}}
+{"id":"gen-0009","bucket":"generated","utterance":"what did I save about the passport renewal","expect":{"outcome":"execute","capability":"module.search"}}
+{"id":"gen-0010","bucket":"generated","utterance":"find my note about the wifi password","expect":{"outcome":"execute","capability":"module.search"}}
+{"id":"gen-0011","bucket":"generated","utterance":"look up what I wrote about the car insurance","expect":{"outcome":"execute","capability":"module.search"}}
+{"id":"gen-0012","bucket":"generated","utterance":"search my notes for the landlord","expect":{"outcome":"execute","capability":"module.search"}}
+{"id":"gen-0013","bucket":"generated","utterance":"delete that module","expect":{"outcome":"execute","capability":"module.delete","requiresConfirmation":true}}
+{"id":"gen-0014","bucket":"generated","utterance":"forget the note about the old address","expect":{"outcome":"execute","capability":"module.delete","requiresConfirmation":true}}
+{"id":"gen-0015","bucket":"generated","utterance":"remove the wifi password module","expect":{"outcome":"execute","capability":"module.delete","requiresConfirmation":true}}
+{"id":"gen-0016","bucket":"generated","utterance":"undo that merge","expect":{"outcome":"execute","capability":"module.revert","requiresConfirmation":true}}
+{"id":"gen-0017","bucket":"generated","utterance":"revert the passport module to before that","expect":{"outcome":"execute","capability":"module.revert","requiresConfirmation":true}}
+{"id":"gen-0018","bucket":"generated","utterance":"undo the last change to that note","expect":{"outcome":"execute","capability":"module.revert","requiresConfirmation":true}}
+{"id":"gen-0019","bucket":"generated","utterance":"check my email for the confirmation","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0020","bucket":"generated","utterance":"look up flight prices for me","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0021","bucket":"generated","utterance":"what's the weather this weekend","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0022","bucket":"generated","utterance":"send this note to my sister","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0023","bucket":"generated","utterance":"book that appointment for me","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0024","bucket":"generated","utterance":"set a reminder for the renewal date","expect":{"outcome":"out_of_scope"}}

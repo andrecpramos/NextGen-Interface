@@ -1,0 +1,81 @@
+{"id":"gen-0001","bucket":"generated","utterance":"go home","expect":{"outcome":"execute","capability":"home.dashboard"}}
+{"id":"gen-0002","bucket":"generated","utterance":"take me to the dashboard","expect":{"outcome":"execute","capability":"home.dashboard"}}
+{"id":"gen-0003","bucket":"generated","utterance":"show me the overview","expect":{"outcome":"execute","capability":"home.dashboard"}}
+{"id":"gen-0004","bucket":"generated","utterance":"show me my transactions","expect":{"outcome":"execute","capability":"transactions.list"}}
+{"id":"gen-0005","bucket":"generated","utterance":"open last month's expenses","expect":{"outcome":"execute","capability":"transactions.list"}}
+{"id":"gen-0006","bucket":"generated","utterance":"list all transactions from this week","expect":{"outcome":"execute","capability":"transactions.list"}}
+{"id":"gen-0007","bucket":"generated","utterance":"find the payment to Amazon","expect":{"outcome":"execute","capability":"search.transactions"}}
+{"id":"gen-0008","bucket":"generated","utterance":"search for transactions mentioning refund","expect":{"outcome":"execute","capability":"search.transactions"}}
+{"id":"gen-0009","bucket":"generated","utterance":"did I pay anything to the dentist","expect":{"outcome":"execute","capability":"search.transactions"}}
+{"id":"gen-0010","bucket":"generated","utterance":"I spent 12 euros on coffee","expect":{"outcome":"execute","capability":"transaction.create","requiresConfirmation":true}}
+{"id":"gen-0011","bucket":"generated","utterance":"add an expense of 45 for groceries","expect":{"outcome":"execute","capability":"transaction.create","requiresConfirmation":true}}
+{"id":"gen-0012","bucket":"generated","utterance":"log 2000 salary income today","expect":{"outcome":"execute","capability":"transaction.create","requiresConfirmation":true}}
+{"id":"gen-0013","bucket":"generated","utterance":"change that to groceries","expect":{"outcome":"execute","capability":"transaction.update","requiresConfirmation":true}}
+{"id":"gen-0014","bucket":"generated","utterance":"edit the last transaction amount to 20","expect":{"outcome":"execute","capability":"transaction.update","requiresConfirmation":true}}
+{"id":"gen-0015","bucket":"generated","utterance":"recategorise the Amazon payment as electronics","expect":{"outcome":"execute","capability":"transaction.update","requiresConfirmation":true}}
+{"id":"gen-0016","bucket":"generated","utterance":"delete that transaction","expect":{"outcome":"execute","capability":"transaction.delete","requiresConfirmation":true}}
+{"id":"gen-0017","bucket":"generated","utterance":"remove the duplicate coffee entry","expect":{"outcome":"execute","capability":"transaction.delete","requiresConfirmation":true}}
+{"id":"gen-0018","bucket":"generated","utterance":"erase the last expense I added","expect":{"outcome":"execute","capability":"transaction.delete","requiresConfirmation":true}}
+{"id":"gen-0019","bucket":"generated","utterance":"how much did I spend last month","expect":{"outcome":"execute","capability":"spending.total"}}
+{"id":"gen-0020","bucket":"generated","utterance":"what's my total spending this year","expect":{"outcome":"execute","capability":"spending.total"}}
+{"id":"gen-0021","bucket":"generated","utterance":"how much have I spent overall this week","expect":{"outcome":"execute","capability":"spending.total"}}
+{"id":"gen-0022","bucket":"generated","utterance":"how much did I spend on food last month","expect":{"outcome":"execute","capability":"spending.by_category"}}
+{"id":"gen-0023","bucket":"generated","utterance":"break down my spending by category","expect":{"outcome":"execute","capability":"spending.by_category"}}
+{"id":"gen-0024","bucket":"generated","utterance":"what did groceries cost me this year","expect":{"outcome":"execute","capability":"spending.by_category"}}
+{"id":"gen-0025","bucket":"generated","utterance":"am I spending more than last month","expect":{"outcome":"execute","capability":"spending.trend"}}
+{"id":"gen-0026","bucket":"generated","utterance":"show my spending trend over six months","expect":{"outcome":"execute","capability":"spending.trend"}}
+{"id":"gen-0027","bucket":"generated","utterance":"is my food spending going up","expect":{"outcome":"execute","capability":"spending.trend"}}
+{"id":"gen-0028","bucket":"generated","utterance":"open my budgets","expect":{"outcome":"execute","capability":"budget.view"}}
+{"id":"gen-0029","bucket":"generated","utterance":"show the budget screen","expect":{"outcome":"execute","capability":"budget.view"}}
+{"id":"gen-0030","bucket":"generated","utterance":"take me to budgets","expect":{"outcome":"execute","capability":"budget.view"}}
+{"id":"gen-0031","bucket":"generated","utterance":"am I over budget on food","expect":{"outcome":"execute","capability":"budget.status"}}
+{"id":"gen-0032","bucket":"generated","utterance":"how much of my budget is left","expect":{"outcome":"execute","capability":"budget.status"}}
+{"id":"gen-0033","bucket":"generated","utterance":"am I on track this month","expect":{"outcome":"execute","capability":"budget.status"}}
+{"id":"gen-0034","bucket":"generated","utterance":"set my food budget to 300","expect":{"outcome":"execute","capability":"budget.set","requiresConfirmation":true}}
+{"id":"gen-0035","bucket":"generated","utterance":"change the groceries limit to 250 euros","expect":{"outcome":"execute","capability":"budget.set","requiresConfirmation":true}}
+{"id":"gen-0036","bucket":"generated","utterance":"cap entertainment at 100 a month","expect":{"outcome":"execute","capability":"budget.set","requiresConfirmation":true}}
+{"id":"gen-0037","bucket":"generated","utterance":"remove my food budget","expect":{"outcome":"execute","capability":"budget.delete","requiresConfirmation":true}}
+{"id":"gen-0038","bucket":"generated","utterance":"delete the entertainment limit","expect":{"outcome":"execute","capability":"budget.delete","requiresConfirmation":true}}
+{"id":"gen-0039","bucket":"generated","utterance":"stop budgeting for transport","expect":{"outcome":"execute","capability":"budget.delete","requiresConfirmation":true}}
+{"id":"gen-0040","bucket":"generated","utterance":"show my accounts","expect":{"outcome":"execute","capability":"accounts.list"}}
+{"id":"gen-0041","bucket":"generated","utterance":"open the accounts screen","expect":{"outcome":"execute","capability":"accounts.list"}}
+{"id":"gen-0042","bucket":"generated","utterance":"list my cards","expect":{"outcome":"execute","capability":"accounts.list"}}
+{"id":"gen-0043","bucket":"generated","utterance":"what's my balance","expect":{"outcome":"execute","capability":"account.balance"}}
+{"id":"gen-0044","bucket":"generated","utterance":"how much do I have in savings","expect":{"outcome":"execute","capability":"account.balance"}}
+{"id":"gen-0045","bucket":"generated","utterance":"how much money is in my main account","expect":{"outcome":"execute","capability":"account.balance"}}
+{"id":"gen-0046","bucket":"generated","utterance":"add a savings account","expect":{"outcome":"execute","capability":"account.create","requiresConfirmation":true}}
+{"id":"gen-0047","bucket":"generated","utterance":"create a new credit card account","expect":{"outcome":"execute","capability":"account.create","requiresConfirmation":true}}
+{"id":"gen-0048","bucket":"generated","utterance":"set up an account called Holiday Fund","expect":{"outcome":"execute","capability":"account.create","requiresConfirmation":true}}
+{"id":"gen-0049","bucket":"generated","utterance":"show my categories","expect":{"outcome":"execute","capability":"categories.list"}}
+{"id":"gen-0050","bucket":"generated","utterance":"open category settings","expect":{"outcome":"execute","capability":"categories.list"}}
+{"id":"gen-0051","bucket":"generated","utterance":"manage my categories","expect":{"outcome":"execute","capability":"categories.list"}}
+{"id":"gen-0052","bucket":"generated","utterance":"open settings","expect":{"outcome":"execute","capability":"settings.open"}}
+{"id":"gen-0053","bucket":"generated","utterance":"go to preferences","expect":{"outcome":"execute","capability":"settings.open"}}
+{"id":"gen-0054","bucket":"generated","utterance":"show me the options","expect":{"outcome":"execute","capability":"settings.open"}}
+{"id":"gen-0055","bucket":"generated","utterance":"change my currency to dollars","expect":{"outcome":"execute","capability":"settings.currency","requiresConfirmation":true}}
+{"id":"gen-0056","bucket":"generated","utterance":"set the currency to GBP","expect":{"outcome":"execute","capability":"settings.currency","requiresConfirmation":true}}
+{"id":"gen-0057","bucket":"generated","utterance":"switch everything to euros","expect":{"outcome":"execute","capability":"settings.currency","requiresConfirmation":true}}
+{"id":"gen-0058","bucket":"generated","utterance":"export my data","expect":{"outcome":"execute","capability":"export.data"}}
+{"id":"gen-0059","bucket":"generated","utterance":"download everything as CSV","expect":{"outcome":"execute","capability":"export.data"}}
+{"id":"gen-0060","bucket":"generated","utterance":"back up my transactions","expect":{"outcome":"execute","capability":"export.data"}}
+{"id":"gen-0061","bucket":"generated","utterance":"send some money to a friend","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0062","bucket":"generated","utterance":"settle the gas bill","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0063","bucket":"generated","utterance":"move funds into my savings account","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0064","bucket":"generated","utterance":"is it a good time to buy shares","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0065","bucket":"generated","utterance":"put my money into a fund","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0066","bucket":"generated","utterance":"how good is my borrowing record","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0067","bucket":"generated","utterance":"end my gym membership","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0068","bucket":"generated","utterance":"downgrade my phone contract","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0069","bucket":"generated","utterance":"close that account with the provider","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0070","bucket":"generated","utterance":"write to my landlord about this","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0071","bucket":"generated","utterance":"share this with someone","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0072","bucket":"generated","utterance":"give my sister a ring","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0073","bucket":"generated","utterance":"nudge me about this next week","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0074","bucket":"generated","utterance":"wake me up early tomorrow","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0075","bucket":"generated","utterance":"put that in my diary","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0076","bucket":"generated","utterance":"get me a table for two","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0077","bucket":"generated","utterance":"buy tickets for the match","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0078","bucket":"generated","utterance":"arrange a trip to Madrid","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0079","bucket":"generated","utterance":"will it rain at the weekend","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0080","bucket":"generated","utterance":"say something funny","expect":{"outcome":"out_of_scope"}}
+{"id":"gen-0081","bucket":"generated","utterance":"how do you say this in another language","expect":{"outcome":"out_of_scope"}}

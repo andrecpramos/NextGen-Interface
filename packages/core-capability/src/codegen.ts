@@ -129,9 +129,19 @@ export interface GoldenEntry {
 /**
  * The third use of `examples`: test fixtures.
  *
- * Only examples carrying an `expect` block become entries — a bare `say` is a
- * phrasing sample for retrieval, not an assertion. This is what stops the golden
- * set drifting away from the registry as capabilities change.
+ * **Every example becomes an entry** (WP-19). Declaring an utterance as an
+ * example of a capability *is* the assertion that it resolves to that
+ * capability — if it does not, either the example or the declaration is wrong,
+ * and that is precisely what the fixture is for. Requiring a hand-written
+ * `expect` block before an example counted produced the opposite: nobody wrote
+ * one, both reference apps emitted a 0-byte file, and CI diffed an artefact
+ * asserting nothing. An `expect` block now *refines* the derived expectation
+ * (params, the stage it must resolve by) rather than gating its existence.
+ *
+ * This matters more from WP-25 on than it ever did by hand: a generated
+ * registry's examples are written by a model, so the entries derived from them
+ * are the corpus that catches a generator that declares a capability nobody can
+ * reach by asking for it.
  *
  * These are *generated* entries and do not replace the hand-written corpus. The
  * hand-written one is deliberately adversarial (35% of it cannot resolve before
@@ -143,18 +153,17 @@ export function generateGoldenEntries(registry: RegistryFile, prefix = 'gen'): G
   let n = 0;
   for (const cap of registry.capabilities) {
     for (const ex of cap.examples ?? []) {
-      if (typeof ex === 'string' || !ex.expect) continue;
-      const e = ex as CapabilityExample;
+      const refine: CapabilityExample['expect'] = typeof ex === 'string' ? undefined : ex.expect;
       n++;
       out.push({
         id: `${prefix}-${String(n).padStart(4, '0')}`,
         bucket: 'generated',
-        utterance: e.say,
+        utterance: exampleText(ex),
         expect: {
           outcome: cap.kind === 'unsupported' ? 'out_of_scope' : 'execute',
           ...(cap.kind === 'unsupported' ? {} : { capability: cap.id }),
-          ...(e.expect?.params ? { params: e.expect.params } : {}),
-          ...(e.expect?.maxStage ? { maxStage: e.expect.maxStage } : {}),
+          ...(refine?.params ? { params: refine.params } : {}),
+          ...(refine?.maxStage ? { maxStage: refine.maxStage } : {}),
           ...(cap.kind === 'write' || cap.kind === 'destructive'
             ? { requiresConfirmation: true }
             : {}),

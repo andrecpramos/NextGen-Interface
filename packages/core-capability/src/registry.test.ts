@@ -220,7 +220,7 @@ describe('generateRouteTable', () => {
 });
 
 describe('generateGoldenEntries — examples as fixtures', () => {
-  it('emits an entry only for examples carrying an expectation', () => {
+  it('emits an entry for every example, refined by any expectation it carries', () => {
     const c = ok({
       examples: [
         { say: 'show last month', expect: { params: { from: '2026-07-01' }, maxStage: 'embedding' } },
@@ -229,11 +229,24 @@ describe('generateGoldenEntries — examples as fixtures', () => {
       ],
     });
     const entries = generateGoldenEntries(registryOf(c));
-    expect(entries).toHaveLength(1);
+    expect(entries).toHaveLength(3);
     expect(entries[0]).toMatchObject({
       utterance: 'show last month',
       expect: { outcome: 'execute', capability: 'transactions.list', maxStage: 'embedding' },
     });
+  });
+
+  // WP-19: the reason the artefact was 0 bytes in both reference apps. Declaring
+  // an utterance as an example of a capability is the assertion; requiring a
+  // second, hand-written one meant nothing was ever asserted.
+  it('derives the expectation for a bare example from its capability', () => {
+    const c = ok({ examples: ['one', 'two', 'three'] });
+    const entries = generateGoldenEntries(registryOf(c));
+    expect(entries).toHaveLength(3);
+    expect(entries.map((e) => e.utterance)).toEqual(['one', 'two', 'three']);
+    for (const entry of entries) {
+      expect(entry.expect).toEqual({ outcome: 'execute', capability: 'transactions.list' });
+    }
   });
 
   it('marks a write example as requiring confirmation', () => {
@@ -251,6 +264,8 @@ describe('generateGoldenEntries — examples as fixtures', () => {
       examples: [{ say: 'do the thing', expect: {} }, 'b', 'c'],
       refusal: 'Not something I do.',
     });
-    expect(generateGoldenEntries(registryOf(ok(), b))[0]?.expect).toMatchObject({ outcome: 'out_of_scope' });
+    const entry = generateGoldenEntries(registryOf(ok(), b)).find((e) => e.utterance === 'do the thing');
+    expect(entry?.expect).toMatchObject({ outcome: 'out_of_scope' });
+    expect(entry?.expect).not.toHaveProperty('capability');
   });
 });

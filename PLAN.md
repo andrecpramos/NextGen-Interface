@@ -415,7 +415,7 @@ NextGen_Interface/
 | **1** | ~~**The stage-3 prompt hardcodes finance.**~~ **FIXED 2026-09-09 (WP-16)** — `stages.ts` now reads `registry.domainDescription` (D-2, ADR-013). *"transfer 500 euros to my brother"* is refused (`gs-0197`), permanently, against the modules registry. Removing the hardcoded text also **improved** top-1 accuracy 2–6 points on both models (FINDINGS Finding 13) | **Fatal to the product** — the engine cannot serve arbitrary apps while asserting it is one specific app. **Demonstrated:** *"transfer 500 euros to my brother"* routed to `module.revert`, a destructive capability, instead of being refused. The policy gate held; nothing was deleted | **WP-16** ✅ |
 | **2** | ~~`llama3.1:8b` took >4 min to load, then timed out a turn~~ (2026-09-08) | **RESOLVED as a false alarm 2026-09-09 (WP-17)** — did not reproduce: warm reload today took 8.7s on GPU. Likely a one-off (GPU contention or a CPU fallback that day), not a persistent defect. §5, FINDINGS Finding 12 | **WP-17** ✅ |
 | **3** | **Undo is unimplemented for the shipping reference app.** [undo.ts:103](packages/data/src/undo.ts#L103) returns *"no undo is defined for module.delete"* while the CLI says undo is available | Rule 5's destructive path is nominal. Contained only because no rung ships a write capability | **WP-18**, deferred |
-| **4** | **Generated golden fixtures are 0 bytes** in both reference apps; CI diffs them | An artefact that asserts nothing inside a gate. **Decide the example format before WP-25 generates examples at scale** | **WP-19**, deferred but ordered before WP-25 |
+| **4** | ~~**Generated golden fixtures are 0 bytes** in both reference apps; CI diffs them~~ **FIXED 2026-09-10 (WP-19)** — `generateGoldenEntries` required a hand-written `expect` block before an example counted, and no example in either app had one. Every example now becomes an entry, its expectation derived from the capability; an `expect` block *refines* it (params, `maxStage`) rather than gating it. 24 entries for `domain-modules`, 81 for `domain-finance` | An artefact that asserts nothing inside a gate. **Decide the example format before WP-25 generates examples at scale** | **WP-19** ✅ |
 
 ### Dead weight — swept 2026-09-09
 
@@ -433,7 +433,7 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
 | `.claude/docs/roadmap.md` | Plans a **Flutter** build [ADR-006](.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened. 7 Flutter mentions | **Dead — delete.** `docs/runbook` already does |
 | 7 product docs | `.claude/docs/vision.md` · `.claude/docs/project.md` · `.claude/docs/roadmap.md` · `SETUP.md` · `README.md` · `apps/web/README.md` · `packages/core-voice/README.md` all describe finance or a voiceless product; **none mentions the navigation layer** | **WP-11** |
-| `golden.generated.jsonl` ×2 | 0 bytes, and CI diffs them — `registry:check` reports "0 generated golden entries" every run | **WP-19** |
+| ~~`golden.generated.jsonl` ×2~~ | **RESOLVED 2026-09-10 (WP-19)** — 24 and 81 entries respectively; the CI diff now has something to be stale about | Closed |
 | `apps/cli` → `@nextgen/core-capability` | Declared as a dependency, **never imported** in `apps/cli/src` | **Dead — drop the dependency.** Folded into WP-37 |
 
 **Checked and clean**, so nobody re-runs these: ADR-001 and ADR-002 are correctly marked
@@ -881,8 +881,9 @@ for legacy/dev-only markers; always synthesise a two-segment id) rather than ope
 no human step.
 
 **Preconditions.** ✅ WP-30 passed GO/NO-GO (2026-09-10) — three known, scoped fixes
-carried forward from the spike (below). ✅ WP-31 exists. **WP-19's example format
-decided** — do not generate examples at scale into a format about to change.
+carried forward from the spike (below). ✅ WP-31 exists. ✅ **WP-19's example format
+decided** (2026-09-10, §7.5) — plain example strings; every one becomes a golden entry
+whose expectation is derived from its capability, so the generator authors no fixtures.
 
 **Carried from WP-30's verdict, not optional polish:**
 - Distinguish a real destination from a bookmark redirect by reading the **component's
@@ -1174,7 +1175,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 
 | WP | What | Why deferred | Unblock when |
 |---|---|---|---|
-| **WP-19** | Golden fixture: fill or retire | Small, but **ordered before WP-25** — decide the example format before generating at scale | Before WP-25 |
+| ~~**WP-19**~~ ✅ | Golden fixture: **filled**, 2026-09-10 | **Decided: fill.** Declaring an utterance as a capability's example *is* the assertion that it resolves there; demanding a second hand-written `expect` block meant nothing was ever asserted. `expect` now refines (params, `maxStage`), never gates. The format WP-25 generates into is therefore plain example strings — no per-example fixture authoring at scale | Done |
 | **WP-37** | Remove the dead weight (§4) | Delete `tooling/tsconfig` (a byte-identical duplicate nothing extends), `tooling/eslint-config` (a package.json and nothing else), and the 0-byte `hashing-llama3.1_8b.txt`. **Acceptance:** the six `.claude/docs/` references updated, `pnpm-lock.yaml` regenerated, workspace globs still resolve, `pnpm -r typecheck` and `pnpm -r test` green, and §4's package count corrected from 15 to 13. **Stop if** anything outside `tooling/` turns out to depend on either package | Alongside WP-11, which touches the same docs |
 | **WP-28** | A target app **we do not own** | `fut-app` is route-rich and real, so it proves value as well as mechanism — but it is ours, and a generator tuned on it may not transfer. External validation is the remaining unproven step | After WP-33; **give it a deadline, not a hope** |
 | **WP-29** | Script tag — Ladder C3 | Needs the installable package first | After WP-26 |
