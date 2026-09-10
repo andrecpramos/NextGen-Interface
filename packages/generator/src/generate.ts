@@ -16,6 +16,7 @@ import {
   type ProseRequest,
 } from './synthesise.ts';
 import { splitByRole } from './emit.ts';
+import { assignTriggers } from './triggers.ts';
 import type {
   AnnotatedCapability,
   DiscoveredRoute,
@@ -249,6 +250,16 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     titles.set(id, resolveTitles(route, labelKey, facts, translations, config.languages));
     features.set(id, featureOf(route));
   }
+
+  // The label as the sidebar actually shows it, captured BEFORE qualifyTitles
+  // rewrites duplicates into "Academia percurso escolar". Both spellings are
+  // trigger candidates and the raw one matters more: it is what the user has
+  // been reading, so it is what they type. `qualifyTitles` mutates in place, so
+  // this has to happen here rather than after.
+  const rawLabels = new Map<string, string[]>(
+    [...titles].map(([id, perLanguage]) => [id, Object.values(perLanguage)]),
+  );
+
   qualifyTitles(titles, features);
 
   const requests: ProseRequest[] = accepted.map(({ route, id, facts }) => ({
@@ -265,6 +276,19 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   const cache = options.cache ?? {};
   const prose = await synthesise(requests, options.model ?? null, cache, options.onProgress);
+
+  // WP-38 lever 1. Stage 1 fired zero times across the whole fut-app
+  // measurement because no capability carried a trigger; the free stage was
+  // switched off. A phrase two capabilities both claim is dropped rather than
+  // assigned — see triggers.ts for why a stage-1 collision is the worst kind.
+  const { triggers: triggersById, ambiguous } = assignTriggers(
+    new Map(
+      accepted.map(({ id }) => [
+        id,
+        [...(rawLabels.get(id) ?? []), ...Object.values(titles.get(id) ?? {})],
+      ]),
+    ),
+  );
 
   const master: AnnotatedCapability[] = accepted.map(({ route, id }, index) => {
     const request = requests[index]!;
@@ -287,6 +311,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
         ? { explanationSource: relative(config.appRoot, route.componentFile).replace(/\\/g, '/') }
         : {}),
       examples: [...written.examples],
+      ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),
       roles: route.roles ?? [],
       ...(parameters.length > 0
         ? {

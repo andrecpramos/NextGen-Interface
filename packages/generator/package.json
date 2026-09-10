@@ -14,7 +14,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@nextgen/core-capability": "workspace:*"
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-intent": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

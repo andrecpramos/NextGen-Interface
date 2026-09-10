@@ -43,10 +43,10 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
-| — | ⚠️ **D-4 — the owner's decision.** WP-33's kill criterion triggered. **Nothing in M3 starts until this is answered** | — | — | — |
-| 1 | **WP-38** · The three model-free levers, on a fixed budget — triggers, a real browser encoder, per-section registries | M1 | M | D-4 |
-| 2 | **WP-40** · ADR-015 written (`Proposed`); **implementation awaits the owner accepting it** | M1 | M | owner |
-| 3 | ◐ **WP-36** · Declared explanations — **built and serving 2026-09-10**. What is left is only the *detection* of a what/why question, and it **reuses ADR-015's frame layer** rather than adding a second one | M1 | S | owner (ADR-015) |
+| — | ✅ **D-4 — ANSWERED 2026-09-10 by the owner, in session: option (b), spend WP-38's fixed budget first.** The result is below and it is **not** the one option (b) was hoping for | — | — | — |
+| 1 | ~~**WP-38**~~ ✅ **COMPLETE — 2026-09-10.** Model-free **2.4% → 8.1%**, top-1 **52.3% → 58.0%**. Lever 1 paid; **lever 2 killed on measured evidence** (section recall@1 = 25.6%); **lever 3 cannot help accuracy at all** — see §7.2. ⚠️ **Its "Stop if" triggered**: 8.1% against a 60% bar | M1 | M | done |
+| 2 | **WP-40** · [ADR-015](.claude/decisions/ADR-015.md) **Accepted 2026-09-10** — implementation is now unblocked | M1 | M | — |
+| 3 | ◐ **WP-36** · Declared explanations — **built and serving 2026-09-10**. What is left is only the *detection* of a what/why question, and it **reuses ADR-015's frame layer** rather than adding a second one. **Unblocked by ADR-015's acceptance**; do it as part of WP-40, not before | M1 | S | 2 |
 | 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
 | 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding** | M3 | L | D-4, 1 |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
@@ -1335,7 +1335,20 @@ in MEASUREMENT.md.** The repositioning decision is D-4 (§13) and it belongs to 
 
 ---
 
-### WP-38 · The three model-free levers ⬜ · **M** · queue 1 · blocked by **D-4**
+### WP-38 · The three model-free levers ✅ **COMPLETE — 2026-09-10** · ⚠️ **Stop if triggered**
+
+> **Full account: [eval/fut-app/WP38.md](eval/fut-app/WP38.md).** Headline: model-free
+> **2.4% → 8.1%**, top-1 **52.3% → 58.0%** (palette 45.5%), out-of-scope **32.4% → 26.5%**.
+> Lever 1 paid, lever 2 was killed by a twenty-minute precondition measurement, lever 3
+> cannot affect this number at all. **8.1% against a 60% bar → D-4 option (c).**
+>
+> The result worth carrying forward is the decomposition, because it is not what the lever
+> was for: **the top-1 gain is the embedded document (+5.1), not stage 1 (+0.6)** — nav
+> labels are good description text, and `capabilityDocument()` embeds triggers. **The
+> model-free gain is entirely stage 1** (+5.7), because calibration emits `tauHigh: 1` and
+> **stage 2 has never accepted a turn on this registry**, before or after. And **improving
+> topical retrieval made refusal worse**, which is the strongest evidence yet for
+> [ADR-015](.claude/decisions/ADR-015.md).
 
 **Goal.** Find out, on a fixed budget, whether the 2.4% model-free rate is a property of
 this design or of three things nobody has tried yet. **Do not start before D-4 is

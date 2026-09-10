@@ -187,6 +187,9 @@ importers:
       '@nextgen/core-capability':
         specifier: workspace:*
         version: link:../core-capability
+      '@nextgen/core-intent':
+        specifier: workspace:*
+        version: link:../core-intent
     devDependencies:
       typescript:
         specifier: ^5.7.2

@@ -1,4 +1,4 @@
-import { normalize } from './text.ts';
+import { normalize, contentTokens } from './text.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
@@ -37,12 +37,41 @@ export function stage1(utterance: string, registry: Registry): Stage1Hit | null 
     }
   }
 
-  // Only accept a substring hit when the trigger covers most of the utterance.
-  // Otherwise "how much did I spend on transport" would match the bare trigger
-  // "transport" and skip the semantics entirely.
-  if (best && best.matched.length / t.length >= 0.6) return best;
+  // Only accept a substring hit when the trigger covers most of what the user
+  // actually said. "how much did I spend on transport" must not match the bare
+  // trigger "transport" and skip the semantics entirely.
+  //
+  // Coverage is measured over CONTENT words, not characters (WP-38 lever 1).
+  // The character rule counted the question's wrapper against the trigger, so a
+  // correct trigger sitting inside a normal question could not clear the bar:
+  // *"Para que serve a 'Composição corporal'?"* scored 0.53 with exactly the
+  // right trigger. Measured over the fut-app golden set, 102 entries had a
+  // trigger on the correct capability, 2 cleared 0.6, and 100 sat below it.
+  //
+  // The bar itself is unchanged at 0.6, and the rule it enforces is unchanged:
+  // "spend transport" is still 1 of 2 content words and still refused. What
+  // changed is that "para que serve" no longer counts as evidence against a
+  // match, because it is not evidence about anything.
+  if (best && coverage(t, best.matched) >= 0.6) return best;
 
   return null;
+}
+
+/**
+ * What share of the utterance's content words the trigger accounts for.
+ *
+ * Returns 0 when the utterance is entirely filler — "what is this?" carries no
+ * content word to match, and a trigger must never win by default on a question
+ * that says nothing. Stage 1 answers with score 1.0 and never escalates, so an
+ * empty denominator has to fail closed.
+ */
+function coverage(utterance: string, trigger: string): number {
+  const content = contentTokens(utterance);
+  if (content.length === 0) return 0;
+  const inTrigger = new Set(contentTokens(trigger));
+  if (inTrigger.size === 0) return 0;
+  const matched = content.filter((word) => inTrigger.has(word)).length;
+  return matched / content.length;
 }
 
 // ------------------------------------------------------------- stage 2 ------

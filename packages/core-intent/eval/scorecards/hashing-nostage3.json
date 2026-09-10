@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T22:12:49.177Z",
+  "generatedAt": "2026-09-10T16:13:28.532Z",
   "config": {
     "embedder": "hashing",
     "model": null,
@@ -15,7 +15,7 @@
   "entries": 82,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.30434782608695654,
+      "actual": 0.32608695652173914,
       "target": 0.9,
       "pass": false
     },
@@ -54,12 +54,12 @@
       "stage3p95": null
     },
     "paraphrase": {
-      "pass": 5,
+      "pass": 6,
       "total": 24,
-      "rate": 0.20833333333333334,
-      "top1Correct": 5,
+      "rate": 0.25,
+      "top1Correct": 6,
       "top1Total": 24,
-      "top1": 0.20833333333333334,
+      "top1": 0.25,
       "stage3Calls": 0,
       "stage3p50": null,
       "stage3p95": null
@@ -129,15 +129,15 @@
     "unavailable": 0
   },
   "stageMix": {
-    "deterministic": 11,
-    "embedding": 71
+    "deterministic": 14,
+    "embedding": 68
   },
   "modelFreeRate": 1,
   "latency": {
-    "p50": 0.05870000000000175,
-    "p95": 0.18859999999999388,
-    "stage1p95": 0.019400000000004525,
-    "stage2p95": 0.2131000000000114,
+    "p50": 0.052199999999999136,
+    "p95": 0.19410000000000593,
+    "stage1p95": 0.02169999999999561,
+    "stage2p95": 0.1933999999999969,
     "stage3p95": null
   },
   "registryOverlap": [],
@@ -251,27 +251,6 @@
       "id": "gs-0014",
       "bucket": "paraphrase",
       "utterance": "show me everything I've saved",
-      "expected": {
-        "capability": "module.list",
-        "maxStage": "embedding"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.list"
-      ]
-    },
-    {
-      "id": "gs-0015",
-      "bucket": "paraphrase",
-      "utterance": "open my saved notes",
       "expected": {
         "capability": "module.list",
         "maxStage": "embedding"
