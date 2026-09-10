@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-09 · **Branch:** reconciled onto `develop` · **238 tracked files · 15 workspace packages · 309 tests
-across 13 files, all passing** · **Pilot target: `fut-app`** (§3).
+**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **16 workspace packages · 359 tests
+across 19 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
 exist**. Point a tool at an app's source; it generates a capability registry; the app's
@@ -43,20 +43,24 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **WP-25** · The registry generator — role-scoped | M1 | L | — |
-| 2 | **WP-36** · Declared explanations — "read and explain" | M1 | M | 1 |
-| 3 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | — |
-| 4 | **WP-33** · **The measurement** — the first artefact | M1 | S | 1, 2, 3 |
-| 5 | **WP-34** · The write-up — the second artefact | M2 | M | 4 |
-| 6 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 4 |
-| 7 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | 1, D-3 |
-| 8 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 2, 6 |
-| 9 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 6, 7, 8 |
+| 1 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | — |
+| 2 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
+| 3 | **WP-33** · **The measurement** — the first artefact | M1 | S | 1, 2 |
+| 4 | **WP-34** · The write-up — the second artefact | M2 | M | 3 |
+| 5 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 3 |
+| 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
+| 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 2, 5 |
+| 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
 
-**Landed this session:** WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1) and
-**WP-23** — ADR-013 written (status `Proposed`, awaiting the owner's acceptance) — plus
-D-1 and D-2 decided (§13), on `feature/plan-execution`. **M0 is fully closed; M1's
-ground truth and generator spike are both done — WP-25 is next, and fully unblocked.**
+**Landed this session:** WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1), **WP-23**
+— ADR-013 written (status `Proposed`, awaiting the owner's acceptance) — **WP-19** (§7.5)
+and **WP-25 — the generator** (§7.2, [ADR-014](.claude/decisions/ADR-014.md), also
+`Proposed`), plus D-1 and D-2 decided (§13), on `feature/plan-execution`.
+
+**M0 is fully closed. M1's ground truth, spike and generator are all done.** WP-32 is now
+the critical path: the golden set is what WP-33 measures against *and* what the ten
+role-scoped registries need before they can be calibrated (Rule 14 — see WP-25's own
+open item).
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
@@ -345,13 +349,21 @@ minutes. It is not a value test and must never be reported as one.
 
 ### What does not exist
 
-The **generator** (WP-25), **declared explanations** (WP-36), the **browser runtime**
-(WP-24), **guided steps** (WP-27), the **installable package** (WP-26), and any
-measurement against a registry we did not write (WP-33).
+**Declared explanations** (WP-36), the **browser runtime** (WP-24), **guided steps**
+(WP-27), the **installable package** (WP-26), and any measurement against questions we
+did not write (WP-33).
 
-**Nothing that makes this a product exists yet.** The engine is built and it is good;
-the packaging, the generation and the evidence are all ahead. That asymmetry is the
-single most important thing to understand about this repo.
+~~The **generator**~~ — **landed 2026-09-10 (WP-25)**:
+[packages/generator](packages/generator/README.md) reads an app's source and emits one
+role-scoped registry per role. `fut-app` produces 145 capabilities + 4 boundaries across
+10 registries, scoring 100% recall and role exactness on WP-31's ground truth
+([REPORT.md](eval/fut-app/REPORT.md)). What it does **not** yet emit is calibrated
+thresholds — that needs WP-32's golden set.
+
+**The packaging and the evidence are still ahead of the engine.** The engine is built and
+good, and now so is the generation; what is missing is a measurement against questions we
+did not invent, and a runtime that ships. That asymmetry is still the most important
+thing to understand about this repo.
 
 ### The five AI layers
 
@@ -365,8 +377,8 @@ single most important thing to understand about this repo.
 
 ### Tests
 
-309 across 13 files, green 2026-09-09. `apps/web`, `packages/ui` and `services/api` have
-none.
+359 across 19 files, green 2026-09-10 (`packages/generator` adds 49). `apps/web`,
+`packages/ui` and `services/api` have none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -382,7 +394,7 @@ none.
 
 ```
 NextGen_Interface/
-├── .claude/docs/              26 docs + 13 ADRs + history.md + business-case.md
+├── .claude/docs/              26 docs + 14 ADRs + history.md + business-case.md
 │                     ⚠️ most prose still describes the pre-repositioning product (WP-11)
 ├── apps/
 │   ├── cli/          ✅ COMPOSITION ROOT — 15 tests
@@ -395,6 +407,7 @@ NextGen_Interface/
 │   ├── core-trace/       ✅ recorder · store · explain · 28 tests
 │   ├── core-inference/   ✅ runtimes · ModelStore · 18 tests — WebGpuRuntime throws by design
 │   ├── core-voice/       ✅ whisper · piper · assets · ⚠️ 4 tests, asset store only
+│   ├── generator/        ✅ WP-25 — discover · pages · prose · ids · synthesise · emit · 49 tests
 │   ├── domain-modules/   ◐ REFERENCE APP — 38 tests
 │   ├── domain-finance/   ◐ REFERENCE APP — 34 tests
 │   ├── data/             ✅ money · schema · repositories · query-engine · undo · 51 tests
@@ -875,7 +888,7 @@ for legacy/dev-only markers; always synthesise a two-segment id) rather than ope
 
 ---
 
-### WP-25 · The registry generator ⬜ · **L** · queue 1
+### WP-25 · The registry generator ✅ **COMPLETE — 2026-09-10**
 
 **Goal.** The real thing: read an app's source, emit a valid **role-scoped** registry,
 no human step.
@@ -918,25 +931,72 @@ whose expectation is derived from its capability, so the generator authors no fi
 Rule 7 guarantees the app still works. A wrongly declared one sends users confidently to
 the wrong place. The generator emits a **report** of what it skipped and why.
 
+**Delivered.** [packages/generator](packages/generator/README.md) — a real workspace
+package (10 modules, 49 tests, TypeScript AST rather than the spike's regexes) plus
+[eval/fut-app/REPORT.md](eval/fut-app/REPORT.md), the generated bundle in
+[eval/fut-app/generated/](eval/fut-app/generated/SKIPPED.md), a scorer
+([score-generated.mjs](eval/fut-app/score-generated.mjs), deliberately the same method as
+WP-30's so the numbers compare), and a model-free refusal proof
+([prove-refusal.mjs](eval/fut-app/prove-refusal.mjs)). **154 routes → 145 capabilities +
+4 boundaries across 10 role registries, 9 routes deliberately skipped with the app's own
+words as evidence.** Output shape decided in [ADR-014](.claude/decisions/ADR-014.md).
+
+| | WP-30 spike | **WP-25** |
+|---|---|---|
+| Combined recall vs WP-31 | 86.7% | **100%** (45/45) |
+| Precision, on ground-truth territory | 92.9% | **100%** (45/45) |
+| Role exactness | 100% (39/39) | **100%** (45/45) |
+| `id-format` failures | 17.6% | **0%** |
+| Rule 17 leaks | not measured | **0**, across 10 registries |
+
 **Acceptance.**
-- [ ] Output passes `pnpm registry:check` unmodified
-- [ ] **Precision and recall against WP-31 recorded** — the only honest quality measure
-- [ ] Also run against `domain-finance` and `domain-modules`, and against WeFitAll as a
-      smoke test
-- [ ] **Rule 17 holds**: a GUARDIAN's registry contains no ADMIN-only capability, proven
-      by a test that diffs two role registries
-- [ ] **Rule 16 holds**: a test asserts the generator writes nothing inside the target
-      repo's existing files — `git status` in the target is clean but for new artefacts
-- [ ] ≥2 boundary entries; refusal proven model-free against them
-- [ ] Deterministic: same source ⇒ same registry, or the diff is explainable
-- [ ] Skipped-capability report exists and is legible
-- [ ] **The format accommodates a Ladder A2 data capability** without redesign —
-      demonstrated by sketching one against `fut-app`'s backend, not by building it
+- [x] Output passes validation unmodified — all 10 role registries through
+      `validateRegistry()`, the same function `pnpm registry:check` runs. Not run *through*
+      that gate, for WP-31's reason: it is `domain-modules`-only and a second registry
+      writing through it clobbers the one the router loads
+- [x] **Precision and recall against WP-31 recorded** — 100% / 100%, **and the denominator
+      stated**: only the 45 routes WP-31 wrote ground truth for are judged; the other 100
+      capabilities are not hand-verified (REPORT.md says so prominently)
+- [x] Run against **WeFitAll** as the smoke test — 2 capabilities, single `PUBLIC`
+      audience, catch-all excluded, and it exercised a second router dialect (`<Route>`
+      elements) and plain JS. **`domain-finance`/`domain-modules` do not apply**: neither
+      is an app with source to read — they declare capabilities directly through
+      `defineCapability`, with no route table, router or pages. Recorded, not skipped
+- [x] **Rule 17 holds** — proven by diffing two role registries
+      (`emit.test.ts`), not by reading the code that builds them; re-checked across all 10
+      generated registries on every scoring run. **0 leaks**
+- [x] **Rule 16 holds** — `writeOutput` refuses an output directory inside the app's
+      source, and `generate.test.ts` fingerprints the entire fixture tree before and after
+      a full run
+- [x] ≥2 boundary entries (4); refusal proven model-free — **20/20** declared examples and
+      **4/6 held-out paraphrases**, 0 in-domain turns wrongly refused. The two misses are a
+      Rule 14 result: `boundaryMargin` 0.055 was calibrated for a **7**-capability
+      registry and this one has 145
+- [x] Deterministic — by construction, not by temperature. Prose is cached against a hash
+      of the facts that produced it, so a rerun over unchanged source is byte-identical and
+      a diff appears only where the app changed (asserted in `generate.test.ts`)
+- [x] Skipped-capability report exists and is legible — [SKIPPED.md](eval/fut-app/generated/SKIPPED.md),
+      grouped by reason, each entry quoting the app's own words
+- [x] **The format accommodates a Ladder A2 data capability** — sketched against
+      `fut-app`'s backend in REPORT.md: one new `data` block, `kind: 'read'` already in the
+      policy table, the route retained so it degrades to its A1 answer
+
+⚠️ **One piece of "Do this" is deliberately not done: (8) calibration.** Per-registry,
+per-role thresholds need a golden set the generator did not write — that is **WP-32**.
+Calibrating against the generator's own examples would calibrate against its own homework:
+those utterances sit *inside* the documents being scored. §6 already carries that lesson
+("a validation that silently matches nothing reports success"). The generator emits
+registries and no thresholds; the honest consequence is the 4/6 above, and ten registries
+now need ten calibrations because each role sees a different corpus (11 capabilities for
+`NUTRITION`, 74 for `COACH`).
 
 **Stop if.** Recall stays below 70% after the L budget, or role extraction is ever
 wrong, or generation is non-deterministic in ways that cannot be explained. Then the
 honest product is *generated draft + developer edit*, and
 [business-case](.claude/docs/business-case.md) A1 has failed.
+**Did not trigger** — 100% recall on judged territory, 0 role mis-assignments in 45
+judged routes and 0 leaks across 10 registries, and determinism is a property of the
+cache rather than a hope about sampling.
 
 ---
 
@@ -944,8 +1004,7 @@ honest product is *generated draft + developer edit*, and
 
 **Goal.** *"What is a training cycle?"*, *"What does this page do?"*, *"Where do I record
 an injury?"* — answered about **this app and nothing else**.
-
-**Preconditions.** WP-25.
+**Preconditions.** ✅ WP-25 (2026-09-10).
 
 **The mechanism, and why it is not a chat widget.** **Explanations are declared, not
 generated per turn** — the same move ADR-009 made for refusals. At build time the
@@ -1093,7 +1152,8 @@ quantising or the embedder needs changing, and that is the work before anything 
 **Goal.** *"Take me there and tell me what to do."* Navigation exists; guidance does not.
 A **step** declares which element, what to do, in what order.
 
-**Preconditions.** WP-25 (the generator must emit steps). D-3 answered.
+**Preconditions.** ✅ WP-25 (the generator must emit steps — it does not yet; a `step`
+block is a new synthesis stage alongside description and examples). D-3 answered.
 
 **Note.** Reading from source makes this far more tractable than it would be for a
 crawled site — the generator already knows the component tree, so the anchor can be
@@ -1194,8 +1254,9 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 M0  FOUNDATION ✅     WP-23 ADR ✅ (Proposed) · WP-15 landed ✅ · WP-16 de-financed ✅ · WP-17 re-measured ✅
      ~5 sessions       cheap, unblocks everything, builds nothing new
                             │
-M1  THE MEASUREMENT   WP-31 ground truth ✅ → WP-30 SPIKE ✅ GO → WP-25 generator
-     ~15-20 sessions   → WP-36 explanations → WP-32 golden set + palette baseline
+M1  THE MEASUREMENT   WP-31 ground truth ✅ → WP-30 SPIKE ✅ GO → WP-25 generator ✅
+     ~15-20 sessions   → WP-32 golden set + palette baseline (also unblocks calibration)
+                       → WP-36 explanations
                        → WP-33 MEASURE      ◄── the milestone that matters
                             │
                        ⟨ KILL GATE: model-free <60%, or it loses to the
@@ -1255,7 +1316,8 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | Risk | Severity | State |
 |---|---|---|
 | **Scope death — 15 work packages, solo, irregular hours** | **critical** | **OPEN and most likely.** The failure is not technical: it is a half-built generator and a half-built runtime at month six. §8's milestones exist to be cut; the month-3 kill criterion exists to force it |
-| **Automatic registry generation is not good enough** | **critical** | **OPEN.** Every safety property assumes the registry is correct. Automating it moves the failure from "routes wrong at runtime" — visible, recoverable — to "declared wrong at build time" — silent, permanent. WP-30 tests it in one session for exactly this reason |
+| **Automatic registry generation is not good enough** | **critical** | **DOWNGRADED 2026-09-10 — WP-25.** 100% recall and role exactness against WP-31's ground truth, 0 Rule 17 leaks across 10 registries. **What is still open is narrower and named:** only 45 of 145 capabilities are hand-verified, and *descriptions* remain the soft part — the one output with no mechanical gate on it (REPORT.md, "what is weakest here"). A wrong description misroutes silently, which is still the "declared wrong at build time" failure, just no longer the whole surface |
+| **Ten role-scoped registries, none of them calibrated** | **high** | **OPEN — new, 2026-09-10 (WP-25).** Thresholds are an artefact of the registry (§6) and each role sees a different corpus: 11 capabilities for `NUTRITION`, 74 for `COACH`. The shipped `boundaryMargin` was calibrated for a 7-capability registry and already misses 2 of 6 held-out refusals on the generated one. Blocked on WP-32's golden set — calibrating on the generator's own examples would be calibrating on its own homework |
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | **high** | **OPEN, and it replaces the old "pilot proves mechanism not value" risk.** `fut-app` is route-rich, role-gated and real, so it does prove value — but it is ours, and a generator built against it may not transfer. WP-28 (a target we do not own) is the remaining unproven step |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
@@ -1291,7 +1353,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 pnpm -r typecheck
-pnpm -r test                                       # 309 tests, 13 files
+pnpm -r test                                       # 359 tests, 19 files
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
@@ -1299,6 +1361,12 @@ pnpm check                                         # typecheck + test + registry
 # registry
 pnpm registry:build          # regenerate registry.json + routes.json — domain-modules
 pnpm registry:build:finance  # same, for the finance reference app
+
+# the generator (WP-25) — reads an app's source, writes NOTHING into it (Rule 16)
+node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/generator.config.json --model llama3.1:8b
+node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/generator.config.json --no-model
+node eval/fut-app/score-generated.mjs                      # precision/recall vs WP-31
+node --experimental-strip-types eval/fut-app/prove-refusal.mjs COACH   # model-free refusal
 
 # router
 pnpm router:inspect          # score distributions, recall@k — always look here first
@@ -1356,6 +1424,7 @@ UTF-8 BOM that `JSON.parse` rejects.
 | How is out-of-scope detected without a model? | [ADR-009](.claude/decisions/ADR-009.md) — the mechanism the product rests on |
 | Where is policy enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.claude/decisions/ADR-004.md) |
 | What did the router score? | §5 — re-measured 2026-09-09 (WP-17) |
+| How is a registry generated from an app's source? | [packages/generator](packages/generator/README.md) · [ADR-014](.claude/decisions/ADR-014.md) · [REPORT.md](eval/fut-app/REPORT.md) |
 | How do I add a capability by hand? | [add-capability](.claude/skills/add-capability/SKILL.md) |
 | How do I add a whole application? | [new-domain](.claude/skills/new-domain/SKILL.md) |
 | Accuracy dropped — now what? | [router-regression](.claude/skills/router-regression/SKILL.md) |
