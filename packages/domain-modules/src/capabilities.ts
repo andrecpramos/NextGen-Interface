@@ -26,6 +26,11 @@ export const capabilities = [
       'Save something the user wants remembered — extract the important information from ' +
       'what they said, wrote, or uploaded, and file it as a module, either new or appended ' +
       'onto one that already covers the same topic',
+    explanation:
+      'Saving something you want to remember. Tell me the thing — a password, a date, a ' +
+      'phone number — and I file it as a module, either a new one or added onto an existing ' +
+      'module about the same topic.',
+    explanationSource: 'packages/domain-modules/src/capabilities.ts',
     triggers: ['remember this', 'save this', 'take a note', 'note that', 'add a note', 'remember that'],
     params: {
       body: { type: 'string', required: false, description: 'what you want me to remember' },
@@ -43,6 +48,10 @@ export const capabilities = [
     route: '/modules',
     title: 'Modules',
     description: 'Open the modules browser, listing everything saved so far grouped by category',
+    explanation:
+      'The browser for everything you have saved, grouped by category. Start here when you ' +
+      'want to see what is there rather than look for one particular thing.',
+    explanationSource: 'packages/domain-modules/src/capabilities.ts',
     triggers: ['modules', 'my modules', 'my notes', 'saved notes', 'what have I saved'],
     examples: [
       'show my modules',
@@ -59,6 +68,10 @@ export const capabilities = [
     description:
       'Find and open the module that best matches a topic — answers "what did I save about X" ' +
       'and doubles as "open" for a specific module by describing it',
+    explanation:
+      'Finding what you saved about a particular topic. Describe the thing you are looking ' +
+      'for and I open the module that best matches it.',
+    explanationSource: 'packages/domain-modules/src/capabilities.ts',
     triggers: ['find my note about', 'what did I save about', 'look up', 'search my notes'],
     params: {
       query: { type: 'string', required: true, description: 'topic' },
@@ -76,6 +89,10 @@ export const capabilities = [
     route: '/modules',
     title: 'Delete module',
     description: 'Permanently remove a saved module',
+    explanation:
+      'Permanently removing a module you saved. I always ask you to confirm first, and once ' +
+      'it is gone it cannot be brought back.',
+    explanationSource: 'packages/domain-modules/src/capabilities.ts',
     triggers: ['delete that module', 'remove that note', 'forget that', 'delete this module'],
     params: {
       target: { type: 'string', required: true, description: 'module' },
@@ -92,6 +109,10 @@ export const capabilities = [
     route: '/modules',
     title: 'Undo last merge',
     description: 'Undo the most recent merge into a module, restoring what it said before',
+    explanation:
+      'Putting a module back the way it was before the last thing was added to it. Useful ' +
+      'when something was filed onto the wrong module.',
+    explanationSource: 'packages/domain-modules/src/capabilities.ts',
     triggers: ['undo that merge', 'revert that module', 'undo the last change', 'undo that update'],
     params: {
       target: { type: 'string', required: true, description: 'module' },

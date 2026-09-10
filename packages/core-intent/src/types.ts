@@ -219,6 +219,19 @@ export interface TurnTrace {
   requiresConfirmation: boolean;
   kind: string | null;
   route: string | null;
+  /**
+   * The resolved capability's declared explanation, copied verbatim (WP-36).
+   *
+   * This is what closes the second half of §1.1's promise — *"it takes them to
+   * the right place, and tells them what to do once they are there"*. The
+   * surface renders it alongside the navigation; nothing generates it, and no
+   * model is involved in producing it at run time, because it was written when
+   * the registry was built.
+   *
+   * `null` when the capability declares none, which the validator only permits
+   * for a declared limit — a limit answers the same question with its refusal.
+   */
+  explanation: string | null;
   latency: StageLatency;
   notes: string[];
   margin?: number;

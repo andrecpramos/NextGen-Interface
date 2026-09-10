@@ -38,6 +38,7 @@ function registryWith(domainDescription: string): Registry {
     defineCapability({
       id: 'thing.view', kind: 'navigate', route: '/thing',
       title: 'Thing', description: 'View the one thing this toy registry has',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       examples: ex(3),
     }),
   ];

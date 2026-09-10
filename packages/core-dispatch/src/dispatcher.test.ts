@@ -13,26 +13,31 @@ const registry: RegistryFile = defineRegistry({
     defineCapability({
       id: 'transactions.list', kind: 'navigate', route: '/transactions',
       title: 'Transactions', description: 'Browse recorded transactions over a period',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { category: { type: 'enum:Category' } }, examples: ex(3),
     }),
     defineCapability({
       id: 'budget.detail', kind: 'navigate', route: '/budget/:id',
       title: 'Budget detail', description: 'Open one budget by its identifier',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { id: { type: 'string', required: true } }, examples: ex(3),
     }),
     defineCapability({
       id: 'spending.total', kind: 'read', route: '/spending',
       title: 'Total spending', description: 'Total spent over a period',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { from: { type: 'date', required: true, description: 'start date' } }, examples: ex(3),
     }),
     defineCapability({
       id: 'transaction.create', kind: 'write', route: '/transactions/new',
       title: 'Add a transaction', description: 'Record a new transaction',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { amount: { type: 'money', required: true } }, examples: ex(3),
     }),
     defineCapability({
       id: 'budget.delete', kind: 'destructive', route: '/budget',
       title: 'Delete a budget', description: 'Remove a budget permanently',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { category: { type: 'enum:Category', required: true } }, examples: ex(3),
     }),
     defineBoundary({

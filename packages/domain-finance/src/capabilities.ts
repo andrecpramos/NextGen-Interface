@@ -14,6 +14,9 @@ import { defineBoundary, defineCapability, defineRegistry } from '@nextgen/core-
 export const capabilities = [
   defineCapability({
     id: "home.dashboard",
+    explanation:
+      "Your starting point: this month’s spending, how each budget is doing, and the most recent transactions in one place.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "navigate",
     route: "/",
     title: "Home",
@@ -28,6 +31,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "transactions.list",
+    explanation:
+      "Every transaction you have recorded, newest first. Filter by date, category or account to narrow it down.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "navigate",
     route: "/transactions",
     title: "Transactions",
@@ -48,6 +54,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "search.transactions",
+    explanation:
+      "Finding particular transactions by describing them — a shop name, an amount, a rough date.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/transactions/search",
     title: "Search transactions",
@@ -67,6 +76,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "transaction.create",
+    explanation:
+      "Recording something you spent or received. I take you to the form with whatever you already told me filled in; you check it and save.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "write",
     route: "/transactions/new",
     title: "Add transaction",
@@ -94,6 +106,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "transaction.update",
+    explanation:
+      "Correcting a transaction you already recorded — its amount, date, category or description.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "write",
     route: "/transactions/edit",
     title: "Edit transaction",
@@ -119,6 +134,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "transaction.delete",
+    explanation:
+      "Removing a transaction you recorded by mistake. I ask you to confirm first, and it can be undone afterwards.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "destructive",
     route: "/transactions",
     title: "Delete transaction",
@@ -136,6 +154,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "spending.total",
+    explanation:
+      "What you spent over a period, added up. The figure is computed from your records, never estimated.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/analytics/total",
     title: "Total spending",
@@ -155,6 +176,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "spending.by_category",
+    explanation:
+      "The same spending split by category, so you can see where the money actually went.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/analytics/category",
     title: "Spending by category",
@@ -179,6 +203,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "spending.trend",
+    explanation:
+      "How your spending has moved month to month, so a change shows up as a direction rather than a single number.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/analytics/trend",
     title: "Spending trend",
@@ -197,6 +224,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "budget.view",
+    explanation:
+      "The budgets you have set, and how much of each is left this period.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "navigate",
     route: "/budget",
     title: "Budgets",
@@ -211,6 +241,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "budget.status",
+    explanation:
+      "Whether a particular budget is on track — what you have spent against it and what remains.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/budget",
     title: "Budget status",
@@ -229,6 +262,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "budget.set",
+    explanation:
+      "Setting or changing the limit for a category. I take you to the form; you confirm the amount.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "write",
     route: "/budget/edit",
     title: "Set budget",
@@ -247,6 +283,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "budget.delete",
+    explanation:
+      "Removing a budget you no longer want to track. Your transactions are untouched.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "destructive",
     route: "/budget",
     title: "Remove budget",
@@ -264,6 +303,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "accounts.list",
+    explanation:
+      "The accounts you track — current, savings, card — and what each holds.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "navigate",
     route: "/accounts",
     title: "Accounts",
@@ -278,6 +320,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "account.balance",
+    explanation:
+      "The balance of one account, computed from the transactions recorded against it.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/accounts",
     title: "Account balance",
@@ -295,6 +340,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "account.create",
+    explanation:
+      "Adding another account to track alongside the ones you already have.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "write",
     route: "/accounts/new",
     title: "Add account",
@@ -313,6 +361,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "categories.list",
+    explanation:
+      "The categories transactions can be filed under, and which ones you use most.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "navigate",
     route: "/categories",
     title: "Categories",
@@ -327,6 +378,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "settings.open",
+    explanation:
+      "Where you change how the app behaves — currency, defaults, and how your data is handled.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "navigate",
     route: "/settings",
     title: "Settings",
@@ -341,6 +395,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "settings.currency",
+    explanation:
+      "Changing the currency amounts are shown in. It changes the display, never the recorded values.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "write",
     route: "/settings/currency",
     title: "Change currency",
@@ -358,6 +415,9 @@ export const capabilities = [
   }),
   defineCapability({
     id: "export.data",
+    explanation:
+      "Taking your data out as a file you keep — everything recorded, in a format other tools can read.",
+    explanationSource: "packages/domain-finance/src/capabilities.ts",
     kind: "read",
     route: "/settings/export",
     title: "Export data",

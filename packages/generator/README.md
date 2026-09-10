@@ -15,7 +15,7 @@ node --experimental-strip-types packages/generator/src/cli.ts <config.json> \
 
 | File | What it is |
 |---|---|
-| `registry.<ROLE>.json` | A plain `RegistryFile` holding only what that role can reach. This is what ships. |
+| `registry.<ROLE>.json` | A plain `RegistryFile` holding only what that role can reach, each capability carrying its declared `explanation`. This is what ships. |
 | `master.json` | Every capability with its `roles` annotation, for review and diffing. Never shipped to a browser. |
 | `SKIPPED.md` | Every discovered route that did **not** become a capability, with the application's own words as evidence. |
 | `prose-cache.json` | Model-written descriptions and examples, keyed by a hash of the facts that produced them. This is what makes regeneration deterministic. |
@@ -65,12 +65,29 @@ confidently to the wrong place.
 
 ## Where the model is, and is not
 
-The model writes **prose and nothing else** — a description and example
-utterances. Route, role, id and kind are all decided mechanically before a
-prompt exists, and none of them can be read back out of a completion. That is
-what makes it safe to put the adopter's own page copy in front of a model at all
-(Rule 15): the worst a hostile string in their source can achieve is a bad
-sentence.
+The model writes **prose and nothing else** — a description, a declared
+explanation, and example utterances. Route, role, id and kind are all decided
+mechanically before a prompt exists, and none of them can be read back out of a
+completion. That is what makes it safe to put the adopter's own page copy in
+front of a model at all (Rule 15): the worst a hostile string in their source can
+achieve is a bad sentence, and even that is length-capped.
+
+Three fields, three jobs:
+
+| Field | Job | Read by |
+|---|---|---|
+| `description` | be **distinctive**, so stage 2 can tell this screen from 144 others | the embedder |
+| `explanation` | be **readable**, and answer "what is this screen for?" | the user, verbatim |
+| `examples` | be **the words a user would actually type** | the embedder, and the golden set |
+
+`explanation` is deliberately **not** part of `capabilityDocument`. Adding it
+would change every vector and invalidate every calibrated threshold (Rule 14) —
+it is what gets *served*, not what gets *matched*, and keeping the two apart is
+what lets an adopter rewrite a bad answer without recalibrating anything.
+
+Each explanation carries an `explanationSource`: the adopter's own file, relative
+to their source root. A wrong answer in their assistant is one path away from the
+page that produced it.
 
 Runs without a model at all (`--no-model`), deriving prose from the
 application's own labels. The output is flatter and says so.

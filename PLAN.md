@@ -1,7 +1,7 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **16 workspace packages · 362 tests
-across 20 files, all passing** · **Pilot target: `fut-app`** (§3).
+**Verified against disk:** 2026-09-10 · **Branch:** `feature/plan-execution`, based on `develop` · **16 workspace packages · 384 tests
+across 21 files, all passing** · **Pilot target: `fut-app`** (§3).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
 exist**. Point a tool at an app's source; it generates a capability registry; the app's
@@ -70,8 +70,8 @@ and **WP-25 — the generator** (§7.2, [ADR-014](.claude/decisions/ADR-014.md),
 
 **M1 is measured, and its headline result is split.** WP-19, WP-25, WP-32 and WP-33 all
 landed in this session on `feature/plan-execution`. The assistant **beats** the incumbent
-command palette on a real 146-page app (54.5% vs 45.5%, and by 25–31 points in Portuguese
-and for guardians), and the **model-free rate is 4.3% against a 60% kill criterion**.
+command palette on a real 146-page app (52.3% vs 45.5%, and by 21–27 points in Portuguese
+and for guardians), and the **model-free rate is 2.4% against a 60% kill criterion**.
 
 **Read [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) before doing anything
 else.** The next move is a decision (D-4), not a work package.
@@ -84,7 +84,7 @@ WP-21 (voice acceptance), WP-22 (`apps/web` tests), WP-11 (docs), WP-10 (mobile)
 
 | | Decision | Blocks |
 |---|---|---|
-| **D-4** | **The model-free rate is 4.3%, and the assistant still beats the palette. What is the product now?** | **all of M3** |
+| **D-4** | **The model-free rate is 2.4%, and the assistant still beats the palette. What is the product now?** | **all of M3** |
 | D-3 | How a guided step anchors to an element in an app we do not control | WP-27 |
 | ~~D-1~~ | ✅ decided — both reference apps survive (ADR-013) | — |
 | ~~D-2~~ | ✅ decided — `registry.domainDescription` (ADR-013) | — |
@@ -156,7 +156,7 @@ improved refusal accuracy **in proportion to how badly the model failed** — 0%
 
 ⚠️ **Best evidence against it, measured 2026-09-10 on a real app
 ([WP-33](eval/fut-app/MEASUREMENT.md)):** at **145** capabilities rather than 7, only
-**4.3%** of turns were settled correctly without a model call, and declared boundaries
+**2.4%** of turns were settled correctly without a model call, and declared boundaries
 caught 38% of out-of-scope input rather than 92%. **Both of the mechanisms quoted above
 were measured on a 7-capability registry, and neither survived the move to an adopter's
 scale unchanged.** The *selection* half of the thesis held perfectly — the model still
@@ -258,7 +258,7 @@ met.** That is the whole discipline — without it this becomes a two-year proje
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **A1 · now** | **Navigate · guide · explain, from the app's own source.** Page purposes, i18n labels, headings, form fields, repo docs. Plus `why` — explaining its own decisions from the trace. **Nothing outside the app's topic**, enforced by declared boundaries (ADR-009) | — | WP-25, WP-36, WP-27 |
-| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **entry criterion NOT met** — A1 measured at **4.3%** model-free, not ≥60% (WP-33). Blocked behind D-4 | — |
+| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **entry criterion NOT met** — A1 measured at **2.4%** model-free, not ≥60% (WP-33). Blocked behind D-4 | — |
 | **A3 · later** | **Both, fluidly** — a question answered from data *and* a route to act on it | A2 shipped and its permission model proven | — |
 
 ⚠️ **A1's Q&A must stay model-free to keep the economics.** The mechanism is the same one
@@ -402,7 +402,7 @@ thing to understand about this repo.
 
 ### Tests
 
-362 across 20 files, green 2026-09-10 (`packages/generator` adds 52). `apps/web`,
+384 across 21 files, green 2026-09-10 (`packages/generator` adds 67). `apps/web`,
 `packages/ui` and `services/api` have none.
 
 | Package | Tests | | Package | Tests |
@@ -537,14 +537,14 @@ Full account: [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md).
 
 | | Assistant | `fut-app`'s CommandPalette |
 |---|---|---|
-| Right screen, all 176 routable questions | **54.5%** | 45.5% |
-| Portuguese (116) | **62.1%** | 37.1% |
-| English (60) | 40.0% | **61.7%** |
-| `PARENT` — the ICP (48) | **50.0%** | 18.8% |
-| `COACH` (104) | 57.7% | 57.7% |
-| **Settled correctly with no model call** | **4.3%** | — |
+| Right screen, all 176 routable questions | **52.3%** | 45.5% |
+| Portuguese (116) | **57.8%** | 37.1% |
+| English (60) | 41.7% | **61.7%** |
+| `PARENT` — the ICP (48) | **45.8%** | 18.8% |
+| `COACH` (104) | 56.7% | 57.7% |
+| **Settled correctly with no model call** | **2.4%** | — |
 | Out-of-scope wrongly executed | **61.8%** | — |
-| Latency p50 / p95 | 371ms / 519ms | — |
+| Latency p50 / p95 | 430ms / 548ms | — |
 
 **Retrieval, which is what actually decides the model-free rate:**
 
@@ -558,9 +558,10 @@ split, `nomic-embed-text`):
 
 | Precision floor | Stage-2 accepts | Actual precision |
 |---|---|---|
-| 1.00 / 0.95 / 0.90 | 1.9% | 50.0% |
-| 0.80 | **51.4%** | 68.5% |
-| 0.70 | 67.6% | 62.0% |
+| 1.00 / 0.95 | **none exists** | — |
+| 0.90 | **32.4%** | 70.6% |
+| 0.80 | 65.7% | 59.4% |
+| 0.70 | 82.9% | 50.6% |
 
 There is no operating point that is both free and right. **Stage 1 never fires at all** —
 the generator emits 0 triggers — which is the cheapest untried lever (D-4, WP-38).
@@ -694,6 +695,7 @@ adversarial violation is new, see above).
 | Cascade fixture inherited production `boundaryMargin` | False refusal on a 5-capability toy registry — every real capability scored 0.000 | Calibrate per registry | **`boundaryMargin` is an artefact of the registry too.** Every adopter needs their own calibration — now a product requirement (Rule 14) |
 | WP-14: `body` after `title`/`summary` in the extraction schema | Model returned a bare 24-char header for a multi-section document — schema-valid, useless | Put `body` **first**; output went to 1056 chars | **Field order in a schema is not cosmetic** — small models are lazy about long fields ordered last |
 | WP-14: system prompt stacked several instructions | Laziness recurred once instructions competed | One instruction alone; the rest into field `description`s | Attention degrades with each instruction sharing the message |
+| **2026-09-10 (WP-36): a third output field added to the same completion** | Asking one call for `description` + `examples` + `explanation` cost **7 points of top-1 accuracy** on the pilot target — 54.5% → 47.2% — with nothing else changed. The explanation was fine; the *other two fields* got worse | Two build-time calls: routing prose in one, the served explanation in the other. Build time is cached and paid once; routing accuracy is paid on every turn by every user | **Output fields compete for attention exactly like instructions do.** WP-14's lesson was read as being about the system message; it is about the completion. Adding a field to a working prompt is a change that must be measured, not assumed additive |
 | WP-14: capture inherited the router's 200-token budget | A document truncated to a one-line blurb regardless of wording | `CONTENT_MAX_TOKENS = 1600` | A budget sized for routing is not sized for writing |
 | WP-14: `calibrate.js` filtered on `expect.capability` | Silently skipped the `ambiguous` bucket; a margin of 0 passed because nothing checked it | Filter on the bucket, not the field | **A validation that silently matches nothing reports success** |
 | 2026-09-08: hardcoded finance framing in the stage-3 prompt | *"transfer 500 euros to my brother"* routed to `module.revert` rather than refused | WP-16 | A prompt asserting the wrong identity produces confidently wrong routing that looks like a model failure |
@@ -1062,7 +1064,7 @@ cache rather than a hope about sampling.
 
 ---
 
-### WP-36 · Declared explanations — Ladder A1's "read and explain" ⬜ · **M** · queue 2
+### WP-36 · Declared explanations — Ladder A1's "read and explain" ◐ **BUILT — 2026-09-10** · detection deferred
 
 **Goal.** *"What is a training cycle?"*, *"What does this page do?"*, *"Where do I record
 an injury?"* — answered about **this app and nothing else**.
@@ -1082,17 +1084,78 @@ chat widget with our name on it.** Do not.
 page copy, i18n strings, headings and repo docs (`fut-app` has `PRODUCT.md`,
 `COMPONENT_LIBRARY.md`, `TUTORIAL_SYSTEM_PLAN.md`). Retrieve and serve it.
 
+**Delivered.** `explanation` + `explanationSource` on the capability format, **required by
+`validateRegistry`** for anything that is not a declared limit — a breaking change to the
+format, exactly as `domainDescription` was (WP-16, D-2), and paid the same way: both
+reference apps now carry hand-written explanations (5 for `domain-modules`, 20 for
+`domain-finance`). The generator synthesises them from the page's own copy and doc
+comment, in the application's language, and `TurnTrace.explanation` carries the resolved
+one **verbatim** so any surface can render it. `apps/cli` prints it under the destination.
+
+**The design point that matters:** `explanation` is deliberately **not** part of
+`capabilityDocument`. It is what gets *served*; `description` is what gets *matched*.
+Keeping them apart is what lets an adopter rewrite a bad answer without changing a single
+vector or recalibrating a single threshold (Rule 14, Finding 1).
+
+Two prompt findings, both measured on 145 real screens. The model opened **145 of 145**
+explanations with *"Olá!"* and drifted to Brazilian Portuguese (*"você"*, *"gerenciar"*)
+in an application whose own copy says *"pode"* and *"gerir"*. **The prompt alone fixed
+both** — naming the variant it must *not* use, and telling it to begin with the answer:
+greetings went 145 → **0**, Brazilian markers to **5 of 145**.
+
+A `stripGreeting` guard exists as a backstop and **has never fired**: the regeneration that
+produced those numbers ran with the guard accidentally broken (JavaScript's `\b` is
+ASCII-only, so there is no word boundary between the "á" of *"Olá"* and the "!" after it).
+It is fixed and tested now, but the credit belongs to the instruction, and the honest
+reading is that one clear instruction beat a normalisation — WP-14's finding again.
+
 **Acceptance.**
-- [ ] Every capability carries a declared explanation; `registry:check` enforces it
-- [ ] An explanation request resolves **model-free** and is served verbatim
-- [ ] Off-topic questions are refused by declared boundaries, not by a model
-- [ ] Rule 15: source text reaching a prompt at build time is treated as untrusted, and
-      a prompt-injection attempt in a page string cannot alter a generated explanation
-- [ ] The explanation is traceable to its source file, so a wrong answer is fixable
+- [x] Every capability carries a declared explanation; **validation enforces it**
+      (`explanation-required`), with warnings for one too thin to be an answer and one
+      that cannot be traced to a source
+- [x] Off-topic questions are refused by declared boundaries, not by a model — unchanged
+      by this work package, and its real state is measured in
+      [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) (38.2%, and WP-40's open proposal)
+- [x] Rule 15: source text is quoted as data, the model writes prose only, and the served
+      string is length-capped — asserted in `synthesise.test.ts`, including an injected
+      instruction in page copy
+- [x] The explanation is traceable to its source file — `explanationSource`, the adopter's
+      own path relative to their source root, never ours
+- [ ] ⏸ **An explanation request resolves model-free and is served verbatim** — the
+      *serving* is done and verbatim; the **detection** ("is this a what/why question?") is
+      deliberately **not** built. See below
+
+⚠️ **Why the detection is deferred, and not forgotten.** Deciding *"is this a what/why
+question rather than a request to go somewhere?"* is the same class of mechanism as
+[ADR-015](.claude/decisions/ADR-015.md)'s *"is this a request to act?"* — both read the
+**framing** of an utterance rather than its topic, and ADR-015 already measured that
+framing separates populations the embedder cannot (88.2% vs 2.8%). Building a second,
+competing frame detector before the first is accepted would leave the engine with two
+overlapping ones and no shared calibration. **When ADR-015 is accepted, this reuses its
+frame layer**; that is one small change, not a work package.
+
+Nothing is lost meanwhile: the explanation already rides along with every resolved
+navigation, which is §1.1's actual promise — *take them there **and** tell them what they
+will find*.
 
 **Stop if.** Declared explanations answer fewer than half the golden set's "what/why"
 questions — then A1's Q&A needs runtime generation, the economics change, and that is a
 decision to take deliberately rather than drift into.
+⚠️ **TRIGGERED, by one question: 44 of 89 = 49.4%.** Recorded as triggered rather than
+rounded up, because a threshold you move after seeing the number is not a threshold.
+
+**But read the cause before acting on it.** All 145 capabilities *have* an explanation;
+the 45 misses are turns where **the router reached the wrong screen**, so the right
+explanation was never a candidate. This is the same retrieval problem as
+[D-4](#13-open-decisions) — 52.8% top-1 overall, 49.4% on this bucket — not evidence that
+declared explanations are the wrong mechanism. Nothing here shows a *generated* answer
+would have done better; it would have been generated about the wrong screen.
+
+**So the decision this forces is D-4's, not a separate one.** If WP-38's levers move
+retrieval, this number moves with it and the stop condition clears on its own. If they do
+not, then A1's Q&A genuinely needs runtime generation — and that is the same repositioning
+D-4 already puts in front of the owner. **Do not switch to per-turn generation on the
+strength of this number alone.**
 
 ---
 
@@ -1197,28 +1260,28 @@ against the CommandPalette baseline.
 `inspect-retrieval.mjs`.
 
 > On a 146-page application it was never designed for, against a registry no human wrote,
-> the assistant sent users to the right screen for **54.5%** of real questions — against
-> **45.5%** for the command palette that app already ships — but only **4.3%** of turns
+> the assistant sent users to the right screen for **52.3%** of real questions — against
+> **45.5%** for the command palette that app already ships — but only **2.4%** of turns
 > were settled correctly **without a model call**, against a target of 60%.
 >
 > **It beats the incumbent. It does not yet beat the incumbent for free.**
 
 | | Number | |
 |---|---|---|
-| 1 | Model-free resolution **4.3%** (9/210 settled correctly, no model call) | ❌ **kill criterion triggered** |
+| 1 | Model-free resolution **2.4%** (5/210 settled correctly, no model call) | ❌ **kill criterion triggered** |
 | 2 | Generated vs hand-written gap: **none measurable** — 100% route and role match on all 45 judged routes | ✅ automation is not the bottleneck |
-| 3 | Assistant **54.5%** vs CommandPalette **45.5%** | ✅ beats the incumbent |
+| 3 | Assistant **52.3%** vs CommandPalette **45.5%** | ✅ beats the incumbent |
 
-**It wins exactly where the product is aimed** — Portuguese **62.1% vs 37.1%**, `PARENT`
-**50.0% vs 18.8%** — ties on `COACH` (the role that already knows the menu) and **loses in
-English** (40.0% vs 61.7%), where the questions borrow the English menu words the substring
-matcher wants.
+**It wins exactly where the product is aimed** — Portuguese **57.8% vs 37.1%**, `PARENT`
+**45.8% vs 18.8%** — draws level on `COACH` (the role that already knows the menu) and
+**loses in English** (41.7% vs 61.7%), where the questions borrow the English menu words
+the substring matcher wants.
 
 **Acceptance.**
 - [x] Scorecards committed — `scorecard-ollama-llama3_1_8b.json`, plus calibrated
       thresholds and the retrieval inspection
 - [x] All three numbers stated explicitly, per role and per language
-- [x] Latency per stage, models warmed, run sequentially — p50 **371ms**, p95 **519ms**;
+- [x] Latency per stage, models warmed, run sequentially — p50 **430ms**, p95 **548ms**;
       200 of 210 turns reached stage 3
 - [x] Failures categorised — see MEASUREMENT.md: the model-free failure is *bad threshold
       **and** bad encoder*, not bad declaration; the out-of-scope failure is *too few
@@ -1248,7 +1311,7 @@ matcher wants.
 CommandPalette. The first kills the cost argument; the second kills the reason to adopt
 at all. Either way **write the number down** — a negative result here is a real finding
 and a publishable one.
-⚠️ **The first TRIGGERED at 4.3%, and it is not a near miss. The second did not.** The two
+⚠️ **The first TRIGGERED at 2.4%, and it is not a near miss. The second did not.** The two
 criteria disagree, and that disagreement is the result: the product is more useful than
 what it replaces, for the users it is meant to serve, while the mechanism that was
 supposed to make it cheap does not work at this registry size. **The number is published
@@ -1258,7 +1321,7 @@ in MEASUREMENT.md.** The repositioning decision is D-4 (§13) and it belongs to 
 
 ### WP-38 · The three model-free levers ⬜ · **M** · queue 1 · blocked by **D-4**
 
-**Goal.** Find out, on a fixed budget, whether the 4.3% model-free rate is a property of
+**Goal.** Find out, on a fixed budget, whether the 2.4% model-free rate is a property of
 this design or of three things nobody has tried yet. **Do not start before D-4 is
 answered**, and do not exceed the budget the owner sets — §9's most likely failure is
 scope death, and "make the model-free path work" is exactly the kind of open-ended chase
@@ -1588,8 +1651,8 @@ M1  THE MEASUREMENT   WP-31 ✅ → WP-30 SPIKE ✅ GO → WP-25 generator ✅
      MEASURED          → WP-32 golden set + palette baseline ✅
      2026-09-10        → WP-33 MEASURE ✅   ◄── the milestone that mattered
                             │
-                       ⟨ KILL GATE: model-free <60%  ⇒ ⚠️ TRIGGERED at 4.3%
-                         loses to the CommandPalette ⇒ ✅ did not: 54.5% vs 45.5% ⟩
+                       ⟨ KILL GATE: model-free <60%  ⇒ ⚠️ TRIGGERED at 2.4%
+                         loses to the CommandPalette ⇒ ✅ did not: 52.3% vs 45.5% ⟩
                             │
                        ⚠️ D-4 — the owner decides: accept a model call per turn,
                           fix the model-free path (WP-38), or reposition the claim.
@@ -1634,8 +1697,8 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 |---|---|
 | WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
 | **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
-| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 4.3%.** The cost advantage — the whole commercial argument — is gone as stated. Reposition or stop: **D-4**. The number is published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
-| ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 54.5% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
+| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%.** The cost advantage — the whole commercial argument — is gone as stated. Reposition or stop: **D-4**. The number is published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
+| ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 52.3% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
 | WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
 | WP-27 anchors mispoint rather than degrade | Ship navigation only |
 | **WP-26 cannot integrate without editing the target's source** | Rule 16 is the product. The packaging model is wrong; rethink before shipping |
@@ -1654,7 +1717,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | **high** | **OPEN, and it replaces the old "pilot proves mechanism not value" risk.** `fut-app` is route-rich, role-gated and real, so it does prove value — but it is ours, and a generator built against it may not transfer. WP-28 (a target we do not own) is the remaining unproven step |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
-| **Model-free rate is the business model** | **critical** | ⚠️ **MEASURED AND FAILED 2026-09-10 — WP-33: 4.3%**, against a 60% kill criterion. Not a near miss. Two measured causes: the browser-capable encoder gets 4.0% recall@1 at 145 capabilities, and no threshold gives both coverage and precision. **This is now D-4, an open decision, not a risk** |
+| **Model-free rate is the business model** | **critical** | ⚠️ **MEASURED AND FAILED 2026-09-10 — WP-33: 2.4%**, against a 60% kill criterion. Not a near miss. Two measured causes: the browser-capable encoder gets 4.0% recall@1 at 145 capabilities, and no threshold gives both coverage and precision. **This is now D-4, an open decision, not a risk** |
 | **The browser-capable encoder does not work at adopter scale** | **critical** | **OPEN — new, 2026-09-10 (WP-33).** `hashing` (TF-IDF, zero-dependency, the one ADR-008's offline claim and WP-24's design both rest on) scores **4.0% recall@1** against `nomic-embed-text`'s 48.9%. §9 logged this as "never tested at that size"; it is now tested and it fails. WP-24 needs a real sentence encoder in the browser or a different plan |
 | **Declared boundaries lose to a large registry** | **high** | **OPEN, and now diagnosed — 2026-09-10 (WP-33, WP-39).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% on the 7-capability reference app; measured on the hand-written third of the golden set, so not circular. **The obvious fix was built and reverted:** section-scoped boundaries raised the boundary's score 0.594 → 0.690 and moved detection **0.0 points**. Cause: cosine similarity ranks by *topic*, and out-of-scope-ness here is carried by the *verb* — "show me my son's medical status" and "book my son an appointment" are the same topic and opposite requests. **Needs an ADR-009 amendment, not a bigger catalogue → WP-40** |
 | §5's numbers are not reproducible | high | **RESOLVED 2026-09-09** — WP-17. Cold-start artefact; warm numbers match the original claim. See §5 |
@@ -1688,7 +1751,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 pnpm -r typecheck
-pnpm -r test                                       # 362 tests, 20 files
+pnpm -r test                                       # 384 tests, 21 files
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
@@ -1801,13 +1864,13 @@ breaking change to `RegistryFile`, so both reference apps and the codegen move t
 
 ---
 
-**D-4 · The model-free rate is 4.3%. What is the product now?** — ⚠️ **OPEN, and it
+**D-4 · The model-free rate is 2.4%. What is the product now?** — ⚠️ **OPEN, and it
 blocks M3 entirely.** *Raised 2026-09-10 by [WP-33](eval/fut-app/MEASUREMENT.md), whose
 kill criterion triggered.*
 
 The measurement says two things at once: the assistant **beats** the command palette it
-replaces (54.5% vs 45.5%, and by 25–31 points in Portuguese and for guardians), and the
-mechanism meant to make that cheap **does not work** at 145 capabilities (4.3% settled
+replaces (52.3% vs 45.5%, and by 21–27 points in Portuguese and for guardians), and the
+mechanism meant to make that cheap **does not work** at 145 capabilities (2.4% settled
 without a model call, against a 60% target). PLAN.md §8 pre-committed to "reposition or
 stop" on the second. It did not anticipate the first being good at the same time.
 

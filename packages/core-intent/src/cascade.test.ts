@@ -30,12 +30,14 @@ const registryFile = defineRegistry({
     defineCapability({
       id: 'budget.view', kind: 'navigate', route: '/budget',
       title: 'Budgets', description: 'Open the budgets screen and see every budget',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       triggers: ['budget', 'budgets', 'my budgets'], examples: ex(3),
     }),
     defineCapability({
       id: 'spending.by_category', kind: 'read', route: '/spending',
       title: 'Spending by category',
       description: 'Break spending down by category over a period of time',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: {
         category: { type: 'enum:Category', required: true },
         from: { type: 'date', required: true },
@@ -46,12 +48,14 @@ const registryFile = defineRegistry({
     defineCapability({
       id: 'transaction.create', kind: 'write', route: '/transactions/new',
       title: 'Add a transaction', description: 'Record a new transaction against an account',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { amount: { type: 'money', required: true } },
       examples: ex(3),
     }),
     defineCapability({
       id: 'budget.delete', kind: 'destructive', route: '/budget/delete',
       title: 'Delete a budget', description: 'Permanently remove a budget for a category',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { category: { type: 'enum:Category', required: true } },
       examples: ex(3),
     }),
@@ -145,6 +149,26 @@ describe('cascade — stage selection', () => {
     const trace = await route('what did the weekend cost me', ctx, await deps(runtime));
     expect(runtime.callCount).toBe(1);
     expect(trace.decidedAt).toBe(STAGE.LLM);
+  });
+});
+
+/**
+ * WP-36. §1.1's promise is two things — *"it takes them to the right place, and
+ * tells them what to do once they are there"*. The second half is a string
+ * declared when the registry was built and copied onto the trace unchanged; no
+ * model is involved at run time, so it costs nothing and cannot drift.
+ */
+describe('cascade — the declared explanation travels with the turn', () => {
+  it('carries the resolved capability’s explanation, verbatim', async () => {
+    const d = await deps();
+    const trace = await route('my budgets', ctx, d);
+    expect(trace.capabilityId).toBe('budget.view');
+    expect(trace.explanation).toBe(d.registry.byId.get('budget.view')!.explanation);
+  });
+
+  it('leaves it null when nothing was resolved', async () => {
+    const trace = await route('something entirely unrelated xyzzy', ctx, await deps());
+    if (trace.capabilityId === null) expect(trace.explanation).toBeNull();
   });
 });
 

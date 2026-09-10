@@ -67,6 +67,7 @@ export async function route(
     requiresConfirmation: false,
     kind: null,
     route: null,
+    explanation: null,
     latency: {},
     notes: [],
   };
@@ -91,6 +92,9 @@ export async function route(
     trace.decidedAt = stage;
     trace.kind = cap.kind;
     trace.route = cap.route;
+    // Declared at build time, served verbatim (WP-36). This is the second half
+    // of the promise — take them there, and tell them what they will find.
+    trace.explanation = cap.explanation ?? null;
 
     const { params: deterministic, missing } = resolveSlots(cap, utterance, ctx, registry.enums);
 

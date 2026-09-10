@@ -135,6 +135,7 @@ that matter.
 | No accuracy regression beyond tolerance | `tooling/scripts/check-scorecard.mjs` against the committed baseline, CI `golden-set` job | **enforced** |
 | Adversarial to destructive count stays zero | `safetyViolations` in the scorecard | **enforced (release blocker)** |
 | Rule 12 — a routing bug is fixed only as a permanent golden-set entry | none — process only | **convention** |
+| A prompt change does not regress top-1 accuracy | none. `eval/fut-app/evaluate-golden.mjs` measures it, nothing runs it, and the golden-set job covers the reference registry only — not a generated one | **none — cost 7 points once ([L9](lessons.md))** |
 
 `eval/scorecards/` is deliberately **not** gitignored: accuracy changes have to
 appear in the PR diff and be discussed, not silently absorbed.
@@ -296,8 +297,10 @@ session rather than claiming the set.
 | 13 | Limits declared in the registry | `unsupported` kind, `defineBoundary`, domain tests | **test** |
 | 14 | Thresholds calibrated per encoder | `check-thresholds.mjs`, CI | **gate (new)** |
 | 15 | Domain content untrusted in a prompt | declaration comments only | convention — **violated** |
-| 16 | The installer never modifies the adopter's source | none yet — WP-25 and WP-26 acceptance both require a mechanical check (`git status` in the target shows only new files) | **none — new rule, 2026-09-09** |
-| 17 | An unreachable capability is absent from the user's registry | none yet — WP-25 acceptance requires a test that diffs two role registries | **none — new rule, 2026-09-09** |
+| 16 | The installer never modifies the adopter's source | `emit.test.ts` (`writeOutput` refuses an output dir inside `appRoot`) + `generate.test.ts` fingerprints the whole fixture tree before and after a run | **test (2026-09-10, WP-25)** |
+| 17 | An unreachable capability is absent from the user's registry | `emit.test.ts` diffs two role registries; `score-generated.mjs` re-checks all 10 generated registries against the master on every scoring run | **test (2026-09-10, WP-25)** |
+| — | Every capability can say what it is (WP-36) | `explanation-required` in `validate.ts`, gated by `pnpm registry:check` | **gate (2026-09-10)** |
+| — | Top-1 accuracy does not regress across a prompt change | none — `evaluate-golden.mjs` would catch it, nothing runs it. Cost 7 points once already ([L9](lessons.md)) | **none** |
 
 ---
 

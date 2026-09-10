@@ -74,6 +74,22 @@ describe('generate — end to end, with no model', () => {
     expect(guardian).not.toContain('admin.users');
   });
 
+  /**
+   * WP-36. "What is this page?" is answered from a string written at build
+   * time and served verbatim — the same move ADR-009 made for refusals.
+   * Generating one per turn would forfeit the cost argument entirely.
+   */
+  it('gives every capability something to say about itself, traceable to a file', async () => {
+    const output = await run();
+    for (const capability of output.master) {
+      expect(capability.explanation?.length ?? 0).toBeGreaterThan(29);
+      // Relative to the adopter's own source root, forward slashes, no drive
+      // letter — our machine must not end up in their bundle.
+      expect(capability.explanationSource).toMatch(/^features\/.*\.tsx$/);
+      expect(capability.explanationSource).not.toMatch(/^[a-zA-Z]:|\\|^\//);
+    }
+  });
+
   it('declares at least two limits, each with wording of its own', async () => {
     const output = await run();
     expect(output.boundaries.length).toBeGreaterThanOrEqual(2);

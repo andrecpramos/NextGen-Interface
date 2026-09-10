@@ -23,6 +23,14 @@ export interface CapabilityDefinition {
   readonly route: string;
   readonly title: string;
   readonly description: string;
+  /**
+   * What the user is told when they ask what this is (WP-36). Served verbatim,
+   * never generated per turn. Required — a capability without one is a question
+   * the assistant would have to escalate or invent an answer to.
+   */
+  readonly explanation: string;
+  /** Where that text came from, so a wrong answer can be traced and fixed. */
+  readonly explanationSource?: string;
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;
   /** At least three (coding-standards.md). The validator enforces it. */
@@ -62,6 +70,8 @@ export function defineCapability(def: CapabilityDefinition): Capability {
     route: def.route,
     title: def.title,
     description: def.description,
+    explanation: def.explanation,
+    ...(def.explanationSource ? { explanationSource: def.explanationSource } : {}),
     ...(def.triggers ? { triggers: def.triggers } : {}),
     ...(def.params ? { params: def.params } : {}),
     examples: def.examples,

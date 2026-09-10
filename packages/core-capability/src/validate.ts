@@ -140,6 +140,23 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     warn(id, 'description-thin', `"${id}" has a very short description; stage-2 margin depends on it being distinctive`);
   }
 
+  // --- the declared explanation (WP-36) ---------------------------------------
+  // "What is this / what does this page do" is answered from a string written
+  // once, not from a model called per turn. A capability with no explanation is
+  // a question the assistant has to escalate or guess at, which is exactly the
+  // chat-widget failure Ladder A1 exists to avoid. A declared limit is exempt:
+  // its `refusal` already answers the same question.
+  if (!isBoundary) {
+    if (!cap.explanation?.trim()) {
+      err(id, 'explanation-required', `"${id}" has no explanation — "what is this?" would have to be generated per turn (WP-36)`);
+    } else if (cap.explanation.trim().length < 30) {
+      warn(id, 'explanation-thin', `"${id}" has a very short explanation; it is served to the user verbatim`);
+    }
+    if (cap.explanation?.trim() && !cap.explanationSource?.trim()) {
+      warn(id, 'explanation-untraceable', `"${id}" has an explanation with no source — a wrong answer cannot be traced back to fix it`);
+    }
+  }
+
   // --- examples: the ≥3 rule from coding-standards.md -------------------------
   // Not documentation. They are the retrieval document, the few-shot pool and
   // the golden-set fixtures, so a capability with two of them is under-specified

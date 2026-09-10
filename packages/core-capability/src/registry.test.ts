@@ -15,6 +15,8 @@ const ok = (over: Partial<Parameters<typeof defineCapability>[0]> = {}) =>
     route: '/transactions',
     title: 'Transactions',
     description: 'Browse and filter the full list of recorded transactions',
+    explanation: 'This screen lists every transaction you have recorded, newest first, and lets you filter them by date, category or account.',
+    explanationSource: 'src/features/transactions/TransactionsPage.tsx',
     examples: ex(3),
     ...over,
   } as Parameters<typeof defineCapability>[0]);
@@ -178,7 +180,55 @@ describe('validateRegistry — boundary entries', () => {
   });
 });
 
+/**
+ * WP-36. "What is this page?" is answered from a string written once at build
+ * time, not from a model called per turn — the same move ADR-009 made for
+ * refusals. A capability with no explanation is a question the assistant has to
+ * escalate or invent an answer to, which is the chat-widget failure Ladder A1
+ * exists to avoid.
+ */
+describe('validateRegistry — the declared explanation', () => {
+  it('rejects a capability that cannot say what it is', () => {
+    expect(rules(registryOf(ok({ explanation: '' })))).toContain('explanation-required');
+  });
+
+  it('warns when the served text is too short to be an answer', () => {
+    const result = validateRegistry(registryOf(ok({ explanation: 'A page.' })));
+    expect(result.ok).toBe(true);
+    expect(result.warnings.map((w) => w.rule)).toContain('explanation-thin');
+  });
+
+  it('warns when a wrong answer could not be traced back to its source', () => {
+    const untraceable = { ...ok() } as Capability & { explanationSource?: string };
+    delete untraceable.explanationSource;
+    const result = validateRegistry(registryOf(untraceable));
+    expect(result.warnings.map((w) => w.rule)).toContain('explanation-untraceable');
+  });
+
+  // A declared limit answers "what is this?" with its refusal, so requiring a
+  // second string would be asking for the same sentence twice.
+  it('does not require one from a declared limit', () => {
+    const b = defineBoundary({
+      id: 'unsupported.thing', title: 'Thing',
+      description: 'Something this application deliberately does not do',
+      examples: ex(3), refusal: 'Not something I do.',
+    });
+    expect(rules(registryOf(ok(), b))).not.toContain('explanation-required');
+  });
+});
+
 describe('capabilityDocument — the retrieval text', () => {
+  /**
+   * The explanation is what gets *served*; the description is what gets
+   * *matched*. Keeping them apart is what lets an adopter rewrite a bad answer
+   * without invalidating every embedding and every calibrated threshold
+   * (Rule 14, Finding 1).
+   */
+  it('does not embed the explanation', () => {
+    const withExplanation = ok({ explanation: 'Zzyzx quixotic explanation text that appears nowhere else.' });
+    expect(capabilityDocument(withExplanation)).not.toContain('Zzyzx');
+  });
+
   it('joins title, description, triggers and example phrasings', () => {
     const c = ok({ triggers: ['transactions'], examples: ['show my transactions', 'b', 'c'] });
     expect(capabilityDocument(c)).toBe(

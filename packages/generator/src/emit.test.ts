@@ -14,6 +14,8 @@ const capability = (id: string, roles: string[]): AnnotatedCapability => ({
   route: `/${id.replace('.', '/')}`,
   title: id,
   description: `The ${id} screen, described well enough for stage-2 retrieval to have something to work with.`,
+  explanation: `This is the ${id} screen. You come here to see what it holds and to work with it directly.`,
+  explanationSource: `src/features/${id.split('.')[0]}/pages/Page.tsx`,
   examples: ['one example', 'another example', 'a third example'],
   roles,
 });

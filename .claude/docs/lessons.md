@@ -167,6 +167,39 @@ containing regexes, backslashes, or `$`. Heredocs are for short, literal text.
 
 ---
 
+## L9 · Output fields compete for attention like instructions do
+
+**What happened.** WP-36 added an `explanation` field to the generator's prose
+prompt — the one already producing `description` and `examples` for every screen.
+The explanations came out fine. **Top-1 routing accuracy fell from 54.5% to
+47.2%** on the pilot target, with nothing else changed: the *other two fields* got
+worse, and the margin over the incumbent command palette collapsed from +9.0
+points to +1.7.
+
+**Why it was hard to see.** The change looked additive. WP-14 had already produced
+the neighbouring lesson — *"one instruction alone; the rest into field
+descriptions"* — and it was followed: the system message still carried a single
+instruction, and the new field went into the schema exactly as that lesson
+prescribes. The lesson had been read as being about the *system message*. It is
+about the *completion*. Nothing in the diff suggested the two existing fields
+would degrade, and nothing would have caught it except re-running the measurement.
+
+**Fixed.** Two build-time calls per screen: routing prose in one, the served
+explanation in the other. Build time is cached and paid once; routing accuracy is
+paid on every turn by every user, so the trade is not close.
+
+**The lesson.** **Adding a field to a working prompt is a change to the fields
+already in it.** Treat it the way you would treat editing them — measure before
+and after — and prefer a second call over a third field whenever the fields serve
+different consumers. Here one is read by an embedder and one by a person, which
+was the tell.
+
+**Enforcement:** level 4 — written down only. `evaluate-golden.mjs` would catch a
+recurrence, but nothing runs it automatically, and no gate compares top-1 across a
+prompt change.
+
+---
+
 ## Adding a lesson
 
 Add an entry when a bug's cause was **not locally obvious** — when someone

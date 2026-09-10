@@ -52,6 +52,10 @@ defineCapability({
   title: 'Remember this',
   description:                       // what a USER would say it does, not what the code does
     'Save something the user wants remembered — extract the important information ...',
+  explanation:                       // REQUIRED. What the user is TOLD when they ask what
+    'Saving something you want to remember. Tell me the thing ...',  // this is. Served
+  explanationSource:                 // verbatim, never generated per turn (WP-36).
+    'packages/domain-modules/src/capabilities.ts',
   triggers: ['remember this', 'save this', 'take a note'],
   params: {
     body: { type: 'string', required: false, description: 'what you want me to remember' },
@@ -138,6 +142,8 @@ has to stay zero.
 - [ ] `kind` matches what the capability actually does to data
 - [ ] Route exists and is reachable without the AI (Rule 7)
 - [ ] >=3 examples, in real user phrasing
+- [ ] An `explanation` a user would actually want to read — it is served to them
+      verbatim, so write it for them, not for the embedder (WP-36)
 - [ ] `pnpm registry:check` passes
 - [ ] Generated artefacts regenerated and staged in the same commit
 - [ ] `pnpm router:floor` compared against the committed baseline, no regression

@@ -11,6 +11,7 @@
       "route": "/",
       "title": "Main",
       "description": "Main — part of the app area of the application, at /.",
+      "explanation": "Main is a screen in the app area of this application, at /.",
       "examples": [
         "open main",
         "take me to main",
@@ -27,6 +28,8 @@
       "route": "/politica-de-privacidade",
       "title": "Politica Privacidade",
       "description": "Politica Privacidade — part of the politica area of the application, at /politica-de-privacidade.",
+      "explanation": "Politica Privacidade is a screen in the politica area of this application, at /politica-de-privacidade. It shows: ← Voltar, Política de Privacidade, Última atualização: Abril 2025, 1. Quem somos.",
+      "explanationSource": "pages/PoliticaPrivacidade/PoliticaPrivacidade.jsx",
       "examples": [
         "open politica privacidade",
         "take me to politica privacidade",

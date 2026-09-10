@@ -677,8 +677,17 @@ export class NextGenApp {
       }
       default: {
         // A navigate capability with nothing to read: the route already changed.
+        // The declared explanation rides along (WP-36) — §1.1's promise is to
+        // take the user there *and* tell them what they will find. It was
+        // written when the registry was built, so printing it costs nothing.
         const cap = this.#registry.byId.get(capabilityId);
-        return { lines: [`→ ${cap?.route ?? '/'}  (${cap?.title ?? capabilityId})`], dataRead: [] };
+        return {
+          lines: [
+            `→ ${cap?.route ?? '/'}  (${cap?.title ?? capabilityId})`,
+            ...(cap?.explanation ? [cap.explanation] : []),
+          ],
+          dataRead: [],
+        };
       }
     }
   }

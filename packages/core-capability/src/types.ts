@@ -88,7 +88,38 @@ export interface Capability {
   readonly kind: string;
   readonly route: string | null;
   readonly title: string;
+  /**
+   * What this capability is, for **retrieval**. Machine-facing: it is part of
+   * the document stage 2 embeds, and its job is to be distinctive.
+   */
   readonly description: string;
+  /**
+   * What a user is told when they ask *"what is this / what does this page
+   * do"* — **served verbatim, never generated per turn** (WP-36).
+   *
+   * This is the same move [ADR-009](../../../.claude/decisions/ADR-009.md) made
+   * for refusals, applied to answers. Written once at build time from the
+   * application's own copy, it stays model-free, reproducible and auditable, and
+   * a wrong answer is fixed by editing a string rather than by tuning a prompt.
+   * Generating one per turn would forfeit the whole cost argument and make this
+   * a chat widget with our name on it (PLAN.md §1.6, Ladder A1).
+   *
+   * Deliberately **not** part of `capabilityDocument`. Adding it would change
+   * every vector and invalidate every calibrated threshold (Rule 14, Finding 1)
+   * — the explanation is what gets *served*, not what gets *matched*.
+   *
+   * Required on everything that is not a declared limit; a limit answers the
+   * same question with its `refusal`.
+   */
+  readonly explanation?: string;
+  /**
+   * Where the explanation came from — a path in the adopter's source.
+   *
+   * WP-36's acceptance: "the explanation is traceable to its source file, so a
+   * wrong answer is fixable". Without it, a bad sentence in an adopter's
+   * assistant is unattributable and therefore unfixable.
+   */
+  readonly explanationSource?: string;
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;
   readonly examples?: readonly (string | CapabilityExample)[];

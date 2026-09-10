@@ -99,10 +99,10 @@ export type Result<T> =
 
 ## Capability declarations
 
-Every capability carries a description, triggers, typed params, and **at least
-three examples**. The examples feed the golden-set generator and the few-shot
-pool — an under-documented capability is a failing CI gate (`pnpm registry:check`),
-not a style nit.
+Every capability carries a description, an **explanation**, triggers, typed params,
+and **at least three examples**. The examples feed the golden-set generator and the
+few-shot pool — an under-documented capability is a failing CI gate
+(`pnpm registry:check`), not a style nit.
 
 ```ts
 defineCapability({
@@ -110,9 +110,13 @@ defineCapability({
   kind: 'write',                     // selects the dispatcher policy — ADR-004
   route: '/modules/new',
   title: 'Remember this',
-  description:
+  description:                       // MATCHED: stage 2 embeds this
     'Save something the user wants remembered — extract the important information ' +
     'from what they said, wrote, or uploaded, and file it as a module',
+  explanation:                       // SERVED: the user reads this, verbatim (WP-36)
+    'Saving something you want to remember. Tell me the thing — a password, a date, ' +
+    'a phone number — and I file it as a module.',
+  explanationSource: 'packages/domain-modules/src/capabilities.ts',
   triggers: ['remember this', 'save this', 'take a note'],
   params: {
     body: { type: 'string', required: false, description: 'what you want me to remember' },
@@ -128,6 +132,18 @@ defineCapability({
 The **description is the retrieval surface** — stage 2 embeds it. Two
 capabilities whose descriptions overlap semantically compete, and both get worse.
 Differentiate by what makes them different, not by adding adjectives to both.
+
+The **explanation is the answer surface** — it is what a user is told, verbatim,
+and it is deliberately **not** embedded. Keeping the two apart is what lets you
+rewrite a bad answer without shifting a single vector or recalibrating a single
+threshold (Rule 14). Write the description for the embedder and the explanation
+for the person.
+
+⚠️ **When a model writes these, ask for them in separate calls.** Adding
+`explanation` to the completion that already produced `description` and `examples`
+cost **7 points of top-1 accuracy** on a real registry — the explanation was fine
+and the other two fields got worse. Output fields compete for attention exactly
+like stacked instructions do (§6 of PLAN.md, and WP-14 before it).
 
 Declarations generate three artefacts (`pnpm registry:build`): the registry the
 router reads, the route table the app reads, and the golden-set fixtures that

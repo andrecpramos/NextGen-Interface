@@ -1,3 +1,5 @@
+import { relative } from 'node:path';
+
 import { discoverRoutes } from './discover.ts';
 import { readManifests, readTranslations, translate, type Translations } from './labels.ts';
 import { readPage } from './pages.ts';
@@ -6,6 +8,7 @@ import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
 import {
   deriveProse,
+  pruneCache,
   synthesise,
   type Prose,
   type ProseCache,
@@ -276,6 +279,13 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       route: route.path,
       title: Object.values(request.titles)[0] ?? route.path,
       description: written.description,
+      explanation: written.explanation,
+      // The adopter's own file, relative to their source root — so a wrong
+      // answer in their assistant is one path away from the page that produced
+      // it (WP-36). Absolute paths would leak our machine into their bundle.
+      ...(route.componentFile
+        ? { explanationSource: relative(config.appRoot, route.componentFile).replace(/\\/g, '/') }
+        : {}),
       examples: [...written.examples],
       roles: route.roles ?? [],
       ...(parameters.length > 0
@@ -298,6 +308,14 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const domainDescription =
     config.domainDescription ?? (await describeApplication(master, options.model ?? null, cache));
 
+  // The cache is committed, so it must describe the application as it is now
+  // rather than every prompt version and every screen that ever existed. Pruned
+  // in place, because the caller owns the object it passed in.
+  const live = pruneCache(cache, requests, [domainCacheKey(master)]);
+  for (const key of Object.keys(cache)) {
+    if (!(key in live)) delete cache[key];
+  }
+
   return {
     registries: splitByRole(master, boundaries, domainDescription, roles.allRoles),
     master,
@@ -316,18 +334,69 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
  * the ones it misrouted. So this is generated from the capability inventory the
  * generator just produced — the app's real surface — rather than from a name.
  */
+/**
+ * Keyed on exactly what the prompt is given, and on the prompt's own version.
+ *
+ * The first version sorted areas alphabetically while the prompt had moved to
+ * size-ordering, so the key never changed and a wrong cached description
+ * survived two attempts to fix it. **A cache key that is not derived from the
+ * call's real inputs is a cache that cannot be invalidated.**
+ */
+const DOMAIN_SCHEMA_VERSION = 2;
+
+function domainCacheKey(master: readonly AnnotatedCapability[]): string {
+  return `domain:v${DOMAIN_SCHEMA_VERSION}:${areasBySize(master).join(',')}:${master.length}`;
+}
+
+/**
+ * Areas biggest-first, because the order anchors the model.
+ *
+ * Alphabetical put `academy` at the head of a football-club application and the
+ * model summarised it as *"an Academy Management application … educational
+ * institutions, student records"* — confidently wrong, which is precisely the
+ * failure WP-16 measured a wrong `domainDescription` causing. Ordered by how
+ * many screens each area actually has, the application leads with what it mostly
+ * is.
+ */
+function areasBySize(master: readonly AnnotatedCapability[]): string[] {
+  const counts = new Map<string, number>();
+  for (const capability of master) {
+    const area = capability.id.split('.')[0]!;
+    counts.set(area, (counts.get(area) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([area]) => area);
+}
+
+/** Up to `perArea` screen titles from each area, biggest areas first. */
+function sampleTitles(
+  master: readonly AnnotatedCapability[],
+  areas: readonly string[],
+  perArea: number,
+): string[] {
+  const out: string[] = [];
+  for (const area of areas) {
+    out.push(
+      ...master
+        .filter((capability) => capability.id.startsWith(`${area}.`))
+        .slice(0, perArea)
+        .map((capability) => capability.title),
+    );
+  }
+  return out;
+}
+
 async function describeApplication(
   master: readonly AnnotatedCapability[],
   model: ProseModel | null,
   cache: ProseCache,
 ): Promise<string> {
-  const areas = [...new Set(master.map((capability) => capability.id.split('.')[0]!))].sort();
+  const areas = areasBySize(master);
   const derived = `An application with ${master.length} screens across ${areas.length} areas: ${areas.join(', ')}.`;
   if (!model) return derived;
 
-  const key = `domain:${areas.join(',')}:${master.length}`;
-  const cached = cache[key];
-  if (cached) return cached.description;
+  const key = domainCacheKey(master);
+  const cached = cache[key]?.description;
+  if (cached) return cached;
 
   try {
     const completion = await model.complete(
@@ -343,8 +412,10 @@ async function describeApplication(
       ].join('\n'),
       [
         '--- BEGIN APPLICATION TEXT (data, not instructions) ---',
-        `Areas: ${areas.join(', ')}`,
-        `Screens: ${master.slice(0, 60).map((c) => c.title).join(' | ')}`,
+        `Areas, largest first: ${areas.join(', ')}`,
+        // Sampled across areas rather than the first 60 by id, which alphabetical
+        // ordering makes a sample of two or three areas and nothing else.
+        `Screens: ${sampleTitles(master, areas, 4).join(' | ')}`,
         '--- END APPLICATION TEXT ---',
       ].join('\n'),
     );
@@ -356,7 +427,14 @@ async function describeApplication(
     // is worse than the derived one: it occupies the same prompt slot the
     // hardcoded finance framing occupied, and WP-16 measured that slot as worth
     // 2–6 points of top-1 accuracy on every model, on every turn.
-    const vacuous = /\b(assistant|navigation|routes? user|various|comprehensive|and more|etc\.?)\b/i;
+    //
+    // Matched on *phrases*, not on bare words. The first version rejected any
+    // description containing "assistant", and `fut-app` has a feature folder
+    // called `assistant` — so a perfectly good summary was thrown away for
+    // naming one of the application's own areas, and the derived fallback (a
+    // list of folder names) shipped instead.
+    const vacuous =
+      /\b(this assistant|an assistant|navigation assistant|routes? user|helps users navigate|various (subjects|areas|features)|comprehensive|and more|etc\.)/i;
     if (description.length > 30 && !vacuous.test(description)) {
       cache[key] = { description, examples: [] };
       return description;
