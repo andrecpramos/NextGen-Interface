@@ -579,8 +579,9 @@ Full account: [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md).
 
 | Encoder | recall@1 | recall@5 | Browser-capable, no network? |
 |---|---|---|---|
-| `hashing` — TF-IDF, zero dependencies | **4.0%** | 11.4% | **yes** — the one ADR-008 and WP-24 assume |
-| `nomic-embed-text` | **48.9%** | 67.6% | no |
+| ~~`hashing`, broken harness~~ | ~~4.0%~~ | ~~11.4%~~ | ⚠️ **RETRACTED** — instrument fault, [L10](.claude/docs/lessons.md) |
+| **`hashing` — TF-IDF, zero dependencies** | **50.0%** | **75.6%** | **yes** — the one ADR-008 and WP-24 assume |
+| `nomic-embed-text` | **50.0%** | 73.3% | no |
 
 **And the trade-off no single threshold can hide** (calibrated per Rule 14, held-out
 split, `nomic-embed-text`):
@@ -1348,11 +1349,21 @@ the substring matcher wants.
 
 **Two findings nobody asked for.**
 
-1. **The zero-dependency embedder does not survive scale.** recall@1 of **4.0%**
-   (`hashing`, TF-IDF, the browser-capable one ADR-008 and WP-24 assume) against **48.9%**
-   (`nomic-embed-text`). §9's logged risk — "an adopter may have 200 destinations where
-   ours has 7; never tested at that size" — is now tested, and it fails. **This is a
-   WP-24 architecture question, not a tuning one.**
+1. ⚠️ **RETRACTED 2026-09-10 — the zero-dependency embedder was never the problem.**
+   This read: *recall@1 of 4.0% (`hashing`, the browser-capable one ADR-008 and WP-24
+   assume) against 48.9% (`nomic-embed-text`) — a WP-24 architecture question, not a
+   tuning one.* **It was a harness fault.** One `HashingEmbedder` was shared across ten
+   role registries and re-fitted by each, so nine held vectors from a vector space that no
+   longer existed; `nomic-embed-text` is stateless and was never affected, which is why
+   only the encoder under test looked broken. Correctly fitted the two **tie at 50.0%
+   recall@1**, and the zero-dependency one is better at recall@5. Reproduced deliberately:
+   shared 6.8%, per-registry 50.0%. Full account in
+   [lessons.md L10](.claude/docs/lessons.md).
+
+   What survives: §9's logged risk — *"an adopter may have 200 destinations where ours has
+   7; never tested at that size"* — is tested, and 50% recall@1 at 145 capabilities is a
+   real ceiling. It is just **equally real for both encoders**, so it is a retrieval
+   problem rather than an encoder choice, and **WP-24's offline premise is restored**.
 2. **Out-of-scope collapsed: 61.8% wrongly executed** (21/34), against 92.3% detection on
    the reference app. Four boundaries cannot out-rank 145 capabilities spanning medical,
    finance, messaging and scheduling. Nothing dangerous ran — every generated capability is
@@ -1406,7 +1417,7 @@ that causes it.
    capabilities. Scoring against ~20 within a section is a different problem, and
    `similarityAudit()` already exists to show what it buys.
 3. **A real sentence encoder in the browser** (days, and it rewrites WP-24). `hashing`
-   gets 4.0% recall@1; `nomic-embed-text` gets 48.9%. The question is whether a
+   gets 4.0% recall@1; `nomic-embed-text` gets 48.9%. ⚠️ **Both halves of that framing are now void — see L10; correctly fitted they tie at 50.0%.** The question was whether a
    browser-runnable encoder (transformers.js / ONNX MiniLM) lands near the second, and
    what it costs in bundle size — which is WP-24's own "Stop if" threshold.
 
@@ -1627,7 +1638,7 @@ beats the incumbent, and the mechanism that was supposed to make it cheap does n
 - [x] Every claim traceable to a committed scorecard or a test — §9 is a claim-by-claim
       table with a link each, plus the four commands that reproduce the headline numbers
 - [x] Negative results included, and they are the spine of the piece: **2.4%** model-free,
-      **61.8%** of out-of-scope wrongly executed, the browser encoder's **4.0%** recall@1,
+      **61.8%** of out-of-scope wrongly executed, the browser encoder's ~~4.0%~~ recall@1 (retracted, L10),
       the 7-point regression from a third output field, and §10 — "what is not claimed" —
       which states the unverified denominator, the golden set's circularity and the fact
       that nothing here shows the generator transfers to an app we do not own
@@ -1853,8 +1864,8 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | **high** | **OPEN, and it replaces the old "pilot proves mechanism not value" risk.** `fut-app` is route-rich, role-gated and real, so it does prove value — but it is ours, and a generator built against it may not transfer. WP-28 (a target we do not own) is the remaining unproven step |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
-| ~~**Model-free rate is the business model**~~ | ~~critical~~ | ✅ **RESOLVED 2026-09-10 — by ceasing to be the business model.** Measured 2.4% (WP-33), then **8.1%** after WP-38 spent D-4's budget on every lever anyone had identified. Three measured causes: stage 1 was never switched on, stage 2 has never accepted a turn on this registry (`tauHigh: 1` at every precision floor), and the browser-capable encoder gets 4.0% recall@1. **No longer a risk because the claim it threatened has been withdrawn** ([business-case.md](.claude/docs/business-case.md) §5). The replacement claim — beats the incumbent — is measured and holds |
-| **The browser-capable encoder does not work at adopter scale** | **critical** | **OPEN — new, 2026-09-10 (WP-33).** `hashing` (TF-IDF, zero-dependency, the one ADR-008's offline claim and WP-24's design both rest on) scores **4.0% recall@1** against `nomic-embed-text`'s 48.9%. §9 logged this as "never tested at that size"; it is now tested and it fails. WP-24 needs a real sentence encoder in the browser or a different plan |
+| ~~**Model-free rate is the business model**~~ | ~~critical~~ | ✅ **RESOLVED 2026-09-10 — by ceasing to be the business model.** Measured 2.4% (WP-33), then **8.1%** after WP-38 spent D-4's budget on every lever anyone had identified. Three measured causes: stage 1 was never switched on, stage 2 has never accepted a turn on this registry (`tauHigh: 1` at every precision floor), and — as it turned out — a harness fault that made the browser-capable encoder look twelve times worse than it is ([L10](.claude/docs/lessons.md)). **No longer a risk because the claim it threatened has been withdrawn** ([business-case.md](.claude/docs/business-case.md) §5). The replacement claim — beats the incumbent — is measured and holds |
+| ~~**The browser-capable encoder does not work at adopter scale**~~ | ~~critical~~ | ⚠️ **WITHDRAWN 2026-09-10 — the risk was an instrument fault.** It read: *`hashing` scores 4.0% recall@1 against `nomic-embed-text`'s 48.9%; WP-24 needs a real sentence encoder in the browser or a different plan.* One embedder was shared across ten role registries and re-fitted by each ([L10](.claude/docs/lessons.md)). Correctly fitted they **tie at 50.0%**, and the zero-dependency one settles **13.3%** of turns model-free with **41.2%** refusal — better on both than the model-server path. **ADR-008's offline claim and WP-24's design are intact.** What remains is the row below: 50% recall@1 at 145 capabilities, which is a retrieval ceiling and belongs to both encoders equally |
 | **Declared boundaries lose to a large registry** | **high** | **OPEN, and now diagnosed — 2026-09-10 (WP-33, WP-39).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% on the 7-capability reference app; measured on the hand-written third of the golden set, so not circular. **The obvious fix was built and reverted:** section-scoped boundaries raised the boundary's score 0.594 → 0.690 and moved detection **0.0 points**. Cause: cosine similarity ranks by *topic*, and out-of-scope-ness here is carried by the *verb* — "show me my son's medical status" and "book my son an appointment" are the same topic and opposite requests. **Needs an ADR-009 amendment, not a bigger catalogue → WP-40** |
 | §5's numbers are not reproducible | high | **RESOLVED 2026-09-09** — WP-17. Cold-start artefact; warm numbers match the original claim. See §5 |
 | **Injected text can make stage 2 itself rank a destructive capability first** | **high** | **OPEN — found 2026-09-09 (WP-17), `gs-0174`.** Contained only by Rule 5's unconditional confirm-before-destructive, not by any router-level gate — `REQUIRES_STAGE2_AGREEMENT` does not catch it because stage 2 and stage 3 agree on the wrong answer. Needs input sanitisation or injection detection; not scheduled on any WP yet. FINDINGS.md Finding 12 |

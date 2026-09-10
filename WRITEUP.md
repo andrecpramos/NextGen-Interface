@@ -142,18 +142,47 @@ That last row is the useful one. The assistant is not better at search; it is be
 Of 210 turns, **five were settled without a model call**, and all five were refusals. Stage
 2 settled **nothing** it was asked to route. Two measured causes.
 
-**The zero-dependency encoder does not survive scale.** The whole offline story assumed a
-TF-IDF-style encoder small enough to ship to a browser.
+**~~The zero-dependency encoder does not survive scale.~~** ⚠️ **I got this wrong, and
+the retraction is more interesting than the claim.**
+
+This section reported a twelvefold gap between the browser-capable encoder and a real
+one, and called it the most consequential finding of the run. It was an artefact of my
+own test harness.
+
+`HashingEmbedder` is TF-IDF: `fit()` **replaces** its vocabulary. The harness built one
+instance and passed it to ten role registries in a loop, re-fitting it each time — so
+nine registries held vectors from a vector space that no longer existed. Fitted
+correctly, on the same registries and the same questions:
 
 | Encoder | recall@1 | recall@5 | Browser-capable, no network? |
 |---|---|---|---|
-| `hashing` — TF-IDF, zero dependencies | **4.0%** | 11.4% | **yes** |
-| `nomic-embed-text` | **48.9%** | 67.6% | no |
+| ~~`hashing`, as I first measured it~~ | ~~4.0%~~ | ~~11.4%~~ | — |
+| **`hashing` — TF-IDF, zero dependencies** | **50.0%** | **75.6%** | **yes** |
+| `nomic-embed-text` | **50.0%** | 73.3% | no |
 
-Twelvefold. A lexical encoder can separate 7 capabilities; it cannot separate 145 against
-paraphrased questions, and **no threshold repairs a ranking that puts the right answer
-20th**. This had been logged as a risk — *"an adopter may have 200 destinations where ours
-has 7; never tested at that size"* — and is now tested.
+**They are indistinguishable, and the zero-dependency one is slightly better deeper in
+the ranking.**
+
+Three things made it hard to see, and they are the reason it is worth writing down:
+
+- **Only the stateful encoder was affected.** `nomic-embed-text` is a stateless HTTP
+  call, so the control arm was always correct. The instrument was breaking exactly the
+  thing under test and nothing else.
+- **The wrong answer was entirely plausible.** "TF-IDF loses badly to a neural encoder at
+  scale" is what you expect. It confirmed a prior, so I did not ask the instrument a
+  second question.
+- **The codebase already knew.** `apps/cli` constructs a second embedder with the comment
+  *"sharing one with the router would mean each `.fit()` call stomps the other's fitted
+  vocabulary."* The knowledge existed three directories from the code that needed it.
+
+It surfaced only because a later study built its corpus independently and returned 45%
+where the harness said 4%. **A measurement that confirms what you expected is the one to
+re-derive from a second direction** — that is the whole lesson, and it nearly cost the
+project its offline story.
+
+What survives is narrower and still real: **no threshold repairs a ranking that puts the
+right answer 20th.** At 145 capabilities recall@1 is 50% for *both* encoders. The problem
+is retrieval at that size, not the choice of encoder.
 
 **Even with a real encoder, stage 2 cannot be both cheap and right.** Thresholds calibrated
 against the golden set, split 40/60 by destination so no screen appears on both sides:
