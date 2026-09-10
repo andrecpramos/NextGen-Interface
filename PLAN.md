@@ -47,7 +47,7 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | 1 | **WP-38** · The three model-free levers, on a fixed budget — triggers, a real browser encoder, per-section registries | M1 | M | D-4 |
 | 2 | **WP-40** · ADR-015 written (`Proposed`); **implementation awaits the owner accepting it** | M1 | M | owner |
 | 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
-| 4 | **WP-34** · The write-up — the second artefact | M2 | M | — |
+| 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
 
 ~~WP-39~~ ✅ **attempted and reverted 2026-09-10** — section-scoped boundaries raised the
 boundary's score (0.594 → 0.690) and moved detection by **nothing** (38.2% either way).
@@ -59,9 +59,10 @@ its *verb*.
 | 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
 | 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
 
-⚠️ **WP-34 is unblocked and is now the highest-value thing in the plan after D-4.** M1
-produced a real result with a negative half; §7.3's write-up is where a negative result
-becomes an artefact instead of a disappointment.
+✅ **WP-34 landed — [WRITEUP.md](WRITEUP.md).** M1 produced a real result with a negative
+half, and the write-up is where that became an artefact instead of a disappointment.
+**M2 is closed.** Everything remaining is either the owner's decision (D-4, plus accepting
+three ADRs that sit at `Proposed`) or gated behind it.
 
 **Landed this session:** WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1), **WP-23**
 — ADR-013 written (status `Proposed`, awaiting the owner's acceptance) — **WP-19** (§7.5)
@@ -1489,7 +1490,7 @@ a real gain on a number that had not moved at all, but it is not 70% and it is n
 
 ## 7.3 · M2 — The write-up (second artefact)
 
-### WP-34 · Architecture and findings write-up ⬜ · **M** · queue 5
+### WP-34 · Architecture and findings write-up ✅ **COMPLETE — 2026-09-10**
 
 **Goal.** The portfolio piece. Cheap, fully under your control, and it forces you to
 state what you actually proved.
@@ -1501,14 +1502,30 @@ model refusal *in proportion to model weakness*; thresholds as an artefact of th
 registry; schema field order changing extraction quality; and WP-33's numbers including
 the automation gap.
 
+**Delivered.** [WRITEUP.md](WRITEUP.md) — the portfolio piece, written for someone who has
+never seen this repository. It leads with the split result rather than burying it: *"it
+beats the incumbent, and the mechanism that was supposed to make it cheap does not work"*.
+
 **Acceptance.**
-- [ ] Every claim traceable to a committed scorecard or a test
-- [ ] Negative results included — 30.4% floor, the latency discrepancy, the automation gap
-- [ ] Someone who has not seen the repo can follow it
-- [ ] Links to `.claude/docs/history.md` for the reasoning behind each mechanism
+- [x] Every claim traceable to a committed scorecard or a test — §9 is a claim-by-claim
+      table with a link each, plus the four commands that reproduce the headline numbers
+- [x] Negative results included, and they are the spine of the piece: **2.4%** model-free,
+      **61.8%** of out-of-scope wrongly executed, the browser encoder's **4.0%** recall@1,
+      the 7-point regression from a third output field, and §10 — "what is not claimed" —
+      which states the unverified denominator, the golden set's circularity and the fact
+      that nothing here shows the generator transfers to an app we do not own
+- [x] Someone who has not seen the repo can follow it — no rule numbers, no WP numbers, no
+      internal vocabulary; the ADRs and findings are linked, never assumed
+- [x] Links to [history.md](.claude/docs/history.md) and FINDINGS.md for the reasoning
+      behind each mechanism
 
 **Stop if.** Writing it reveals a claim that cannot be traced to evidence — remove the
 claim, or go and measure it.
+**Triggered once, and the claim was corrected.** A draft asserted declared limits took
+out-of-scope detection "from 30% to 85% on an 8B model". Checking it against §5 showed those
+are two *different models measured without boundaries at all* — not a before/after. The
+verifiable version is the one that shipped: detection tracked model size (85% / 30% / 0%),
+and declared limits took the 1B model from **0% to 40%**.
 
 ---
 
@@ -1658,7 +1675,7 @@ M1  THE MEASUREMENT   WP-31 ✅ → WP-30 SPIKE ✅ GO → WP-25 generator ✅
                           fix the model-free path (WP-38), or reposition the claim.
                           M3 does not start until this is answered.
                             │
-M2  THE WRITE-UP      WP-34                  ~3 sessions
+M2  THE WRITE-UP ✅   WP-34 ✅ → WRITEUP.md
                             │
 M3  THE ADD-ON        WP-24 browser runtime → WP-27 guided steps
      ~20-25 sessions   → WP-26 installable package → WP-35 deploy on fut-app
@@ -1809,6 +1826,7 @@ UTF-8 BOM that `JSON.parse` rejects.
 
 | Question | File |
 |---|---|
+| **Explaining this to someone outside the project** | **[WRITEUP.md](WRITEUP.md)** — the whole story, every claim linked to its evidence |
 | What are we building? | §1 above |
 | What should I do next? | §0 above |
 | **Is feature X in scope, and if not, when?** | **§1.6 — the capability ladder.** Check it before proposing scope |
