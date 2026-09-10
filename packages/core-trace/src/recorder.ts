@@ -35,6 +35,8 @@ export interface TurnRecorder {
   param(name: string, value: string | number, source: 'deterministic' | 'model' | 'context'): void;
   missing(names: readonly string[]): void;
   requiresConfirmation(required: boolean): void;
+  /** The user asked what something is, not to be taken to it (WP-36). */
+  explanationRequest(asked: boolean): void;
   read(ref: DataRef): void;
   stageLatency(stage: 'stage1' | 'stage2' | 'stage3', ms: number): void;
   note(message: string): void;
@@ -78,6 +80,7 @@ export class TraceRecorder {
       paramSources: {} as Record<string, 'deterministic' | 'model' | 'context'>,
       missing: [] as readonly string[],
       requiresConfirmation: false,
+      explanationRequest: false,
       dataRead: [] as DataRef[],
       latency: {} as { stage1?: number; stage2?: number; stage3?: number },
       notes: [] as string[],
@@ -102,6 +105,7 @@ export class TraceRecorder {
       },
       missing: (names) => { state.missing = names; },
       requiresConfirmation: (required) => { state.requiresConfirmation = required; },
+      explanationRequest: (asked) => { state.explanationRequest = asked; },
       read: (ref) => { state.dataRead.push(ref); },
       stageLatency: (stage, ms) => { state.latency[stage] = ms; },
       note: (message) => { state.notes.push(message); },
@@ -131,6 +135,7 @@ export class TraceRecorder {
         params: state.params,
         missing: state.missing,
         requiresConfirmation: state.requiresConfirmation,
+        explanationRequest: state.explanationRequest,
         modelId: input.modelId ?? null,
         promptVersion: input.promptVersion ?? null,
         paramSources: state.paramSources,

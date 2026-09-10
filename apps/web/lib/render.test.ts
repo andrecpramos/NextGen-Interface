@@ -169,6 +169,49 @@ describe('renderAnswer — arriving somewhere, and being told what is there', ()
     expect(view.caption).toBe(explanation);
   });
 
+  /**
+   * WP-36's detection half. Both readings serve the same declared string; what
+   * changes is which one leads. "What is the squad list?" has not asked to be
+   * moved, so announcing "Opened X" answers a question nobody put — while the
+   * route still resolved, so the navigation remains available and Rule 7 holds.
+   */
+  it('leads with the explanation when the user asked what something is', async () => {
+    const explanation = 'Everything you have saved, grouped by category.';
+    const view = await renderAnswer(
+      appWith({ id: 'module.list', kind: 'navigate', title: 'Modules', route: '/modules', explanation }),
+      'module.list',
+      {},
+      true,
+    );
+    expect(view.headline).toBe('Modules');
+    expect(view.caption).toBe(explanation);
+    expect(JSON.stringify(view)).not.toContain('Opened');
+  });
+
+  it('still announces the destination when nothing was asked to be explained', async () => {
+    const view = await renderAnswer(
+      appWith({ id: 'module.list', kind: 'navigate', title: 'Modules', route: '/modules', explanation: 'x' }),
+      'module.list',
+      {},
+      false,
+    );
+    expect(view.headline).toBe('Opened Modules.');
+  });
+
+  /**
+   * A capability with nothing declared cannot lead with an explanation it does
+   * not have, so it must fall back rather than render an empty headline.
+   */
+  it('falls back to the destination when an explanation request has nothing to serve', async () => {
+    const view = await renderAnswer(
+      appWith({ id: 'module.list', kind: 'navigate', title: 'Modules', route: '/modules' }),
+      'module.list',
+      {},
+      true,
+    );
+    expect(view.caption).toBe('Opened Modules.');
+  });
+
   it('still says where it went when a capability declares no explanation', async () => {
     const view = await renderAnswer(
       appWith({ id: 'module.list', kind: 'navigate', title: 'Modules', route: '/modules' }),

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { isActionRequest, actionSignalApplies, actionVocabularyOf } from './action.ts';
+import {
+  isActionRequest,
+  isExplanationRequest,
+  actionSignalApplies,
+  actionVocabularyOf,
+} from './action.ts';
 
 /**
  * ADR-015's action signal, and the guard that decides when it means anything.
@@ -111,5 +116,58 @@ describe('actionVocabularyOf — what the application says it does', () => {
   it('is empty for an application that only shows things', () => {
     const v = actionVocabularyOf([{ title: 'Calendário', description: 'Ver o calendário de treinos.' }]);
     expect(v.size).toBe(0);
+  });
+});
+
+/**
+ * WP-36's detection half, sharing ADR-015's frame layer rather than adding a
+ * competing one.
+ *
+ * It changes no routing decision — the capability and route resolve identically
+ * either way — so these assert the discrimination, not an outcome.
+ */
+describe('isExplanationRequest — asking what something is, not to be taken to it', () => {
+  it.each([
+    'O que é um processo clínico?',
+    'Para que serve a composição corporal?',
+    'What is the Mental availability screen?',
+    'What does the Compliance overview screen show?',
+    "Why would I see a 'Delete task?' option?",
+    'Explain the squad overview',
+    'tell me about the training calendar',
+    // Accented endings, both of which a naive `\b` silently fails to match —
+    // JavaScript's `\b` is ASCII-only. WP-36's `stripGreeting` shipped with
+    // exactly this bug and never fired once across 145 screens.
+    'O que é isto?',
+    'Porquê esta página?',
+  ])('detects an explanation request: %s', (u) => {
+    expect(isExplanationRequest(u)).toBe(true);
+  });
+
+  /**
+   * The discrimination that matters. Both of these mention a screen; only the
+   * ones above ask what it *is*. "Where do I record an injury?" asks for a
+   * destination, and the answer to it is navigation.
+   */
+  it.each([
+    'Onde posso ver a lista dos membros do staff?',
+    'Where do I record an injury?',
+    'abre o calendário',
+    'take me to the squad list',
+    'mostra minhas notas',
+  ])('does not treat a navigation request as one: %s', (u) => {
+    expect(isExplanationRequest(u)).toBe(false);
+  });
+
+  /**
+   * The two frames are independent and may both fire — "why would I delete a
+   * task?" is a question about a screen that also carries an action verb.
+   * Neither detector suppresses the other, because they answer different
+   * questions and the caller uses them for different things.
+   */
+  it('is independent of the action signal', () => {
+    const u = 'Why would I delete a task?';
+    expect(isExplanationRequest(u)).toBe(true);
+    expect(isActionRequest(u)).toBe(true);
   });
 });

@@ -25,6 +25,7 @@ const baseTrace = (over: Partial<TurnTrace> = {}): TurnTrace => ({
   params: { category: 'food', from: '2026-07-01', to: '2026-07-31' },
   missing: [],
   requiresConfirmation: false,
+  explanationRequest: false,
   modelId: 'qwen2.5:1.5b',
   promptVersion: 'v3',
   paramSources: { category: 'deterministic', from: 'deterministic', to: 'deterministic' },

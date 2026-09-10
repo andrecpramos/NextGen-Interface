@@ -245,6 +245,17 @@ export interface TurnTrace {
    * for a declared limit — a limit answers the same question with its refusal.
    */
   explanation: string | null;
+  /**
+   * Did the user ask what something *is*, rather than to be taken to it?
+   * (WP-36's detection half, reusing ADR-015's frame layer.)
+   *
+   * Model-free, and it changes **no** routing decision — the capability and the
+   * route resolve identically either way. It tells a surface which half of the
+   * promise to lead with: the destination, or the declared explanation of what
+   * is there. A false negative is cheap, because the explanation is served as a
+   * caption regardless.
+   */
+  explanationRequest: boolean;
   latency: StageLatency;
   notes: string[];
   margin?: number;

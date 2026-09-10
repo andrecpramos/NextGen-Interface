@@ -110,6 +110,64 @@ const HOW_TO_FRAME = new RegExp(
 );
 
 /**
+ * Is the user asking what something *is*, rather than to be taken to it?
+ *
+ * WP-36's deferred half. Explanations have been declared, generated and served
+ * verbatim since 2026-09-10; what was missing was knowing that a turn *asked*
+ * for one. PLAN.md deferred it deliberately rather than building a second frame
+ * detector alongside ADR-015's — *"when ADR-015 is accepted, this reuses its
+ * frame layer"* — so it lives here, next to `HOW_TO_FRAME`, sharing the same
+ * shape and the same discipline.
+ *
+ * **This changes no routing decision.** The capability still resolves, the route
+ * still resolves, and Rule 7 still holds — every screen the assistant can reach
+ * stays reachable. All it does is tell a surface which half of the promise to
+ * lead with: *take them there* or *tell them what is there*. That is why it can
+ * land without recalibration and without moving a single scorecard number.
+ *
+ * Deliberately narrow. *"Where do I record an injury?"* is **not** here: it asks
+ * for a destination and the answer is navigation. Only the frames that ask about
+ * a thing's nature or purpose qualify.
+ */
+const EXPLANATION_FRAME = new RegExp(
+  [
+    // "what is X", "what does X do/show/mean"
+    "\\bwhat (is|are|does|do)\\b",
+    "\\bwhat'?s\\b",
+    // "o que é", "o que são", "o que faz".
+    //
+    // The trailing boundary is a lookahead, NOT `\b`. JavaScript's `\b` is
+    // ASCII-only, so there is no boundary between the "é" of "o que é" and the
+    // space after it, and this alternative silently never matched — which is
+    // exactly the bug WP-36's own `stripGreeting` shipped with ("Olá!"), caught
+    // then and re-made here. Every accented alternative below needs the same
+    // care.
+    '\\bo que\\s+(e|é|sao|são|faz|fazem|significa)(?=\\s|$|[?!.,])',
+    // "para que serve" — the single most common phrasing in the golden set
+    '\\bpara que serv[ei]',
+    // "why would I see", "porque"
+    '\\bwhy (would|do|does|is)\\b',
+    // Same ASCII-`\b` trap as above: "porquê" ends in a non-ASCII letter.
+    '\\bporqu[eê](?=\\s|$|[?!.,])',
+    // "tell me about", "explain"
+    '\\b(tell me about|explain)\\b',
+    '\\bexplica\\b',
+  ].join('|'),
+  'iu',
+);
+
+/**
+ * Does this utterance ask what something is, rather than to go there?
+ *
+ * Model-free, like every other frame here. A false negative costs nothing — the
+ * turn navigates and the explanation is served as a caption anyway — so this
+ * errs narrow rather than clever.
+ */
+export function isExplanationRequest(utterance: string): boolean {
+  return EXPLANATION_FRAME.test(utterance);
+}
+
+/**
  * Does this utterance ask the assistant to perform an action?
  *
  * Word-boundary match on a closed list, minus the instructional frame.

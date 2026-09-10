@@ -45,10 +45,10 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 |---|---|---|---|---|
 | — | ✅ **D-4 — ANSWERED 2026-09-10 by the owner, in session: option (b), spend WP-38's fixed budget first.** The result is below and it is **not** the one option (b) was hoping for | — | — | — |
 | 1 | ~~**WP-38**~~ ✅ **COMPLETE — 2026-09-10.** Model-free **2.4% → 8.1%**, top-1 **52.3% → 58.0%**. Lever 1 paid; **lever 2 killed on measured evidence** (section recall@1 = 25.6%); **lever 3 cannot help accuracy at all** — see §7.2. ⚠️ **Its "Stop if" triggered**: 8.1% against a 60% bar | M1 | M | done |
-| 2 | **WP-40** · [ADR-015](.claude/decisions/ADR-015.md) **Accepted 2026-09-10** — implementation is now unblocked | M1 | M | — |
-| 3 | ◐ **WP-36** · Declared explanations — **built and serving 2026-09-10**. What is left is only the *detection* of a what/why question, and it **reuses ADR-015's frame layer** rather than adding a second one. **Unblocked by ADR-015's acceptance**; do it as part of WP-40, not before | M1 | S | 2 |
+| 2 | ~~**WP-40**~~ ✅ **BUILT AND MEASURED — 2026-09-10.** ADR-015 accepted; the action signal is live. Out-of-scope **26.5% → 41.2%**, model-free refusal **14.7% → 32.4%**, at an unchanged 1.1% false-refusal rate | M1 | M | done |
+| 3 | ~~**WP-36**~~ ✅ **COMPLETE — 2026-09-10.** Declared explanations built, served verbatim, and now *detected*: 94.4% recall on the golden set's what/why bucket at 2.3% false positives, reusing ADR-015's frame layer. Changes no routing decision | M1 | S | done |
 | 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
-| 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding** | M3 | L | D-4, 1 |
+| 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding**. Unblocked: D-4 answered, WP-38 done | M3 | L | — |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
 | 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
 | 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
@@ -1150,9 +1150,33 @@ reading is that one clear instruction beat a normalisation — WP-14's finding a
       instruction in page copy
 - [x] The explanation is traceable to its source file — `explanationSource`, the adopter's
       own path relative to their source root, never ours
-- [ ] ⏸ **An explanation request resolves model-free and is served verbatim** — the
-      *serving* is done and verbatim; the **detection** ("is this a what/why question?") is
-      deliberately **not** built. See below
+- [x] ✅ **An explanation request resolves model-free and is served verbatim** —
+      **detection landed 2026-09-10**, once ADR-015 was accepted, reusing its frame layer
+      exactly as planned rather than adding a competing one. `isExplanationRequest` sits
+      beside `HOW_TO_FRAME` in `action.ts`; `TurnTrace.explanationRequest` carries it, and
+      `apps/web` leads with the declared explanation instead of *"Opened X"* when it fires.
+
+      **Measured against WP-32's own buckets**, written long before the detector existed:
+
+      | | |
+      |---|---|
+      | `explain` bucket detected | **84/89 = 94.4%** |
+      | `navigate` bucket wrongly flagged | **2/87 = 2.3%** |
+
+      **It changes no routing decision** — the capability and the route resolve identically
+      either way, so this landed with no recalibration and without moving a scorecard
+      number. Rule 7 is untouched: the destination is still resolved and still reachable.
+
+      One of the two false positives is *"O que é esta tela de 'Bolas Paradas'?"* — which
+      is an explanation question the golden set happens to label `navigate`. Recorded as a
+      miss rather than argued away, because relabelling a fixture to flatter a detector is
+      how a golden set stops being evidence.
+
+      ⚠️ **The same ASCII-`\b` trap bit again.** The first `o que é` alternative silently
+      never matched, because JavaScript's `\b` finds no boundary after "é" — the identical
+      bug WP-36's own `stripGreeting` shipped with, and which is written down in
+      [lessons.md](.claude/docs/lessons.md). Caught here by a test rather than by a
+      regeneration. Every accented alternative now ends in an explicit lookahead.
 
 ⚠️ **Why the detection is deferred, and not forgotten.** Deciding *"is this a what/why
 question rather than a request to go somewhere?"* is the same class of mechanism as

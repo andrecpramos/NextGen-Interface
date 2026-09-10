@@ -59,6 +59,16 @@ export interface TurnTrace {
   readonly params: Readonly<Record<string, string | number>>;
   readonly missing: readonly string[];
   readonly requiresConfirmation: boolean;
+  /**
+   * The user asked what something *is*, rather than to be taken to it (WP-36).
+   *
+   * A **fact about the utterance**, decided model-free by a frame match, which
+   * is why it belongs in the record while the explanation text itself does not:
+   * `explanation` is on `FORBIDDEN_PROSE_FIELDS` and stays there. Rule 9 wants
+   * the inputs a rendering was derived from, and this is one — it is what
+   * decides whether a surface leads with the destination or with the answer.
+   */
+  readonly explanationRequest: boolean;
   readonly modelId: string | null;
   readonly promptVersion: string | null;
   /** Which resolver filled each param. This is what makes a number defensible. */

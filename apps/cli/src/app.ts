@@ -388,6 +388,7 @@ export class NextGenApp {
         }
 
         r.requiresConfirmation(decision.type === 'confirm');
+        r.explanationRequest(routed.explanationRequest);
         r.outcome(
           decision.type === 'execute' ? 'execute'
             : decision.type === 'refuse' ? 'out_of_scope'
@@ -444,6 +445,8 @@ export class NextGenApp {
         });
 
         r.requiresConfirmation(decision.type === 'confirm');
+        // No utterance on this path — the caller named the capability outright.
+        r.explanationRequest(false);
         r.outcome(
           decision.type === 'execute' ? 'execute'
             : decision.type === 'refuse' ? 'out_of_scope'
@@ -636,6 +639,8 @@ export class NextGenApp {
         decision = await this.#proposeAndDispatchCapture(r, input.text, input.sourceType, input.images, 0);
 
         r.requiresConfirmation(decision.type === 'confirm');
+        // A direct upload: there is no question to have framed.
+        r.explanationRequest(false);
         r.outcome(
           decision.type === 'execute' ? 'execute'
             : decision.type === 'refuse' ? 'out_of_scope'

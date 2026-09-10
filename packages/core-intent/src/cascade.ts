@@ -1,4 +1,5 @@
 import type { LlmRuntime } from '@nextgen/core-inference';
+import { isExplanationRequest } from './action.ts';
 import { stage1, stage2, stage3 } from './stages.ts';
 import { resolveSlots } from './slots.ts';
 import {
@@ -68,6 +69,10 @@ export async function route(
     kind: null,
     route: null,
     explanation: null,
+    // Read once, from the utterance alone — it depends on nothing the cascade
+    // decides, so it is set here rather than in `settle` and is available even
+    // when the turn ends in a clarify or a refusal.
+    explanationRequest: isExplanationRequest(utterance),
     latency: {},
     notes: [],
   };
