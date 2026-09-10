@@ -43,24 +43,32 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 
 | # | Work package | Milestone | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **WP-32** · Golden set + the CommandPalette baseline | M1 | M | — |
-| 2 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
-| 3 | **WP-33** · **The measurement** — the first artefact | M1 | S | 1, 2 |
-| 4 | **WP-34** · The write-up — the second artefact | M2 | M | 3 |
-| 5 | **WP-24** · Ship stages 1+2 to the browser | M3 | L | 3 |
+| — | ⚠️ **D-4 — the owner's decision.** WP-33's kill criterion triggered. **Nothing in M3 starts until this is answered** | — | — | — |
+| 1 | **WP-38** · The three model-free levers, on a fixed budget — triggers, a real browser encoder, per-section registries | M1 | M | D-4 |
+| 2 | **WP-39** · Boundary coverage at scale — 4 boundaries lose to 145 capabilities | M1 | S | — |
+| 3 | **WP-36** · Declared explanations — "read and explain" | M1 | M | — |
+| 4 | **WP-34** · The write-up — the second artefact | M2 | M | — |
+| 5 | **WP-24** · Ship stages 1+2 to the browser — **rewritten by WP-33's encoder finding** | M3 | L | D-4, 1 |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
-| 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 2, 5 |
+| 7 | **WP-26** · The installable package — **product requirement #1** | M3 | L | 3, 5 |
 | 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
+
+⚠️ **WP-34 is unblocked and is now the highest-value thing in the plan after D-4.** M1
+produced a real result with a negative half; §7.3's write-up is where a negative result
+becomes an artefact instead of a disappointment.
 
 **Landed this session:** WP-15, WP-17, WP-16, WP-31, **WP-30 (GO)** (all §7.1), **WP-23**
 — ADR-013 written (status `Proposed`, awaiting the owner's acceptance) — **WP-19** (§7.5)
 and **WP-25 — the generator** (§7.2, [ADR-014](.claude/decisions/ADR-014.md), also
 `Proposed`), plus D-1 and D-2 decided (§13), on `feature/plan-execution`.
 
-**M0 is fully closed. M1's ground truth, spike and generator are all done.** WP-32 is now
-the critical path: the golden set is what WP-33 measures against *and* what the ten
-role-scoped registries need before they can be calibrated (Rule 14 — see WP-25's own
-open item).
+**M1 is measured, and its headline result is split.** WP-19, WP-25, WP-32 and WP-33 all
+landed in this session on `feature/plan-execution`. The assistant **beats** the incumbent
+command palette on a real 146-page app (54.5% vs 45.5%, and by 25–31 points in Portuguese
+and for guardians), and the **model-free rate is 4.3% against a 60% kill criterion**.
+
+**Read [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) before doing anything
+else.** The next move is a decision (D-4), not a work package.
 
 **Deferred, with reasons in §7.5:** WP-28 (a target we do not own), WP-29 (script tag),
 WP-18 (undo), WP-19 (golden fixture — but ordered *before* WP-25), WP-20 (demo screens),
@@ -70,9 +78,10 @@ WP-21 (voice acceptance), WP-22 (`apps/web` tests), WP-11 (docs), WP-10 (mobile)
 
 | | Decision | Blocks |
 |---|---|---|
-| D-1 | Do both reference apps survive, or does one go? | WP-23 |
-| D-2 | How the stage-3 prompt learns which app it serves — registry field or call-site override? | WP-16 |
+| **D-4** | **The model-free rate is 4.3%, and the assistant still beats the palette. What is the product now?** | **all of M3** |
 | D-3 | How a guided step anchors to an element in an app we do not control | WP-27 |
+| ~~D-1~~ | ✅ decided — both reference apps survive (ADR-013) | — |
+| ~~D-2~~ | ✅ decided — `registry.domainDescription` (ADR-013) | — |
 
 Everything this file previously carried as an open decision — Rule 7's meaning, language
 scope, Layer 5's extent, the generator's confidence policy, `TAU_ACT_BY_KIND` — was
@@ -138,6 +147,16 @@ Best evidence it holds: [ADR-009](.claude/decisions/ADR-009.md)'s declared bound
 improved refusal accuracy **in proportion to how badly the model failed** — 0% → 40% on
 `gemma3:1b`, which never produced a refusal on its own. Re-verified live on 2026-09-08:
 *"book that appointment for me"* was correctly refused in **1.9s with no model call**.
+
+⚠️ **Best evidence against it, measured 2026-09-10 on a real app
+([WP-33](eval/fut-app/MEASUREMENT.md)):** at **145** capabilities rather than 7, only
+**4.3%** of turns were settled correctly without a model call, and declared boundaries
+caught 38% of out-of-scope input rather than 92%. **Both of the mechanisms quoted above
+were measured on a 7-capability registry, and neither survived the move to an adopter's
+scale unchanged.** The *selection* half of the thesis held perfectly — the model still
+never computed, never emitted SQL and never picked a route, and 0 capability ids were
+hallucinated. It is the *"or often no model at all"* clause that the evidence now
+contradicts. That is D-4 (§13).
 
 ### 1.3 What it does when you run it today
 
@@ -233,7 +252,7 @@ met.** That is the whole discipline — without it this becomes a two-year proje
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **A1 · now** | **Navigate · guide · explain, from the app's own source.** Page purposes, i18n labels, headings, form fields, repo docs. Plus `why` — explaining its own decisions from the trace. **Nothing outside the app's topic**, enforced by declared boundaries (ADR-009) | — | WP-25, WP-36, WP-27 |
-| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | A1 measured at ≥60% model-free (WP-33), and an adopter API exists to read | — |
+| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **entry criterion NOT met** — A1 measured at **4.3%** model-free, not ≥60% (WP-33). Blocked behind D-4 | — |
 | **A3 · later** | **Both, fluidly** — a question answered from data *and* a route to act on it | A2 shipped and its permission model proven | — |
 
 ⚠️ **A1's Q&A must stay model-free to keep the economics.** The mechanism is the same one
@@ -502,6 +521,43 @@ nothing captured which, so this is plausible, not proven.
 |---|---|---|---|---|
 | p50 | 0.05ms | — | 119ms | 478ms |
 | p95 | 0.18ms | — | 143ms | 569ms |
+
+### On a real app, with a generated registry — WP-33, 2026-09-10
+
+**This is now the most important table in the file.** Everything below it is the reference
+app: 7 capabilities, English, a registry a person wrote. This is 145 capabilities,
+Portuguese, generated, and scored against 210 questions a person did not write.
+Full account: [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md).
+
+| | Assistant | `fut-app`'s CommandPalette |
+|---|---|---|
+| Right screen, all 176 routable questions | **54.5%** | 45.5% |
+| Portuguese (116) | **62.1%** | 37.1% |
+| English (60) | 40.0% | **61.7%** |
+| `PARENT` — the ICP (48) | **50.0%** | 18.8% |
+| `COACH` (104) | 57.7% | 57.7% |
+| **Settled correctly with no model call** | **4.3%** | — |
+| Out-of-scope wrongly executed | **61.8%** | — |
+| Latency p50 / p95 | 371ms / 519ms | — |
+
+**Retrieval, which is what actually decides the model-free rate:**
+
+| Encoder | recall@1 | recall@5 | Browser-capable, no network? |
+|---|---|---|---|
+| `hashing` — TF-IDF, zero dependencies | **4.0%** | 11.4% | **yes** — the one ADR-008 and WP-24 assume |
+| `nomic-embed-text` | **48.9%** | 67.6% | no |
+
+**And the trade-off no single threshold can hide** (calibrated per Rule 14, held-out
+split, `nomic-embed-text`):
+
+| Precision floor | Stage-2 accepts | Actual precision |
+|---|---|---|
+| 1.00 / 0.95 / 0.90 | 1.9% | 50.0% |
+| 0.80 | **51.4%** | 68.5% |
+| 0.70 | 67.6% | 62.0% |
+
+There is no operating point that is both free and right. **Stage 1 never fires at all** —
+the generator emits 0 triggers — which is the cheapest untried lever (D-4, WP-38).
 
 ### The model-free floor — the number that decides the product
 
@@ -1109,7 +1165,7 @@ itself.
 
 ---
 
-### WP-33 · The measurement ⬜ · **S** · queue 4 · **THE ARTEFACT**
+### WP-33 · The measurement ✅ **COMPLETE — 2026-09-10** · **THE ARTEFACT** · ⚠️ **kill criterion triggered**
 
 **Goal.** One defensible sentence: *"On a 146-page app I did not design for this, X% of
 real user questions resolved with no model call, at Y ms — against Z% for the app's
@@ -1130,17 +1186,132 @@ against the CommandPalette baseline.
 | 2 | **Generated vs hand-written gap** | The cost of automation — the most interesting number in the project |
 | 3 | **Assistant vs CommandPalette** | Whether this beats the incumbent it replaces |
 
+**Delivered.** [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md), with
+`scorecard-ollama-llama3_1_8b.json`, `thresholds.{hashing,ollama}.json` and
+`inspect-retrieval.mjs`.
+
+> On a 146-page application it was never designed for, against a registry no human wrote,
+> the assistant sent users to the right screen for **54.5%** of real questions — against
+> **45.5%** for the command palette that app already ships — but only **4.3%** of turns
+> were settled correctly **without a model call**, against a target of 60%.
+>
+> **It beats the incumbent. It does not yet beat the incumbent for free.**
+
+| | Number | |
+|---|---|---|
+| 1 | Model-free resolution **4.3%** (9/210 settled correctly, no model call) | ❌ **kill criterion triggered** |
+| 2 | Generated vs hand-written gap: **none measurable** — 100% route and role match on all 45 judged routes | ✅ automation is not the bottleneck |
+| 3 | Assistant **54.5%** vs CommandPalette **45.5%** | ✅ beats the incumbent |
+
+**It wins exactly where the product is aimed** — Portuguese **62.1% vs 37.1%**, `PARENT`
+**50.0% vs 18.8%** — ties on `COACH` (the role that already knows the menu) and **loses in
+English** (40.0% vs 61.7%), where the questions borrow the English menu words the substring
+matcher wants.
+
 **Acceptance.**
-- [ ] All three runs committed as scorecards
-- [ ] All three numbers stated explicitly, per role
-- [ ] Latency per stage, models warmed, run sequentially
-- [ ] Failures categorised: bad declaration, bad example, bad threshold, or genuinely hard
-- [ ] §5 and [business-case](.claude/docs/business-case.md) §6 updated with the real numbers
+- [x] Scorecards committed — `scorecard-ollama-llama3_1_8b.json`, plus calibrated
+      thresholds and the retrieval inspection
+- [x] All three numbers stated explicitly, per role and per language
+- [x] Latency per stage, models warmed, run sequentially — p50 **371ms**, p95 **519ms**;
+      200 of 210 turns reached stage 3
+- [x] Failures categorised — see MEASUREMENT.md: the model-free failure is *bad threshold
+      **and** bad encoder*, not bad declaration; the out-of-scope failure is *too few
+      boundaries for the surface*; descriptions remain the unmeasured suspect
+- [x] §5 updated (below). [business-case](.claude/docs/business-case.md) §6 is **not yet**
+      updated — it is owner-facing commercial reasoning and the repositioning question
+      below is the owner's to answer first
+- [ ] ⚠️ **Explanation coverage not measured** — WP-36 does not exist, so the 89 "what/why"
+      questions were scored on reaching the right *screen* (52.8%), not on being answered.
+      This run is WP-33 minus that number
+
+**Two findings nobody asked for.**
+
+1. **The zero-dependency embedder does not survive scale.** recall@1 of **4.0%**
+   (`hashing`, TF-IDF, the browser-capable one ADR-008 and WP-24 assume) against **48.9%**
+   (`nomic-embed-text`). §9's logged risk — "an adopter may have 200 destinations where
+   ours has 7; never tested at that size" — is now tested, and it fails. **This is a
+   WP-24 architecture question, not a tuning one.**
+2. **Out-of-scope collapsed: 61.8% wrongly executed** (21/34), against 92.3% detection on
+   the reference app. Four boundaries cannot out-rank 145 capabilities spanning medical,
+   finance, messaging and scheduling. Nothing dangerous ran — every generated capability is
+   `navigate` — but *"paga a minha quota de sócio"* landing on the consent form is the
+   confidently-wrong navigation ADR-009 exists to prevent. **The out-of-scope entries are
+   the hand-written third of the golden set, so this result is not circular.**
 
 **Stop if.** Model-free resolution is **below 60%**, or the assistant does not beat the
 CommandPalette. The first kills the cost argument; the second kills the reason to adopt
 at all. Either way **write the number down** — a negative result here is a real finding
 and a publishable one.
+⚠️ **The first TRIGGERED at 4.3%, and it is not a near miss. The second did not.** The two
+criteria disagree, and that disagreement is the result: the product is more useful than
+what it replaces, for the users it is meant to serve, while the mechanism that was
+supposed to make it cheap does not work at this registry size. **The number is published
+in MEASUREMENT.md.** The repositioning decision is D-4 (§13) and it belongs to the owner.
+
+---
+
+### WP-38 · The three model-free levers ⬜ · **M** · queue 1 · blocked by **D-4**
+
+**Goal.** Find out, on a fixed budget, whether the 4.3% model-free rate is a property of
+this design or of three things nobody has tried yet. **Do not start before D-4 is
+answered**, and do not exceed the budget the owner sets — §9's most likely failure is
+scope death, and "make the model-free path work" is exactly the kind of open-ended chase
+that causes it.
+
+**Preconditions.** D-4 answered as (b). WP-32's golden set (exists) and
+`evaluate-golden.mjs` (exists) — every lever below is measurable the day it lands.
+
+**Do this, in cost order, re-measuring after each.**
+
+1. **Emit triggers** (hours). The generator produces **0** across 145 capabilities, so
+   stage 1 — the 2ms, no-model path — never fires. Nav labels and deep-link palette
+   labels are the obvious source. Stage 1's own rule (a trigger must cover ≥60% of the
+   utterance) already guards against a bare "transport" swallowing a real question.
+2. **Per-section registries** (~a day). Stage 2 currently scores against all 145
+   capabilities. Scoring against ~20 within a section is a different problem, and
+   `similarityAudit()` already exists to show what it buys.
+3. **A real sentence encoder in the browser** (days, and it rewrites WP-24). `hashing`
+   gets 4.0% recall@1; `nomic-embed-text` gets 48.9%. The question is whether a
+   browser-runnable encoder (transformers.js / ONNX MiniLM) lands near the second, and
+   what it costs in bundle size — which is WP-24's own "Stop if" threshold.
+
+**Acceptance.**
+- [ ] Each lever measured **separately** against the same golden set, with a scorecard
+- [ ] Model-free rate stated after each, so the reader can see which lever paid
+- [ ] Bundle size measured if lever 3 is attempted (WP-24's ~500KB gzipped bar)
+- [ ] Thresholds recalibrated after every change — they are an artefact of the registry
+      *and* the encoder (Rule 14)
+
+**Stop if.** The budget is exhausted without reaching the rate D-4 set as the bar. Then
+the answer is D-4 option (c) — reposition the claim — and that is a finding, not a
+failure. **Write down which levers were tried and what each was worth.**
+
+---
+
+### WP-39 · Boundary coverage at scale ⬜ · **S** · queue 2
+
+**Goal.** 61.8% of out-of-scope requests were wrongly executed on the generated registry,
+against 92.3% detection on the 7-capability reference app. Four declared boundaries cannot
+out-rank 145 real capabilities.
+
+**Preconditions.** None. Independent of D-4 — this needs fixing whichever way that goes.
+
+**Do this.** The mechanism is ADR-009's and it is sound; the ratio is wrong. Generate
+boundaries proportional to the surface rather than from a fixed catalogue of four: per
+*section* rather than per application ("this app shows medical records but does not book
+appointments"), so a boundary competes against ~20 capabilities instead of 145. Re-measure
+`boundaryMargin` per registry afterwards.
+
+**Acceptance.**
+- [ ] Out-of-scope detection on WP-32's **hand-written** 34 entries, before and after
+- [ ] No in-domain turn wrongly refused — the constraint that governs `boundaryMargin`
+- [ ] The refusal still names what the app *does* do, in the app's own language
+
+**Stop if.** Detection cannot pass ~70% without wrongly refusing in-domain turns. Then
+declared boundaries do not scale, ADR-009 needs an amendment rather than a bigger
+catalogue, and that is an ADR, not a tweak.
+
+---
 
 ## 7.3 · M2 — The write-up (second artefact)
 
@@ -1302,13 +1473,16 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 M0  FOUNDATION ✅     WP-23 ADR ✅ (Proposed) · WP-15 landed ✅ · WP-16 de-financed ✅ · WP-17 re-measured ✅
      ~5 sessions       cheap, unblocks everything, builds nothing new
                             │
-M1  THE MEASUREMENT   WP-31 ground truth ✅ → WP-30 SPIKE ✅ GO → WP-25 generator ✅
-     ~15-20 sessions   → WP-32 golden set + palette baseline (also unblocks calibration)
-                       → WP-36 explanations
-                       → WP-33 MEASURE      ◄── the milestone that matters
+M1  THE MEASUREMENT   WP-31 ✅ → WP-30 SPIKE ✅ GO → WP-25 generator ✅
+     MEASURED          → WP-32 golden set + palette baseline ✅
+     2026-09-10        → WP-33 MEASURE ✅   ◄── the milestone that mattered
                             │
-                       ⟨ KILL GATE: model-free <60%, or it loses to the
-                         CommandPalette ⇒ reposition or stop ⟩
+                       ⟨ KILL GATE: model-free <60%  ⇒ ⚠️ TRIGGERED at 4.3%
+                         loses to the CommandPalette ⇒ ✅ did not: 54.5% vs 45.5% ⟩
+                            │
+                       ⚠️ D-4 — the owner decides: accept a model call per turn,
+                          fix the model-free path (WP-38), or reposition the claim.
+                          M3 does not start until this is answered.
                             │
 M2  THE WRITE-UP      WP-34                  ~3 sessions
                             │
@@ -1349,8 +1523,8 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 |---|---|
 | WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
 | **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
-| WP-33 model-free resolution below 60% | The cost advantage — the whole commercial argument — is gone. Reposition or stop. **Publish the number either way** |
-| **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | There is no reason to adopt. Find out why before building any of M3 |
+| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 4.3%.** The cost advantage — the whole commercial argument — is gone as stated. Reposition or stop: **D-4**. The number is published in [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
+| ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 54.5% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
 | WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
 | WP-27 anchors mispoint rather than degrade | Ship navigation only |
 | **WP-26 cannot integrate without editing the target's source** | Rule 16 is the product. The packaging model is wrong; rethink before shipping |
@@ -1369,7 +1543,9 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | **high** | **OPEN, and it replaces the old "pilot proves mechanism not value" risk.** `fut-app` is route-rich, role-gated and real, so it does prove value — but it is ours, and a generator built against it may not transfer. WP-28 (a target we do not own) is the remaining unproven step |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
-| **Model-free rate is the business model** | **high** | **OPEN.** 30.4% top-1 on the floor. WP-33 decides it |
+| **Model-free rate is the business model** | **critical** | ⚠️ **MEASURED AND FAILED 2026-09-10 — WP-33: 4.3%**, against a 60% kill criterion. Not a near miss. Two measured causes: the browser-capable encoder gets 4.0% recall@1 at 145 capabilities, and no threshold gives both coverage and precision. **This is now D-4, an open decision, not a risk** |
+| **The browser-capable encoder does not work at adopter scale** | **critical** | **OPEN — new, 2026-09-10 (WP-33).** `hashing` (TF-IDF, zero-dependency, the one ADR-008's offline claim and WP-24's design both rest on) scores **4.0% recall@1** against `nomic-embed-text`'s 48.9%. §9 logged this as "never tested at that size"; it is now tested and it fails. WP-24 needs a real sentence encoder in the browser or a different plan |
+| **Declared boundaries lose to a large registry** | **high** | **OPEN — new, 2026-09-10 (WP-33).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% detection on the 7-capability reference app. Four boundaries cannot out-rank 145 capabilities. Nothing dangerous ran (every generated capability is `navigate`), but this is ADR-009's mechanism failing at scale — and it is measured on the hand-written third of the golden set, so it is not circular. WP-39 |
 | §5's numbers are not reproducible | high | **RESOLVED 2026-09-09** — WP-17. Cold-start artefact; warm numbers match the original claim. See §5 |
 | **Injected text can make stage 2 itself rank a destructive capability first** | **high** | **OPEN — found 2026-09-09 (WP-17), `gs-0174`.** Contained only by Rule 5's unconditional confirm-before-destructive, not by any router-level gate — `REQUIRES_STAGE2_AGREEMENT` does not catch it because stage 2 and stage 3 agree on the wrong answer. Needs input sanitisation or injection detection; not scheduled on any WP yet. FINDINGS.md Finding 12 |
 | Adopter content reaching a prompt | high | **OPEN.** Rule 15 was written for a memo field; it now covers third-party component and copy text |
@@ -1472,7 +1648,9 @@ UTF-8 BOM that `JSON.parse` rejects.
 | How is out-of-scope detected without a model? | [ADR-009](.claude/decisions/ADR-009.md) — the mechanism the product rests on |
 | Where is policy enforced? | [core-dispatch](packages/core-dispatch/README.md) · [ADR-004](.claude/decisions/ADR-004.md) |
 | What did the router score? | §5 — re-measured 2026-09-09 (WP-17) |
+| **Does this actually work on a real app?** | **[eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) — read this first** |
 | How is a registry generated from an app's source? | [packages/generator](packages/generator/README.md) · [ADR-014](.claude/decisions/ADR-014.md) · [REPORT.md](eval/fut-app/REPORT.md) |
+| Where do the test questions come from, and how circular are they? | [eval/fut-app/GOLDEN_SET.md](eval/fut-app/GOLDEN_SET.md) |
 | How do I add a capability by hand? | [add-capability](.claude/skills/add-capability/SKILL.md) |
 | How do I add a whole application? | [new-domain](.claude/skills/new-domain/SKILL.md) |
 | Accuracy dropped — now what? | [router-regression](.claude/skills/router-regression/SKILL.md) |
@@ -1509,6 +1687,42 @@ means every integration must remember to pass it, and one that forgets gets an e
 claiming to be a finance app — the exact defect WP-16 fixes. Cost of this choice: it is a
 breaking change to `RegistryFile`, so both reference apps and the codegen move together
 — accepted, and implemented as part of WP-16.
+
+---
+
+**D-4 · The model-free rate is 4.3%. What is the product now?** — ⚠️ **OPEN, and it
+blocks M3 entirely.** *Raised 2026-09-10 by [WP-33](eval/fut-app/MEASUREMENT.md), whose
+kill criterion triggered.*
+
+The measurement says two things at once: the assistant **beats** the command palette it
+replaces (54.5% vs 45.5%, and by 25–31 points in Portuguese and for guardians), and the
+mechanism meant to make that cheap **does not work** at 145 capabilities (4.3% settled
+without a model call, against a 60% target). PLAN.md §8 pre-committed to "reposition or
+stop" on the second. It did not anticipate the first being good at the same time.
+
+**(a) Accept a model call per turn.** Smallest change, largest running cost. Forfeits
+ADR-008's offline and privacy properties and §1.4's "most turns cost nothing".
+
+**(b) Fix the model-free path before shipping anything.** Three unexplored levers, in cost
+order: emit triggers so stage 1 fires at all (it currently never does — 0 triggers across
+145 capabilities); ship a real sentence encoder to the browser rather than TF-IDF (which
+rewrites WP-24); split one 145-capability registry into per-section registries so stage 2
+scores against ~20 candidates.
+
+**(c) Reposition the claim** from *"most turns cost nothing"* to *"it understands your
+users' own words better than your command palette does"* — which this measurement supports
+directly and which does not depend on the model-free rate at all.
+
+> **Recommendation: (b) for one bounded attempt, then (c) if it fails.** Lever 1 is hours
+> and lever 3 is a day, and both are measurable against the golden set that now exists —
+> so the cost of finding out is small and the answer changes the product. (a) is the option
+> that should not be taken by drift: it is a different business, and
+> [business-case](.claude/docs/business-case.md) §5 should be rewritten before it is chosen,
+> not after.
+>
+> **Cost of choosing wrong:** (a) taken quietly makes every later "it runs offline" claim
+> false. (b) pursued indefinitely is the scope death §9 calls the most likely failure —
+> **give it a fixed budget and honour it.**
 
 ---
 
