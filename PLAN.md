@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp41-drop-in-kit`, based on `develop` · **16 workspace packages · 618 tests,
+**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp42-description-audit`, based on `develop` · **16 workspace packages · 621 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -73,7 +73,7 @@ on 2026-09-11; see §13.
 |---|---|---|---|---|
 | 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **Left:** WP-43's app, a `calibrate` command, and the owner's run | M4 | M | agent |
 | 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
-| 3 | **WP-42** · Audit the generated descriptions. 100 of 145 have never been read by a person, and a wrong one misroutes silently | M4 | S–M | agent, then owner sample |
+| 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows ([DESCRIPTION_AUDIT.md](eval/fut-app/DESCRIPTION_AUDIT.md)) | M4 | S–M | **owner** |
 | 4 | **WP-43** · A second external app, **with role guards**. Rule 17 has only ever been validated on `fut-app` | M4 | M | agent |
 | 5 | **WP-45** · Accessibility. The agent runs automated checks and writes an NVDA checklist; the owner does the screen-reader pass | M4 | S | agent, then owner |
 | 6 | **WP-44** · Portuguese and real-voice acceptance. `fut-app` is Portuguese, and WP-21 measured English synthetic speech only | — | S | agent + owner recordings |
@@ -470,12 +470,12 @@ someone who did not write it.
 
 ### Tests
 
-618 tests across 15 packages, all green on 2026-09-11, after PR #7 merged and WP-41
-landed. `services/api` has none.
+621 tests across 15 packages, all green on 2026-09-11, after PR #7 merged and WP-41,
+WP-46 and WP-42's agent half landed. `services/api` has none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `core-intent` | 120 | | `generator` | 94 |
+| `core-intent` | 120 | | `generator` | 97 (incl. WP-42's extraction fixes) |
 | `data` | 60 (incl. WP-18) | | `core-capability` | 59 (incl. WP-27, the registry-ownership guard) |
 | `apps/web` | 44 | | `core-inference` | 42 (incl. the Rule 15 fence) |
 | `domain-modules` | 39 | | `domain-finance` | 34 |
@@ -793,6 +793,7 @@ adversarial violation is new, see above).
 | 2026-09-11 (WP-28): discovery gave up on unreadable routes before recording any skips | On an app we do not own it found 1 of 8 routes and reported **0** skips | Read `lazy`, aliases and path tables; add the `unreadable-route` reason | **A report cannot mention what the tool never saw** (L12) |
 | 2026-09-11 (WP-29): the "browser" entry reached `node:*` through a dependency, and read `process.env` at module scope | `ReferenceError` on first load in any page, while `check-packaging.mjs` passed | A `core-inference/ollama` subpath, and guarded reads | **An entry point that exists is not one that loads** (L11) |
 | **2026-09-11 (WP-21): `normalize()` kept sentence punctuation** | Whisper ends every transcript with a full stop, so "My modules." missed the stage-1 trigger. 10 of 40 spoken turns routed differently from typed. Typed input had the same bug all along | Strip `.` and `,` unless a digit is on both sides. Recalibrate, and rebuild every index | **Changing an upstream function invalidates everything derived from it.** Two threshold profiles, ten indexes and two scorecards went stale, and only a manual parity run noticed. **WP-46 now gates it in CI** |
+| **2026-09-11 (WP-42): a page's error fallback was read as the page** | On an app we do not own, a screen with no doc comment had one literal string under it — an `ErrorBoundary` fallback — so its description became *"a user tries to view comments but sees an error message"*. A user asking for that screen would be sent somewhere the registry describes as broken | `readPage` skips `fallback`/`errorFallback`/`loadingFallback`/`errorElement` subtrees. The first fix also skipped `forbiddenFallback` and made another description worse, so it was narrowed | **A failure state is not the screen.** An error fallback describes a *moment*; an authorization fallback describes the *audience*, which is true of the screen. Extraction decides description quality far more than the prompt does |
 | **2026-09-11 (WP-41): the uncalibrated default was assumed to be merely cautious** | On a 145-screen app it sent 2 of 7 confident stage-2 answers to the wrong screen, and wrongly refused 1 of 105 real questions. The first draft of `doctor` told adopters it would only "ask more clarifying questions" | Measured before the claim shipped. `doctor` now states the numbers | **A default is a calibration made for somebody else's registry.** This is Rule 14 again, seen from the adopter's side: uncalibrated does not mean conservative |
 
 ---
@@ -2150,13 +2151,45 @@ where they conflict.
   re-measure.
 
 **Acceptance.**
-- [ ] The error rate is reported per app, with the sample size.
-- [ ] Every wrong description is traced to a cause: the prompt, the source it read, or
-      the model.
+- [x] The error rate is reported per app, with the sample size: **20 descriptions on three
+      readable apps — 15 right, 4 vague, 1 wrong (5%)**. `fut-app`'s rate is **not known
+      yet**, and the owner's 25 rows are what will produce it.
+- [x] Every wrong description is traced to a cause. **All five came from the source the
+      generator read**, not the prompt and not the model:
+      - the one wrong description was an error boundary's fallback, read as the screen's
+        own text;
+      - three of the four vague ones are pages with nothing to read — a redirect, a
+        layout shell, and a page whose only action lives inside a child component.
+
+**Done, in [DESCRIPTION_AUDIT.md](eval/fut-app/DESCRIPTION_AUDIT.md).**
+
+> **Two extraction bugs, fixed with tests.** `readPage` now ignores `fallback`,
+> `errorFallback`, `loadingFallback` and `errorElement` subtrees, and strips the `*/` a
+> one-line doc comment used to keep. bulletproof-react's discussion screen went from *"a
+> user tries to view comments but sees an error message"* to *"A user views and
+> participates in a discussion with others."*
+>
+> ⚠️ **The first version of the fix made another description worse**, and that is why it
+> is narrower: it also skipped `forbiddenFallback`, which is the only thing telling the
+> model who `/app/users` is for, and the description fell from "An admin views a list of
+> registered users" to "A person views…". An authorization fallback describes the
+> **audience**; an error fallback describes a **moment**. Both are now tests.
+>
+> **The mechanical half, on all 145** ([audit-descriptions.mjs](eval/fut-app/audit-descriptions.mjs)):
+> 21 flagged. **9 screens share a description with another screen, word for word** — three
+> medical screens have one sentence between them — and every duplicate sits under a
+> placeholder title. 5 open as one role on a screen many roles reach, which is REPORT.md's
+> known failure, found mechanically this time. 1 breaks a prompt rule. 0 are in the wrong
+> language.
+>
+> **A blunt check was tried and discarded:** flagging any role word absent from a
+> capability's roles caught 26 of 145, nearly all of them the sentence's *subject* rather
+> than its audience. It is not reported as a defect count.
 
 **Stop if.** More than 10% are wrong after one round of fixes. Then the kit gets a
 **mandatory review step**: `doctor` lists the descriptions for the adopter to confirm, and
-"no human step" is retired as a goal.
+"no human step" is retired as a goal. **Not triggered on the readable apps at 5%;
+undecided for `fut-app` until the owner's sheet comes back.**
 
 ---
 
