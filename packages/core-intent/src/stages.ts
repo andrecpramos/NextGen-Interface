@@ -2,7 +2,9 @@ import { normalize, contentTokens } from './text.ts';
 import { actionSignalApplies } from './action.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
-import { redactTag } from '@nextgen/core-inference';
+// The subpath, not the package root: the root re-exports the model store, which imports
+// node:crypto/fs/path, and stages.ts is in the browser bundle (lessons.md L11).
+import { redactTag } from '@nextgen/core-inference/untrusted';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
 import { OUT_OF_SCOPE_ID } from './config.ts';
 import { STAGE, type Candidate, type Embedder, type Registry, type SlotValue, type Stage } from './types.ts';
