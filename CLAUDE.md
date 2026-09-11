@@ -90,7 +90,7 @@ Don't re-derive these procedures — they are written down. Full map:
 | ending a session | `/handoff` |
 | suspicious the docs have drifted | `docs-keeper` agent |
 | installing this SDLC in another repo | `sdlc-bootstrap` skill (the `sdlc-kit` folder lives outside this repo) |
-| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — nine of them, with what each cost |
+| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — twelve of them, with what each cost |
 
 Three hooks enforce what you would otherwise have to remember: the branching
 contract at every context boundary, a guard denying broad staging and writes to

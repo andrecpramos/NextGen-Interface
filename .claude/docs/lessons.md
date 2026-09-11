@@ -258,6 +258,52 @@ once and looping; that would need either an API change to `fit()` or a lint rule
 
 ---
 
+## L11 · An entry point that exists is not one that loads
+
+**What happened.** WP-26 added `@nextgen/core-intent/browser` because the root export
+imports `node:fs`. `check-packaging.mjs` confirmed the entry was declared and its file
+was present. Nothing ever *loaded* it without Node. When WP-29 did, inside a V8 context
+holding only `window`, it failed twice:
+- `embedder.ts` imported the `core-inference` root, and through `model-store.ts` that
+  reaches `node:crypto`, `fs` and `path`.
+- `config.ts` and `ollama.ts` read `process.env` at module scope, which throws
+  `process is not defined` on the first line a page runs.
+
+**Why it was hard to see.** Every consumer that existed ran in Node, Next's server bundle
+or vitest, and all three provide `process`. A module-scope read also looks like a
+constant, not like a call that can throw.
+
+**The durable lesson.** *Test an artefact in the environment it claims, not the one you
+develop in.* A browser entry is proven by running it with only a browser's globals, not
+by a manifest check.
+
+**Enforcement:** level 1. `packages/embed/src/embed.test.ts` runs the built bundle in a
+bare `vm` context on every `pnpm -r test`, so either import pattern returning breaks the
+suite.
+
+---
+
+## L12 · A report cannot mention what the tool never saw
+
+**What happened.** The generator's skip report exists so that nothing is dropped
+silently (Rule 7's reasoning). On an app we do not own (WP-28), discovery found **1 of
+8** routes, and the report listed **0** skips. `lazy: () => import()`, paths read from a
+constants table and a tsconfig alias each made a route unreadable. Discovery then
+`continue`d past it, *before* the code that records skips.
+
+**Why it was hard to see.** A report of zero skips reads as "nothing to report". On
+`fut-app`, where the generator was built, every route was the readable shape.
+
+**The durable lesson.** *The branch that gives up has to record why, at the moment it
+gives up.* A skip ledger kept downstream of the point where input can be lost is a
+completeness claim with a hole where the failures are.
+
+**Enforcement:** level 1 for these shapes. `discover-data-router.test.ts` asserts both
+the reading and that an unevaluable path lands in `unreadable-route`. Level 4 for any
+new `continue` added to discovery.
+
+---
+
 ## Adding a lesson
 
 Add an entry when a bug's cause was **not locally obvious** — when someone
