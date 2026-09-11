@@ -1,7 +1,7 @@
 {
   "version": "0.1.0",
   "name": "@nextgen/core-trace",
-  "main": "./dist/index.js",
+  "main": "./src/index.ts",
   "description": "TurnTrace records. Explainability is a recorded structure, never model narration.",
   "scripts": {
     "test": "vitest run",
@@ -10,14 +10,20 @@
   },
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
+    ".": "./src/index.ts"
   },
   "files": [
     "dist",
     "README.md"
   ],
-  "types": "./dist/index.d.ts"
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  }
 }

@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * The workspace packages ship TypeScript source, not builds — `main` points at
- * `src/index.ts` everywhere. That is deliberate (one source of truth, no stale
- * dist), and it means Next has to compile them rather than treat them as
- * pre-built dependencies.
+ * Inside the workspace the packages resolve to TypeScript source, not builds —
+ * `main` and `exports` point at `src/`. That is deliberate (one source of truth,
+ * no stale dist), and it means Next has to compile them rather than treat them
+ * as pre-built dependencies. The installable build (WP-26) lives only in each
+ * package's `publishConfig`, which pnpm applies when it packs — so an adopter
+ * gets `dist/`, and this app never sees it.
  *
  * `@nextgen/ui` is the only one that reaches the browser. The rest are pulled
  * in exclusively by route handlers under `app/api/*`, because the engine binds

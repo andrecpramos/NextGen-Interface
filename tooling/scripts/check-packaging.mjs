@@ -66,10 +66,18 @@ for (const name of readdirSync(join(ROOT, 'packages'))) {
     continue;
   }
 
+  // Check the manifest as PUBLISHED, not as the workspace sees it. pnpm overlays
+  // `publishConfig` onto the package when it packs, so inside the workspace a
+  // package can point at `src/*.ts` — which Next, vitest, tsc and Node all resolve
+  // — while the tarball an adopter installs points at `dist/`. The first attempt
+  // at WP-26 repointed the workspace itself at `dist/`, and every in-repo consumer
+  // then silently ran stale builds after any source edit, and CI typechecked
+  // against types that did not exist yet on a fresh clone.
+  const published = { ...pkg, ...(pkg.publishConfig ?? {}) };
   const entries = [
-    ...(pkg.main ? [pkg.main] : []),
-    ...(pkg.types ? [pkg.types] : []),
-    ...targets(pkg.exports),
+    ...(published.main ? [published.main] : []),
+    ...(published.types ? [published.types] : []),
+    ...targets(published.exports),
   ];
 
   if (entries.length === 0) say('declares no entry point at all');
