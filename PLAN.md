@@ -49,7 +49,7 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | 3 | ~~**WP-36**~~ ✅ **COMPLETE — 2026-09-10.** Declared explanations built, served verbatim, and now *detected*: 94.4% recall on the golden set's what/why bucket at 2.3% false positives, reusing ADR-015's frame layer. Changes no routing decision | M1 | S | done |
 | 4 | ~~**WP-34**~~ ✅ the write-up — [WRITEUP.md](WRITEUP.md), 2026-09-10 | M2 | M | done |
 | 5 | ◐ **WP-24** · Ship stages 1+2 to the browser — **engine done 2026-09-10**, bundle 47KB gz at the largest role against a 500KB gate, 210/210 decision parity with the server path. **The encoder finding that rewrote this was retracted** ([L10](.claude/docs/lessons.md)). Left: mount it in a page | M3 | S | — |
-| 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
+| 6 | ◐ **WP-27** · Guided steps — **built 2026-09-11**, D-3 answered. Steps generated from source, a runtime resolver that degrades to text rather than mispointing, 39 tests. Left: rendering against a real `fut-app` form, which the owner has put off-limits | M3 | L | owner (fut-app) |
 | 7 | ◐ **WP-26** · The installable package — **installable 2026-09-11**. Six packages build to dist and were installed from tarballs into an outside consumer that routed real turns with no network. Left: a live page (WP-35) | M3 | S | — |
 | 8 | ◐ **WP-35** · Deploy on `fut-app` — **navigate now moves the browser (2026-09-11)**, closing §3's Layer 4 gap. The rest needs a deployment, real traffic and a screen-reader pass | M3 | M | owner |
 
@@ -96,7 +96,7 @@ WP-21 (voice acceptance), WP-10 (mobile). ~~WP-22~~ and ~~WP-11~~ ✅ both done 
 | | Decision | Blocks |
 |---|---|---|
 | ~~**D-4**~~ | ✅ **ANSWERED 2026-09-10, in session: option (b) — spend WP-38's budget first.** Spent. Model-free reached **8.1%**, not 60%, so WP-38's own "Stop if" fired and the answer resolves to **(c), reposition the claim** — done in [business-case.md](.claude/docs/business-case.md) §5. **M3 is unblocked** | ~~all of M3~~ |
-| D-3 | How a guided step anchors to an element in an app we do not control | WP-27 |
+| ~~D-3~~ | ✅ **ANSWERED 2026-09-11, in session: (c) semantic matching primary, (a) build-time selector as fallback, (b) never** | ~~WP-27~~ |
 | ~~D-1~~ | ✅ decided — both reference apps survive (ADR-013) | — |
 | ~~D-2~~ | ✅ decided — `registry.domainDescription` (ADR-013) | — |
 
@@ -1711,7 +1711,31 @@ quantising or the embedder needs changing, and that is the work before anything 
 
 ---
 
-### WP-27 · Guided steps ⬜ · **L** · queue 7 · **D-3**
+### WP-27 · Guided steps ◐ **BUILT — 2026-09-11** · rendering in `fut-app` pending
+
+> **D-3 answered, and the mechanism is built end to end on the generator's fixture.**
+>
+> | Acceptance | |
+> |---|---|
+> | A `step` declaration beside `route`, generated for forms the generator finds | ✅ `Capability.steps` / `GuidedStep` / `StepAnchor` in `core-capability`; `pages.ts` reads every named form control in source order; `steps.ts` writes one step per field |
+> | Renders against a real multi-field form in `fut-app` | ⏸ **not done — the owner put `fut-app` off-limits for this session.** Proven instead on the fixture's notifications form, which has each shape a real form uses: a label bound by `htmlFor` whose text is an i18n key, a literal label, an `aria-label` with no visible label, and a submit button named by its own text |
+> | **An anchor that no longer matches degrades to text and never points at the wrong element** | ✅ `resolveAnchor` refuses on no match, on **two** matches, on a selector that now finds a differently-named field, on a selector that now finds a different kind of control, and on an invalid selector — each a test of a deliberate change to the page |
+> | Guidance written at build time, never per turn (Rule 9) | ✅ a fixed template per control kind, in the app's primary language (English and Portuguese today; others fall back to English). **No model runs**, at build or run time |
+> | Rule 15 | ✅ the only adopter text in a step is the field's own label, quoted into a template and never interpreted — a hostile label is a test |
+>
+> **Why the steps are a template and not model prose.** A model writes friendlier
+> sentences; it can also write a step for a field that is not on the page. The one
+> thing guidance must never do is point confidently at the wrong place, and a template
+> over fields read from source cannot invent one.
+>
+> **The Stop-if did not trigger.** It reads *"anchors mispoint rather than degrade
+> under a deliberate change to the app"* — six deliberate changes, six degradations,
+> zero mispoints. It is evaluated on a hand-built page, not a live one, and that
+> caveat belongs to the `fut-app` row above.
+>
+> The resolver reaches the DOM through a two-method interface rather than
+> `Document`, so every one of those properties is testable without a browser or a
+> DOM library.
 
 **Goal.** *"Take me there and tell me what to do."* Navigation exists; guidance does not.
 A **step** declares which element, what to do, in what order.
@@ -1850,7 +1874,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | ~~**WP-37**~~ ✅ | Dead weight removed, 2026-09-10 | `tooling/tsconfig`, `tooling/eslint-config` and the 0-byte scorecard are gone; seven doc references updated, `pnpm-lock.yaml` regenerated (0 remaining references), workspace globs resolve, typecheck and 384 tests green. **Every claim was re-verified before deleting, and one was false**: `apps/cli` → `@nextgen/core-capability` is *live* — WP-16's `domain-swap.test.ts` imports it, and the table had not been updated. **A second was wrong about the path**, and a third — "five `package.json` files carry a BOM" — was 5× too high; it is one. §4's count is now 14 workspace packages | Done |
 | **WP-28** | A target app **we do not own** | `fut-app` is route-rich and real, so it proves value as well as mechanism — but it is ours, and a generator tuned on it may not transfer. External validation is the remaining unproven step | After WP-33; **give it a deadline, not a hope** |
 | **WP-29** | Script tag — Ladder C3 | Needs the installable package first | After WP-26 |
-| **WP-18** | Undo for `module.delete` | No rung on any ladder ships a write capability | **Before any write capability ever ships** |
+| ~~**WP-18**~~ ✅ | Undo for `module.delete` and `module.revert` — **done 2026-09-11** | A deleted module comes back exactly as it was (same id and timestamps, so anything referring to it still resolves); undoing a revert restores the body it replaced. Tokens cannot be spent twice, a `null` payload refuses readably, and undoing the revert of a since-deleted module refuses rather than resurrecting it. The CLI gains `undo`, and its confirmation now says "you can undo this" for both — derived from the journal, not asserted | Done |
 | **WP-20** | Screens for capture/search | Reference-app polish | Never, probably |
 | **WP-21** | Verify voice acceptance | Voice is a differentiator but not on the critical path to a measurement | After M2 |
 | ~~**WP-22**~~ ✅ | Contract tests for `apps/web`, 2026-09-10 | **16 tests, the first this app has ever had** — `render.ts` is where every view the surface receives is built, so a mistake there is one the user sees. Three of the properties are safety, not cosmetics: the drawer may offer **only** `navigate` capabilities (a one-tap `destructive` entry would bypass ADR-004's confirmation entirely), a confirmation card must hide the raw uploaded source text it carries internally while showing every value being approved, and a rendered trace must carry the runners-up (Rule 9). Needed a vitest alias — the web layer declares `import 'server-only'`, which Next injects and which resolves nowhere else | Done |
@@ -1946,9 +1970,9 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | **Role leak — a capability reaching a user who cannot access it** | **high** | **OPEN.** Rule 17. `fut-app` is role-gated; one ADMIN capability in a GUARDIAN registry reveals the shape of a surface that user must not see. Generator role extraction has a zero-tolerance kill criterion (§8) |
 | **Declared explanations may not cover enough** | medium | **OPEN** — WP-36. If they do not, A1 Q&A needs runtime generation, which forfeits the cost advantage and makes this a chat widget. The stop condition is written down |
 | Accessibility claims unverified | medium | **OPEN.** Designed in, never tested. It is in the pitch — WP-35 gates on it |
-| Guided steps anchoring to a DOM we do not control | medium | **OPEN** — D-3, WP-27. Reading from source reduces this materially |
+| Guided steps anchoring to a DOM we do not control | medium | **MITIGATED 2026-09-11** — D-3 answered; `resolveAnchor` refuses rather than guesses on every ambiguous or contradicted match, so the failure is a hint that is not highlighted, never one that points at the wrong field. **Still open** until it runs against a live adopter page (WP-35) |
 | ~~**`domain-finance` is orphaned, so the domain-agnostic claim is untested**~~ | high | **RESOLVED 2026-09-09 — WP-16.** `domain-finance` is now a `devDependency` of `apps/cli`; `domain-swap.test.ts` runs the real router against its actual registry. The domain-agnostic claim is now exercised, not asserted — `NextGenApp` itself still only registers `domain-modules` (its use cases are module-specific), which is a separate, larger question this did not need to answer |
-| Undo unimplemented for the reference app | medium | **OPEN** — WP-18. Contained: no rung ships writes |
+| Undo unimplemented for the reference app | ~~medium~~ | ✅ **CLOSED 2026-09-11 — WP-18.** `module.delete` and `module.revert` both restore from the row captured before they ran; `canUndo` says so because the journal's switch does; the CLI's `undo` reaches it |
 | Registry growth erodes stage-2 margins | medium | `similarityAudit()` exists. An adopter may have 200 destinations where ours has 7; never tested at that size |
 | Bundle size in a browser | medium | **OPEN** — WP-24 measures it at 10/50/200 |
 | Golden-set gates are not run-to-run deterministic | low | MITIGATED — CI gates on tolerances (Finding 10) |
@@ -2135,7 +2159,7 @@ directly and which does not depend on the model-free rate at all.
 
 ---
 
-**D-3 · How does a guided step anchor to an element?** — *blocks WP-27*
+**D-3 · How does a guided step anchor to an element?** — ✅ **ANSWERED 2026-09-11 by the owner, in session: the recommendation below, as written.** (c) accessibility-tree matching at run time is primary, (a) a CSS selector captured from source is the fallback, and (b) an attribute the adopter adds is never required. Implemented in `packages/ui/src/anchor.ts`, with one addition the recommendation did not spell out and the Stop-if demanded: **a selector match is refused when the element it finds carries a different accessible name than the step declares** — that is the redesign case where (a) alone would point confidently at the wrong field.
 
 **(a)** CSS selector captured at build time · **(b)** a stable attribute the adopter adds
 · **(c)** semantic / accessibility-tree matching at runtime (label, role, heading).

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 
-import type { PageFacts } from './types.ts';
+import type { FormField, PageFacts } from './types.ts';
 
 /**
  * What a page component's own body says about it.
@@ -157,6 +157,113 @@ function headings(source: ts.SourceFile): string[] {
   return [...new Set(out)].slice(0, 12);
 }
 
+const CONTROL_TAGS = new Set(['input', 'select', 'textarea', 'button']);
+
+/** A JSX element's attributes, if it has any. */
+function attributesOf(node: ts.Node): ts.JsxAttributes | null {
+  if (ts.isJsxElement(node)) return node.openingElement.attributes;
+  if (ts.isJsxSelfClosingElement(node)) return node.attributes;
+  return null;
+}
+
+/** A string-literal attribute's value — `name="x"` or `name={'x'}`. */
+function literalAttr(attributes: ts.JsxAttributes, name: string): string | null {
+  for (const attribute of attributes.properties) {
+    if (!ts.isJsxAttribute(attribute) || attribute.name.getText() !== name) continue;
+    const value = attribute.initializer;
+    if (value && ts.isStringLiteral(value)) return value.text;
+    if (value && ts.isJsxExpression(value) && value.expression && ts.isStringLiteralLike(value.expression)) {
+      return value.expression.text;
+    }
+  }
+  return null;
+}
+
+/**
+ * The visible text of an element's children: literal text, or the key of a
+ * single `t('…')` call. A label that is computed any other way is returned as
+ * nothing rather than guessed — a step anchored to a guessed label would be
+ * exactly the confident mispoint WP-27 forbids.
+ */
+function childText(node: ts.Node): { text: string | null; key: string | null } {
+  if (!ts.isJsxElement(node)) return { text: null, key: null };
+  const literal = node.children
+    .filter(ts.isJsxText)
+    .map((c) => c.text)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (literal) return { text: literal, key: null };
+  for (const child of node.children) {
+    if (!ts.isJsxExpression(child) || !child.expression || !ts.isCallExpression(child.expression)) continue;
+    const call = child.expression;
+    const [first] = call.arguments;
+    if (ts.isIdentifier(call.expression) && call.expression.text === 't' && first && ts.isStringLiteralLike(first)) {
+      return { text: null, key: first.text };
+    }
+  }
+  return { text: null, key: null };
+}
+
+/**
+ * The form controls a page renders, with whatever names them (WP-27).
+ *
+ * A control's name comes from, in order: its own `aria-label`, a `<label
+ * htmlFor>` pointing at its `id`, its `placeholder`, and — for a button — its own
+ * text. That is the accessible-name order a screen reader uses, which is also
+ * the order `packages/ui`'s runtime resolver matches in; the two have to agree or
+ * a generated anchor would name a field the page does not.
+ *
+ * Hidden inputs are skipped, and so is any control nothing names: a step that
+ * cannot say which field it means is not guidance.
+ */
+function formFields(source: ts.SourceFile): FormField[] {
+  const labels = new Map<string, { text: string | null; key: string | null }>();
+  const controls: ts.Node[] = [];
+
+  const visit = (node: ts.Node): void => {
+    const tag = tagNameOf(node);
+    const attributes = attributesOf(node);
+    if (tag && attributes) {
+      const lower = tag.toLowerCase();
+      if (lower === 'label') {
+        const target = literalAttr(attributes, 'htmlFor');
+        if (target) labels.set(target, childText(node));
+      } else if (CONTROL_TAGS.has(lower)) {
+        controls.push(node);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+
+  const out: FormField[] = [];
+  for (const node of controls) {
+    const attributes = attributesOf(node)!;
+    const tag = tagNameOf(node)!.toLowerCase();
+    const type = literalAttr(attributes, 'type');
+    if (type === 'hidden') continue;
+    // A button that is not a submit is usually an icon toggle or a row action;
+    // "press the button" with no destination is not a step.
+    if (tag === 'button' && type !== 'submit') continue;
+
+    const id = literalAttr(attributes, 'id');
+    const name = literalAttr(attributes, 'name');
+
+    let named: { text: string | null; key: string | null } = {
+      text: literalAttr(attributes, 'aria-label'),
+      key: null,
+    };
+    if (!named.text && id && labels.has(id)) named = labels.get(id)!;
+    if (!named.text && !named.key) named = { text: literalAttr(attributes, 'placeholder'), key: null };
+    if (!named.text && !named.key && tag === 'button') named = childText(node);
+
+    if (!named.text && !named.key) continue;
+    out.push({ tag, label: named.text, labelKey: named.key, id, name, type });
+  }
+  return out;
+}
+
 /** The block comment above the component — usually why the page exists. */
 function componentDoc(source: ts.SourceFile): string | null {
   const text = source.getFullText();
@@ -207,5 +314,10 @@ export function readPage(file: string): PageFacts {
     i18nKeys: namespace ? keys.map((k) => (k.includes(':') ? k : `${namespace}:${k}`)) : keys,
     headings: headings(source),
     doc: componentDoc(source),
+    // Same namespace rule as `i18nKeys`, so a label written as t('x.y') resolves
+    // against the page's own namespace exactly as its other copy does.
+    fields: formFields(source).map((f) =>
+      f.labelKey && namespace && !f.labelKey.includes(':') ? { ...f, labelKey: `${namespace}:${f.labelKey}` } : f,
+    ),
   };
 }

@@ -18,6 +18,8 @@ export {
   type ParamSpec,
   type ParamType,
   type RegistryFile,
+  type GuidedStep,
+  type StepAnchor,
 } from './types.ts';
 
 export {

@@ -49,3 +49,28 @@ describe('readPage — the application’s own words', () => {
     expect(page('squad', 'SquadOverviewPage').headings).toContain('Roster health');
   });
 });
+
+/**
+ * WP-27. Guided steps are generated from these, and the anchor each step gets is
+ * matched at run time by accessible name — so the name read here has to come
+ * from the same sources, in the same order, that a screen reader uses.
+ */
+describe('fields — the form controls a page renders', () => {
+  it('reads every named control in source order, with whatever names it', () => {
+    expect(page('settings', 'NotificationsPage').fields).toEqual([
+      // A <label htmlFor> whose text is t('…'): kept as a key, namespaced like
+      // the page's other copy, and resolved against the locales later.
+      { tag: 'input', label: null, labelKey: 'settings:notifications.email', id: 'notify-email', name: 'email', type: 'email' },
+      // A literal <label htmlFor>.
+      { tag: 'select', label: 'Digest frequency', labelKey: null, id: 'notify-frequency', name: 'frequency', type: null },
+      // No visible label at all — named only by aria-label.
+      { tag: 'input', label: 'Quiet hours', labelKey: null, id: null, name: 'quietHours', type: 'text' },
+      // A submit button, named by its own text.
+      { tag: 'button', label: null, labelKey: 'settings:notifications.save', id: null, name: null, type: 'submit' },
+    ]);
+  });
+
+  it('finds nothing on a page with no form', () => {
+    expect(page('squad', 'SquadOverviewPage').fields).toEqual([]);
+  });
+});

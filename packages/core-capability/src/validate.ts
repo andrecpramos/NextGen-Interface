@@ -157,6 +157,27 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     }
   }
 
+  // --- guided steps (WP-27, D-3) -----------------------------------------------
+  // A step's text is what a user gets when its anchor cannot be found, so a step
+  // without text is a highlight with no instruction. And a selector-only anchor
+  // is D-3's option (a) on its own, which breaks silently on the next redesign.
+  if (isBoundary && (cap.steps?.length ?? 0) > 0) {
+    err(id, 'steps-on-boundary', `"${id}" is a declared limit and cannot have steps — there is no page to guide anyone through`);
+  }
+  for (const [index, step] of (cap.steps ?? []).entries()) {
+    const where = `"${id}" step ${index + 1}`;
+    if (!step.text?.trim()) {
+      err(id, 'step-text-required', `${where} has no text — it is what the user sees when the anchor cannot be found`);
+    }
+    const anchor = step.anchor;
+    if (anchor && !anchor.label && !anchor.role && anchor.selector) {
+      warn(id, 'step-anchor-selector-only', `${where} anchors by CSS selector alone — it will break silently on the next redesign (D-3: a selector is the fallback, never the only signal)`);
+    }
+    if (anchor && !anchor.label && !anchor.selector) {
+      warn(id, 'step-anchor-empty', `${where} declares an anchor with nothing to match`);
+    }
+  }
+
   // --- examples: the ≥3 rule from coding-standards.md -------------------------
   // Not documentation. They are the retrieval document, the few-shot pool and
   // the golden-set fixtures, so a capability with two of them is under-specified

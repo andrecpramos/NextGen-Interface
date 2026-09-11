@@ -17,6 +17,7 @@ import {
 } from './synthesise.ts';
 import { splitByRole } from './emit.ts';
 import { assignTriggers } from './triggers.ts';
+import { stepsEntry } from './steps.ts';
 import type {
   AnnotatedCapability,
   DiscoveredRoute,
@@ -42,6 +43,7 @@ import type {
 
 const EMPTY_FACTS: PageFacts = {
   isPureRedirect: false,
+  fields: [],
   redirectTargets: [],
   i18nKeys: [],
   headings: [],
@@ -312,6 +314,9 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
         : {}),
       examples: [...written.examples],
       ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),
+      // WP-27: guided steps from the form this page renders, in the app's primary
+      // language. Template-built at build time, never generated per turn (Rule 9).
+      ...stepsEntry(accepted[index]!.facts.fields, translations.get(config.languages[0] ?? 'en'), config.languages[0] ?? 'en'),
       roles: route.roles ?? [],
       ...(parameters.length > 0
         ? {

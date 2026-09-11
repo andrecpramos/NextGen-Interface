@@ -196,6 +196,10 @@ importers:
         version: 5.9.3
 
   packages/ui:
+    dependencies:
+      '@nextgen/core-capability':
+        specifier: workspace:*
+        version: link:../core-capability
     devDependencies:
       '@types/react':
         specifier: ^19.0.0

@@ -120,11 +120,49 @@ export interface Capability {
    * assistant is unattributable and therefore unfixable.
    */
   readonly explanationSource?: string;
+  /**
+   * Guided steps — *"tell me what to do here"* (WP-27).
+   *
+   * A route gets someone to a page; a step tells them what to do once they are
+   * there. Written at build time from the form the generator found in the page's
+   * source, and **never generated per turn** (Rule 9), for the same reasons as
+   * `explanation`: served verbatim, auditable, fixable by editing a string.
+   */
+  readonly steps?: readonly GuidedStep[];
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;
   readonly examples?: readonly (string | CapabilityExample)[];
   /** Required on `unsupported`: what the user is told, and why. */
   readonly refusal?: string;
+}
+
+/**
+ * Where a guided step points — D-3, answered 2026-09-11.
+ *
+ * **(c) semantic matching is primary** — `label` and `role`, matched against the
+ * page's accessibility tree at run time, because a visible label survives a
+ * redesign far better than a class name and is how a person finds a field.
+ * **(a) a build-time `selector` is the fallback**, and it is never trusted on its
+ * own: the runtime refuses a selector match whose accessible name contradicts
+ * `label`. **(b) an attribute the adopter adds is never required** — it would be
+ * a human step in their codebase, which the product promises not to ask for.
+ *
+ * An anchor that no longer matches degrades to the step's text. It never points
+ * at the wrong element — see `packages/ui/src/anchor.ts`.
+ */
+export interface StepAnchor {
+  /** The control's accessible name as the page shows it. The primary signal. */
+  readonly label?: string;
+  /** Its ARIA role — `textbox`, `combobox`, `checkbox`, `button` — to disambiguate. */
+  readonly role?: string;
+  /** A CSS selector captured from source at build time. Fallback only. */
+  readonly selector?: string;
+}
+
+export interface GuidedStep {
+  /** What to do, in words. Always shown, whatever happens to the anchor. */
+  readonly text: string;
+  readonly anchor?: StepAnchor;
 }
 
 export interface EnumDefinition {

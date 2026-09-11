@@ -1,3 +1,7 @@
 {
-  "notifications": { "title": "Notifications" }
+  "notifications": {
+    "title": "Notifications",
+    "email": "Email address",
+    "save": "Save preferences"
+  }
 }

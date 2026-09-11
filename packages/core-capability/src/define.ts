@@ -1,4 +1,4 @@
-import type {
+import type { GuidedStep,
   Capability,
   CapabilityExample,
   EnumDefinition,
@@ -31,6 +31,8 @@ export interface CapabilityDefinition {
   readonly explanation: string;
   /** Where that text came from, so a wrong answer can be traced and fixed. */
   readonly explanationSource?: string;
+  /** Guided steps for the page this capability lands on (WP-27). */
+  readonly steps?: readonly GuidedStep[];
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;
   /** At least three (coding-standards.md). The validator enforces it. */
@@ -72,6 +74,7 @@ export function defineCapability(def: CapabilityDefinition): Capability {
     description: def.description,
     explanation: def.explanation,
     ...(def.explanationSource ? { explanationSource: def.explanationSource } : {}),
+    ...(def.steps && def.steps.length > 0 ? { steps: def.steps } : {}),
     ...(def.triggers ? { triggers: def.triggers } : {}),
     ...(def.params ? { params: def.params } : {}),
     examples: def.examples,

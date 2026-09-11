@@ -73,6 +73,24 @@ export interface PageFacts {
   readonly headings: readonly string[];
   /** Leading block comment on the default export — why the page exists. */
   readonly doc: string | null;
+  /**
+   * The form controls the page renders, in source order (WP-27). What guided
+   * steps are generated from. Labels are untrusted adopter text (Rule 15).
+   */
+  readonly fields: readonly FormField[];
+}
+
+/** One control a guided step can point at, as read from the page's JSX. */
+export interface FormField {
+  /** `input`, `select`, `textarea` or `button`, lower-cased. */
+  readonly tag: string;
+  /** Literal label text, when the source spells it out. */
+  readonly label: string | null;
+  /** The i18n key, when the label is `t('…')`. Resolved against locales later. */
+  readonly labelKey: string | null;
+  readonly id: string | null;
+  readonly name: string | null;
+  readonly type: string | null;
 }
 
 /** A label a manifest attached to a route, with the reason it was recorded. */
