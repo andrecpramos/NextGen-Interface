@@ -59,6 +59,7 @@ node tooling/scripts/check-doc-links.mjs           # every relative doc link res
 pnpm -r typecheck
 pnpm -r test
 pnpm registry:check                                # Rule 10: >=3 examples per capability
+node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
 ```
 
 The golden-set gate and its tolerances are described in
