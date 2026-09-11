@@ -124,6 +124,12 @@ export class NextGenApp {
   readonly #traces: SqliteTraceStore;
   readonly #routerRuntime: LlmRuntime | undefined;
   readonly #undo: SqliteUndoJournal;
+  /**
+   * The token of the last action that can be taken back (WP-18). Undo survives
+   * navigation because the journal is a table; this is only which row "undo"
+   * means when a person types it.
+   */
+  #lastUndoToken: string | null = null;
   readonly #options: Required<Pick<AppOptions, 'today' | 'embedder'>>;
   readonly #embedder: ReturnType<typeof makeEmbedder>;
   readonly #model: string | undefined;
@@ -486,6 +492,9 @@ export class NextGenApp {
     if (approved.type !== 'approved') return ['could not approve'];
 
     const { capabilityId, params } = approved;
+    // Only replaced when this action produced a token, so a later non-destructive
+    // confirmation does not quietly discard the one thing "undo" should reach.
+    if (approved.undoToken) this.#lastUndoToken = approved.undoToken;
 
     switch (capabilityId) {
       case 'module.capture': {
@@ -516,16 +525,39 @@ export class NextGenApp {
       case 'module.delete': {
         const r = deleteModule(this.#useCaseDeps, String(params.target ?? ''));
         return r.ok
-          ? [`Deleted "${r.value.title}".`, `Undo with the token in the trace.`]
+          ? [`Deleted "${r.value.title}".`, `Type 'undo' to put it back.`]
           : [`Could not delete it: ${r.reason}`];
       }
       case 'module.revert': {
         const r = revertModule(this.#useCaseDeps, String(params.target ?? ''));
-        return r.ok ? [`Reverted "${r.value.title}" to its previous version.`] : [`Could not revert it: ${r.reason}`];
+        return r.ok
+          ? [`Reverted "${r.value.title}" to its previous version.`, `Type 'undo' to get back the version you just replaced.`]
+          : [`Could not revert it: ${r.reason}`];
       }
       default:
         return [`"${capabilityId}" is confirmed but has no action wired up yet.`];
     }
+  }
+
+  /**
+   * Take back the last reversible action (WP-18, ADR-004).
+   *
+   * Until WP-18 there was nothing to call: the journal recorded a token for every
+   * destructive action and could reverse none of the ones this application
+   * offers. Now `module.delete` and `module.revert` restore from the row
+   * captured before they ran, and this is the path a person reaches that by.
+   *
+   * One undo per action — the journal refuses to spend a token twice, so a
+   * second `undo` reports there is nothing left rather than restoring twice.
+   */
+  undo(): string {
+    const token = this.#lastUndoToken;
+    if (!token) return 'There is nothing to undo.';
+    const entry = this.#undo.get(token);
+    const outcome = this.#undo.undo(token);
+    if (!outcome.ok) return `Could not undo that: ${outcome.reason}`;
+    this.#lastUndoToken = null;
+    return `Undone — ${entry?.describedAs ?? 'the last action'}.`;
   }
 
   /** "Why did you do that?" — rendered from the record, never from a model. */
@@ -709,11 +741,13 @@ export class NextGenApp {
    */
   #describeConfirmation(decision: Extract<Decision, { type: 'confirm' }>): string[] {
     // The warning is *derived*, not asserted. It used to read "this cannot be
-    // undone without the journal" for every destructive action — which promises a
-    // journal that can, and for `module.delete` and `module.revert` no restore
-    // path exists at all (PLAN.md §4 defect 3, WP-18). Telling a user an action is
-    // recoverable at the moment they confirm it, when it is not, is the worst
-    // possible place to be wrong.
+    // undone without the journal" for every destructive action — a promise the
+    // journal could not keep for `module.delete` or `module.revert` (PLAN.md §4
+    // defect 3). WP-18 gave both a real restore path, so `canUndo` now says yes
+    // for them and this prompt says so; it still says "permanent" for anything
+    // the journal cannot reverse. Telling a user an action is recoverable at the
+    // moment they confirm it, when it is not, is the worst place to be wrong —
+    // which is why this reads the journal's own declaration instead of a string.
     const reversible = decision.destructive && canUndo(decision.capabilityId);
     const headline = decision.destructive
       ? reversible

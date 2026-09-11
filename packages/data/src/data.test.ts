@@ -634,35 +634,134 @@ describe('fixtures', () => {
  */
 describe('undo journal — what it actually claims it can reverse', () => {
   it('declares only the capabilities the switch really handles', () => {
-    expect([...REVERSIBLE_CAPABILITIES].sort()).toEqual(['budget.delete', 'transaction.delete']);
+    expect([...REVERSIBLE_CAPABILITIES].sort()).toEqual([
+      'budget.delete', 'module.delete', 'module.revert', 'transaction.delete',
+    ]);
   });
 
-  it('says no for the registered application’s destructive capabilities', () => {
-    expect(canUndo('module.delete')).toBe(false);
-    expect(canUndo('module.revert')).toBe(false);
+  /**
+   * WP-18. Until 2026-09-11 both of these were `false`, and the registered
+   * application's every destructive action was irreversible.
+   */
+  it('says yes for the registered application’s destructive capabilities', () => {
+    expect(canUndo('module.delete')).toBe(true);
+    expect(canUndo('module.revert')).toBe(true);
   });
 
-  it('says yes only for what it can restore', () => {
-    expect(canUndo('transaction.delete')).toBe(true);
-    expect(canUndo('budget.delete')).toBe(true);
+  it('says no for anything it cannot restore', () => {
+    expect(canUndo('module.capture')).toBe(false);
     expect(canUndo('anything.else')).toBe(false);
   });
 
   // The set and the switch are two statements of the same fact, so a capability
-  // listed here that the switch cannot restore would be the same lie one level down.
+  // the switch cannot restore must be refused at run time *and* absent here —
+  // otherwise it is the same lie one level down.
   it('refuses at run time exactly where it says it will', () => {
     const db = openMemoryDatabase();
     migrate(db);
     const journal = new SqliteUndoJournal(db);
     const token = journal.record({
-      capabilityId: 'module.delete',
-      params: {},
-      describedAs: 'Deleted a module',
-      payload: {},
-      recordedAt: '2026-09-10T00:00:00.000Z',
+      capabilityId: 'module.capture', params: {}, describedAs: 'Saved a module',
+      payload: {}, recordedAt: '2026-09-11T00:00:00.000Z',
+    });
+    expect(journal.undo(token).ok).toBe(false);
+    expect(canUndo('module.capture')).toBe(false);
+  });
+});
+
+/**
+ * WP-18 — the restore paths themselves. The composition root captures the
+ * module row with `modules.get(target)` *before* the action runs, which is the
+ * payload each of these receives.
+ */
+describe('undo journal — the registered application (WP-18)', () => {
+  const MODULE = {
+    id: 'm1', categoryId: null, title: 'Passport renewal', summary: 'How to renew.',
+    body: 'The full, carefully merged text.', createdAt: '2026-03-01T10:00:00.000Z',
+    updatedAt: '2026-03-01T10:00:00.000Z',
+  };
+
+  it('puts a deleted module back exactly as it was', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    const journal = new SqliteUndoJournal(db);
+    repo.insert(MODULE);
+
+    const token = journal.record({
+      capabilityId: 'module.delete', params: { target: 'm1' }, describedAs: 'Deleted "Passport renewal"',
+      payload: repo.get('m1'), recordedAt: '2026-03-02T10:00:00.000Z',
+    });
+    repo.delete('m1');
+    expect(repo.get('m1')).toBeNull();
+
+    expect(journal.undo(token)).toEqual({ ok: true });
+    // Same id and timestamps, so anything that referred to it still resolves.
+    expect(repo.get('m1')).toEqual(MODULE);
+  });
+
+  it('undoes a revert by restoring the body that was there before it', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    const journal = new SqliteUndoJournal(db);
+    repo.insert(MODULE);
+
+    // What the composition root captures: the row before the revert runs.
+    const beforeRevert = repo.get('m1');
+    const token = journal.record({
+      capabilityId: 'module.revert', params: { target: 'm1' }, describedAs: 'Reverted "Passport renewal"',
+      payload: beforeRevert, recordedAt: '2026-03-02T10:00:00.000Z',
+    });
+    repo.update('m1', { body: 'An older snapshot.', updatedAt: '2026-03-02T10:00:00.000Z' });
+
+    expect(journal.undo(token, '2026-03-03T10:00:00.000Z')).toEqual({ ok: true });
+    const now = repo.get('m1');
+    expect(now?.body).toBe('The full, carefully merged text.');
+    // The content returns, but this is a new change and the timestamp says so.
+    expect(now?.updatedAt).toBe('2026-03-03T10:00:00.000Z');
+  });
+
+  it('refuses to spend a module token twice, and leaves no duplicate row', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    const journal = new SqliteUndoJournal(db);
+    repo.insert(MODULE);
+    const token = journal.record({
+      capabilityId: 'module.delete', params: { target: 'm1' }, describedAs: 'Deleted',
+      payload: repo.get('m1'), recordedAt: '2026-03-02T10:00:00.000Z',
+    });
+    repo.delete('m1');
+    expect(journal.undo(token).ok).toBe(true);
+    expect(journal.undo(token).ok).toBe(false);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM modules').get()).toMatchObject({ n: 1 });
+  });
+
+  /**
+   * The journal entry is written *before* the action, so a delete of a module
+   * that never existed still records one — with a `null` payload. That must read
+   * as a refusal, not as an insert of null columns.
+   */
+  it('refuses readably when nothing was captured', () => {
+    const db = freshDb();
+    const journal = new SqliteUndoJournal(db);
+    const token = journal.record({
+      capabilityId: 'module.delete', params: { target: 'ghost' }, describedAs: 'Deleted',
+      payload: null, recordedAt: '2026-03-02T10:00:00.000Z',
     });
     const outcome = journal.undo(token);
     expect(outcome.ok).toBe(false);
-    expect(canUndo('module.delete')).toBe(false);
+    expect(outcome).toMatchObject({ reason: expect.stringMatching(/nothing was captured/) });
+  });
+
+  it('refuses to undo a revert of a module that has since been deleted', () => {
+    const db = freshDb();
+    const repo = new SqliteModuleRepository(db);
+    const journal = new SqliteUndoJournal(db);
+    repo.insert(MODULE);
+    const token = journal.record({
+      capabilityId: 'module.revert', params: { target: 'm1' }, describedAs: 'Reverted',
+      payload: repo.get('m1'), recordedAt: '2026-03-02T10:00:00.000Z',
+    });
+    repo.delete('m1');
+    expect(journal.undo(token)).toMatchObject({ ok: false, reason: expect.stringMatching(/no longer exists/) });
   });
 });
