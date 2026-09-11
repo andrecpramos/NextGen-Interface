@@ -50,6 +50,10 @@ describe('the script-tag artefact (WP-29)', () => {
     const api = window.NextGen as Record<string, unknown>;
     expect(typeof api.create).toBe('function');
     expect(typeof api.load).toBe('function');
+    // WP-41: the chat box ships in the same file, and still loads without a DOM.
+    expect(typeof api.start).toBe('function');
+    expect(typeof api.mount).toBe('function');
+    expect(typeof api.present).toBe('function');
   });
 
   it('routes a real fut-app turn with no network, no fetch even defined', async () => {

@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp41-drop-in-kit`, based on `develop` · **16 workspace packages · 597 tests,
+**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp41-drop-in-kit`, based on `develop` · **16 workspace packages · 618 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -70,7 +70,7 @@ on 2026-09-11; see §13.
 
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
-| 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. **Left:** a chat box (the mount gives the router, not an input), WP-43's app, and a `calibrate` command | M4 | M | agent |
+| 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **Left:** WP-43's app, a `calibrate` command, and the owner's run | M4 | M | agent |
 | 2 | **WP-46** · Gate the derived artefacts. Browser/server parity, per-registry calibration and index staleness all go into CI. Then an upstream change like `normalize()`'s cannot leave shipped vectors stale again | M4 | S | agent |
 | 3 | **WP-42** · Audit the generated descriptions. 100 of 145 have never been read by a person, and a wrong one misroutes silently | M4 | S–M | agent, then owner sample |
 | 4 | **WP-43** · A second external app, **with role guards**. Rule 17 has only ever been validated on `fut-app` | M4 | M | agent |
@@ -469,7 +469,7 @@ someone who did not write it.
 
 ### Tests
 
-597 tests across 15 packages, all green on 2026-09-11, after PR #7 merged and WP-41
+618 tests across 15 packages, all green on 2026-09-11, after PR #7 merged and WP-41
 landed. `services/api` has none.
 
 | Package | Tests | | Package | Tests |
@@ -480,7 +480,7 @@ landed. `services/api` has none.
 | `domain-modules` | 39 | | `domain-finance` | 34 |
 | `core-trace` | 28 | | `core-dispatch` | 26 |
 | `ui` | 16 (anchor resolver) | | `apps/cli` | 15 |
-| `kit` | 12 (WP-41: init, build, doctor) | | `embed` | 4 (the script tag) |
+| `kit` | 12 (WP-41: init, build, doctor) | | `embed` | 25 (the script tag and the chat box) |
 | `core-voice` | 4 (asset store; acceptance is an eval) | | | |
 
 ---
@@ -503,7 +503,7 @@ NextGen_Interface/
 │   ├── core-inference/   ✅ runtimes · ModelStore · ./ollama subpath · 18 tests — WebGpuRuntime throws by design
 │   ├── core-voice/       ✅ whisper · piper · assets · 4 tests + eval/acceptance.mjs (WP-21)
 │   ├── generator/        ✅ discover · pages · steps · prose · ids · synthesise · emit · 94 tests
-│   ├── embed/            ✅ WP-29 — the script tag, 9.3KB gzipped · 4 tests
+│   ├── embed/            ✅ WP-29, WP-41 — the script tag and the chat box, 12.0KB gzipped · 25 tests
 │   ├── kit/              ◐ WP-41 — nextgen init · build · doctor · 12 tests
 │   ├── ui/               ✅ tokens · Sphere · Composer · anchor resolver (WP-27) · 16 tests
 │   ├── domain-modules/   ◐ REFERENCE APP — 39 tests
@@ -1986,7 +1986,7 @@ kit has to explain itself well enough to be run by someone who did not write it.
 
 ---
 
-### WP-41 · The drop-in kit ◐ **BUILT — 2026-09-11** · a chat box and the owner's run remain
+### WP-41 · The drop-in kit ◐ **BUILT — 2026-09-11** · the owner's run remains
 
 > **Built on `feature/wp41-drop-in-kit`.** `packages/kit` provides `nextgen init | build |
 > doctor` ([README](packages/kit/README.md)), with 12 tests on two fixtures of different
@@ -2020,7 +2020,14 @@ kit has to explain itself well enough to be run by someone who did not write it.
 >   repository, if the rebuilt registries match it (INSTALL.md §0).
 >
 > **Left:**
-> 1. **A chat box.** The mount line gives the page the router, not an input.
+> 1. ~~**A chat box.**~~ ✅ **Built the same day.** `NextGen.start('/nextgen', role)`
+>    mounts an accessible "ask where to go" box in a shadow root. It speaks the page's
+>    language, Portuguese or English. It moves the browser only for an executed
+>    `navigate` turn. It never performs anything else, because a script tag has no
+>    dispatcher. It fills a route's `:param` only from the page the user is already on;
+>    otherwise it explains and stays put. Choices are real links (Rule 7). 21 tests; the
+>    bundle grew from 9.3KB to 12.0KB gzipped. **Not yet verified with a screen reader
+>    (WP-45).**
 > 2. **WP-43's app.**
 > 3. **A `nextgen calibrate` command.** It needs the sweep extracted from
 >    `calibrate-registries.mjs` into one shared module first: two copies of a calibration

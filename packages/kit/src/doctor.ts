@@ -149,9 +149,13 @@ export function doctor(kitDir: string): DoctorReport {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
     say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
   }
-  say('  2. Add to your page:');
+  const roleArg = record.roles.length > 1 ? 'CURRENT_USER_ROLE' : `'${role}'`;
+  say('  2. Add to your page. This puts an accessible "ask where to go" box in the corner:');
   say('       <script src="/nextgen/nextgen.js"></script>');
-  say(`       <script>NextGen.load('/nextgen', ${record.roles.length > 1 ? 'CURRENT_USER_ROLE' : `'${role}'`}).then((assistant) => { /* assistant.route(question) */ });</script>`);
+  say(`       <script>NextGen.start('/nextgen', ${roleArg});</script>`);
+  say('     In a single-page app, pass your router so moving does not reload the page:');
+  say(`       NextGen.start('/nextgen', ${roleArg}, { navigate: (to) => router.navigate(to) })`);
+  say('     To place it yourself, pass { target: someElement }.');
   say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
   say();
 

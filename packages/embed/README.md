@@ -4,19 +4,36 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js, ~23KB raw, ~9.3KB gzipped
+node packages/embed/build.mjs   # → dist/nextgen.js, ~30KB raw, ~12KB gzipped
 ```
 
 ```html
-<script src="/nextgen.js"></script>
-<script>
-  NextGen.load('/generated', 'COACH').then(async (assistant) => {
-    const trace = await assistant.route('where do I see the training calendar');
-  });
-</script>
+<script src="/nextgen/nextgen.js"></script>
+<script>NextGen.start('/nextgen', 'COACH');</script>
 ```
 
-## What it is
+That second line loads the role's bundle and mounts the **chat box** (WP-41). In a
+single-page app, pass the router so that moving does not reload the page:
+`NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
+
+## The chat box
+
+- **`present.ts`** is pure. It turns a turn into what to say, and whether to move:
+  - It moves only for an executed `navigate` turn. It does not move for "what is X?"
+    (WP-36), or to where the user already is.
+  - It never performs a `read`, `write` or `destructive` capability, because a script
+    tag has no dispatcher.
+  - It fills a route's `:param` only from the page the user is on. Otherwise it explains
+    and stays put.
+  - A declared limit is shown in the registry's own refusal text. The words follow the
+    page's language, Portuguese or English.
+- **`widget.ts`** draws that inside a shadow root, so the host's stylesheet cannot reach
+  it. It uses system colours, 48px targets, a visible focus ring, `role="search"`, a
+  labelled input, and an `aria-live` result. Choices are real links, so every
+  destination stays reachable without the assistant (Rule 7). **It has not yet been
+  verified with a screen reader (PLAN.md WP-45).**
+
+## The router underneath
 
 - **`create(bundle)`** takes a registry, its shipped index and its thresholds. It returns
   `route(utterance, context)`, `steps(capabilityId, root)` and the capability count. It
@@ -37,7 +54,12 @@ highlight anything than point at the wrong field.
 `fetch`. In that context it:
 - routes real `fut-app` turns from the generator's own output;
 - makes the same decision as the direct `route()` call;
-- stays under 60KB gzipped.
+- stays under 60KB gzipped;
+- exposes `start`, `mount` and `present`.
+
+`src/present.test.ts` covers the presenter's rules, one test per case where moving or
+acting would be wrong. `src/widget.test.ts` drives the widget through a small fake DOM,
+because the repository has no DOM library.
 
 **That test found two defects in the package's browser entry**, and neither could load in a
 page: a `node:*` import reached through `core-inference`, and `process.env` read at module

@@ -78,9 +78,11 @@ needs from this repository is already here.
    For a local test, copying `bundle/` into `public/nextgen` serves every role's files.
    That is fine on your own machine and wrong in production (Rule 17).
 
-   ⚠️ **The kit gives your page the router, not a chat box yet.**
-   `assistant.route(question)` returns where to go. A ready-made, accessible input is
-   WP-41's remaining item (PLAN.md).
+   The two lines put an accessible "ask where to go" box in the page's corner. It speaks
+   Portuguese on a `pt` page. `fut-app` is a single-page app, so pass its router to
+   avoid a full reload:
+   `NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
+   Without that, moving reloads the page. That is slower, but still correct.
 7. **Send back:**
    - `doctor`'s output and `git status`;
    - how long it took;
@@ -212,13 +214,16 @@ node packages/embed/build.mjs     # → packages/embed/dist/nextgen.js, ~9.3KB g
 ```
 
 ```html
-<script src="/nextgen.js"></script>
+<script src="/nextgen/nextgen.js"></script>
+<!-- Fetches registry.COACH.json, index.COACH.json and thresholds.hashing.json from
+     the same origin, then mounts the chat box. No other network call is ever made. -->
+<script>NextGen.start('/nextgen', 'COACH');</script>
+
+<!-- Or, to draw your own interface, take the router alone: -->
 <script>
-  // Fetches registry.COACH.json, index.COACH.json and thresholds.hashing.json
-  // from the same origin. No other network call is made, ever.
-  NextGen.load('/generated', 'COACH').then(async (assistant) => {
+  NextGen.load('/nextgen', 'COACH').then(async (assistant) => {
     const trace = await assistant.route('where do I see the training calendar');
-    // trace.outcome, trace.capabilityId
+    // trace.outcome, trace.capabilityId, trace.route
   });
 </script>
 ```
