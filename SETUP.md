@@ -286,20 +286,21 @@ Honest status. The engine is complete; the product surface is not.
 | `data` | schema, migrations, the fixed query set, undo journal, fixtures |
 | `domain-modules` | **the registered reference app** — entities, use cases, 7 capabilities |
 | `domain-finance` | a second reference app — 27 capabilities, proof the engine is domain-agnostic |
-| `generator` | reads an application's source and emits one registry per role (WP-25) |
-| `apps/cli` | **the composition root** — the whole stack in a terminal |
-| `ui` | design system — sphere states, confirmation card, trace viewer (WP-08) |
-| `apps/web` | **the assistant surface** — Next.js, a second surface over the same root (WP-09) |
+| `generator` | reads an application's source and emits one registry per role (WP-25). Also emits guided steps (WP-27) and reads data-router apps (WP-28) |
+| `apps/cli` | **the composition root**: the whole stack in a terminal, with `undo` (WP-18) |
+| `ui` | design system: sphere states, confirmation card, trace viewer (WP-08), plus the guided-step anchor resolver (WP-27) |
+| `apps/web` | **the assistant surface**: Next.js, a second surface over the same root (WP-09). `navigate` moves the browser (WP-35), 44 tests |
+| `embed` | the script tag: one file defining `window.NextGen`, 9.3KB gzipped (WP-29) |
+| `core-voice` | Whisper and Piper. Acceptance-tested end to end in English (WP-21) |
 
 ### Not built
 
 | | Work package | What it blocks |
 |---|---|---|
+| **The drop-in kit** | WP-41 | one command from an app's source to a mounted assistant. [INSTALL.md](INSTALL.md) has today's manual steps |
+| **A live deployment** | WP-35 | the owner's run inside `fut-app` |
 | **Charts** | WP-08 remainder | `Answer` renders bars; there is no chart component yet |
-| **Per-route screens** | WP-09 remainder | `/transactions`, `/budget` etc. do not exist as screens — the route is tracked and returned, not navigated to |
-| **Tests for `apps/web`** | — | the API contract is the natural integration-test target |
-| **`apps/mobile`** | WP-10 | on-device inference; **gated** on proving `llama.rn` works at all |
-| **Voice** | WP-13 | MVP 2 — the mic button renders disabled and says so |
+| **Voice in the browser** | — | voice runs in the CLI only. The runtimes are desktop binaries, and the web mic button renders disabled |
 | **Lint** | WP-12 | No ESLint dependency anywhere — deliberately left out of CI rather than wrapped in a green no-op. The empty `tooling/eslint-config` stub was deleted in WP-37 |
 
 

@@ -1,6 +1,6 @@
 # Lessons — mistakes this repo has already made
 
-> **Audited against the tree:** 2026-09-09
+> **Audited against the tree:** 2026-09-11 (L11 and L12 added)
 > Harvested from [PLAN.md](../../PLAN.md) §6 and from session work since.
 
 Each entry is a real defect, what it cost, and the durable lesson. They are here

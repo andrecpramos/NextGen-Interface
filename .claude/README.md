@@ -19,7 +19,7 @@ bug.
 ├── agents/              delegated, context-isolated workers
 ├── commands/            /slash-commands, mechanical and on demand
 │
-├── decisions/           ADRs — the constitution. 13 of them
+├── decisions/           ADRs — the constitution. 15 of them (ADR-016 arrives with PR #7)
 ├── sdlc/                per-phase process definitions + agent-workflow
 ├── roles/               role briefs: architect, backend, frontend, qa, devops, ai-engineer
 └── docs/                architecture, security, testing, standards, rules, lessons, …

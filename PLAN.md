@@ -329,7 +329,7 @@ that was always the more durable half of the case.
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **C1 · now** | **Installed by us into one real app** (`fut-app`) to produce a measurement | — | WP-33, WP-35 |
-| **C2 · next** | **An installable package the client adds to their own codebase** — requirement #1 of the product | A1/B1 measured and defensible | WP-26 |
+| **C2 · installable 2026-09-11** | **An installable package the client adds to their own codebase**. This is requirement #1 of the product | A1/B1 measured and defensible | ~~WP-26~~ ✅. The one-command kit is WP-41 |
 | **C3 · built 2026-09-11** | **A script tag** for apps with no build step: `window.NextGen`, 9.3KB gzipped | C2 shipped | ~~WP-29~~ ✅ |
 
 #### Not on any ladder yet
@@ -414,29 +414,45 @@ minutes. It is not a value test and must never be reported as one.
 | Declared boundaries / model-free refusal | ✅ and it is the core safety property |
 | Registry format, `defineCapability`, codegen, validation | ✅ it becomes the **integration contract** |
 | `TurnTrace` + `explain()` | ✅ and it becomes a selling feature |
-| `packages/ui` | ◐ needs to survive a host page's CSS (WP-35) |
-| `core-voice` | ◐ interfaces yes; the runtimes are desktop binaries, so a browser needs a different transport |
-| `core-inference` runtime seam | ✅ the seam is right; the browser transport is new (WP-24) |
-| `data`, `domain-modules`, `domain-finance` | ◐ **reference applications** now — the generator's ground truth |
+| `packages/ui` | ◐ the surface, plus the guided-step anchor resolver (WP-27, 16 tests). It still has to survive a host page's CSS (WP-35) |
+| `core-voice` | ◐ acceptance-tested in English (WP-21). The runtimes are desktop binaries, so a browser needs a different transport |
+| `core-inference` runtime seam | ✅ the seam is right. Stages 1+2 need no transport at all in the browser (WP-24), and the `core-inference/ollama` subpath keeps Node-only code out of browser bundles (WP-29) |
+| `data`, `domain-modules`, `domain-finance` | ◐ **reference applications** now: the generator's ground truth |
 | `apps/cli`, `apps/web` | ◐ reference implementations |
+| `generator` | ✅ the build step (WP-25, WP-27, WP-28). The kit wraps it (WP-41) |
+| `embed` | ✅ the script tag (WP-29) |
 
 ### What does not exist
 
-**Declared explanations** (WP-36), the **browser runtime** (WP-24), **guided steps**
-(WP-27), the **installable package** (WP-26), and any measurement against questions we
-did not write (WP-33).
+As of 2026-09-11:
 
-~~The **generator**~~ — **landed 2026-09-10 (WP-25)**:
-[packages/generator](packages/generator/README.md) reads an app's source and emits one
-role-scoped registry per role. `fut-app` produces 145 capabilities + 4 boundaries across
-10 registries, scoring 100% recall and role exactness on WP-31's ground truth
-([REPORT.md](eval/fut-app/REPORT.md)). What it does **not** yet emit is calibrated
-thresholds — that needs WP-32's golden set.
+- **The drop-in kit** (WP-41): one command, a `doctor`, a one-line mount. Every piece
+  exists, but nothing joins them yet into the single action an adopter takes.
+- **A live deployment inside a real app** (WP-35, which is the owner's run).
+- **Calibration for an adopter who has no golden set.** Every calibration so far used
+  hand-written questions (§9). For `fut-app` it lives in an eval script
+  ([calibrate-registries.mjs](eval/fut-app/calibrate-registries.mjs)), not in the
+  generator.
+- **Evidence beyond one role-gated app.** Role extraction is validated on `fut-app` only
+  (WP-43), and 100 of the 145 generated descriptions have never been read by a person
+  (WP-42).
 
-**The packaging and the evidence are still ahead of the engine.** The engine is built and
-good, and now so is the generation; what is missing is a measurement against questions we
-did not invent, and a runtime that ships. That asymmetry is still the most important
-thing to understand about this repo.
+Everything this section used to list now exists, and §7 describes each one:
+- declared explanations (WP-36);
+- the browser runtime (WP-24);
+- guided steps (WP-27);
+- the installable package (WP-26);
+- the script tag (WP-29);
+- a measurement against questions we did not write (WP-33).
+
+The generator ([packages/generator](packages/generator/README.md), WP-25) emits 145
+capabilities and 4 boundaries across 10 registries for `fut-app`. It scores 100% recall
+and 100% role exactness on WP-31's ground truth ([REPORT.md](eval/fut-app/REPORT.md)).
+
+**The asymmetry has moved.** It used to be that the engine was ahead of the packaging and
+the evidence. Now the engine, the generator and the packages are all built and measured.
+What is behind is **the last metre**: one command that an adopter can run, proven by
+someone who did not write it.
 
 ### The five AI layers
 
@@ -468,28 +484,31 @@ thing to understand about this repo.
 
 ```
 NextGen_Interface/
-├── .claude/docs/              26 docs + 14 ADRs + history.md + business-case.md
-│                     ⚠️ most prose still describes the pre-repositioning product (WP-11)
+├── .claude/docs/              docs · lessons (L1–L12) · history · business case
+├── .claude/decisions/         15 ADRs on this branch (ADR-016 arrives with PR #7)
 ├── apps/
-│   ├── cli/          ✅ COMPOSITION ROOT — 15 tests
-│   ├── web/          ✅ REFERENCE IMPLEMENTATION — 16 tests (WP-22)
-│   └── (no mobile/, no desktop/)      ⬜ WP-10, deferred
+│   ├── cli/          ✅ COMPOSITION ROOT — 15 tests · `undo` (WP-18)
+│   ├── web/          ✅ REFERENCE IMPLEMENTATION — 44 tests · navigate moves the browser
+│   └── (no mobile/)  ✖ WP-10 closed: a different product
 ├── packages/
-│   ├── core-intent/      ✅ cascade · stages · embedder · slots · registry · 63 tests
-│   ├── core-capability/  ✅ define · validate · codegen (precomputes the index) · 31 tests
+│   ├── core-intent/      ✅ cascade · stages · embedder · slots · action · text · registry(-browser) · 117 tests
+│   ├── core-capability/  ✅ define · validate (incl. guided steps) · codegen · 45 tests
 │   ├── core-dispatch/    ✅ policy · dispatcher · engines · 26 tests
 │   ├── core-trace/       ✅ recorder · store · explain · 28 tests
-│   ├── core-inference/   ✅ runtimes · ModelStore · 18 tests — WebGpuRuntime throws by design
-│   ├── core-voice/       ✅ whisper · piper · assets · ⚠️ 4 tests, asset store only
-│   ├── generator/        ✅ WP-25 — discover · pages · prose · ids · synthesise · emit · 49 tests
-│   ├── domain-modules/   ◐ REFERENCE APP — 38 tests
+│   ├── core-inference/   ✅ runtimes · ModelStore · ./ollama subpath · 18 tests — WebGpuRuntime throws by design
+│   ├── core-voice/       ✅ whisper · piper · assets · 4 tests + eval/acceptance.mjs (WP-21)
+│   ├── generator/        ✅ discover · pages · steps · prose · ids · synthesise · emit · 94 tests
+│   ├── embed/            ✅ WP-29 — the script tag, 9.3KB gzipped · 4 tests
+│   ├── ui/               ✅ tokens · Sphere · Composer · anchor resolver (WP-27) · 16 tests
+│   ├── domain-modules/   ◐ REFERENCE APP — 39 tests
 │   ├── domain-finance/   ◐ REFERENCE APP — 34 tests
-│   ├── data/             ✅ money · schema · repositories · query-engine · undo · 51 tests
-│   └── ui/               ✅ tokens · Sphere · Composer · ConfirmationCard · … ⚠️ 0 tests
-├── services/api/     6 lines, `export {}`   ⬜ empty by design (ADR-008)
-├── models/           voice/                 — gitignored, downloaded assets
-├── tooling/scripts/  check-import-boundaries · check-scorecard · check-thresholds
-└── PLAN.md · README.md · SETUP.md · CLAUDE.md
+│   └── data/             ✅ money · schema · repositories · query-engine · undo · 60 tests
+├── services/api/     `export {}`   ⬜ empty by design (ADR-008)
+├── eval/fut-app/     ground truth · golden set · generated registries · measurements
+├── models/           voice/        — gitignored, downloaded assets
+├── tooling/scripts/  check-import-boundaries · check-thresholds · check-scorecard
+│                     check-packaging · check-doc-links · check-kit-sync
+└── PLAN.md · README.md · WRITEUP.md · INSTALL.md · SETUP.md · CLAUDE.md
 ```
 
 **Toolchain:** Node 25.1.0 · pnpm 11.1.2 · Ollama with `qwen2.5:1.5b`, `llama3.1:8b`,
@@ -501,7 +520,7 @@ NextGen_Interface/
 |---|---|---|---|
 | **1** | ~~**The stage-3 prompt hardcodes finance.**~~ **FIXED 2026-09-09 (WP-16)** — `stages.ts` now reads `registry.domainDescription` (D-2, ADR-013). *"transfer 500 euros to my brother"* is refused (`gs-0197`), permanently, against the modules registry. Removing the hardcoded text also **improved** top-1 accuracy 2–6 points on both models (FINDINGS Finding 13) | **Fatal to the product** — the engine cannot serve arbitrary apps while asserting it is one specific app. **Demonstrated:** *"transfer 500 euros to my brother"* routed to `module.revert`, a destructive capability, instead of being refused. The policy gate held; nothing was deleted | **WP-16** ✅ |
 | **2** | ~~`llama3.1:8b` took >4 min to load, then timed out a turn~~ (2026-09-08) | **RESOLVED as a false alarm 2026-09-09 (WP-17)** — did not reproduce: warm reload today took 8.7s on GPU. Likely a one-off (GPU contention or a CPU fallback that day), not a persistent defect. §5, FINDINGS Finding 12 | **WP-17** ✅ |
-| **3** | **Undo is unimplemented for the shipping reference app** — `undo.ts` reverses `transaction.delete` and `budget.delete`, both `domain-finance`; the registered app's `module.delete` and `module.revert` have no restore path. **The false claim is fixed (2026-09-10)**: `canUndo()` is declared next to the switch that would have to honour it, and the CLI's confirmation now says *"this is permanent and cannot be undone"* where it used to promise a journal that could. **The undo itself is still missing** | Rule 5's destructive path is nominal. Contained only because no rung ships a write capability — but the *prompt* was lying at the exact moment a user confirms a permanent deletion | **WP-18** for the restore path; the claim is honest now |
+| **3** | ~~**Undo is unimplemented for the shipping reference app**~~ **FIXED 2026-09-11 (WP-18).** `module.delete` and `module.revert` now restore from the journal row captured before they ran. The original entry read: `undo.ts` reverses `transaction.delete` and `budget.delete`, both `domain-finance`; the registered app's `module.delete` and `module.revert` have no restore path. **The false claim is fixed (2026-09-10)**: `canUndo()` is declared next to the switch that would have to honour it, and the CLI's confirmation now says *"this is permanent and cannot be undone"* where it used to promise a journal that could. **The undo itself is still missing** | Rule 5's destructive path is nominal. Contained only because no rung ships a write capability — but the *prompt* was lying at the exact moment a user confirms a permanent deletion | **WP-18** ✅ |
 | **4** | ~~**Generated golden fixtures are 0 bytes** in both reference apps; CI diffs them~~ **FIXED 2026-09-10 (WP-19)** — `generateGoldenEntries` required a hand-written `expect` block before an example counted, and no example in either app had one. Every example now becomes an entry, its expectation derived from the capability; an `expect` block *refines* it (params, `maxStage`) rather than gating it. 24 entries for `domain-modules`, 81 for `domain-finance` | An artefact that asserts nothing inside a gate. **Decide the example format before WP-25 generates examples at scale** | **WP-19** ✅ |
 
 ### Dead weight — swept 2026-09-09
@@ -540,23 +559,20 @@ number of BOM-carrying manifests by five to one. **A sweep that is not re-verifi
 it is acted on is a sweep that deletes something live.**
 ### Branch state
 
-**Verified against `origin` 2026-09-09.** `feature/sdlc-kit` and `feature/reconcile-plan-restructure`
-(PRs #4 and #5) are merged into `develop` and their remotes deleted — local copies here are
-stale leftovers, safe to delete. `chore/claude-workflow` and `docs/plan-restructure` predate
-the `.ai` → `.claude` rename; their content already reached `develop` in renamed form via the
-reconciliation, so both are **superseded**, not pending. `feature/modules-knowledge-layer` was
-never advanced — WP-15 landed instead on `feature/plan-execution`.
+**Verified 2026-09-11**, with `git rev-list` against `develop` and `git ls-remote origin`.
+`origin` holds four branches: `main`, `develop` and the two open PRs. Everything else below
+is local-only.
 
-| Branch | Ahead of `develop` | Carries |
-|---|---|---|
-| `develop` | — | everything through the PR #3/#4/#5 reconciliation (sdlc-kit, plan restructure, WP-14) |
-| `feature/plan-execution` (current) | **22** | WP-15 through WP-22 — the whole of M1's measurement and M2's write-up. **Unpushed**, so `origin` still shows this branch at `ca9ff6d` |
-| `chore/claude-workflow` | 2 | **superseded** — pre-rename `.ai/` workflow; landed on `develop` renamed to `.claude/` |
-| `docs/plan-restructure` | 6 | **superseded** — pre-rename version of this file; landed on `develop` via the reconciliation |
-| `docs/runbook` | 2 | adds `RUNNING.md`; deletes `SETUP.md`. ⚠️ **Re-verified 2026-09-10 and this row was wrong**: it deletes `.ai/roadmap.md`, a **pre-rename path that no longer exists on `develop`** — so merging it would not have removed `.claude/docs/roadmap.md` at all. Unmerged, but smaller than it looked |
-| `feature/modules-knowledge-layer` | 0 | nothing — superseded by `feature/plan-execution` |
-| `feature/reconcile-plan-restructure` | 0 | fully merged (PR #5); local-only leftover |
-| `feature/sdlc-kit` | 0 | fully merged (PR #4); local-only leftover |
+| Branch | vs `develop` | On `origin` | Carries |
+|---|---|---|---|
+| `develop` | — | yes | everything through the PR #3/#4/#5 reconciliation (sdlc-kit, plan restructure, WP-14) |
+| `feature/plan-execution` (current) | **41 ahead** when verified, 0 behind | yes, **PR #6** | WP-15 onward: M1's measurement, M2's write-up, M3's build, and the 2026-09-11 gap review. **Merge first** |
+| `feature/rule-15-untrusted-fence` | 9 ahead, 0 behind | yes, **PR #7** | Rule 15's fence, CI gates for Rules 2, 8 and 15, and ADR-016 (accepted). It conflicts with PR #6 in five files, so rebase it after #6 lands |
+| `chore/claude-workflow` | 2 ahead, 6 behind | no | **superseded**: the pre-rename `.ai/` workflow, which landed on `develop` renamed to `.claude/` |
+| `docs/plan-restructure` | 8 ahead, 6 behind | no | **superseded**: the pre-rename version of this file |
+| `docs/runbook` | 2 ahead, 6 behind | no | adds `RUNNING.md` and deletes `SETUP.md`. Its `roadmap.md` deletion targets a pre-rename path that no longer exists (see below) |
+| `feature/modules-knowledge-layer` | 0 ahead | no | nothing; superseded by `feature/plan-execution` |
+| `feature/reconcile-plan-restructure`, `feature/sdlc-kit` | 0 ahead | no | fully merged (PRs #5 and #4). Local leftovers, safe to delete |
 
 ⚠️ **`RUNNING.md` does not exist on this branch.** The operations doc here is
 [SETUP.md](SETUP.md) — rewritten 2026-09-10 (WP-11) and now correct about which registry
@@ -807,7 +823,7 @@ each.
 
 ⚠️ **Not fully closed:** per the `write-adr` skill, an agent does not accept ADRs.
 [ADR-013](.claude/decisions/ADR-013.md) is written and its content is final as of this
-session, but its **status stays `Proposed` until the owner accepts it.**
+session. **The owner accepted it on 2026-09-11.**
 
 ---
 
@@ -1604,7 +1620,7 @@ never refused on its own).
 > keeps the property model-free where it can be and does not pretend a 1B model will
 > volunteer a refusal.
 
-**Delivered so far.** [ADR-015](.claude/decisions/ADR-015.md) (status `Proposed`) and
+**Delivered so far.** [ADR-015](.claude/decisions/ADR-015.md) (accepted 2026-09-10) and
 [experiment-action-verbs.mjs](eval/fut-app/experiment-action-verbs.mjs), which measured the
 mechanism **before** the ADR proposed it.
 
@@ -2244,8 +2260,9 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 # every CI gate, locally — before pushing
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
+node tooling/scripts/check-doc-links.mjs           # every relative link resolves
 pnpm -r typecheck
-pnpm -r test                                       # 404 tests, 22 files
+pnpm -r test                                       # 544 tests, 14 packages
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
@@ -2259,6 +2276,15 @@ node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/gener
 node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/generator.config.json --no-model
 node eval/fut-app/score-generated.mjs                      # precision/recall vs WP-31
 node --experimental-strip-types eval/fut-app/prove-refusal.mjs COACH   # model-free refusal
+node --experimental-strip-types eval/fut-app/evaluate-golden.mjs       # headline numbers, per-registry thresholds
+node --experimental-strip-types eval/fut-app/calibrate-registries.mjs  # Rule 14 for the generated registries
+node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs       # after ANY change to the encoder's input
+node --experimental-strip-types eval/fut-app/verify-browser-parity.mjs # shipped index == server decision (not in CI: WP-46)
+
+# the shippable artefacts
+pnpm build && node tooling/scripts/check-packaging.mjs                 # what a tarball really exposes
+node packages/embed/build.mjs                                          # the script tag → packages/embed/dist/nextgen.js
+node --experimental-strip-types packages/core-voice/eval/acceptance.mjs  # voice round trip; needs models/voice
 
 # router
 pnpm router:inspect          # score distributions, recall@k — always look here first
@@ -2278,8 +2304,8 @@ sequentially.** On 2026-09-08 a cold `llama3.1:8b` took over four minutes to loa
 without warming, every latency figure is meaningless.
 
 **Environment**, from [CLAUDE.md](CLAUDE.md): Node 23.6+ required despite `engines`
-saying `>=20`. `jq` is not on PATH — use Node for JSON. Five `package.json` files carry a
-UTF-8 BOM that `JSON.parse` rejects.
+saying `>=20`. `jq` is not on PATH, so use Node for JSON. One `package.json`
+(`services/api`) carries a UTF-8 BOM that `JSON.parse` rejects.
 
 ---
 
@@ -2291,6 +2317,13 @@ UTF-8 BOM that `JSON.parse` rejects.
 - [ ] New capabilities have ≥3 examples **and** golden-set entries
 - [ ] `pnpm router:eval` not regressed within Finding 10's tolerance; scorecard committed; `check-thresholds.mjs` green
 - [ ] Failure paths implemented, not just the happy path
+- [ ] **If the change sits upstream of a shipped artefact** (text normalisation, the
+      encoder, a registry), everything derived from it was regenerated, in the order §0
+      gives, and `verify-browser-parity.mjs` is green
+- [ ] **Any step that needs the owner is named in the WP**, in the queue's Who column,
+      before the work starts
+- [ ] **A browser-facing artefact was run with only a browser's globals** (L11), not only
+      checked for existence
 - [ ] Trace recording verified for any new turn path
 - [ ] ADR written if an architectural choice was made — **two pivots have landed without one; do not make it three**
 - [ ] **The WP's own Acceptance list in §7 is ticked, and its "Stop if" was evaluated** — a stop condition you did not check is a stop condition you did not have
@@ -2323,7 +2356,9 @@ UTF-8 BOM that `JSON.parse` rejects.
 | How do I add a capability by hand? | [add-capability](.claude/skills/add-capability/SKILL.md) |
 | How do I add a whole application? | [new-domain](.claude/skills/new-domain/SKILL.md) |
 | Accuracy dropped — now what? | [router-regression](.claude/skills/router-regression/SKILL.md) |
-| How do I run this? | §10 · [SETUP.md](SETUP.md) (stale, WP-11) |
+| How do I run this? | §10 · [SETUP.md](SETUP.md) |
+| How does an adopter install it? | [INSTALL.md](INSTALL.md): performed step by step, not just described. WP-41 turns it into one command |
+| What mistakes has this repo already made? | [.claude/docs/lessons.md](.claude/docs/lessons.md), L1 to L12 |
 | Which branch does this land on? | [CLAUDE.md](CLAUDE.md) · [.claude/sdlc/branching.md](.claude/sdlc/branching.md) |
 
 ---

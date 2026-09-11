@@ -9,6 +9,10 @@ outside the workspace that makes it.
 > and routing a turn with no network are all performed and reproducible below. **Mounting
 > the assistant in a live application's UI is not** — that is WP-35, and it needs a real
 > page. Read this as "the packages install and route", not "the product is deployed".
+>
+> **Next: WP-41 turns steps 2 and 3 into one command** (`init`, `build`, `doctor`) that
+> writes only into its own folder. Until then, this page is the procedure. The owner will
+> run the kit in `fut-app` as its acceptance test (PLAN.md §0).
 
 ---
 
@@ -106,6 +110,11 @@ const trace = await route(utterance, { route: location.pathname, today }, {
 build step, fatal for a bundle. Tree-shaking does not save you: the import is at module
 scope, so a bundler resolves `node:fs` whether or not the function is called.
 
+*Until 2026-09-11 that was not enough either.* The `/browser` entry still reached
+`node:crypto`, `fs` and `path` through `core-inference`, and it read `process.env` at
+module scope. Both threw on first load in a real page. Both are fixed, and WP-29's test
+now runs the bundle with only a browser's globals, so a regression fails the suite.
+
 With `useStage3: false` there is **no network call at all** — asserted by a test that
 replaces `fetch`, `XMLHttpRequest` and `WebSocket` with throwing stubs, and verified by
 swapping in a network-backed encoder and watching it fail.
@@ -120,6 +129,30 @@ runtime: yourTransport,   // anything implementing LlmRuntime
 **The adopter configures this endpoint and no key reaches the browser** — the transport is
 injected, so the call can be proxied through their own server. Absent a transport the turn
 degrades to a clarifying question and never to a guess.
+
+## 6 · Or: one script tag, with no build step (WP-29)
+
+This is for an app without a bundler. `packages/embed` builds a single file:
+
+```bash
+node packages/embed/build.mjs     # → packages/embed/dist/nextgen.js, ~9.3KB gzipped
+```
+
+```html
+<script src="/nextgen.js"></script>
+<script>
+  // Fetches registry.COACH.json, index.COACH.json and thresholds.hashing.json
+  // from the same origin. No other network call is made, ever.
+  NextGen.load('/generated', 'COACH').then(async (assistant) => {
+    const trace = await assistant.route('where do I see the training calendar');
+    // trace.outcome, trace.capabilityId
+  });
+</script>
+```
+
+**Serve each session only its own role's files.** Rule 17 is a delivery property: if every
+role's registry sits in a public folder, the role split protects nothing. `@nextgen/embed`
+is private for now; WP-41 decides how the kit ships it.
 
 ---
 

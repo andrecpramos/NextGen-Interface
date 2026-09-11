@@ -94,9 +94,34 @@ application's own labels. The output is flatter and says so.
 
 ## Adapters
 
-React Router, in both dialects — a route-config array and nested `<Route>`
-elements — plus TypeScript or JavaScript sources. An application with no roles
-at all gets one registry for a single `PUBLIC` audience.
+React Router in both dialects (a route-config array, and nested `<Route>` elements), in
+TypeScript or JavaScript sources. An application with no roles at all gets one registry
+for a single `PUBLIC` audience.
+
+**The data-router shape** (WP-28, 2026-09-11) is also read:
+- `lazy: () => import(...)`;
+- paths taken from a constants table such as `paths.app.users.path`, followed through
+  constants and named imports;
+- imports through a tsconfig `paths` alias such as `@/*`.
+
+On a public app we do not own, these were invisible, and discovery found **1 of 8**
+routes. It now finds 8. **What discovery still cannot read, it reports.** An unevaluable
+path or a missing component becomes an `unreadable-route` skip in `SKIPPED.md`, instead of
+disappearing (see [lessons.md L12](../../.claude/docs/lessons.md)). The
+`fixtures/data-router-app/` fixture holds this.
+
+## Guided steps (WP-27)
+
+A page with a form gets `steps` on its capability. Each step is one sentence per field,
+plus one for the submit button, in the app's first language. Each step carries an
+**anchor**:
+- the field's accessible name and role, which is primary (decided in D-3);
+- a build-time CSS selector, as the fallback.
+
+`steps.ts` writes them, and `pages.ts` reads the form fields. The runtime resolver in
+`packages/ui` refuses rather than guesses. If a label matches twice, or a selector finds
+an element whose name contradicts the label, the step renders as text with nothing
+highlighted. It never points at the wrong field.
 
 See [`eval/fut-app/REPORT.md`](../../eval/fut-app/REPORT.md) for what it scored
 against a 146-page application it was not designed for.
