@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-11 · **Branch:** `feature/plan-execution`, based on `develop` · **15 workspace packages · 544 tests,
+**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp41-drop-in-kit`, based on `develop` · **16 workspace packages · 597 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -70,7 +70,7 @@ on 2026-09-11; see §13.
 
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
-| 1 | **WP-41** · The drop-in kit. One command reads an app, writes everything into the kit's own folder, and prints the one line to mount. `doctor` says in plain words what it could and could not read. It is proven on the fixtures, bulletproof-react and WP-43's app, **never on `fut-app`** | M4 | M | agent |
+| 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. **Left:** a chat box (the mount gives the router, not an input), WP-43's app, and a `calibrate` command | M4 | M | agent |
 | 2 | **WP-46** · Gate the derived artefacts. Browser/server parity, per-registry calibration and index staleness all go into CI. Then an upstream change like `normalize()`'s cannot leave shipped vectors stale again | M4 | S | agent |
 | 3 | **WP-42** · Audit the generated descriptions. 100 of 145 have never been read by a person, and a wrong one misroutes silently | M4 | S–M | agent, then owner sample |
 | 4 | **WP-43** · A second external app, **with role guards**. Rule 17 has only ever been validated on `fut-app` | M4 | M | agent |
@@ -469,17 +469,19 @@ someone who did not write it.
 
 ### Tests
 
-544 tests across 14 packages, all green on 2026-09-11. `services/api` has none.
+597 tests across 15 packages, all green on 2026-09-11, after PR #7 merged and WP-41
+landed. `services/api` has none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `core-intent` | 117 | | `generator` | 94 |
-| `data` | 60 (incl. WP-18) | | `core-capability` | 45 (incl. WP-27) |
-| `apps/web` | 44 | | `domain-modules` | 39 |
-| `domain-finance` | 34 | | `core-trace` | 28 |
-| `core-dispatch` | 26 | | `core-inference` | 18 |
+| `core-intent` | 120 | | `generator` | 94 |
+| `data` | 60 (incl. WP-18) | | `core-capability` | 59 (incl. WP-27, the registry-ownership guard) |
+| `apps/web` | 44 | | `core-inference` | 42 (incl. the Rule 15 fence) |
+| `domain-modules` | 39 | | `domain-finance` | 34 |
+| `core-trace` | 28 | | `core-dispatch` | 26 |
 | `ui` | 16 (anchor resolver) | | `apps/cli` | 15 |
-| `embed` | 4 (the script tag) | | `core-voice` | 4 (asset store; acceptance is an eval) |
+| `kit` | 12 (WP-41: init, build, doctor) | | `embed` | 4 (the script tag) |
+| `core-voice` | 4 (asset store; acceptance is an eval) | | | |
 
 ---
 
@@ -502,6 +504,7 @@ NextGen_Interface/
 │   ├── core-voice/       ✅ whisper · piper · assets · 4 tests + eval/acceptance.mjs (WP-21)
 │   ├── generator/        ✅ discover · pages · steps · prose · ids · synthesise · emit · 94 tests
 │   ├── embed/            ✅ WP-29 — the script tag, 9.3KB gzipped · 4 tests
+│   ├── kit/              ◐ WP-41 — nextgen init · build · doctor · 12 tests
 │   ├── ui/               ✅ tokens · Sphere · Composer · anchor resolver (WP-27) · 16 tests
 │   ├── domain-modules/   ◐ REFERENCE APP — 39 tests
 │   ├── domain-finance/   ◐ REFERENCE APP — 34 tests
@@ -788,6 +791,7 @@ adversarial violation is new, see above).
 | 2026-09-11 (WP-28): discovery gave up on unreadable routes before recording any skips | On an app we do not own it found 1 of 8 routes and reported **0** skips | Read `lazy`, aliases and path tables; add the `unreadable-route` reason | **A report cannot mention what the tool never saw** (L12) |
 | 2026-09-11 (WP-29): the "browser" entry reached `node:*` through a dependency, and read `process.env` at module scope | `ReferenceError` on first load in any page, while `check-packaging.mjs` passed | A `core-inference/ollama` subpath, and guarded reads | **An entry point that exists is not one that loads** (L11) |
 | **2026-09-11 (WP-21): `normalize()` kept sentence punctuation** | Whisper ends every transcript with a full stop, so "My modules." missed the stage-1 trigger. 10 of 40 spoken turns routed differently from typed. Typed input had the same bug all along | Strip `.` and `,` unless a digit is on both sides. Recalibrate, and rebuild every index | **Changing an upstream function invalidates everything derived from it.** Two threshold profiles, ten indexes and two scorecards went stale, and only a manual parity run noticed. WP-46 gates it |
+| **2026-09-11 (WP-41): the uncalibrated default was assumed to be merely cautious** | On a 145-screen app it sent 2 of 7 confident stage-2 answers to the wrong screen, and wrongly refused 1 of 105 real questions. The first draft of `doctor` told adopters it would only "ask more clarifying questions" | Measured before the claim shipped. `doctor` now states the numbers | **A default is a calibration made for somebody else's registry.** This is Rule 14 again, seen from the adopter's side: uncalibrated does not mean conservative |
 
 ---
 
@@ -1982,7 +1986,46 @@ kit has to explain itself well enough to be run by someone who did not write it.
 
 ---
 
-### WP-41 · The drop-in kit
+### WP-41 · The drop-in kit ◐ **BUILT — 2026-09-11** · a chat box and the owner's run remain
+
+> **Built on `feature/wp41-drop-in-kit`.** `packages/kit` provides `nextgen init | build |
+> doctor` ([README](packages/kit/README.md)), with 12 tests on two fixtures of different
+> shapes.
+>
+> - **On bulletproof-react, an app the kit was not written for:**
+>   - `init` took 0s, `build` 1s with no model server, and `doctor` 0s;
+>   - it found 8 of 8 screens, and reported the one it left out;
+>   - `git status` showed **one new folder and 0 modified files**.
+>
+>   `doctor` also flagged, correctly, that the app defines `ROLES` with no route-to-role
+>   table, so every user would receive every screen.
+> - **The served folder is split from the review folder.** Building it found why this
+>   matters: `master.json` names every role for every screen, so it can never sit beside
+>   the registries a browser fetches. `build` rebuilds `bundle/` from nothing each time, so
+>   a role that has disappeared cannot leave its registry behind. `doctor` re-checks both.
+> - **The calibration question is answered by measurement**
+>   ([experiment-self-calibration.mjs](eval/fut-app/experiment-self-calibration.mjs)). Its
+>   decision rule was written before the run. On the 125 held-out golden turns:
+>
+>   | Arm | Settled | Accepts right | Wrongly refused |
+>   |---|---|---|---|
+>   | default profile | 17 | 5 of 7 (71.4%) | **1 of 105** |
+>   | calibrated on the golden set | 10 | 1 of 1 | 0 |
+>   | calibrated on its own examples | 15 | 2 of 3 | **7 of 105** |
+>   | own examples, leave-one-out | 12 | none accepted | 1 of 105 |
+>
+>   **Self-calibration is not usable**, in either form. **And the default is not a safe
+>   fallback either:** on a 145-screen app it misroutes and wrongly refuses. `doctor` now
+>   says exactly that. For `fut-app`, the owner can reuse the calibration already in this
+>   repository, if the rebuilt registries match it (INSTALL.md §0).
+>
+> **Left:**
+> 1. **A chat box.** The mount line gives the page the router, not an input.
+> 2. **WP-43's app.**
+> 3. **A `nextgen calibrate` command.** It needs the sweep extracted from
+>    `calibrate-registries.mjs` into one shared module first: two copies of a calibration
+>    sweep is how Rule 14 drifts.
+> 4. **The owner's run.**
 
 **Goal.** An adopter adds the kit to their app and runs one command, and the assistant
 works. The owner will do exactly this in `fut-app`, so this WP is judged by how that run
@@ -2016,13 +2059,21 @@ the kit ships the shipped profile, and `doctor` says **uncalibrated** in plain w
 **Acceptance.**
 - [ ] Runs end to end on `fixtures/tiny-app`, `fixtures/data-router-app`,
       bulletproof-react (a scratch clone) and WP-43's app. **`git status` in each shows
-      no modified file** (Rule 16).
-- [ ] `doctor` names every skipped or unreadable route, each with its reason.
-- [ ] Uninstalling means deleting the kit's folder and the mount line. Nothing else.
-- [ ] The time from a clean checkout to a working assistant is recorded, **with every
-      manual step listed**.
-- [ ] The calibration question above is answered with a measurement.
-- [ ] The owner's `fut-app` checklist is written.
+      no modified file** (Rule 16). *Done for the first three:* both fixtures are checked
+      byte-for-byte by the tests, and bulletproof-react's `git status` showed one new
+      folder. **WP-43's app does not exist yet.**
+- [x] `doctor` names every skipped or unreadable route, each with its reason and what to
+      do, in words rather than reason codes.
+- [x] Uninstalling means deleting the kit's folder and the mount line. Nothing else is
+      written: this holds by construction, and the tests check it.
+- [x] The time is recorded, with every manual step:
+      - **bulletproof-react:** 0s / 1s / 0s, with no manual step beyond reading the
+        roles warning.
+      - **`fut-app`:** two steps are known in advance, adding the manifests and putting
+        `pt-PT` first. The owner's run records the rest.
+- [x] The calibration question is answered with a measurement: self-calibration is not
+      usable.
+- [x] The owner's `fut-app` checklist is written ([INSTALL.md](INSTALL.md) §0).
 
 **Stop if.** The kit cannot work without editing the target's source. That breaks Rule
 16, which is the product, and the packaging model needs rethinking.
@@ -2226,7 +2277,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 | **Scope death — 15 work packages, solo, irregular hours** | **critical** | **OPEN and most likely.** The failure is not technical: it is a half-built generator and a half-built runtime at month six. §8's milestones exist to be cut; the month-3 kill criterion exists to force it |
 | **Automatic registry generation is not good enough** | **critical** | **DOWNGRADED 2026-09-10 — WP-25.** 100% recall and role exactness against WP-31's ground truth, 0 Rule 17 leaks across 10 registries. **What is still open is narrower and named:** only 45 of 145 capabilities are hand-verified, and *descriptions* remain the soft part — the one output with no mechanical gate on it (REPORT.md, "what is weakest here"). A wrong description misroutes silently, which is still the "declared wrong at build time" failure, just no longer the whole surface |
 | ~~**Ten role-scoped registries, none of them calibrated**~~ | high | ✅ **RESOLVED for `fut-app`.** `calibrate-registries.mjs` calibrates against WP-32's golden set, with a 40/60 split by route so that no screen appears on both sides. It was re-run on 2026-09-11 after the `normalize()` fix. Held out: 0 of 105 in-domain turns wrongly refused, and 45% of out-of-scope requests refused. **What stays open is the adopter case**, which is the next row |
-| **Calibration for an adopter with no golden set** | **high** | **OPEN, named 2026-09-11.** Rule 14 needs per-registry thresholds, and every calibration so far used a hand-written golden set. A new adopter will not have one. WP-41 measures whether the generator's own examples are too circular to use. If they are, the kit ships uncalibrated and `doctor` says so |
+| **Calibration for an adopter with no golden set** | **high** | **MEASURED 2026-09-11 (WP-41): there is no shortcut.** Calibrating on the generator's own examples wrongly refused 7 of 105 real questions (1 of 105 with leave-one-out), and it never settled more than the default. The default itself, on a 145-screen app, sent 2 of 7 confident answers to the wrong screen. So an adopter needs real questions to calibrate, and the kit says so in plain words. **Still open:** making calibration cheap, with a `nextgen calibrate` command and a way to collect questions |
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | ~~high~~ medium | **DOWNGRADED 2026-09-11 by WP-28.** On an app we do not own, discovery found 1 of 8 routes and skipped the rest silently. It now finds all 8, and unreadable routes are reported. **Still open:** one external app is one data point. It also had no role guards, so role extraction (Rule 17) has only ever been validated on `fut-app` |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
@@ -2283,6 +2334,12 @@ node --experimental-strip-types eval/fut-app/evaluate-golden.mjs       # headlin
 node --experimental-strip-types eval/fut-app/calibrate-registries.mjs  # Rule 14 for the generated registries
 node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs       # after ANY change to the encoder's input
 node --experimental-strip-types eval/fut-app/verify-browser-parity.mjs # shipped index == server decision (not in CI: WP-46)
+
+# the drop-in kit (WP-41): what an adopter runs; it writes only <app>/nextgen
+node packages/kit/src/cli.ts init   <app folder>
+node packages/kit/src/cli.ts build  <app folder>/nextgen [--model llama3.1:8b]
+node packages/kit/src/cli.ts doctor <app folder>/nextgen
+node --experimental-strip-types eval/fut-app/experiment-self-calibration.mjs   # can it calibrate itself? (no)
 
 # the shippable artefacts
 pnpm build && node tooling/scripts/check-packaging.mjs                 # what a tarball really exposes

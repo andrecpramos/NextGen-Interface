@@ -1,0 +1,158 @@
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
+
+import { THRESHOLD_PROFILES, type Thresholds } from '@nextgen/core-intent/config';
+import {
+  generate,
+  ollamaModel,
+  writeIndexes,
+  writeOutput,
+  type GeneratorConfig,
+  type ProseCache,
+  type SkippedRoute,
+} from '@nextgen/generator';
+
+import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, stripBom } from './paths.ts';
+
+/**
+ * `nextgen build`: the generator, run the way an adopter needs it run.
+ *
+ * It writes two folders (see paths.ts) and a record of what it did, which
+ * `doctor` reads. It adds nothing to the generator's decisions. Every judgement
+ * about a route is still made in `@nextgen/generator`, and is measured there.
+ */
+
+export interface BuildOptions {
+  /** The model that writes descriptions. `null`/absent: derive prose from the app's own labels. */
+  readonly model?: string | null;
+  readonly endpoint?: string;
+  /** Copy the script tag into the bundle. Default true. */
+  readonly scriptTag?: boolean;
+  readonly onProgress?: (done: number, total: number) => void;
+}
+
+export interface BuildRecord {
+  readonly builtAt: string;
+  readonly appRoot: string;
+  readonly routesFile: string;
+  readonly roles: readonly string[];
+  /** Navigable capabilities per role. Boundaries are counted separately. */
+  readonly perRole: Readonly<Record<string, number>>;
+  readonly capabilities: number;
+  readonly boundaries: number;
+  readonly skipped: readonly SkippedRoute[];
+  /** Role registries that failed `validateRegistry()`, with the report. */
+  readonly invalid: readonly string[];
+  readonly calibrated: boolean;
+  readonly thresholdsSource: string;
+  readonly prose: string;
+  readonly bundleFiles: readonly string[];
+  readonly warnings: readonly string[];
+}
+
+export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: string } {
+  const file = join(resolve(kitDir), CONFIG_FILE);
+  if (!existsSync(file)) {
+    throw new Error(`No ${CONFIG_FILE} in ${resolve(kitDir)}. Run "nextgen init <your app folder>" first.`);
+  }
+  const config = JSON.parse(stripBom(readFileSync(file, 'utf8'))) as GeneratorConfig;
+  // Relative to the config file, not to wherever the command was run from.
+  return { config, appRoot: resolve(dirname(file), config.appRoot) };
+}
+
+function scriptTagFile(): string {
+  const require = createRequire(import.meta.url);
+  const embedDir = dirname(require.resolve('@nextgen/embed/package.json'));
+  const bundle = join(embedDir, 'dist', 'nextgen.js');
+  if (!existsSync(bundle)) execFileSync(process.execPath, [join(embedDir, 'build.mjs')], { stdio: 'pipe' });
+  return bundle;
+}
+
+export async function build(kitDir: string, options: BuildOptions = {}): Promise<BuildRecord> {
+  const kit = resolve(kitDir);
+  const { config, appRoot } = readConfig(kit);
+  assertOutsideApp(kit, appRoot);
+
+  const bundleDir = join(kit, BUNDLE_DIR);
+  const reviewDir = join(kit, REVIEW_DIR);
+  // The served folder is rebuilt from nothing. A role the app no longer has must
+  // not leave its old registry behind, still being served to whoever asks.
+  rmSync(bundleDir, { recursive: true, force: true });
+  mkdirSync(bundleDir, { recursive: true });
+  mkdirSync(reviewDir, { recursive: true });
+
+  const cacheFile = join(reviewDir, 'prose-cache.json');
+  const cache: ProseCache = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as ProseCache) : {};
+  const endpoint = options.endpoint ?? 'http://localhost:11434';
+
+  const output = await generate({
+    config: { ...config, appRoot },
+    model: options.model ? ollamaModel(options.model, endpoint) : null,
+    cache,
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+  });
+
+  // The generator writes registries beside master.json. Only the registries are
+  // for a browser, so they move to the served folder, and master.json stays behind.
+  const written = writeOutput(reviewDir, appRoot, output);
+  for (const file of readdirSync(reviewDir)) {
+    if (/^registry\..+\.json$/.test(file)) renameSync(join(reviewDir, file), join(bundleDir, file));
+  }
+  await writeIndexes(bundleDir, output.registries);
+  writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
+
+  // Rule 14: thresholds belong to a registry. A calibration the adopter produced
+  // wins. Otherwise the shipped profile is used, and says it is not theirs.
+  const warnings: string[] = [];
+  const calibration = join(kit, CALIBRATION_FILE);
+  let thresholds: Thresholds;
+  let calibrated = false;
+  let thresholdsSource: string;
+  if (existsSync(calibration)) {
+    thresholds = (JSON.parse(readFileSync(calibration, 'utf8')) as { thresholds: Thresholds }).thresholds;
+    calibrated = true;
+    thresholdsSource = CALIBRATION_FILE;
+  } else {
+    thresholds = THRESHOLD_PROFILES.hashing;
+    thresholdsSource = 'the default hashing profile, calibrated on a 7-screen reference app rather than this one';
+  }
+  writeFileSync(
+    join(bundleDir, 'thresholds.hashing.json'),
+    `${JSON.stringify({ calibrated, source: thresholdsSource, thresholds }, null, 2)}\n`,
+    'utf8',
+  );
+
+  if (options.scriptTag !== false) {
+    try {
+      copyFileSync(scriptTagFile(), join(bundleDir, 'nextgen.js'));
+    } catch (error) {
+      warnings.push(`The script tag could not be copied: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const perRole: Record<string, number> = {};
+  for (const [role, registry] of output.registries) {
+    perRole[role] = registry.capabilities.filter((c) => c.kind !== 'unsupported').length;
+  }
+
+  const record: BuildRecord = {
+    builtAt: new Date().toISOString(),
+    appRoot,
+    routesFile: config.routesFile,
+    roles: [...output.registries.keys()],
+    perRole,
+    capabilities: output.master.length,
+    boundaries: output.boundaries.length,
+    skipped: output.skipped,
+    invalid: written.invalid,
+    calibrated,
+    thresholdsSource,
+    prose: options.model ? `${options.model} at ${endpoint}` : 'derived from the app’s own labels (no model)',
+    bundleFiles: readdirSync(bundleDir).sort(),
+    warnings,
+  };
+  writeFileSync(join(reviewDir, 'build.json'), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  return record;
+}

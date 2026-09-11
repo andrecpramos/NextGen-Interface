@@ -207,6 +207,21 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
+  packages/kit:
+    dependencies:
+      '@nextgen/core-capability':
+        specifier: workspace:*
+        version: link:../core-capability
+      '@nextgen/core-intent':
+        specifier: workspace:*
+        version: link:../core-intent
+      '@nextgen/embed':
+        specifier: workspace:*
+        version: link:../embed
+      '@nextgen/generator':
+        specifier: workspace:*
+        version: link:../generator
+
   packages/ui:
     dependencies:
       '@nextgen/core-capability':

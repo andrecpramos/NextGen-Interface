@@ -10,9 +10,82 @@ outside the workspace that makes it.
 > the assistant in a live application's UI is not** — that is WP-35, and it needs a real
 > page. Read this as "the packages install and route", not "the product is deployed".
 >
-> **Next: WP-41 turns steps 2 and 3 into one command** (`init`, `build`, `doctor`) that
-> writes only into its own folder. Until then, this page is the procedure. The owner will
-> run the kit in `fut-app` as its acceptance test (PLAN.md §0).
+> **Start with section 0.** Since WP-41, steps 2 and 3 below are one command. The rest
+> of this page is what that command does underneath, kept because it was performed and
+> is still true.
+
+---
+
+## 0 · With the kit — start here (WP-41)
+
+```bash
+# once, in a checkout of this repository
+pnpm install --ignore-scripts
+
+# then, pointed at your app (the folder that contains src/)
+node <this repo>/packages/kit/src/cli.ts init   <your app>
+node <this repo>/packages/kit/src/cli.ts build  <your app>/nextgen
+node <this repo>/packages/kit/src/cli.ts doctor <your app>/nextgen
+```
+
+- **`init`** finds the route table, the role table, translations and the app's language.
+  It writes `<your app>/nextgen/nextgen.config.json` and marks every answer as **found** or
+  **GUESSED**.
+- **`build`** writes `bundle/`, which you serve, and `review/`, which you never serve.
+  Without `--model`, it needs no model server.
+- **`doctor`** says what was read, what was left out and why, whether the thresholds are
+  calibrated, and the exact lines to add to your page.
+
+**Measured on bulletproof-react**, a public app the kit was not written for:
+- `init` took 0s, `build` 1s and `doctor` 0s;
+- it found 8 of 8 screens, and reported the one it left out (a redirect);
+- `git status` afterwards showed **one new folder and no modified file**.
+
+`doctor` also warned, correctly, that the app defines roles but has no route-to-role
+table, so every user would receive every screen.
+
+### The owner's run in `fut-app` — the acceptance test (PLAN.md WP-35)
+
+The kit has never been run on `fut-app`; that is the point of this run. Everything it
+needs from this repository is already here.
+
+1. **`init` on `fut-app/frontend`.** Then compare `frontend/nextgen/nextgen.config.json`
+   with this repository's
+   [`eval/fut-app/generator.config.json`](eval/fut-app/generator.config.json), which is the
+   config every measurement used. Two things `init` does not do:
+   - add `"manifests": ["lib/deepLinks.ts", "lib/navConfigs.ts"]`;
+   - make sure `"languages"` starts with `"pt-PT"`.
+2. **For a calibrated build, reuse the prose that was measured.**
+   - Copy `<this repo>/eval/fut-app/generated/prose-cache.json` to
+     `frontend/nextgen/review/prose-cache.json`.
+   - Run `build --model llama3.1:8b` with Ollama running. Screens already in the cache do
+     not call the model.
+3. **Check the registries match what was measured, before reusing its calibration.** Run
+   `git diff --no-index --stat <this repo>/eval/fut-app/generated/registry.COACH.json frontend/nextgen/bundle/registry.COACH.json`.
+   No output means they are identical.
+   - **If they match**, copy `<this repo>/eval/fut-app/generated/thresholds.hashing.json`
+     to `frontend/nextgen/calibration/thresholds.hashing.json`, and run `build` again.
+   - **If they do not match, do not copy it.** A calibration belongs to the registry it
+     was measured on (Rule 14). `doctor` will then say *not calibrated*, which is true.
+4. **Run `doctor`.** Every GUESSED line and every warning is a finding. Send them back.
+5. **Run `git status` in `fut-app`.** Expect only `?? frontend/nextgen/`. Anything else
+   breaks Rule 16, and is the most important thing you could find.
+6. **Mount it.** This is your edit, like adding a dependency:
+   - serve `bundle/` as `/nextgen`;
+   - add the two script lines `doctor` prints;
+   - pass the signed-in user's role.
+
+   For a local test, copying `bundle/` into `public/nextgen` serves every role's files.
+   That is fine on your own machine and wrong in production (Rule 17).
+
+   ⚠️ **The kit gives your page the router, not a chat box yet.**
+   `assistant.route(question)` returns where to go. A ready-made, accessible input is
+   WP-41's remaining item (PLAN.md).
+7. **Send back:**
+   - `doctor`'s output and `git status`;
+   - how long it took;
+   - what you corrected in the config;
+   - any question that went somewhere wrong.
 
 ---
 
