@@ -263,11 +263,10 @@ export function readRoleModel(config: GeneratorConfig): RoleModel {
  * uses for every page, and a plain `import X from './x'`, which a small one
  * uses for all of them.
  */
-function componentSources(source: ts.SourceFile, sourceFile: string): Map<string, string> {
+function componentSources(source: ts.SourceFile, sourceFile: string, aliases: Aliases): Map<string, string> {
   const out = new Map<string, string>();
   const record = (name: string, specifier: string | null | undefined): void => {
-    if (!specifier?.startsWith('.')) return;
-    const file = resolveComponentFile(resolve(dirname(sourceFile), specifier));
+    const file = resolveSpecifierFile(specifier, sourceFile, aliases);
     if (file) out.set(name, file);
   };
 
@@ -395,6 +394,137 @@ function routeObjectsIn(node: ts.Node): RouteObject[] {
   return out;
 }
 
+/** A route discovery found but could not read — reported, never silently dropped (WP-28). */
+export interface UnreadableRoute {
+  readonly path: string;
+  readonly detail: string;
+}
+
+/** Module specifier prefixes the app's own tsconfig maps, e.g. `@/` -> `<appRoot>/`. */
+type Aliases = ReadonlyMap<string, string>;
+
+/**
+ * The path aliases the application's own tsconfig declares (WP-28).
+ *
+ * A code-split app imports its pages and its path table through aliases like
+ * `@/config/paths`. Without them discovery cannot follow the import. Read from
+ * the nearest tsconfig at or above `appRoot`, so nobody restates what the app
+ * already declared — which would be a human step.
+ */
+function readAliases(appRoot: string): Aliases {
+  const out = new Map<string, string>();
+  let dir = resolve(appRoot);
+  for (let depth = 0; depth < 5; depth++) {
+    const read = ts.readConfigFile(join(dir, 'tsconfig.json'), (p) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch {
+        return undefined;
+      }
+    });
+    const options = !read.error && read.config ? (read.config.compilerOptions ?? {}) : null;
+    if (options?.paths) {
+      const baseUrl = resolve(dir, options.baseUrl ?? '.');
+      for (const [pattern, targets] of Object.entries(options.paths as Record<string, unknown>)) {
+        const target = Array.isArray(targets) ? targets[0] : undefined;
+        if (typeof target !== 'string' || !pattern.endsWith('/*') || !target.endsWith('/*')) continue;
+        out.set(pattern.slice(0, -1), resolve(baseUrl, target.slice(0, -1)));
+      }
+      return out;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return out;
+}
+
+/** A specifier resolved to a file: relative, or through one of the app's aliases. */
+function resolveSpecifierFile(specifier: string | null | undefined, fromFile: string, aliases: Aliases): string | null {
+  if (!specifier) return null;
+  if (specifier.startsWith('.')) return resolveComponentFile(resolve(dirname(fromFile), specifier));
+  for (const [prefix, dir] of aliases) {
+    if (specifier.startsWith(prefix)) return resolveComponentFile(join(dir, specifier.slice(prefix.length)));
+  }
+  return null;
+}
+
+interface StringScope {
+  resolveIdentifier(name: string): ts.Expression | undefined;
+}
+
+/** Identifiers the routes file can see: its own constants, and the named imports it can follow. */
+function stringScope(source: ts.SourceFile, sourceFile: string, aliases: Aliases): StringScope {
+  const local = moduleConstants(source);
+  const imported = new Map<string, { file: string; name: string }>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
+    const file = resolveSpecifierFile(statement.moduleSpecifier.text, sourceFile, aliases);
+    const named = statement.importClause?.namedBindings;
+    if (!file || !named || !ts.isNamedImports(named)) continue;
+    for (const element of named.elements) {
+      imported.set(element.name.text, { file, name: (element.propertyName ?? element.name).text });
+    }
+  }
+  const cache = new Map<string, Map<string, ts.Expression>>();
+  return {
+    resolveIdentifier(name) {
+      const own = local.get(name);
+      if (own) return own;
+      const target = imported.get(name);
+      if (!target) return undefined;
+      let constants = cache.get(target.file);
+      if (!constants) {
+        try {
+          constants = moduleConstants(parse(target.file));
+        } catch {
+          constants = new Map();
+        }
+        cache.set(target.file, constants);
+      }
+      return constants.get(target.name);
+    },
+  };
+}
+
+/**
+ * A route path written as data rather than a literal — `paths.app.users.path`
+ * (WP-28). Followed through module constants and one level of named import.
+ * `null` when it cannot be, which the caller reports instead of dropping.
+ */
+function evaluateString(expression: ts.Expression, scope: StringScope): string | null {
+  const node = unwrap(expression);
+  if (ts.isStringLiteralLike(node)) return node.text;
+  const chain: string[] = [];
+  let current: ts.Expression = node;
+  while (ts.isPropertyAccessExpression(current)) {
+    chain.unshift(current.name.text);
+    current = unwrap(current.expression);
+  }
+  if (!ts.isIdentifier(current) || chain.length === 0) return null;
+  let value: ts.Expression | undefined = scope.resolveIdentifier(current.text);
+  for (const key of chain) {
+    if (!value) return null;
+    const object = unwrap(value);
+    if (!ts.isObjectLiteralExpression(object)) return null;
+    value = objectProperties(object).get(key);
+  }
+  if (!value) return null;
+  const leaf = unwrap(value);
+  return ts.isStringLiteralLike(leaf) ? leaf.text : null;
+}
+
+/** `routes/app/users.tsx` -> `Users`; an `index` file takes its folder's name. */
+function lazyComponentName(file: string): string {
+  const parts = file.split(/[\\/]/);
+  let base = (parts.pop() ?? '').replace(/\.[jt]sx?$/, '');
+  if (base === 'index') base = parts.pop() ?? base;
+  return base
+    .split(/[-_]/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+}
+
 /** Nested routes, skipping the element that owns them. */
 function childRoutesOf(container: ts.Node, self: ts.Node): RouteObject[] {
   const out: RouteObject[] = [];
@@ -425,15 +555,29 @@ function collect(
   parentPath: string,
   context: {
     source: ts.SourceFile;
+    sourceFile: string;
     components: Map<string, string>;
     roles: RoleModel;
+    aliases: Aliases;
+    scope: StringScope;
+    unreadable: UnreadableRoute[];
     out: DiscoveredRoute[];
   },
 ): void {
   for (const { node, properties, children } of entries) {
     const pathExpression = properties.get('path');
-    const pathNode = pathExpression ? unwrap(pathExpression) : undefined;
-    const segment = pathNode && ts.isStringLiteralLike(pathNode) ? pathNode.text : '';
+    const segment = pathExpression ? evaluateString(pathExpression, context.scope) : '';
+    if (segment === null) {
+      // WP-28: an unreadable path used to become '' and the route vanished with
+      // no trace — under-discovery no skip report could mention, because nothing
+      // knew the route existed. Now it is reported, the expression quoted.
+      const nested = children ? childRoutesOf(children, node).length : 0;
+      context.unreadable.push({
+        path: pathExpression!.getText(context.source),
+        detail: `route path is an expression this generator cannot evaluate${nested ? ` (and ${nested} nested route(s) under it)` : ''}`,
+      });
+      continue;
+    }
     const path = joinPath(parentPath, segment);
 
     if (children) {
@@ -443,12 +587,34 @@ function collect(
     // A catch-all is the app's own 404, not a place anyone asks to go.
     if (segment === '*' || segment.includes('*')) continue;
 
-    // A layout wrapper (children but no element of its own) is not a destination.
-    if (!properties.has('element') && !properties.has('Component')) continue;
+    // `lazy: () => import('./routes/users')` — the data-router spelling a
+    // code-split app uses for every page (WP-28). Its module is the page.
+    const lazyExpression = properties.get('lazy');
+    const hasElement = properties.has('element') || properties.has('Component');
+
+    if (!hasElement && !lazyExpression) {
+      // A layout wrapper with children is not a destination — correctly silent.
+      // A leaf with nothing readable to render is reported, not dropped.
+      if (!children && (pathExpression || properties.has('index'))) {
+        context.unreadable.push({ path, detail: 'route declares no element, Component or lazy import this generator can read' });
+      }
+      continue;
+    }
     if (!pathExpression && !properties.has('index')) continue;
 
-    const component = elementComponent(properties.get('element') ?? properties.get('Component'));
-    const componentFile = component ? (context.components.get(component) ?? null) : null;
+    let component: string | null;
+    let componentFile: string | null;
+    if (hasElement) {
+      component = elementComponent(properties.get('element') ?? properties.get('Component'));
+      componentFile = component ? (context.components.get(component) ?? null) : null;
+    } else {
+      componentFile = resolveSpecifierFile(importSpecifierOf(lazyExpression!), context.sourceFile, context.aliases);
+      if (!componentFile) {
+        context.unreadable.push({ path, detail: `lazy import could not be resolved: ${lazyExpression!.getText(context.source).slice(0, 120)}` });
+        continue;
+      }
+      component = lazyComponentName(componentFile);
+    }
 
     const rolesExpression = properties.get('roles');
     let roles: readonly RoleName[] | null;
@@ -490,20 +656,27 @@ function collect(
 export function discoverRoutes(config: GeneratorConfig): {
   routes: readonly DiscoveredRoute[];
   roles: RoleModel;
+  unreadable: readonly UnreadableRoute[];
 } {
   const routesFile = resolve(config.appRoot, config.routesFile);
   const source = parse(routesFile);
   const roles = readRoleModel(config);
+  const aliases = readAliases(config.appRoot);
   const out: DiscoveredRoute[] = [];
+  const unreadable: UnreadableRoute[] = [];
 
   collect(routeObjectsIn(source), '', {
     source,
-    components: componentSources(source, routesFile),
+    sourceFile: routesFile,
+    components: componentSources(source, routesFile, aliases),
     roles,
+    aliases,
+    scope: stringScope(source, routesFile, aliases),
+    unreadable,
     out,
   });
 
-  return { routes: out, roles };
+  return { routes: out, roles, unreadable };
 }
 
 /** Resolve a component import to a file on disk, trying the usual extensions. */

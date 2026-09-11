@@ -25,7 +25,9 @@ export type SkipReason =
   | 'bookmark-redirect'
   | 'no-component'
   | 'duplicate-route'
-  | 'no-roles';
+  | 'no-roles'
+  /** WP-28: discovery found the route but could not read its path or component. */
+  | 'unreadable-route';
 
 export interface SkippedRoute {
   readonly path: string;

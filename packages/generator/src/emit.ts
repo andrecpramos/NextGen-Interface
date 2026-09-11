@@ -58,6 +58,9 @@ const REASON_HEADINGS: Record<SkippedRoute['reason'], string> = {
   'bookmark-redirect': 'Redirects out of its own section — a bookmark shim, not a destination',
   'no-component': 'Route renders no component',
   'duplicate-route': 'Another capability already declares this route',
+  // WP-28. Before this reason existed such a route produced no entry at all —
+  // under-discovery that no report could mention. Listed so it can be fixed.
+  'unreadable-route': 'Found in the route table, but its path or component could not be read',
 };
 
 /**

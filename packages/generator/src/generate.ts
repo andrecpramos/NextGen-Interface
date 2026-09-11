@@ -176,7 +176,7 @@ export interface GenerateOptions {
 
 export async function generate(options: GenerateOptions): Promise<GeneratorOutput> {
   const { config } = options;
-  const { routes, roles } = discoverRoutes(config);
+  const { routes, roles, unreadable } = discoverRoutes(config);
   const manifests = readManifests(config);
 
   const translations = new Map<string, Translations>();
@@ -185,6 +185,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   }
 
   const skipped: SkippedRoute[] = [];
+  // WP-28: routes discovery found but could not read are reported, not dropped.
+  for (const u of unreadable) skipped.push({ path: u.path, reason: 'unreadable-route', detail: u.detail });
   const taken = new Set<string>();
   const seenRoutes = new Set<string>();
   const accepted: { route: DiscoveredRoute; id: string; facts: PageFacts; labelKey: string | null }[] = [];
