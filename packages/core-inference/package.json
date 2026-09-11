@@ -10,7 +10,8 @@
   },
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./ollama": "./src/ollama.ts"
   },
   "files": [
     "dist",
@@ -23,6 +24,10 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
+      },
+      "./ollama": {
+        "types": "./dist/ollama.d.ts",
+        "default": "./dist/ollama.js"
       }
     }
   }

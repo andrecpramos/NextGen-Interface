@@ -1,0 +1,17 @@
+{
+  "name": "@nextgen/embed",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Ladder C3 (WP-29): the navigation layer as one script tag, for an application with no build step.",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-intent": "workspace:*"
+  }
+}

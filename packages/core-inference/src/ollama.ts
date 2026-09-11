@@ -22,9 +22,11 @@ export interface OllamaOptions {
 }
 
 const DEFAULTS = {
-  host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
-  model: process.env.SPIKE_MODEL || 'qwen2.5:1.5b',
-  embedModel: process.env.SPIKE_EMBED_MODEL || 'nomic-embed-text',
+  // Guarded: `process` does not exist in a browser, and reading it at module
+  // scope crashed any page that loaded this file (found by WP-29's script-tag test).
+  host: (typeof process !== 'undefined' ? process.env.OLLAMA_HOST : undefined) || 'http://127.0.0.1:11434',
+  model: (typeof process !== 'undefined' ? process.env.SPIKE_MODEL : undefined) || 'qwen2.5:1.5b',
+  embedModel: (typeof process !== 'undefined' ? process.env.SPIKE_EMBED_MODEL : undefined) || 'nomic-embed-text',
   timeoutMs: 30000,
 };
 

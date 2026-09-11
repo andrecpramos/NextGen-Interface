@@ -135,10 +135,22 @@ export function thresholdsFor(embedderKind: string): Thresholds {
   return THRESHOLD_PROFILES[embedderKind as EmbedderKind] ?? THRESHOLD_PROFILES.hashing;
 }
 
+/**
+ * The environment, when there is one.
+ *
+ * `process` does not exist in a browser. Reading `process.env` at module scope
+ * therefore threw `ReferenceError: process is not defined` the moment a page
+ * loaded the router — found by WP-29's script-tag test, which runs the bundle in
+ * a context holding nothing but `window`. Any adopter shipping stages 1+2 to a
+ * browser (WP-24) would have hit it on first load.
+ */
+const ENV: Record<string, string | undefined> =
+  typeof process !== 'undefined' && process.env ? process.env : {};
+
 export const OLLAMA = {
-  host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
-  chatModel: process.env.SPIKE_MODEL || 'llama3.1:8b',
-  embedModel: process.env.SPIKE_EMBED_MODEL || 'nomic-embed-text',
+  host: ENV.OLLAMA_HOST || 'http://127.0.0.1:11434',
+  chatModel: ENV.SPIKE_MODEL || 'llama3.1:8b',
+  embedModel: ENV.SPIKE_EMBED_MODEL || 'nomic-embed-text',
   timeoutMs: 30000,
 } as const;
 

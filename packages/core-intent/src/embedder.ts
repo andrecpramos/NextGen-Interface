@@ -1,5 +1,10 @@
 import { features } from './text.ts';
-import { OllamaEmbeddingRuntime } from '@nextgen/core-inference';
+// The subpath, not the package root. The root re-exports `ModelStore`, which
+// imports `node:crypto`, `node:fs` and `node:path` at module scope — so pulling
+// the root into `@nextgen/core-intent/browser` made every browser bundle fail to
+// resolve them (WP-29 found it; esbuild refuses at `platform: 'browser'`).
+// `ollama.ts` itself is `fetch` only.
+import { OllamaEmbeddingRuntime } from '@nextgen/core-inference/ollama';
 import type { Embedder, Vector } from './types.ts';
 
 /**
@@ -112,7 +117,10 @@ export class HashingEmbedder implements Embedder {
 // `OllamaEmbeddingRuntime` is re-exported for callers that used to import it
 // from here.
 
-export { OllamaEmbeddingRuntime } from '@nextgen/core-inference';
+// Re-exported through the subpath for the same reason as the import at the top
+// of this file: the package root drags `ModelStore` and its `node:*` imports
+// into any browser bundle that touches this module.
+export { OllamaEmbeddingRuntime } from '@nextgen/core-inference/ollama';
 
 /**
  * Pick an encoder by name.
