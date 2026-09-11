@@ -271,6 +271,17 @@ describe('renderTrace — explaining a decision without narrating it', () => {
     expect(view.decidedAt).toBe('llm');
   });
 
+  /**
+   * WP-35. The surface decides whether to move the browser from these two, so a
+   * silent `undefined` here would not throw — it would just stop navigation
+   * working, which is the hardest kind of regression to notice.
+   */
+  it('passes through what the surface needs to decide about navigating', () => {
+    const view = renderTrace(trace({ capabilityKind: 'navigate', explanationRequest: true }), true);
+    expect(view.capabilityKind).toBe('navigate');
+    expect(view.explanationRequest).toBe(true);
+  });
+
   it('reports whether the turn stayed local', () => {
     expect(renderTrace(trace(), true).local).toBe(true);
     expect(renderTrace(trace(), false).local).toBe(false);

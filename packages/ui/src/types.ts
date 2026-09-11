@@ -110,6 +110,23 @@ export interface TraceView {
   readonly timing: string;
   readonly candidates: readonly { readonly capabilityId: string; readonly score: number }[];
   readonly chosen: string | null;
+  /**
+   * The resolved capability's kind — `navigate`, `read`, `write`, `destructive`.
+   *
+   * A surface needs this to decide whether a turn should *move* the browser.
+   * `TurnResponse.kind` answers a different question (execute / confirm /
+   * clarify / refuse), and conflating the two is how a search result starts
+   * navigating away from the answer it just rendered.
+   */
+  readonly capabilityKind: string | null;
+  /**
+   * The user asked what something is, rather than to be taken to it (WP-36).
+   *
+   * Carried to the surface because it changes what the surface should *do*, not
+   * only what it says: a question about a screen should not yank the reader onto
+   * that screen mid-sentence.
+   */
+  readonly explanationRequest: boolean;
   readonly decidedAt: string;
   readonly local: boolean;
   readonly notes: readonly string[];

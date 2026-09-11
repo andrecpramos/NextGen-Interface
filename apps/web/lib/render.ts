@@ -147,6 +147,10 @@ export function renderTrace(trace: TurnTrace, local: boolean): TraceView {
     timing: e.timing,
     candidates: trace.candidates.map((c) => ({ capabilityId: c.capabilityId, score: c.score })),
     chosen: trace.capabilityId,
+    // Both are recorded facts, passed through so the surface can decide whether
+    // this turn should move the browser — see `destinationFor` in navigation.ts.
+    capabilityKind: trace.capabilityKind,
+    explanationRequest: trace.explanationRequest,
     decidedAt: trace.decidedAt,
     local,
     notes: trace.notes,

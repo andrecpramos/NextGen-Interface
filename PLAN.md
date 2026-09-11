@@ -51,7 +51,7 @@ with an existing CommandPalette to measure against. WeFitAll is a smoke test onl
 | 5 | ◐ **WP-24** · Ship stages 1+2 to the browser — **engine done 2026-09-10**, bundle 47KB gz at the largest role against a 500KB gate, 210/210 decision parity with the server path. **The encoder finding that rewrote this was retracted** ([L10](.claude/docs/lessons.md)). Left: mount it in a page | M3 | S | — |
 | 6 | **WP-27** · Guided steps — "tell me what to do here" | M3 | L | D-3 |
 | 7 | ◐ **WP-26** · The installable package — **installable 2026-09-11**. Six packages build to dist and were installed from tarballs into an outside consumer that routed real turns with no network. Left: a live page (WP-35) | M3 | S | — |
-| 8 | **WP-35** · Deploy on `fut-app` — the third artefact | M3 | M | 5, 6, 7 |
+| 8 | ◐ **WP-35** · Deploy on `fut-app` — **navigate now moves the browser (2026-09-11)**, closing §3's Layer 4 gap. The rest needs a deployment, real traffic and a screen-reader pass | M3 | M | owner |
 
 ~~WP-39~~ ✅ **attempted and reverted 2026-09-10** — section-scoped boundaries raised the
 boundary's score (0.594 → 0.690) and moved detection by **nothing** (38.2% either way).
@@ -414,7 +414,7 @@ thing to understand about this repo.
 | 1 · Conversation | ✅ text; voice built but never acceptance-tested (WP-21, deferred) |
 | 2 · Intent Recognition | ✅ built, honestly re-measured against the modules registry (WP-17), and domain-agnostic in the stage-3 prompt (WP-16) — no known open work at this layer |
 | 3 · Action | ✅ built. Rung A1 uses `read` + `navigate` only |
-| 4 · Navigation | ◐ **engine built, surface missing.** `NavigationEngine` resolves a route and refuses rather than emitting a broken URL — but **no browser navigation exists in the turn path**: `NextGenApp` sets `this.route`, the API echoes it, no client reads it. **For this product that is the main event**, closed by WP-35 |
+| 4 · Navigation | ✅ **closed 2026-09-11.** The engine resolved routes from WP-03 and every response carried one; **nothing read it** — this row said "surface missing" for the entire project, and for a navigation product it was the main event. `destinationFor()` now decides, and `Assistant.tsx` pushes through the app's own router, so Rule 7 holds by construction. The policy is a pure function with 24 tests, because every interesting case is one where moving would be *wrong*: a `confirm` (arriving before the user approves defeats ADR-004), a `read` (replacing the answer with the form that produced it), and a **what/why question** (WP-36 — asking about a screen is not asking to be put on it) |
 | 5 · Knowledge | ✅ WP-15 landed — `relatedModules()` + body-inclusive corpus, in the reference app |
 
 ### Tests
@@ -1796,7 +1796,25 @@ rethinking before shipping.
 
 ---
 
-### WP-35 · Deploy on `fut-app` ⬜ · **M** · queue 9
+### WP-35 · Deploy on `fut-app` ◐ **first acceptance item done — 2026-09-11** · deploy pending
+
+> ✅ **`navigate` moves the browser; it does not narrate.** The long-standing §3 gap is
+> closed — see that row. `destinationFor()` in `apps/web/lib/navigation.ts` is a pure
+> function with 24 tests; `Assistant.tsx` pushes through the app's own router so every
+> destination stays reachable without the assistant (Rule 7 by construction, not by
+> promise).
+>
+> **The remaining items need a running deployment and a human**, and two of them are
+> explicitly not things an agent should sign off:
+>
+> - a **real screen-reader pass** — the "Stop if" says do not deploy an accessibility
+>   claim that is false, and an agent cannot run a screen reader;
+> - **cost per session**, which needs real traffic;
+> - **a side-by-side clip** against the CommandPalette;
+> - `packages/ui` surviving `fut-app`'s stylesheet, which needs the two in one page.
+>
+> Deploying also writes to a repository this project does not own. **That is the owner's
+> call, not an agent's.**
 
 **Goal.** A live URL anyone can try — the third artefact.
 
