@@ -32,6 +32,7 @@ export {
   formatSkipReport,
   formatRoleSummary,
   writeOutput,
+  writeIndexes,
   SCHEMA_VERSION,
   type WriteResult,
 } from './emit.ts';

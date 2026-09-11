@@ -1,12 +1,10 @@
 // @nextgen/embed — Ladder C3 (WP-29): the navigation layer as one script tag.
 //
 //   <script src="/nextgen/nextgen.js"></script>
-//   <script>
-//     NextGen.load('/nextgen', 'PARENT').then((assistant) => {
-//       const trace = assistant.route('onde vejo as lesões do meu filho');
-//       if (trace.route) location.assign(trace.route);
-//     });
-//   </script>
+//   <script>NextGen.start('/nextgen', 'PARENT');</script>
+//
+// `start` loads the role's bundle and mounts the chat box (widget.ts, WP-41).
+// `load` gives the router alone, for a page that draws its own interface.
 //
 // For an application with no build step — the adopter C2's npm package cannot
 // reach. It routes with stages 1 and 2 only, from the registry and index the
@@ -28,6 +26,8 @@ import type { GuidedStep } from '@nextgen/core-capability';
 // highlight a form field.
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
 
+import { mount, type MountOptions, type Mounted } from './widget.ts';
+
 /** What the generator wrote for one role, as the adopter serves it. */
 export interface Bundle {
   readonly registry: RegistryFile;
@@ -41,6 +41,8 @@ export interface Assistant {
   /** Guided steps for a capability, resolved against a page. Text survives a missing anchor. */
   steps(capabilityId: string, root: AnchorRoot): ResolvedStep[];
   readonly capabilities: number;
+  /** The registry this assistant routes against: what the chat box presents turns with. */
+  readonly registry: Registry;
 }
 
 /** Build an assistant from a bundle already in memory. No I/O at all. */
@@ -54,6 +56,7 @@ export function create(bundle: Bundle): Assistant {
 
   return {
     capabilities: registry.capabilities.length,
+    registry,
     route(utterance, context = {}) {
       return routeTurn(
         utterance,
@@ -93,4 +96,29 @@ export async function load(basePath: string, role: string): Promise<Assistant> {
     get<{ thresholds: Thresholds }>('thresholds.hashing.json'),
   ]);
   return create({ registry, index, thresholds: thresholds.thresholds });
+}
+
+export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';
+export { mount, type MountOptions, type Mounted, type Routable } from './widget.ts';
+
+/**
+ * One line to put the assistant on a page: load this role's bundle, then mount
+ * the chat box, in `options.target` if one is given and otherwise fixed to the
+ * page's corner. Pass `options.navigate` in a single-page app, so moving does
+ * not reload the page.
+ */
+export async function start(
+  basePath: string,
+  role: string,
+  options: MountOptions & { readonly target?: Element } = {},
+): Promise<Mounted> {
+  const assistant = await load(basePath, role);
+  let target = options.target;
+  if (!target) {
+    const corner = document.createElement('div');
+    corner.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;';
+    document.body.append(corner);
+    target = corner;
+  }
+  return mount(target, assistant, options);
 }

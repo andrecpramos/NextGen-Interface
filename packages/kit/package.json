@@ -1,0 +1,21 @@
+{
+  "name": "@nextgen/kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WP-41: the drop-in kit. One command reads an application, writes everything into its own folder, and explains what it could not read.",
+  "main": "./src/index.ts",
+  "bin": {
+    "nextgen": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-intent": "workspace:*",
+    "@nextgen/embed": "workspace:*",
+    "@nextgen/generator": "workspace:*"
+  }
+}

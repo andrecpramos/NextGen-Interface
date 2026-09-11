@@ -10,9 +10,84 @@ outside the workspace that makes it.
 > the assistant in a live application's UI is not** — that is WP-35, and it needs a real
 > page. Read this as "the packages install and route", not "the product is deployed".
 >
-> **Next: WP-41 turns steps 2 and 3 into one command** (`init`, `build`, `doctor`) that
-> writes only into its own folder. Until then, this page is the procedure. The owner will
-> run the kit in `fut-app` as its acceptance test (PLAN.md §0).
+> **Start with section 0.** Since WP-41, steps 2 and 3 below are one command. The rest
+> of this page is what that command does underneath, kept because it was performed and
+> is still true.
+
+---
+
+## 0 · With the kit — start here (WP-41)
+
+```bash
+# once, in a checkout of this repository
+pnpm install --ignore-scripts
+
+# then, pointed at your app (the folder that contains src/)
+node <this repo>/packages/kit/src/cli.ts init   <your app>
+node <this repo>/packages/kit/src/cli.ts build  <your app>/nextgen
+node <this repo>/packages/kit/src/cli.ts doctor <your app>/nextgen
+```
+
+- **`init`** finds the route table, the role table, translations and the app's language.
+  It writes `<your app>/nextgen/nextgen.config.json` and marks every answer as **found** or
+  **GUESSED**.
+- **`build`** writes `bundle/`, which you serve, and `review/`, which you never serve.
+  Without `--model`, it needs no model server.
+- **`doctor`** says what was read, what was left out and why, whether the thresholds are
+  calibrated, and the exact lines to add to your page.
+
+**Measured on bulletproof-react**, a public app the kit was not written for:
+- `init` took 0s, `build` 1s and `doctor` 0s;
+- it found 8 of 8 screens, and reported the one it left out (a redirect);
+- `git status` afterwards showed **one new folder and no modified file**.
+
+`doctor` also warned, correctly, that the app defines roles but has no route-to-role
+table, so every user would receive every screen.
+
+### The owner's run in `fut-app` — the acceptance test (PLAN.md WP-35)
+
+The kit has never been run on `fut-app`; that is the point of this run. Everything it
+needs from this repository is already here.
+
+1. **`init` on `fut-app/frontend`.** Then compare `frontend/nextgen/nextgen.config.json`
+   with this repository's
+   [`eval/fut-app/generator.config.json`](eval/fut-app/generator.config.json), which is the
+   config every measurement used. Two things `init` does not do:
+   - add `"manifests": ["lib/deepLinks.ts", "lib/navConfigs.ts"]`;
+   - make sure `"languages"` starts with `"pt-PT"`.
+2. **For a calibrated build, reuse the prose that was measured.**
+   - Copy `<this repo>/eval/fut-app/generated/prose-cache.json` to
+     `frontend/nextgen/review/prose-cache.json`.
+   - Run `build --model llama3.1:8b` with Ollama running. Screens already in the cache do
+     not call the model.
+3. **Check the registries match what was measured, before reusing its calibration.** Run
+   `git diff --no-index --stat <this repo>/eval/fut-app/generated/registry.COACH.json frontend/nextgen/bundle/registry.COACH.json`.
+   No output means they are identical.
+   - **If they match**, copy `<this repo>/eval/fut-app/generated/thresholds.hashing.json`
+     to `frontend/nextgen/calibration/thresholds.hashing.json`, and run `build` again.
+   - **If they do not match, do not copy it.** A calibration belongs to the registry it
+     was measured on (Rule 14). `doctor` will then say *not calibrated*, which is true.
+4. **Run `doctor`.** Every GUESSED line and every warning is a finding. Send them back.
+5. **Run `git status` in `fut-app`.** Expect only `?? frontend/nextgen/`. Anything else
+   breaks Rule 16, and is the most important thing you could find.
+6. **Mount it.** This is your edit, like adding a dependency:
+   - serve `bundle/` as `/nextgen`;
+   - add the two script lines `doctor` prints;
+   - pass the signed-in user's role.
+
+   For a local test, copying `bundle/` into `public/nextgen` serves every role's files.
+   That is fine on your own machine and wrong in production (Rule 17).
+
+   The two lines put an accessible "ask where to go" box in the page's corner. It speaks
+   Portuguese on a `pt` page. `fut-app` is a single-page app, so pass its router to
+   avoid a full reload:
+   `NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
+   Without that, moving reloads the page. That is slower, but still correct.
+7. **Send back:**
+   - `doctor`'s output and `git status`;
+   - how long it took;
+   - what you corrected in the config;
+   - any question that went somewhere wrong.
 
 ---
 
@@ -139,13 +214,16 @@ node packages/embed/build.mjs     # → packages/embed/dist/nextgen.js, ~9.3KB g
 ```
 
 ```html
-<script src="/nextgen.js"></script>
+<script src="/nextgen/nextgen.js"></script>
+<!-- Fetches registry.COACH.json, index.COACH.json and thresholds.hashing.json from
+     the same origin, then mounts the chat box. No other network call is ever made. -->
+<script>NextGen.start('/nextgen', 'COACH');</script>
+
+<!-- Or, to draw your own interface, take the router alone: -->
 <script>
-  // Fetches registry.COACH.json, index.COACH.json and thresholds.hashing.json
-  // from the same origin. No other network call is made, ever.
-  NextGen.load('/generated', 'COACH').then(async (assistant) => {
+  NextGen.load('/nextgen', 'COACH').then(async (assistant) => {
     const trace = await assistant.route('where do I see the training calendar');
-    // trace.outcome, trace.capabilityId
+    // trace.outcome, trace.capabilityId, trace.route
   });
 </script>
 ```
