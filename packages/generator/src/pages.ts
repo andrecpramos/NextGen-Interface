@@ -136,12 +136,38 @@ function i18nKeys(source: ts.SourceFile): { namespace: string | null; keys: stri
   return { namespace, keys: [...new Set(keys)] };
 }
 
+/**
+ * What a screen shows when it **fails**, which is not what the screen is.
+ *
+ * WP-42 found this by auditing descriptions: bulletproof-react's discussion
+ * screen has no doc comment, and the only literal text under it is an
+ * `ErrorBoundary`'s fallback — "Failed to load comments. Try to refresh the
+ * page." That was the entire on-screen text the model was given, so it
+ * faithfully described the error: *"A user tries to view comments but sees an
+ * error message and attempts to refresh the screen."* A user asking where the
+ * discussion is would be sent to a screen the registry describes as a failure.
+ *
+ * A fallback is rendered exactly when the screen is not working. Reading it as
+ * the screen's own copy is reading the wrong state.
+ *
+ * ⚠️ **Only the failure states.** The first version of this list also skipped
+ * `forbiddenFallback`, and that made a description worse: bulletproof-react's
+ * `/app/users` renders `forbiddenFallback={<div>Only admin can view this.</div>}`,
+ * which was the only thing telling the model who the screen is for. Its
+ * description went from *"An admin views a list of registered users"* to *"A
+ * person views…"*. An authorization fallback describes the **audience**, which
+ * is true of the screen; an error or loading fallback describes a **moment**,
+ * which is not.
+ */
+const FALLBACK_ATTRIBUTES = /^(fallback|errorFallback|loadingFallback|errorElement)$/;
+
 /** Literal user-visible text: headings, titles, and JSX text nodes. */
 function headings(source: ts.SourceFile): string[] {
   const out: string[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isJsxAttribute(node)) {
       const name = node.name.getText();
+      if (FALLBACK_ATTRIBUTES.test(name)) return; // its subtree is the failure state, not the screen
       if (/^(title|subtitle|heading|label)$/.test(name)) {
         const value = node.initializer;
         if (value && ts.isStringLiteral(value) && value.text.trim()) out.push(value.text.trim());
@@ -279,6 +305,10 @@ function componentDoc(source: ts.SourceFile): string | null {
       .slice(block.pos, block.end)
       .replace(/^\s*(\/\*+|\*+\/|\*)/gm, '')
       .replace(/\s+/g, ' ')
+      // A one-line comment closes on the same line as its text, so the line-start
+      // strip above never sees it: `/** The signed-in shell. */` kept its `*/`,
+      // and the model was handed it as part of the sentence (WP-42).
+      .replace(/\s*\*+\/\s*$/, '')
       .trim();
     if (doc.length > 0) return doc;
   }
