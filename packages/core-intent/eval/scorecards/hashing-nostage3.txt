@@ -14,12 +14,12 @@
   ambiguous       11/11   100.0%   top1   n/a   s3p95       -
   multiturn        3/10   30.0%   top1 12.5%  s3p95       -
   out_of_scope     9/13   69.2%   top1   n/a   s3p95       -
-  adversarial     10/10   100.0%   top1   n/a   s3p95       -
+  adversarial     13/13   100.0%   top1   n/a   s3p95       -
   non_english      0/6    0.0%   top1 0.0%  s3p95       -
 
 â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  deterministic   14  17.1%
-  embedding       68  82.9%
+  deterministic   14  16.5%
+  embedding       71  83.5%
   LLM invoked      0  0.0%
 
 â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -131,4 +131,4 @@
       â†’ capability none != module.revert
       Â· stage3 disabled
 
-  âœ— GATES FAILED â€” 82 entries in 0.0s
+  âœ— GATES FAILED â€” 85 entries in 0.0s
