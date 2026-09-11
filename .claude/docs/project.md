@@ -46,7 +46,7 @@ assistant reads the registry.
 
 | Area | Status |
 |---|---|
-| `.claude/` knowledge base | ✅ complete: 15 ADRs, the enforcement register, lessons L1 to L12, business case, history |
+| `.claude/` knowledge base | ✅ complete: 16 ADRs, the enforcement register, lessons L1 to L12, business case, history |
 | Monorepo scaffold (pnpm workspace) | ✅ complete: 12 packages, 2 apps, 1 service |
 | Generator (`packages/generator`) | ✅ built and measured on `fut-app` (WP-25) and on one external app (WP-28) |
 | Browser delivery (`core-intent/browser`, `embed`) | ✅ stages 1+2 run from a shipped index with 210/210 parity (WP-24), plus a script tag at 9.3KB gzipped (WP-29) |

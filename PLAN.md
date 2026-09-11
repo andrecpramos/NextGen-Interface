@@ -81,6 +81,9 @@ on 2026-09-11; see §13.
 
 **Deferred with a hard trigger:** **WP-48**, the injection defence for `gs-0174`. It must
 land before any `write` or `destructive` capability ships to an adopter (§7.5, §8).
+Rule 15's fence landed with PR #7, and Finding 14 measured its limit. The fence holds
+structurally, but `llama3.1:8b` still obeys an instruction placed inside it (4
+adversarial violations). So the fence narrows WP-48 without replacing it.
 
 **Why this order.**
 - **WP-41 comes first**, because the other items are exercised *through* it.
@@ -124,7 +127,7 @@ records each one, with its reasoning.
 | ~~**D-5**~~ | ✅ **2026-09-11: (a), accept the out-of-scope ceiling and disclose it.** Disclosed in [README.md](README.md), [WRITEUP.md](WRITEUP.md) §10 and [business-case.md](.claude/docs/business-case.md) §7 | Re-opens if a rung adds actions |
 | ~~**ADRs**~~ | ✅ **2026-09-11: ADR-013 and ADR-014 accepted. ADR-016 accepted, option B**; it is implemented after the merge (WP-47) | — |
 | ~~**fut-app**~~ | ✅ **2026-09-11: agents do not install into `fut-app`.** The owner drops the kit in (WP-41), and that run is WP-35 | — |
-| ~~**Push**~~ | ✅ **2026-09-11: both feature branches pushed, and PRs opened into `develop`.** Merge this branch first. The other then resolves five conflicting files (two of them scorecards, which are regenerated rather than hand-merged) | — |
+| ~~**Push**~~ | ✅ **2026-09-11: both feature branches pushed, and PRs opened into `develop`.** **Done the same day: #6 merged, and #7 rebased onto it with its scorecards regenerated** | — |
 | ~~**Gaps 5–8**~~ | ✅ **2026-09-11:**<br>• Accessibility → WP-45; the owner does the NVDA pass.<br>• Cost per session → measured live in WP-35 only.<br>• Injection → WP-48, deferred with a hard trigger.<br>• Generalisation → WP-42, WP-43 and WP-44 | — |
 | ~~**D-4**~~ | ✅ **ANSWERED 2026-09-10, in session: option (b) — spend WP-38's budget first.** Spent. Model-free reached **8.1%**, not 60%, so WP-38's own "Stop if" fired and the answer resolves to **(c), reposition the claim** — done in [business-case.md](.claude/docs/business-case.md) §5. **M3 is unblocked** | ~~all of M3~~ |
 | ~~D-3~~ | ✅ **ANSWERED 2026-09-11, in session: (c) semantic matching primary, (a) build-time selector as fallback, (b) never** | ~~WP-27~~ |
@@ -485,7 +488,7 @@ someone who did not write it.
 ```
 NextGen_Interface/
 ├── .claude/docs/              docs · lessons (L1–L12) · history · business case
-├── .claude/decisions/         15 ADRs on this branch (ADR-016 arrives with PR #7)
+├── .claude/decisions/         16 ADRs
 ├── apps/
 │   ├── cli/          ✅ COMPOSITION ROOT — 15 tests · `undo` (WP-18)
 │   ├── web/          ✅ REFERENCE IMPLEMENTATION — 44 tests · navigate moves the browser
@@ -566,8 +569,8 @@ is local-only.
 | Branch | vs `develop` | On `origin` | Carries |
 |---|---|---|---|
 | `develop` | — | yes | everything through the PR #3/#4/#5 reconciliation (sdlc-kit, plan restructure, WP-14) |
-| `feature/plan-execution` (current) | **41 ahead** when verified, 0 behind | yes, **PR #6** | WP-15 onward: M1's measurement, M2's write-up, M3's build, and the 2026-09-11 gap review. **Merge first** |
-| `feature/rule-15-untrusted-fence` | 9 ahead, 0 behind | yes, **PR #7** | Rule 15's fence, CI gates for Rules 2, 8 and 15, and ADR-016 (accepted). It conflicts with PR #6 in five files, so rebase it after #6 lands |
+| `feature/plan-execution` | merged | yes | WP-15 onward. **Merged into `develop` on 2026-09-11 (PR #6)** |
+| `feature/rule-15-untrusted-fence` | 9 ahead, 0 behind | yes, **PR #7** | Rule 15's fence, CI gates for Rules 2, 8 and 15, and ADR-016 (accepted). **Rebased onto `develop` on 2026-09-11, after PR #6 merged.** Its five conflicts were resolved by keeping both sides, and the scorecards were regenerated with `pnpm router:floor` rather than hand-merged |
 | `chore/claude-workflow` | 2 ahead, 6 behind | no | **superseded**: the pre-rename `.ai/` workflow, which landed on `develop` renamed to `.claude/` |
 | `docs/plan-restructure` | 8 ahead, 6 behind | no | **superseded**: the pre-rename version of this file |
 | `docs/runbook` | 2 ahead, 6 behind | no | adds `RUNNING.md` and deletes `SETUP.md`. Its `roadmap.md` deletion targets a pre-rename path that no longer exists (see below) |

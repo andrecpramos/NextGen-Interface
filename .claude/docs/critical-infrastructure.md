@@ -65,12 +65,11 @@ subsystem reads.
 > owed an ADR rather than an inference by whoever edited the file last. What
 > changed is only that a silent default became an explicit one.
 >
-> **That ADR is now written: [ADR-016](../decisions/ADR-016.md), status
-> `Proposed`.** It recommends per-domain output paths with the eval scripts
-> taking `--registry=`, and sequences the change so the first step — adding the
-> flag with today's path as its default — is provable by an unchanged scorecard.
-> An agent does not accept an ADR; until the owner rules on it, the guard and the
-> documented order are what this repo has.
+> **That ADR is [ADR-016](../decisions/ADR-016.md). The owner accepted option B on
+> 2026-09-11.** It gives each domain's output its own path, with the eval scripts taking
+> `--registry=`. It sequences the change so that the first step, adding the flag with
+> today's path as its default, is provable by an unchanged scorecard. Until PLAN.md
+> WP-47 implements it, the guard and the documented order are what this repo has.
 >
 > **There was already a `guard-git`-style hook denying `pnpm registry:build:finance`,
 > and it is not a substitute.** It matches a command string, so
@@ -82,10 +81,6 @@ subsystem reads.
 > The guard is **symmetric**: after a wrong build, the correct build refuses too,
 > for the same reason. Recovery is `--force` on the build you actually want, and
 > the refusal says so.
->
-> **Decided 2026-09-11:** ADR-016, option B (one registry file per app), was accepted by
-> the owner. The ADR lives on `feature/rule-15-untrusted-fence` (PR #7). It is
-> implemented as PLAN.md WP-47, after both open PRs merge.
 
 ---
 
