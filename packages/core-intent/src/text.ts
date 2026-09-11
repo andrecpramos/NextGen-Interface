@@ -4,6 +4,24 @@
 const PUNCT = /[^\p{L}\p{N}\s€$£%.,-]/gu;
 const COMBINING = /[̀-ͯ]/g;
 
+/**
+ * A full stop or comma that is sentence punctuation rather than part of a number.
+ *
+ * `PUNCT` keeps `.` and `,` on purpose — `12.50`, `1,234` and `01.02.2026` have
+ * to survive for the slot resolvers. But it kept them everywhere, so `"my
+ * modules."` normalised to `my modules.` and never met the trigger `my modules`.
+ *
+ * WP-21 found it, and the way it found it is the point: whisper.cpp ends every
+ * transcript with a full stop. Measured on the registered application, 10 of 40
+ * spoken utterances routed differently from the same words typed, and most of
+ * the ten were this — *"my modules"* resolving at stage 1, *"My modules."*
+ * falling through to a clarify. Typed input with a trailing full stop had the
+ * same bug all along; nobody types one to an assistant, so nothing noticed.
+ *
+ * Only a mark with a digit on BOTH sides is kept.
+ */
+const SENTENCE_PUNCT = /(?<!\d)[.,]|[.,](?!\d)/g;
+
 /** Lowercase, strip accents and punctuation, collapse whitespace. */
 export function normalize(text: string): string {
   return text
@@ -11,6 +29,7 @@ export function normalize(text: string): string {
     .normalize('NFD')
     .replace(COMBINING, '')
     .replace(PUNCT, ' ')
+    .replace(SENTENCE_PUNCT, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

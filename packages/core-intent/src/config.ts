@@ -81,7 +81,15 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
   // unrelated to anything this app does xyzzy") was being refused as a
   // declared limit instead of clarified. Fixed in calibrate.js; the value
   // below is what the corrected sweep recommends.
-  hashing: { tauHigh: 0.436, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.055 },
+  //
+  // Recalibrated 2026-09-11 because the encoder's input changed, not the
+  // registry: `normalize()` now strips sentence punctuation (`.` and `,` outside
+  // numbers), which moves every hashing vector. Found by WP-21 — whisper ends a
+  // transcript with a full stop, and `"undo."` had been failing the stage-1 match
+  // `"undo"` passes. Was tauHigh 0.436 / boundaryMargin 0.055; at those values
+  // gs-0111 ("…unrelated… xyzzy") was refused as a declared limit instead of
+  // clarified. The sweep's own ambiguity constraint caught it and moved the margin.
+  hashing: { tauHigh: 0.456, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.065 },
 
   // nomic-embed-text, recalibrated 2026-08-31 (WP-14) with --defer-oos.
   // Accepts 27.6% of routable turns at 100% precision.
