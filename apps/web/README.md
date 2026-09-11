@@ -1,7 +1,7 @@
 # @nextgen/web
 
 **The assistant surface.** One page: the conversation is the interface, and the panels
-are what it drives. A second surface over the *same* `FinanceApp` composition root the
+are what it drives. A second surface over the *same* `NextGenApp` composition root the
 CLI uses — not a reimplementation.
 
 ```bash

@@ -4,6 +4,24 @@
 const PUNCT = /[^\p{L}\p{N}\s€$£%.,-]/gu;
 const COMBINING = /[̀-ͯ]/g;
 
+/**
+ * A full stop or comma that is sentence punctuation rather than part of a number.
+ *
+ * `PUNCT` keeps `.` and `,` on purpose — `12.50`, `1,234` and `01.02.2026` have
+ * to survive for the slot resolvers. But it kept them everywhere, so `"my
+ * modules."` normalised to `my modules.` and never met the trigger `my modules`.
+ *
+ * WP-21 found it, and the way it found it is the point: whisper.cpp ends every
+ * transcript with a full stop. Measured on the registered application, 10 of 40
+ * spoken utterances routed differently from the same words typed, and most of
+ * the ten were this — *"my modules"* resolving at stage 1, *"My modules."*
+ * falling through to a clarify. Typed input with a trailing full stop had the
+ * same bug all along; nobody types one to an assistant, so nothing noticed.
+ *
+ * Only a mark with a digit on BOTH sides is kept.
+ */
+const SENTENCE_PUNCT = /(?<!\d)[.,]|[.,](?!\d)/g;
+
 /** Lowercase, strip accents and punctuation, collapse whitespace. */
 export function normalize(text: string): string {
   return text
@@ -11,6 +29,7 @@ export function normalize(text: string): string {
     .normalize('NFD')
     .replace(COMBINING, '')
     .replace(PUNCT, ' ')
+    .replace(SENTENCE_PUNCT, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -34,6 +53,64 @@ export function stem(word: string): string {
     }
   }
   return word;
+}
+
+/**
+ * Words that carry no intent — function words and the frame a question is
+ * wrapped in, in the two languages the pilot application actually ships.
+ *
+ * **Deliberately separate from `STOP`.** `STOP` feeds `tokens()` and therefore
+ * the hashing embedder's vocabulary; this file's own header warns that changing
+ * it "invalidates cached embeddings and shifts every score", and it would
+ * invalidate the committed scorecard for a reason unrelated to what is being
+ * measured. This set is read by stage 1's coverage rule and nothing else.
+ *
+ * WP-38 lever 1 is why it exists. Triggers went from 0 to 245 and stage 1 fired
+ * **twice in 210 turns** — because coverage was measured in *characters* over
+ * the raw utterance, and a real question is mostly wrapper. For *"Para que serve
+ * a 'Composição corporal'?"* the correct trigger is present and covers 0.53 of
+ * the string, against a 0.6 bar. Measured across the golden set: 102 entries had
+ * a trigger on the right capability, 2 cleared the bar, and **100 sat below it**.
+ *
+ * The list is function words and interrogative frames only. It must not grow to
+ * include anything that distinguishes one screen from another — a word removed
+ * here is a word stage 1 stops requiring, and stage 1 answers with score 1.0 and
+ * no escalation.
+ */
+const FILLER = new Set([
+  // English function words and question frames
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'am',
+  'do', 'does', 'did', 'to', 'of', 'in', 'on', 'at', 'for', 'with', 'from',
+  'and', 'or', 'but', 'as', 'by', 'about',
+  'i', 'me', 'my', 'mine', 'you', 'your', 'we', 'our', 'it', 'its',
+  'that', 'this', 'these', 'those', 'there', 'here',
+  'can', 'could', 'would', 'should', 'will', 'shall', 'may', 'might',
+  'please', 'just', 'want', 'need', 'how', 'what', 'where', 'which', 'who',
+  'when', 'why', 'get', 'go', 'see', 'show', 'find', 'open', 'does', 'screen',
+  // Portuguese function words and question frames
+  'o', 'os', 'as', 'um', 'uma', 'uns', 'umas',
+  'de', 'do', 'da', 'dos', 'das', 'no', 'na', 'nos', 'nas',
+  'ao', 'aos', 'pelo', 'pela', 'por', 'para', 'com', 'sem', 'em',
+  'e', 'ou', 'mas', 'se', 'que', 'qual', 'quais', 'quem', 'onde', 'quando',
+  'como', 'porque', 'porquê', 'quanto', 'quanta',
+  'eu', 'tu', 'ele', 'ela', 'nos', 'meu', 'minha', 'meus', 'minhas',
+  'seu', 'sua', 'teu', 'tua', 'este', 'esta', 'esse', 'essa', 'isso', 'isto',
+  'ser', 'serve', 'e', 'sao', 'esta', 'estao', 'ver', 'vejo', 'posso', 'pode',
+  'quero', 'preciso', 'faco', 'fazer', 'ir', 'abrir', 'mostrar', 'mostra',
+  'chegar', 'aceder', 'consultar', 'ecra', 'pagina',
+]);
+
+/**
+ * The words in `text` that actually carry intent.
+ *
+ * Not stemmed, and not the same thing as `tokens()`: this is the denominator of
+ * stage 1's coverage rule, so it has to be the words a person chose, not their
+ * stems.
+ */
+export function contentTokens(text: string): string[] {
+  return normalize(text)
+    .split(' ')
+    .filter((w) => w && !FILLER.has(w));
 }
 
 /** Content words only, stemmed. */

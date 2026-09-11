@@ -90,7 +90,7 @@ Don't re-derive these procedures — they are written down. Full map:
 | ending a session | `/handoff` |
 | suspicious the docs have drifted | `docs-keeper` agent |
 | installing this SDLC in another repo | `sdlc-bootstrap` skill (the `sdlc-kit` folder lives outside this repo) |
-| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — eight of them, with what each cost |
+| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — twelve of them, with what each cost |
 
 Three hooks enforce what you would otherwise have to remember: the branching
 contract at every context boundary, a guard denying broad staging and writes to
@@ -108,5 +108,6 @@ calibration discipline. Review them with `/hooks`.
   a populated `node_modules` leaves no builds to ignore. Nothing here needs a
   native build, so skipping them is safe; CI does exactly this.
 - `jq` is **not** on PATH here. Use Node for JSON in scripts and hooks.
-- Five `package.json` files carry a PowerShell UTF-8 BOM that `JSON.parse`
-  rejects. Strip it when reading a manifest.
+- `services/api/package.json` carries a PowerShell UTF-8 BOM that `JSON.parse`
+  rejects. Strip it when reading a manifest. *(This said "five" until WP-37 counted
+  them.)*

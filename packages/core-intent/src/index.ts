@@ -13,6 +13,16 @@
 
 export { route, type RouteDeps } from './cascade.ts';
 export { loadRegistry, similarityAudit, type SimilarPair } from './registry.ts';
+
+// WP-24. `loadRegistry` reads a file and fits an embedder — neither is available
+// in a browser. This is the same construction from data already in memory: no
+// I/O, no embedder, no network.
+export {
+  registryFromIndex,
+  assertIndexMatches,
+  IndexMismatchError,
+  type ShippedIndex,
+} from './registry-browser.ts';
 export {
   stage1,
   stage2,
@@ -34,11 +44,16 @@ export {
   type SlotResolution,
 } from './slots.ts';
 export { normalize, tokens, features } from './text.ts';
+
+// ADR-015. `actionVocabularyOf` is exported because anything constructing a
+// Registry by hand has to build it — the field is not optional, deliberately: a
+// registry that forgot it would silently lose the guard and start refusing
+// things the application does.
+export { isActionRequest, actionSignalApplies, actionVocabularyOf } from './action.ts';
 export {
   THRESHOLD_PROFILES,
   thresholdsFor,
-  TAU_ACT_BY_KIND,
-  TAU_ACT_DEFAULT,
+  REQUIRES_STAGE2_AGREEMENT,
   OUT_OF_SCOPE_ID,
   OLLAMA,
   type Thresholds,

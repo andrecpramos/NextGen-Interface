@@ -32,8 +32,20 @@ export interface Thresholds {
    * can — so this is constrained, not traded off.
    */
   readonly boundaryMargin: number;
-  /** Fallback confidence bar, used only when the kind is unknown. */
-  readonly tauAct?: number;
+  /**
+   * `boundaryMargin`, but for an utterance that asks the assistant to *do*
+   * something (ADR-015, accepted 2026-09-10).
+   *
+   * Always ≤ `boundaryMargin`: the verb is independent evidence of being
+   * out-of-scope, so a boundary needs to win by less. Measured, it takes
+   * model-free out-of-scope detection from 20.0% to 45.0% at **zero** in-domain
+   * false refusals — the same constraint `boundaryMargin` is calibrated under,
+   * because refusing a real request is the expensive error.
+   *
+   * Optional so a registry calibrated before this existed still loads; absent,
+   * the engine falls back to `boundaryMargin` and behaves exactly as it did.
+   */
+  readonly actionBoundaryMargin?: number;
 }
 
 export type EmbedderKind = 'hashing' | 'ollama';
@@ -69,7 +81,15 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
   // unrelated to anything this app does xyzzy") was being refused as a
   // declared limit instead of clarified. Fixed in calibrate.js; the value
   // below is what the corrected sweep recommends.
-  hashing: { tauHigh: 0.436, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.055 },
+  //
+  // Recalibrated 2026-09-11 because the encoder's input changed, not the
+  // registry: `normalize()` now strips sentence punctuation (`.` and `,` outside
+  // numbers), which moves every hashing vector. Found by WP-21 — whisper ends a
+  // transcript with a full stop, and `"undo."` had been failing the stage-1 match
+  // `"undo"` passes. Was tauHigh 0.436 / boundaryMargin 0.055; at those values
+  // gs-0111 ("…unrelated… xyzzy") was refused as a declared limit instead of
+  // clarified. The sweep's own ambiguity constraint caught it and moved the margin.
+  hashing: { tauHigh: 0.456, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.065 },
 
   // nomic-embed-text, recalibrated 2026-08-31 (WP-14) with --defer-oos.
   // Accepts 27.6% of routable turns at 100% precision.
@@ -80,38 +100,34 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
 export const OUT_OF_SCOPE_ID = '__out_of_scope__';
 
 /**
- * Confidence required to act, BY CAPABILITY KIND.
+ * Kinds where the router requires independent corroboration before acting:
+ * stage 3's selection must match stage 2's top-ranked candidate, or the turn
+ * degrades to a clarify instead of executing.
  *
- * A single global tauAct is the wrong shape, and the golden set showed why.
- * Given the bare utterance "budget", the model answers budget.view at ~0.6
- * confidence. Punishing that is wrong: navigating to a screen is cheap,
- * instantly visible, and reversible with the back gesture. Given "add 50" it
- * answers transaction.create — same confidence, but now it has guessed a
- * category and is about to write a financial record.
+ * WP-17, replacing `TAU_ACT_BY_KIND`. That gate read the model's *self-
+ * reported* confidence (FINDINGS Finding 8) — a signal close to constant at
+ * 1B: it held back 15.7% of stage-3 calls on llama3.1:8b, 0.7% on
+ * qwen2.5:1.5b, and gemma3:1b answers "what is the capital of France" at
+ * 0.95. ADR-003's amendment asks for a signal the model cannot inflate —
+ * stage-2 margin, or agreement between the stage-2 top candidate and the
+ * stage-3 selection. This is the second: cheap to compute (no new
+ * calibration sweep), and a real backstop against the model alone drifting
+ * off the embedding-grounded shortlist.
  *
- * The cost of being wrong differs by two orders of magnitude, so the evidence
- * required to proceed should differ too. Asking is cheap; a wrong write is not.
+ * ⚠️ It is not a backstop against every threat this gate's name might
+ * suggest. Re-measuring the modules registry (WP-17, 2026-09-09) surfaced
+ * `gs-0174`: adversarial text embedded in an otherwise benign utterance made
+ * stage 2 itself — not just stage 3 — rank `module.delete` first. Stage 2
+ * and stage 3 agreed, so this gate would not have caught it; only the
+ * unconditional confirm-before-destructive policy (Rule 5) did. Read as: this
+ * closes the "model hallucinated past a weak signal" gap, not the "adversarial
+ * text corrupted the embedding itself" gap. See FINDINGS.md.
  *
- * ⚠️ WP-01 UPDATE (FINDINGS Finding 8): this gate reads the model's *self-
- * reported* confidence, and that signal is close to constant at 1B. It held
- * back 15.7% of stage-3 calls on llama3.1:8b, 0.7% on qwen2.5:1.5b, and
- * gemma3:1b answers "what is the capital of France" at 0.95. The policy below
- * is still right; the signal it reads has stopped carrying information. The
- * replacement should be something the model cannot inflate — stage-2 margin,
- * or agreement between the stage-2 top candidate and the stage-3 selection.
- * Until then, treat this as defence in depth, not as the safety mechanism.
+ * Only write and destructive are gated — navigate and read are cheap and
+ * reversible enough that Finding 8's original reasoning (the bar scales with
+ * what the action costs to get wrong) puts their bar at zero.
  */
-// Keyed by ExecutableKind, not CapabilityKind: `unsupported` never executes, so
-// there is no confidence at which it would be allowed to. Making that a type
-// error is cheaper than remembering it.
-export const TAU_ACT_BY_KIND: Readonly<Record<ExecutableKind, number>> = {
-  navigate: 0.35,
-  read: 0.45,
-  write: 0.70,
-  destructive: 0.80,
-};
-
-export const TAU_ACT_DEFAULT = 0.55;
+export const REQUIRES_STAGE2_AGREEMENT: ReadonlySet<ExecutableKind> = new Set(['write', 'destructive']);
 
 export const THRESHOLDS: Thresholds = THRESHOLD_PROFILES.hashing;
 
@@ -119,10 +135,22 @@ export function thresholdsFor(embedderKind: string): Thresholds {
   return THRESHOLD_PROFILES[embedderKind as EmbedderKind] ?? THRESHOLD_PROFILES.hashing;
 }
 
+/**
+ * The environment, when there is one.
+ *
+ * `process` does not exist in a browser. Reading `process.env` at module scope
+ * therefore threw `ReferenceError: process is not defined` the moment a page
+ * loaded the router — found by WP-29's script-tag test, which runs the bundle in
+ * a context holding nothing but `window`. Any adopter shipping stages 1+2 to a
+ * browser (WP-24) would have hit it on first load.
+ */
+const ENV: Record<string, string | undefined> =
+  typeof process !== 'undefined' && process.env ? process.env : {};
+
 export const OLLAMA = {
-  host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
-  chatModel: process.env.SPIKE_MODEL || 'llama3.1:8b',
-  embedModel: process.env.SPIKE_EMBED_MODEL || 'nomic-embed-text',
+  host: ENV.OLLAMA_HOST || 'http://127.0.0.1:11434',
+  chatModel: ENV.SPIKE_MODEL || 'llama3.1:8b',
+  embedModel: ENV.SPIKE_EMBED_MODEL || 'nomic-embed-text',
   timeoutMs: 30000,
 } as const;
 

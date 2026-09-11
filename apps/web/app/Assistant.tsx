@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type JSX } from 'react';
+import { useRouter } from 'next/navigation';
 
 import {
   Answer,
@@ -12,6 +13,7 @@ import {
 } from '@nextgen/ui';
 
 import { useAssistant, type Turn } from '@/lib/store';
+import { destinationFor, isSamePlace } from '@/lib/navigation';
 
 /**
  * The assistant surface.
@@ -35,6 +37,7 @@ export function Assistant(): JSX.Element {
     setDrawer, setTheme,
   } = useAssistant();
 
+  const router = useRouter();
   const [dark, setDark] = useState(true);
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -51,6 +54,35 @@ export function Assistant(): JSX.Element {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     bottomRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'end' });
   }, [turns, pending]);
+
+  /**
+   * WP-35: a `navigate` turn moves the browser.
+   *
+   * The engine has resolved routes since WP-03 and every response has carried
+   * one — and nothing ever read it, which is PLAN.md §3's "engine built, surface
+   * missing". For a navigation product that was the main event.
+   *
+   * `router.push`, not `location.assign`: it goes through the app's own router,
+   * so the destination stays reachable by every ordinary means and the back
+   * button still works. **Rule 7 is preserved by construction** — this drives
+   * the same navigation a menu would, rather than replacing it.
+   *
+   * Keyed on the newest turn's id so a re-render cannot move anyone twice, and
+   * `isSamePlace` skips a push that would only give the back button a step that
+   * goes nowhere.
+   */
+  const latest = turns[turns.length - 1];
+  const latestId = latest?.id ?? null;
+  const movedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!latest?.response || latestId === null || movedFor.current === latestId) return;
+    const destination = destinationFor(latest.response);
+    movedFor.current = latestId;
+    if (destination && !isSamePlace(destination, window.location.pathname)) {
+      router.push(destination);
+    }
+  }, [latest, latestId, router]);
 
   const empty = turns.length === 0;
   const thinking = state === 'thinking' || state === 'acting';

@@ -40,6 +40,7 @@ export default async function ModuleDetailPage({
     ? app.listCategories().find((c) => c.id === module_.categoryId)
     : null;
   const entries = app.listEntries(id);
+  const related = await app.relatedModules(id);
 
   return (
     <div className="page">
@@ -55,6 +56,20 @@ export default async function ModuleDetailPage({
         </div>
 
         <div className="module-detail__body">{module_.body}</div>
+
+        {related.length > 0 && (
+          <section className="module-detail__related">
+            <p className="ngx-label">Related modules</p>
+            <div className="module-grid">
+              {related.map((r) => (
+                <Link className="module-card" href={`/modules/${r.module.id}`} key={r.module.id}>
+                  <p className="module-card__title">{r.module.title}</p>
+                  <p className="module-card__summary">{r.module.summary}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {entries.length > 0 && (
           <section className="module-detail__history">

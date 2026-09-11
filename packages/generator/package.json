@@ -1,0 +1,37 @@
+{
+  "version": "0.1.0",
+  "name": "@nextgen/generator",
+  "main": "./src/index.ts",
+  "description": "Reads an application's source and emits one role-scoped capability registry per role, plus a report of everything it refused to declare.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "generate": "node --experimental-strip-types src/cli.ts",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@nextgen/core-capability": "workspace:*",
+    "@nextgen/core-intent": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  }
+}

@@ -15,12 +15,18 @@ const ok = (over: Partial<Parameters<typeof defineCapability>[0]> = {}) =>
     route: '/transactions',
     title: 'Transactions',
     description: 'Browse and filter the full list of recorded transactions',
+    explanation: 'This screen lists every transaction you have recorded, newest first, and lets you filter them by date, category or account.',
+    explanationSource: 'src/features/transactions/TransactionsPage.tsx',
     examples: ex(3),
     ...over,
   } as Parameters<typeof defineCapability>[0]);
 
 const registryOf = (...capabilities: Capability[]): RegistryFile =>
-  defineRegistry({ capabilities, enums: { Category: { values: ['food'] } } });
+  defineRegistry({
+    domainDescription: 'A personal finance tracker, for these tests.',
+    capabilities,
+    enums: { Category: { values: ['food'] } },
+  });
 
 const rules = (r: RegistryFile) => validateRegistry(r).errors.map((e) => e.rule);
 
@@ -38,6 +44,14 @@ describe('validateRegistry — a valid registry', () => {
       refusal: "I can record transactions, but I can't move real money.",
     });
     expect(validateRegistry(registryOf(ok(), b)).ok).toBe(true);
+  });
+
+  // WP-16 (Rule 1, D-2): stage 3 reads this field instead of a hardcoded
+  // description, so a registry that omits it reproduces the exact defect the
+  // field exists to fix.
+  it('rejects a registry with no domainDescription', () => {
+    const registry = { ...registryOf(ok()), domainDescription: '' };
+    expect(rules(registry)).toContain('domain-description-required');
   });
 });
 
@@ -166,12 +180,92 @@ describe('validateRegistry — boundary entries', () => {
   });
 });
 
+/**
+ * WP-36. "What is this page?" is answered from a string written once at build
+ * time, not from a model called per turn — the same move ADR-009 made for
+ * refusals. A capability with no explanation is a question the assistant has to
+ * escalate or invent an answer to, which is the chat-widget failure Ladder A1
+ * exists to avoid.
+ */
+describe('validateRegistry — the declared explanation', () => {
+  it('rejects a capability that cannot say what it is', () => {
+    expect(rules(registryOf(ok({ explanation: '' })))).toContain('explanation-required');
+  });
+
+  it('warns when the served text is too short to be an answer', () => {
+    const result = validateRegistry(registryOf(ok({ explanation: 'A page.' })));
+    expect(result.ok).toBe(true);
+    expect(result.warnings.map((w) => w.rule)).toContain('explanation-thin');
+  });
+
+  it('warns when a wrong answer could not be traced back to its source', () => {
+    const untraceable = { ...ok() } as Capability & { explanationSource?: string };
+    delete untraceable.explanationSource;
+    const result = validateRegistry(registryOf(untraceable));
+    expect(result.warnings.map((w) => w.rule)).toContain('explanation-untraceable');
+  });
+
+  // A declared limit answers "what is this?" with its refusal, so requiring a
+  // second string would be asking for the same sentence twice.
+  it('does not require one from a declared limit', () => {
+    const b = defineBoundary({
+      id: 'unsupported.thing', title: 'Thing',
+      description: 'Something this application deliberately does not do',
+      examples: ex(3), refusal: 'Not something I do.',
+    });
+    expect(rules(registryOf(ok(), b))).not.toContain('explanation-required');
+  });
+});
+
 describe('capabilityDocument — the retrieval text', () => {
+  /**
+   * The explanation is what gets *served*; the description is what gets
+   * *matched*. Keeping them apart is what lets an adopter rewrite a bad answer
+   * without invalidating every embedding and every calibrated threshold
+   * (Rule 14, Finding 1).
+   */
+  it('does not embed the explanation', () => {
+    const withExplanation = ok({ explanation: 'Zzyzx quixotic explanation text that appears nowhere else.' });
+    expect(capabilityDocument(withExplanation)).not.toContain('Zzyzx');
+  });
+
   it('joins title, description, triggers and example phrasings', () => {
-    const c = ok({ triggers: ['transactions'], examples: ['show my transactions', 'b', 'c'] });
+    const c = ok({ triggers: ['spending report'], examples: ['show my transactions', 'b', 'c'] });
     expect(capabilityDocument(c)).toBe(
-      'Transactions. Browse and filter the full list of recorded transactions. transactions. show my transactions. b. c',
+      'Transactions. Browse and filter the full list of recorded transactions. spending report. show my transactions. b. c',
     );
+  });
+
+  /**
+   * WP-38 / WP-40. A trigger already present in the title or description adds
+   * WEIGHT, not signal — and weight here is a retrieval bug, not a nicety.
+   *
+   * The generator derives triggers from nav labels, and a nav label is usually
+   * the title, so 141 of 245 generated triggers were duplicates. Embedding them
+   * doubled the title's weight for every real capability while declared
+   * boundaries, which carry no triggers, got no such boost. Measured: capability
+   * ranking improved and out-of-scope refusal fell 32.4% → 26.5%.
+   */
+  it('does not count a trigger that the title or description already contains', () => {
+    const c = ok({ triggers: ['transactions'], examples: ['a', 'b', 'c'] });
+    // "transactions" appears in both the title and the description already.
+    expect(capabilityDocument(c)).toBe(
+      'Transactions. Browse and filter the full list of recorded transactions. a. b. c',
+    );
+  });
+
+  it('compares accent-insensitively, because a generated trigger is normalised', () => {
+    const c = ok({
+      title: 'Avaliações físicas',
+      description: 'Uma descrição.',
+      triggers: ['avaliacoes fisicas', 'physical assessments'],
+      examples: ['a', 'b', 'c'],
+    });
+    const doc = capabilityDocument(c);
+    // The normalised duplicate is dropped; the genuinely different English
+    // label survives, because it is phrasing the title does not carry.
+    expect(doc).not.toContain('avaliacoes fisicas');
+    expect(doc).toContain('physical assessments');
   });
 
   it('reads the `say` field of a rich example, not the object', () => {
@@ -208,7 +302,7 @@ describe('generateRouteTable', () => {
 });
 
 describe('generateGoldenEntries — examples as fixtures', () => {
-  it('emits an entry only for examples carrying an expectation', () => {
+  it('emits an entry for every example, refined by any expectation it carries', () => {
     const c = ok({
       examples: [
         { say: 'show last month', expect: { params: { from: '2026-07-01' }, maxStage: 'embedding' } },
@@ -217,11 +311,24 @@ describe('generateGoldenEntries — examples as fixtures', () => {
       ],
     });
     const entries = generateGoldenEntries(registryOf(c));
-    expect(entries).toHaveLength(1);
+    expect(entries).toHaveLength(3);
     expect(entries[0]).toMatchObject({
       utterance: 'show last month',
       expect: { outcome: 'execute', capability: 'transactions.list', maxStage: 'embedding' },
     });
+  });
+
+  // WP-19: the reason the artefact was 0 bytes in both reference apps. Declaring
+  // an utterance as an example of a capability is the assertion; requiring a
+  // second, hand-written one meant nothing was ever asserted.
+  it('derives the expectation for a bare example from its capability', () => {
+    const c = ok({ examples: ['one', 'two', 'three'] });
+    const entries = generateGoldenEntries(registryOf(c));
+    expect(entries).toHaveLength(3);
+    expect(entries.map((e) => e.utterance)).toEqual(['one', 'two', 'three']);
+    for (const entry of entries) {
+      expect(entry.expect).toEqual({ outcome: 'execute', capability: 'transactions.list' });
+    }
   });
 
   it('marks a write example as requiring confirmation', () => {
@@ -239,6 +346,8 @@ describe('generateGoldenEntries — examples as fixtures', () => {
       examples: [{ say: 'do the thing', expect: {} }, 'b', 'c'],
       refusal: 'Not something I do.',
     });
-    expect(generateGoldenEntries(registryOf(ok(), b))[0]?.expect).toMatchObject({ outcome: 'out_of_scope' });
+    const entry = generateGoldenEntries(registryOf(ok(), b)).find((e) => e.utterance === 'do the thing');
+    expect(entry?.expect).toMatchObject({ outcome: 'out_of_scope' });
+    expect(entry?.expect).not.toHaveProperty('capability');
   });
 });

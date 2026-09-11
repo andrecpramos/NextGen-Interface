@@ -53,9 +53,9 @@ and keep the tolerance at ±0.05 — the 8B non-determinism in WP-01 Finding 10 
 
 ### It does not lint
 
-There is no lint to run. `tooling/eslint-config` contains a `package.json` naming
-`"main": "index.js"` and **no `index.js`**, no ESLint dependency, and not one
-package in the workspace defines a `lint` script.
+There is no lint to run. Not one package in the workspace defines a `lint` script,
+and there is no ESLint dependency anywhere. The empty `tooling/eslint-config` stub —
+a `package.json` naming a `main` that never existed — was deleted in WP-37.
 
 The root `pnpm lint` has since been **removed** rather than left in place: `pnpm -r
 lint` with no matching script does not no-op, it fails with
@@ -113,9 +113,10 @@ and everything then fails at run time. CI pins **Node 24**. The declared range
 should be corrected to match; it is left alone here because it is a published
 constraint, not a CI detail.
 
-**Five `package.json` files carry a UTF-8 BOM** — `tooling/eslint-config`,
-`tooling/tsconfig`, `packages/core-voice`, `packages/ui`, `services/api`. They were
-written by PowerShell, whose `Set-Content` defaults to the ANSI/BOM'd encodings.
+**One `package.json` carries a UTF-8 BOM** — `services/api`. It was written by
+PowerShell, whose `Set-Content` defaults to the ANSI/BOM'd encodings. This said
+*five* until WP-37 counted them: two of the named files had already been fixed, and
+two more were the dead `tooling/` packages that WP-37 deleted.
 `JSON.parse` rejects a BOM outright, so any tool that reads a manifest must strip
 `﻿` first. Both scripts here do. pnpm tolerates them, which is why this went
 unnoticed.

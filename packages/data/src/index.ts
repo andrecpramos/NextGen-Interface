@@ -37,7 +37,13 @@ export {
   type PeriodParams, type QueryName, type QueryOutcome,
 } from './query-engine.ts';
 
-export { SqliteUndoJournal, type UndoEntry, type UndoOutcome } from './undo.ts';
+export {
+  SqliteUndoJournal,
+  canUndo,
+  REVERSIBLE_CAPABILITIES,
+  type UndoEntry,
+  type UndoOutcome,
+} from './undo.ts';
 
 export { seed, CATEGORY_TREE, type SeedOptions, type SeedSummary } from './fixtures.ts';
 

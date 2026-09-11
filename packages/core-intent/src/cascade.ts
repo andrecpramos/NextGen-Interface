@@ -1,10 +1,10 @@
 import type { LlmRuntime } from '@nextgen/core-inference';
+import { isExplanationRequest } from './action.ts';
 import { stage1, stage2, stage3 } from './stages.ts';
 import { resolveSlots } from './slots.ts';
 import {
   THRESHOLDS,
-  TAU_ACT_BY_KIND,
-  TAU_ACT_DEFAULT,
+  REQUIRES_STAGE2_AGREEMENT,
   OUT_OF_SCOPE_ID,
   type Thresholds,
 } from './config.ts';
@@ -68,6 +68,11 @@ export async function route(
     requiresConfirmation: false,
     kind: null,
     route: null,
+    explanation: null,
+    // Read once, from the utterance alone — it depends on nothing the cascade
+    // decides, so it is set here rather than in `settle` and is available even
+    // when the turn ends in a clarify or a refusal.
+    explanationRequest: isExplanationRequest(utterance),
     latency: {},
     notes: [],
   };
@@ -92,6 +97,9 @@ export async function route(
     trace.decidedAt = stage;
     trace.kind = cap.kind;
     trace.route = cap.route;
+    // Declared at build time, served verbatim (WP-36). This is the second half
+    // of the promise — take them there, and tell them what they will find.
+    trace.explanation = cap.explanation ?? null;
 
     const { params: deterministic, missing } = resolveSlots(cap, utterance, ctx, registry.enums);
 
@@ -211,25 +219,29 @@ export async function route(
   if (s3.hallucinatedId) trace.notes.push(`rejected unknown id "${s3.hallucinatedId}"`);
   if (s3.parseFailed) trace.notes.push('constrained decoding produced unparseable output');
 
-  // The bar to act scales with what the action costs to get wrong.
-  //
-  // Caveat measured in WP-01: at 1B this gate almost never fires, because the
-  // confidence it reads is self-reported and close to constant. Keep it — it is
-  // correct policy and free — but it is no longer the thing standing between a
-  // weak signal and a write. See FINDINGS Finding 8.
-  // `isExecutableKind` rather than `isCapabilityKind`: a declared limit has no
-  // confidence at which it would be allowed to run, and stage 3 is never offered
-  // one anyway. tsc enforces the distinction — TAU_ACT_BY_KIND is keyed by
-  // ExecutableKind, so indexing it with a possible 'unsupported' does not compile.
-  const proposedKind = s3.capabilityId !== null ? registry.byId.get(s3.capabilityId)?.kind : undefined;
-  const tauAct = proposedKind !== undefined && isExecutableKind(proposedKind)
-    ? TAU_ACT_BY_KIND[proposedKind]
-    : thresholds.tauAct ?? TAU_ACT_DEFAULT;
+  if (!s3.capabilityId) {
+    trace.decidedAt = STAGE.LLM;
+    trace.notes.push('stage3 selected nothing');
+    return finish(OUTCOME.CLARIFY);
+  }
 
-  if (!s3.capabilityId || s3.selfReportedConfidence < tauAct) {
+  // The bar to act scales with what the action costs to get wrong (WP-01).
+  // WP-17 replaced the signal: self-reported confidence was close to constant
+  // at 1B (Finding 8) and did not stand between a weak signal and a write.
+  // Stage-2/stage-3 agreement is a signal the model cannot inflate — see
+  // REQUIRES_STAGE2_AGREEMENT's doc comment for what it does and does not
+  // cover (`isExecutableKind` narrows past 'unsupported', which never
+  // executes and is never offered to stage 3 anyway).
+  const proposedKind = registry.byId.get(s3.capabilityId)?.kind;
+  if (
+    proposedKind !== undefined && isExecutableKind(proposedKind)
+    && REQUIRES_STAGE2_AGREEMENT.has(proposedKind)
+    && s3.capabilityId !== s2.top.capabilityId
+  ) {
     trace.decidedAt = STAGE.LLM;
     trace.notes.push(
-      `confidence ${s3.selfReportedConfidence.toFixed(2)} below tauAct ${tauAct} for kind "${proposedKind}"`,
+      `stage3 selected "${s3.capabilityId}" (kind "${proposedKind}") but stage2's independent ` +
+        `top candidate was "${s2.top.capabilityId}" — no corroboration, refusing to act`,
     );
     return finish(OUTCOME.CLARIFY);
   }

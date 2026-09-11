@@ -39,10 +39,17 @@ can skip; it only exists once the user has seen the parsed parameters.
 | `pnpm app:offline` then `transfer 500 to my brother` | refused in ~0ms with no model — ADR-009 end to end |
 | `pnpm app:offline` then `what did the weekend cost me` | asks instead of guessing — the degradation path |
 | any turn, then `why` | the explanation, rendered from the record with no model and no network |
+| delete a module, confirm, then `undo` | the module comes back exactly as it was, with the same id and timestamps (WP-18) |
 
-## Wired vs unwired
+## Wired
 
-Reads are complete. On the write side, `transaction.create`, `transaction.delete`,
-`budget.set` and `budget.delete` execute; the rest report that they are confirmed but
-have no action attached. That is deliberate scaffolding rather than a stub pretending to
-work, and it is the list WP-09 has to finish.
+The CLI registers `domain-modules`, which has been the reference app since WP-14. How each
+capability behaves:
+- **Reads** (`module.list`, `module.search`) execute.
+- **`module.capture`** is a write, so it asks for confirmation first.
+- **`module.delete` and `module.revert`** confirm and then run, **and each can be undone**.
+  Type `undo` straight after either one. The undo restores from the journal row that was
+  captured before the action ran. A token cannot be spent twice. Undoing the revert of a
+  module that has since been deleted is refused, rather than bringing the module back.
+
+`domain-finance` is exercised by `domain-swap.test.ts`, not registered here.

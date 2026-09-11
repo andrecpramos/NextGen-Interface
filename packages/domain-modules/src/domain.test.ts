@@ -13,7 +13,7 @@ import {
 import { boundary, capabilities, registry } from './capabilities.ts';
 import { EventBus } from './events.ts';
 import {
-  commitCapture, deleteModule, proposeCapture, revertModule, searchModules,
+  commitCapture, deleteModule, proposeCapture, relatedModules, revertModule, searchModules,
   type UseCaseDeps,
 } from './use-cases.ts';
 import type {
@@ -319,6 +319,91 @@ describe('searchModules', () => {
       createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
     });
     expect(await searchModules(deps2, '   ')).toEqual([]);
+  });
+
+  it('finds a module by a word that only appears in the body, not the title or summary', async () => {
+    const { deps, repositories } = setup(undefined, new FakeEmbeddingRuntime(64));
+    repositories.modules.insert({
+      id: 'mod1', categoryId: null, title: 'Home info', summary: 'Notes about the apartment.',
+      body: 'The wifi password is on the router label underneath.',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const results = await searchModules(deps, 'router label');
+    expect(results.map((r) => r.module.id)).toContain('mod1');
+  });
+});
+
+describe('relatedModules', () => {
+  it('returns nothing for an unknown module id, an empty database, or a lone module', async () => {
+    const { deps, repositories } = setup(undefined, new FakeEmbeddingRuntime(64));
+    expect(await relatedModules(deps, 'mod_nonexistent')).toEqual([]);
+
+    repositories.modules.insert({
+      id: 'mod1', categoryId: null, title: 'Wifi', summary: 'Wifi info.', body: 'x',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    expect(await relatedModules(deps, 'mod1')).toEqual([]);
+    expect(await relatedModules(deps, 'mod_nonexistent')).toEqual([]);
+  });
+
+  it('excludes the module itself even when another module scores identically', async () => {
+    const { deps, repositories } = setup(undefined, new FakeEmbeddingRuntime(64));
+    repositories.modules.insert({
+      id: 'mod1', categoryId: null, title: 'Passport', summary: 'Passport details.', body: 'Expires June 2027.',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    repositories.modules.insert({
+      id: 'mod2', categoryId: null, title: 'Passport', summary: 'Passport details.', body: 'Expires June 2027.',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const results = await relatedModules(deps, 'mod1');
+    expect(results.map((r) => r.module.id)).toEqual(['mod2']);
+  });
+
+  it('excludes a module sharing no real vocabulary with the target', async () => {
+    const { deps, repositories } = setup(undefined, new FakeEmbeddingRuntime(64));
+    repositories.modules.insert({
+      id: 'mod1', categoryId: null, title: 'Passport', summary: 'Passport renewal details.', body: 'Expires June 2027.',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    repositories.modules.insert({
+      id: 'mod2', categoryId: null, title: 'Gym membership', summary: 'Fitness class schedule.', body: 'Tuesdays at 6pm.',
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const results = await relatedModules(deps, 'mod1');
+    expect(results.map((r) => r.module.id)).not.toContain('mod2');
+  });
+
+  it('respects an explicit limit', async () => {
+    const { deps, repositories } = setup(undefined, new FakeEmbeddingRuntime(64));
+    for (let i = 0; i < 7; i++) {
+      repositories.modules.insert({
+        id: `mod${i}`, categoryId: null, title: 'Passport', summary: 'Passport renewal details.', body: 'Expires June 2027.',
+        createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+      });
+    }
+    const results = await relatedModules(deps, 'mod0', { limit: 2 });
+    expect(results.length).toBe(2);
+  });
+
+  it('truncates the body past CORPUS_BODY_CHARS, so a word far beyond the cutoff cannot drive a match', async () => {
+    // A larger dim keeps these specific tokens collision-free in the hashing embedder.
+    const { deps, repositories } = setup(undefined, new FakeEmbeddingRuntime(256));
+    repositories.modules.insert({
+      id: 'mod1', categoryId: null, title: 'Wombat', summary: 'Marsupial.',
+      // 2005 filler chars push the shared word past the 2000-char cutoff, so it never
+      // reaches the corpus. Without truncation this word alone would dominate both
+      // vectors and score well above the relatedness gate.
+      body: `${'q'.repeat(2005)} ${'zzzqux '.repeat(30)}`,
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    repositories.modules.insert({
+      id: 'mod2', categoryId: null, title: 'Gecko', summary: 'Reptile.',
+      body: 'zzzqux '.repeat(30),
+      createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const results = await relatedModules(deps, 'mod1');
+    expect(results.map((r) => r.module.id)).not.toContain('mod2');
   });
 });
 

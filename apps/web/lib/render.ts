@@ -21,6 +21,14 @@ export async function renderAnswer(
   app: NextGenApp,
   capabilityId: string,
   params: Readonly<Record<string, string | number>>,
+  /**
+   * The user asked what this *is*, not to be taken to it (WP-36 detection).
+   *
+   * Optional, and defaulting to the navigation reading, because a caller that
+   * does not know is better served by the behaviour that has always been
+   * correct: say where you went and offer the explanation underneath.
+   */
+  explanationRequest = false,
 ): Promise<AnswerView> {
   switch (capabilityId) {
     case 'module.search': {
@@ -40,10 +48,26 @@ export async function renderAnswer(
     }
 
     default: {
-      // A navigate capability with nothing to read. The route already changed;
-      // saying so is the whole answer.
+      // A navigate capability with nothing to read. The route already changed —
+      // and the capability's *declared explanation* says what the user will find
+      // when they get there (WP-36). It was written when the registry was built
+      // and is served verbatim, so this costs nothing and cannot drift into
+      // narration.
       const cap = app.capabilities.find((c) => c.id === capabilityId);
-      return { caption: `Opened ${cap?.title ?? capabilityId}.` };
+
+      // Both halves of §1.1's promise, and which one leads depends on what was
+      // asked. "Take me to the squad list" wants the destination first; "what
+      // is the squad list?" wants the answer first and has not asked to be
+      // moved — announcing "Opened X" there answers a question nobody put.
+      //
+      // The route still resolved either way, so the navigation is available and
+      // Rule 7 holds. This only orders the two.
+      if (explanationRequest && cap?.explanation) {
+        return { headline: cap.title, caption: cap.explanation };
+      }
+
+      const headline = `Opened ${cap?.title ?? capabilityId}.`;
+      return cap?.explanation ? { headline, caption: cap.explanation } : { caption: headline };
     }
   }
 }
@@ -123,6 +147,10 @@ export function renderTrace(trace: TurnTrace, local: boolean): TraceView {
     timing: e.timing,
     candidates: trace.candidates.map((c) => ({ capabilityId: c.capabilityId, score: c.score })),
     chosen: trace.capabilityId,
+    // Both are recorded facts, passed through so the surface can decide whether
+    // this turn should move the browser — see `destinationFor` in navigation.ts.
+    capabilityKind: trace.capabilityKind,
+    explanationRequest: trace.explanationRequest,
     decidedAt: trace.decidedAt,
     local,
     notes: trace.notes,

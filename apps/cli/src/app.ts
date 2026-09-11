@@ -12,6 +12,7 @@ import { FakeLlmRuntime, OllamaLlmRuntime, type EmbeddingRuntime, type LlmRuntim
 import { PiperTtsEngine, VoiceAssetStore, WhisperCppSttEngine, type SttResult } from '@nextgen/core-voice';
 import { Dispatcher, type Decision } from '@nextgen/core-dispatch';
 import {
+  canUndo,
   openMemoryDatabase,
   SqliteModuleCategoryRepository,
   SqliteModuleEntryRepository,
@@ -22,6 +23,7 @@ import {
   commitCapture,
   deleteModule,
   proposeCapture,
+  relatedModules,
   revertModule,
   searchModules,
   EventBus,
@@ -53,10 +55,11 @@ import {
  * throwaway; the CLI is a surface, not a prototype.
  *
  * Renamed from `FinanceApp`: the registered domain is now `domain-modules`,
- * not `domain-finance` — see PLAN.md's WP-14. `domain-finance` stays in the
- * repo as the reference domain (34 passing tests, the evidence that the
- * engine is domain-agnostic), it just is not what this root wires by
- * default any more.
+ * not `domain-finance` — see PLAN.md's WP-14. `domain-finance` is not wired
+ * into `NextGenApp` (its use cases are module-specific, not generic), but it
+ * is a `devDependency` here so `domain-swap.test.ts` can run the real router
+ * against its registry — the actual evidence that `core-intent` is
+ * domain-agnostic (WP-16), not just an assertion.
  */
 
 export interface AppOptions {
@@ -121,6 +124,12 @@ export class NextGenApp {
   readonly #traces: SqliteTraceStore;
   readonly #routerRuntime: LlmRuntime | undefined;
   readonly #undo: SqliteUndoJournal;
+  /**
+   * The token of the last action that can be taken back (WP-18). Undo survives
+   * navigation because the journal is a table; this is only which row "undo"
+   * means when a person types it.
+   */
+  #lastUndoToken: string | null = null;
   readonly #options: Required<Pick<AppOptions, 'today' | 'embedder'>>;
   readonly #embedder: ReturnType<typeof makeEmbedder>;
   readonly #model: string | undefined;
@@ -300,6 +309,11 @@ export class NextGenApp {
     return this.#repositories.modules.get(id);
   }
 
+  /** Same mechanism as search()/capture-time shortlist, scoped to a saved module. */
+  async relatedModules(id: string): Promise<readonly ModuleMatch[]> {
+    return relatedModules(this.#useCaseDeps, id);
+  }
+
   listEntries(moduleId: string): readonly ModuleEntry[] {
     return this.#repositories.moduleEntries.listByModule(moduleId);
   }
@@ -380,6 +394,7 @@ export class NextGenApp {
         }
 
         r.requiresConfirmation(decision.type === 'confirm');
+        r.explanationRequest(routed.explanationRequest);
         r.outcome(
           decision.type === 'execute' ? 'execute'
             : decision.type === 'refuse' ? 'out_of_scope'
@@ -436,6 +451,8 @@ export class NextGenApp {
         });
 
         r.requiresConfirmation(decision.type === 'confirm');
+        // No utterance on this path — the caller named the capability outright.
+        r.explanationRequest(false);
         r.outcome(
           decision.type === 'execute' ? 'execute'
             : decision.type === 'refuse' ? 'out_of_scope'
@@ -475,6 +492,9 @@ export class NextGenApp {
     if (approved.type !== 'approved') return ['could not approve'];
 
     const { capabilityId, params } = approved;
+    // Only replaced when this action produced a token, so a later non-destructive
+    // confirmation does not quietly discard the one thing "undo" should reach.
+    if (approved.undoToken) this.#lastUndoToken = approved.undoToken;
 
     switch (capabilityId) {
       case 'module.capture': {
@@ -505,16 +525,39 @@ export class NextGenApp {
       case 'module.delete': {
         const r = deleteModule(this.#useCaseDeps, String(params.target ?? ''));
         return r.ok
-          ? [`Deleted "${r.value.title}".`, `Undo with the token in the trace.`]
+          ? [`Deleted "${r.value.title}".`, `Type 'undo' to put it back.`]
           : [`Could not delete it: ${r.reason}`];
       }
       case 'module.revert': {
         const r = revertModule(this.#useCaseDeps, String(params.target ?? ''));
-        return r.ok ? [`Reverted "${r.value.title}" to its previous version.`] : [`Could not revert it: ${r.reason}`];
+        return r.ok
+          ? [`Reverted "${r.value.title}" to its previous version.`, `Type 'undo' to get back the version you just replaced.`]
+          : [`Could not revert it: ${r.reason}`];
       }
       default:
         return [`"${capabilityId}" is confirmed but has no action wired up yet.`];
     }
+  }
+
+  /**
+   * Take back the last reversible action (WP-18, ADR-004).
+   *
+   * Until WP-18 there was nothing to call: the journal recorded a token for every
+   * destructive action and could reverse none of the ones this application
+   * offers. Now `module.delete` and `module.revert` restore from the row
+   * captured before they ran, and this is the path a person reaches that by.
+   *
+   * One undo per action — the journal refuses to spend a token twice, so a
+   * second `undo` reports there is nothing left rather than restoring twice.
+   */
+  undo(): string {
+    const token = this.#lastUndoToken;
+    if (!token) return 'There is nothing to undo.';
+    const entry = this.#undo.get(token);
+    const outcome = this.#undo.undo(token);
+    if (!outcome.ok) return `Could not undo that: ${outcome.reason}`;
+    this.#lastUndoToken = null;
+    return `Undone — ${entry?.describedAs ?? 'the last action'}.`;
   }
 
   /** "Why did you do that?" — rendered from the record, never from a model. */
@@ -628,6 +671,8 @@ export class NextGenApp {
         decision = await this.#proposeAndDispatchCapture(r, input.text, input.sourceType, input.images, 0);
 
         r.requiresConfirmation(decision.type === 'confirm');
+        // A direct upload: there is no question to have framed.
+        r.explanationRequest(false);
         r.outcome(
           decision.type === 'execute' ? 'execute'
             : decision.type === 'refuse' ? 'out_of_scope'
@@ -670,8 +715,17 @@ export class NextGenApp {
       }
       default: {
         // A navigate capability with nothing to read: the route already changed.
+        // The declared explanation rides along (WP-36) — §1.1's promise is to
+        // take the user there *and* tell them what they will find. It was
+        // written when the registry was built, so printing it costs nothing.
         const cap = this.#registry.byId.get(capabilityId);
-        return { lines: [`→ ${cap?.route ?? '/'}  (${cap?.title ?? capabilityId})`], dataRead: [] };
+        return {
+          lines: [
+            `→ ${cap?.route ?? '/'}  (${cap?.title ?? capabilityId})`,
+            ...(cap?.explanation ? [cap.explanation] : []),
+          ],
+          dataRead: [],
+        };
       }
     }
   }
@@ -686,10 +740,21 @@ export class NextGenApp {
    * wrong guess is caught and edited here rather than silently saved.
    */
   #describeConfirmation(decision: Extract<Decision, { type: 'confirm' }>): string[] {
-    const lines = [
-      decision.destructive ? `⚠  ${decision.title} — this cannot be undone without the journal.` : `${decision.title}?`,
-      '',
-    ];
+    // The warning is *derived*, not asserted. It used to read "this cannot be
+    // undone without the journal" for every destructive action — a promise the
+    // journal could not keep for `module.delete` or `module.revert` (PLAN.md §4
+    // defect 3). WP-18 gave both a real restore path, so `canUndo` now says yes
+    // for them and this prompt says so; it still says "permanent" for anything
+    // the journal cannot reverse. Telling a user an action is recoverable at the
+    // moment they confirm it, when it is not, is the worst place to be wrong —
+    // which is why this reads the journal's own declaration instead of a string.
+    const reversible = decision.destructive && canUndo(decision.capabilityId);
+    const headline = decision.destructive
+      ? reversible
+        ? `⚠  ${decision.title} — you can undo this afterwards.`
+        : `⚠  ${decision.title} — this is permanent and cannot be undone.`
+      : `${decision.title}?`;
+    const lines = [headline, ''];
     for (const [name, value] of Object.entries(decision.params)) {
       // provenance/internal, not something to review as its own line
       if (name === 'sourceExcerpt' || name === 'sourceType' || name === 'candidatesJson') continue;

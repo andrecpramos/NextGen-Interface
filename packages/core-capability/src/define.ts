@@ -1,4 +1,4 @@
-import type {
+import type { GuidedStep,
   Capability,
   CapabilityExample,
   EnumDefinition,
@@ -23,6 +23,16 @@ export interface CapabilityDefinition {
   readonly route: string;
   readonly title: string;
   readonly description: string;
+  /**
+   * What the user is told when they ask what this is (WP-36). Served verbatim,
+   * never generated per turn. Required — a capability without one is a question
+   * the assistant would have to escalate or invent an answer to.
+   */
+  readonly explanation: string;
+  /** Where that text came from, so a wrong answer can be traced and fixed. */
+  readonly explanationSource?: string;
+  /** Guided steps for the page this capability lands on (WP-27). */
+  readonly steps?: readonly GuidedStep[];
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;
   /** At least three (coding-standards.md). The validator enforces it. */
@@ -62,6 +72,9 @@ export function defineCapability(def: CapabilityDefinition): Capability {
     route: def.route,
     title: def.title,
     description: def.description,
+    explanation: def.explanation,
+    ...(def.explanationSource ? { explanationSource: def.explanationSource } : {}),
+    ...(def.steps && def.steps.length > 0 ? { steps: def.steps } : {}),
     ...(def.triggers ? { triggers: def.triggers } : {}),
     ...(def.params ? { params: def.params } : {}),
     examples: def.examples,
@@ -85,6 +98,7 @@ export function defineBoundary(def: BoundaryDefinition): Capability {
 
 export interface RegistryDefinition {
   readonly schemaVersion?: number;
+  readonly domainDescription: string;
   readonly capabilities: readonly Capability[];
   readonly enums?: Readonly<Record<string, EnumDefinition>>;
 }
@@ -92,6 +106,7 @@ export interface RegistryDefinition {
 export function defineRegistry(def: RegistryDefinition): RegistryFile {
   return {
     schemaVersion: def.schemaVersion ?? 1,
+    domainDescription: def.domainDescription,
     capabilities: def.capabilities,
     ...(def.enums ? { enums: def.enums } : {}),
   };

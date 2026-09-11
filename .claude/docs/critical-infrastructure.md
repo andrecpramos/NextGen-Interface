@@ -1,6 +1,7 @@
 # Critical infrastructure and the rules that bind it
 
-**Audited against the tree:** 2026-09-09.
+**Audited against the tree:** 2026-09-09. Sections 1 and 4, the matrix and the gaps were
+updated on 2026-09-11.
 Re-audit trigger: any change to `ci.yml`, any new gate, any new rule, or a release.
 
 What this is: every component whose failure is not a local bug, the rules that
@@ -49,6 +50,10 @@ subsystem reads.
 > gate diffed `domain-finance/generated/` — files the build never touches — so it
 > passed vacuously while real drift went ungated.** Fixed; the underlying
 > shared-path collision is not. A third domain forces the issue.
+>
+> **Decided 2026-09-11:** ADR-016, option B (one registry file per app), was accepted by
+> the owner. The ADR lives on `feature/rule-15-untrusted-fence` (PR #7). It is
+> implemented as PLAN.md WP-47, after both open PRs merge.
 
 ---
 
@@ -104,6 +109,7 @@ taps through.
 | Rule 14 — thresholds calibrated per encoder, never hand-set | `tooling/scripts/check-thresholds.mjs`, in CI | **enforced (added 2026-09-08)** |
 | Rule 11 — deterministic slot values beat model-extracted ones | `slots.test.ts` | **enforced by test** |
 | Rule 2 — the model never computes a number the user sees | comments at `core-intent/src/types.ts`, `ui/src/types.ts`, `apps/web/lib/render.ts` | **convention — no test** |
+| Derived artefacts follow their inputs: a change to `normalize()`, the encoder or a registry regenerates the thresholds, indexes and scorecards built from it | `check-thresholds.mjs` covers the reference registry's profiles only. `calibrate-registries.mjs`, `rebuild-indexes.mjs` and `verify-browser-parity.mjs` exist, and **nothing runs them** | **none. Went stale once, on 2026-09-11: ten shipped indexes, with CI green (PLAN.md WP-46)** |
 
 > **The gap Rule 14's gate closes.** `pnpm router:calibrate` writes its
 > recommendation to `eval/scorecards/thresholds-<kind>.json`, and **nothing reads
@@ -135,6 +141,7 @@ that matter.
 | No accuracy regression beyond tolerance | `tooling/scripts/check-scorecard.mjs` against the committed baseline, CI `golden-set` job | **enforced** |
 | Adversarial to destructive count stays zero | `safetyViolations` in the scorecard | **enforced (release blocker)** |
 | Rule 12 — a routing bug is fixed only as a permanent golden-set entry | none — process only | **convention** |
+| A prompt change does not regress top-1 accuracy | none. `eval/fut-app/evaluate-golden.mjs` measures it, nothing runs it, and the golden-set job covers the reference registry only — not a generated one | **none — cost 7 points once ([L9](lessons.md))** |
 
 `eval/scorecards/` is deliberately **not** gitignored: accuracy changes have to
 appear in the PR diff and be discussed, not silently absorbed.
@@ -296,8 +303,13 @@ session rather than claiming the set.
 | 13 | Limits declared in the registry | `unsupported` kind, `defineBoundary`, domain tests | **test** |
 | 14 | Thresholds calibrated per encoder | `check-thresholds.mjs`, CI | **gate (new)** |
 | 15 | Domain content untrusted in a prompt | declaration comments only | convention — **violated** |
-| 16 | The installer never modifies the adopter's source | none yet — WP-25 and WP-26 acceptance both require a mechanical check (`git status` in the target shows only new files) | **none — new rule, 2026-09-09** |
-| 17 | An unreachable capability is absent from the user's registry | none yet — WP-25 acceptance requires a test that diffs two role registries | **none — new rule, 2026-09-09** |
+| 16 | The installer never modifies the adopter's source | `emit.test.ts` (`writeOutput` refuses an output dir inside `appRoot`) + `generate.test.ts` fingerprints the whole fixture tree before and after a run | **test (2026-09-10, WP-25)** |
+| 17 | An unreachable capability is absent from the user's registry | `emit.test.ts` diffs two role registries; `score-generated.mjs` re-checks all 10 generated registries against the master on every scoring run | **test (2026-09-10, WP-25)** |
+| — | Every capability can say what it is (WP-36) | `explanation-required` in `validate.ts`, gated by `pnpm registry:check` | **gate (2026-09-10)** |
+| — | Top-1 accuracy does not regress across a prompt change | none — `evaluate-golden.mjs` would catch it, nothing runs it. Cost 7 points once already ([L9](lessons.md)) | **none** |
+| — | The browser entry loads with no Node globals ([L11](lessons.md)) | `packages/embed/src/embed.test.ts` runs the built bundle in a bare `vm` context holding only `window`, `console` and `performance` | **test (2026-09-11, WP-29)** |
+| — | The published package view is importable | `check-packaging.mjs` reads each manifest with `publishConfig` applied, after `pnpm build` in CI | **gate (WP-26)** |
+| — | Shipped indexes and per-registry thresholds match their inputs | none. The scripts exist but are not wired in (PLAN.md WP-46) | **none** |
 
 ---
 
@@ -305,9 +317,17 @@ session rather than claiming the set.
 
 1. **Rule 15 has no mechanism and is violated today.** Section 8. Highest
    priority: it is a prompt-injection path in the registered domain's write flow.
+   *(2026-09-11: the fence and its CI gate are on `feature/rule-15-untrusted-fence`,
+   PR #7. This entry closes when that PR merges.)*
 2. **The registry's shared `OUT_INTENT` path.** Section 1. One domain's build
    silently clobbers another's. Survivable with two domains and a documented
-   order; not survivable with three.
+   order; not survivable with three. *(ADR-016 option B was accepted on 2026-09-11,
+   and PLAN.md WP-47 implements it.)*
+2a. **Derived artefacts are not gated.** Section 4. On 2026-09-11 a one-line change to
+   `normalize()` left ten shipped indexes and two threshold profiles stale, and CI stayed
+   green. Only a manual parity run noticed. Every adopter's browser would have received
+   vectors that no longer matched its own query encoder. PLAN.md WP-46 wires the three
+   existing scripts into CI.
 3. **Rule 2 has no test.** The rule that "the model never computes a number the
    user sees" is held up entirely by comments and review, and it has already
    produced one real bug (PLAN.md section 6). A test asserting arithmetic origin
@@ -317,7 +337,9 @@ session rather than claiming the set.
    could flag.
 5. **Rule 8 is verified, not gated.** A check that runtime packages reference no
    non-loopback host outside the asset manifest would keep it that way.
-6. **Rules 16 and 17 have no mechanism at all** — they were added on 2026-09-09 with
+6. ~~**Rules 16 and 17 have no mechanism at all**~~ **Both have had tests since WP-25
+   (2026-09-10); see the matrix. What remains open is Rule 17 on a second app (PLAN.md
+   WP-43).** The original entry read: — they were added on 2026-09-09 with
    the repositioning and describe a product that is not built yet. Both have a
    mechanical check written into the acceptance of the work package that will first
    need them (WP-25 for role scoping, WP-26 for the additive install). **Rule 17 is a

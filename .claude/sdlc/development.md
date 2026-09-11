@@ -142,9 +142,9 @@ pnpm registry:check                                # Rule 10 — >=3 examples pe
 node tooling/scripts/check-scorecard.mjs           # the golden-set regression gate
 ```
 
-`/gates` runs all of it. **No linter is configured** — `tooling/eslint-config` is
-an empty stub, and there is no root lint script. Typecheck and tests are the only
-automated style gates today.
+`/gates` runs all of it. **No linter is configured** — there is no root lint script
+and no package defines one. Typecheck and tests are the only automated style gates
+today.
 
 ## Definition of Done
 

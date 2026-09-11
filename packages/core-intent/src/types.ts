@@ -51,6 +51,8 @@ export interface EnumIndex {
 /** A loaded registry: the file plus everything the stages precompute from it. */
 export interface Registry {
   readonly schemaVersion: number;
+  /** What application stage 3 is routing for (WP-16, D-2). See `RegistryFile`. */
+  readonly domainDescription: string;
   readonly capabilities: readonly Capability[];
   readonly byId: ReadonlyMap<string, Capability>;
   readonly triggerIndex: ReadonlyMap<string, string>;
@@ -59,6 +61,19 @@ export interface Registry {
   readonly enums: Readonly<Record<string, EnumIndex>>;
   /** Ids of the declared limits (ADR-009). Precomputed; consulted on every turn. */
   readonly boundaryIds: ReadonlySet<string>;
+  /**
+   * Every action verb that appears anywhere in this registry's real
+   * capabilities (ADR-015's guard). Precomputed; consulted on every turn.
+   *
+   * **Registry-wide on purpose, not top-candidate.** The guard answers "does
+   * this application do this?", and that is a property of the registry — not of
+   * whatever retrieval happened to rank first. WP-40 measured the difference:
+   * asking the top candidate silenced *none* of the five in-domain false flags,
+   * because for all five the top candidate was the wrong screen. Basing a safety
+   * guard on the ranking makes it fail exactly when retrieval fails, which is
+   * when it is most needed.
+   */
+  readonly actionVocabulary: ReadonlySet<string>;
 }
 
 // --------------------------------------------------------------- embedding --
@@ -217,6 +232,30 @@ export interface TurnTrace {
   requiresConfirmation: boolean;
   kind: string | null;
   route: string | null;
+  /**
+   * The resolved capability's declared explanation, copied verbatim (WP-36).
+   *
+   * This is what closes the second half of §1.1's promise — *"it takes them to
+   * the right place, and tells them what to do once they are there"*. The
+   * surface renders it alongside the navigation; nothing generates it, and no
+   * model is involved in producing it at run time, because it was written when
+   * the registry was built.
+   *
+   * `null` when the capability declares none, which the validator only permits
+   * for a declared limit — a limit answers the same question with its refusal.
+   */
+  explanation: string | null;
+  /**
+   * Did the user ask what something *is*, rather than to be taken to it?
+   * (WP-36's detection half, reusing ADR-015's frame layer.)
+   *
+   * Model-free, and it changes **no** routing decision — the capability and the
+   * route resolve identically either way. It tells a surface which half of the
+   * promise to lead with: the destination, or the declared explanation of what
+   * is there. A false negative is cheap, because the explanation is served as a
+   * caption regardless.
+   */
+  explanationRequest: boolean;
   latency: StageLatency;
   notes: string[];
   margin?: number;

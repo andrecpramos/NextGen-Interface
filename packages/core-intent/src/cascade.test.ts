@@ -4,6 +4,7 @@ import { defineBoundary, defineCapability, defineRegistry } from '@nextgen/core-
 import { capabilityDocument } from '@nextgen/core-capability';
 
 import { route } from './cascade.ts';
+import { actionVocabularyOf } from './action.ts';
 import { HashingEmbedder } from './embedder.ts';
 import { buildEnumIndex } from './slots.ts';
 import { OUTCOME, STAGE, type Registry, type ScreenContext } from './types.ts';
@@ -25,16 +26,19 @@ import { THRESHOLD_PROFILES } from './config.ts';
 const ex = (n: number) => Array.from({ length: n }, (_, i) => `example ${i + 1}`);
 
 const registryFile = defineRegistry({
+  domainDescription: 'A personal finance tracker. It records transactions, budgets, categories and account balances.',
   capabilities: [
     defineCapability({
       id: 'budget.view', kind: 'navigate', route: '/budget',
       title: 'Budgets', description: 'Open the budgets screen and see every budget',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       triggers: ['budget', 'budgets', 'my budgets'], examples: ex(3),
     }),
     defineCapability({
       id: 'spending.by_category', kind: 'read', route: '/spending',
       title: 'Spending by category',
       description: 'Break spending down by category over a period of time',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: {
         category: { type: 'enum:Category', required: true },
         from: { type: 'date', required: true },
@@ -45,12 +49,14 @@ const registryFile = defineRegistry({
     defineCapability({
       id: 'transaction.create', kind: 'write', route: '/transactions/new',
       title: 'Add a transaction', description: 'Record a new transaction against an account',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { amount: { type: 'money', required: true } },
       examples: ex(3),
     }),
     defineCapability({
       id: 'budget.delete', kind: 'destructive', route: '/budget/delete',
       title: 'Delete a budget', description: 'Permanently remove a budget for a category',
+      explanation: 'What this screen is for, written once at build time and served verbatim.',
       params: { category: { type: 'enum:Category', required: true } },
       examples: ex(3),
     }),
@@ -76,6 +82,7 @@ async function buildRegistry(): Promise<Registry> {
 
   return {
     schemaVersion: 1,
+    domainDescription: registryFile.domainDescription,
     capabilities,
     byId: new Map(capabilities.map((c) => [c.id, c])),
     triggerIndex,
@@ -83,6 +90,7 @@ async function buildRegistry(): Promise<Registry> {
     vectors,
     enums: { Category: buildEnumIndex({ tree: { food: ['groceries', 'coffee'] } }) },
     boundaryIds: new Set(['unsupported.move_money']),
+    actionVocabulary: actionVocabularyOf(capabilities.filter((c) => c.kind !== 'unsupported')),
   };
 }
 
@@ -146,6 +154,26 @@ describe('cascade — stage selection', () => {
   });
 });
 
+/**
+ * WP-36. §1.1's promise is two things — *"it takes them to the right place, and
+ * tells them what to do once they are there"*. The second half is a string
+ * declared when the registry was built and copied onto the trace unchanged; no
+ * model is involved at run time, so it costs nothing and cannot drift.
+ */
+describe('cascade — the declared explanation travels with the turn', () => {
+  it('carries the resolved capability’s explanation, verbatim', async () => {
+    const d = await deps();
+    const trace = await route('my budgets', ctx, d);
+    expect(trace.capabilityId).toBe('budget.view');
+    expect(trace.explanation).toBe(d.registry.byId.get('budget.view')!.explanation);
+  });
+
+  it('leaves it null when nothing was resolved', async () => {
+    const trace = await route('something entirely unrelated xyzzy', ctx, await deps());
+    if (trace.capabilityId === null) expect(trace.explanation).toBeNull();
+  });
+});
+
 describe('cascade — degradation when the runtime is missing', () => {
   it('degrades to a clarify when the model is unavailable, and never throws', async () => {
     // A missing model is a normal condition on a device, not an exception. The
@@ -183,11 +211,16 @@ describe('cascade — degradation when the runtime is missing', () => {
 });
 
 describe('cascade — policy holds regardless of what the model says', () => {
+  // These utterances are worded close to the target capability's own title/
+  // description so stage 2's independent ranking agrees with what the fake
+  // model returns (WP-17: agreement is now required for write/destructive
+  // before the cascade will even reach a policy decision — see
+  // REQUIRES_STAGE2_AGREEMENT in config.ts).
   it('requires confirmation for a write even at maximum confidence', async () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'transaction.create', confidence: 1, params: { amount: 4500 } },
     });
-    const trace = await route('put down forty five euros', ctx, await deps(runtime));
+    const trace = await route('add a transaction for fifty euros', ctx, await deps(runtime));
     expect(trace.capabilityId).toBe('transaction.create');
     expect(trace.requiresConfirmation).toBe(true);
   });
@@ -196,7 +229,7 @@ describe('cascade — policy holds regardless of what the model says', () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'budget.delete', confidence: 1, params: { category: 'food' } },
     });
-    const trace = await route('get rid of the food one', ctx, await deps(runtime));
+    const trace = await route('delete a budget', ctx, await deps(runtime));
     expect(trace.capabilityId).toBe('budget.delete');
     expect(trace.requiresConfirmation).toBe(true);
   });
@@ -205,9 +238,23 @@ describe('cascade — policy holds regardless of what the model says', () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'transaction.create', confidence: 1 },
     });
-    const trace = await route('note something down', ctx, await deps(runtime));
+    const trace = await route('add a transaction', ctx, await deps(runtime));
     expect(trace.outcome).toBe(OUTCOME.CLARIFY);
     expect(trace.missing).toContain('amount');
+  });
+
+  it('clarifies instead of executing a write/destructive stage 3 alone is confident about', async () => {
+    // Stage 2's independent top pick for this utterance is transaction.create
+    // (shares no vocabulary with "Delete a budget"), but the fake model insists
+    // on budget.delete at maximum self-reported confidence. Without stage-2
+    // corroboration the cascade must not execute a destructive action — this
+    // is the mechanism Finding 8 asked for: a signal the model cannot inflate.
+    const runtime = new FakeLlmRuntime({
+      fallback: { capabilityId: 'budget.delete', confidence: 1, params: { category: 'food' } },
+    });
+    const trace = await route('add a transaction', ctx, await deps(runtime));
+    expect(trace.outcome).toBe(OUTCOME.CLARIFY);
+    expect(trace.notes.join(' ')).toContain('no corroboration');
   });
 });
 

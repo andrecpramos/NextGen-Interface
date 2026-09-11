@@ -46,6 +46,9 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
   if (typeof registry.schemaVersion !== 'number') {
     err(null, 'schema-version', 'registry has no numeric schemaVersion');
   }
+  if (!registry.domainDescription?.trim()) {
+    err(null, 'domain-description-required', 'registry has no domainDescription — stage 3 needs to know what application it serves (Rule 1, WP-16)');
+  }
   if (!Array.isArray(registry.capabilities) || registry.capabilities.length === 0) {
     err(null, 'non-empty', 'registry declares no capabilities');
     return summarise(issues);
@@ -135,6 +138,44 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     err(id, 'description-required', `"${id}" has no description — stage-2 retrieval is built from it`);
   } else if (cap.description.trim().length < 20) {
     warn(id, 'description-thin', `"${id}" has a very short description; stage-2 margin depends on it being distinctive`);
+  }
+
+  // --- the declared explanation (WP-36) ---------------------------------------
+  // "What is this / what does this page do" is answered from a string written
+  // once, not from a model called per turn. A capability with no explanation is
+  // a question the assistant has to escalate or guess at, which is exactly the
+  // chat-widget failure Ladder A1 exists to avoid. A declared limit is exempt:
+  // its `refusal` already answers the same question.
+  if (!isBoundary) {
+    if (!cap.explanation?.trim()) {
+      err(id, 'explanation-required', `"${id}" has no explanation — "what is this?" would have to be generated per turn (WP-36)`);
+    } else if (cap.explanation.trim().length < 30) {
+      warn(id, 'explanation-thin', `"${id}" has a very short explanation; it is served to the user verbatim`);
+    }
+    if (cap.explanation?.trim() && !cap.explanationSource?.trim()) {
+      warn(id, 'explanation-untraceable', `"${id}" has an explanation with no source — a wrong answer cannot be traced back to fix it`);
+    }
+  }
+
+  // --- guided steps (WP-27, D-3) -----------------------------------------------
+  // A step's text is what a user gets when its anchor cannot be found, so a step
+  // without text is a highlight with no instruction. And a selector-only anchor
+  // is D-3's option (a) on its own, which breaks silently on the next redesign.
+  if (isBoundary && (cap.steps?.length ?? 0) > 0) {
+    err(id, 'steps-on-boundary', `"${id}" is a declared limit and cannot have steps — there is no page to guide anyone through`);
+  }
+  for (const [index, step] of (cap.steps ?? []).entries()) {
+    const where = `"${id}" step ${index + 1}`;
+    if (!step.text?.trim()) {
+      err(id, 'step-text-required', `${where} has no text — it is what the user sees when the anchor cannot be found`);
+    }
+    const anchor = step.anchor;
+    if (anchor && !anchor.label && !anchor.role && anchor.selector) {
+      warn(id, 'step-anchor-selector-only', `${where} anchors by CSS selector alone — it will break silently on the next redesign (D-3: a selector is the fallback, never the only signal)`);
+    }
+    if (anchor && !anchor.label && !anchor.selector) {
+      warn(id, 'step-anchor-empty', `${where} declares an anchor with nothing to match`);
+    }
   }
 
   // --- examples: the ≥3 rule from coding-standards.md -------------------------

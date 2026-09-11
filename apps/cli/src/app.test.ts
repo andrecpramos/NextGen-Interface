@@ -45,6 +45,11 @@ describe('the stack composes', () => {
     expect(r.output.join(' ')).toContain('Nothing saved yet');
   });
 
+  it('relatedModules answers with nothing on an empty database, wired straight through', async () => {
+    const a = await app();
+    expect(await a.relatedModules('mod_nonexistent')).toEqual([]);
+  });
+
   it('refuses a declared limit with the authored message, model-free', async () => {
     // ADR-009 end to end: no model is running, and it still refuses correctly.
     const a = await app();

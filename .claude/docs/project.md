@@ -46,14 +46,17 @@ assistant reads the registry.
 
 | Area | Status |
 |---|---|
-| `.claude/` knowledge base | ✅ complete — 12 ADRs, the enforcement register, lessons, business case, history |
-| Monorepo scaffold (pnpm workspace) | ✅ complete — 10 packages, 2 apps, 1 service |
+| `.claude/` knowledge base | ✅ complete: 15 ADRs, the enforcement register, lessons L1 to L12, business case, history |
+| Monorepo scaffold (pnpm workspace) | ✅ complete: 12 packages, 2 apps, 1 service |
+| Generator (`packages/generator`) | ✅ built and measured on `fut-app` (WP-25) and on one external app (WP-28) |
+| Browser delivery (`core-intent/browser`, `embed`) | ✅ stages 1+2 run from a shipped index with 210/210 parity (WP-24), plus a script tag at 9.3KB gzipped (WP-29) |
+| The drop-in kit | ⬜ WP-41, next. The owner runs it in `fut-app` as its acceptance test |
 | Intent router (`packages/core-intent`) | ✅ built, calibrated, measured |
 | Capability registry + codegen | ✅ `registry:build` generates the registry, route table and golden fixtures from one declaration |
 | Data layer (`packages/data`) | 🟡 schema, money, query engine, undo, migrations present; not exercised end-to-end |
-| Inference adapters (`core-inference`) | 🟡 Ollama working; mobile/web runtimes not started |
-| Voice (`core-voice`) | 🟡 package exists; STT/TTS not wired |
-| Apps (`apps/web`, `apps/cli`) | 🟡 both run; the assistant surface landed in WP-08/09 |
+| Inference adapters (`core-inference`) | 🟡 Ollama working. In the browser, stages 1+2 need no runtime at all (WP-24); mobile was closed (WP-10) |
+| Voice (`core-voice`) | ✅ acceptance-tested end to end in English: 97.5% agreement between typed and spoken (WP-21). Portuguese is WP-44 |
+| Apps (`apps/web`, `apps/cli`) | ✅ both run. `navigate` moves the browser (WP-35); the CLI has `undo` (WP-18) |
 | Backend (`services/api`) | ⛔ intentionally empty through MVP 2 ([ADR-008](../decisions/ADR-008.md)) |
 
 ## Environment facts (verified 2026-09-09)
@@ -76,16 +79,20 @@ The 1B question is **closed**: WP-01 measured `qwen2.5:1.5b` at 84–86% top-1 a
 151ms p95, and it is the selected stage-3 model. `gemma3:1b` was rejected. Full
 register: [PLAN.md](../../PLAN.md) §9.
 
-The largest *open* risk is now **mobile inference via `llama.rn` is untested**
-(WP-10). Desktop headroom is large, which helps and does not settle it. The
-mitigation is real rather than aspirational: the adapter interface exists and
-`core-intent` holds no transport code, so a failure changes one package.
+The largest *open* risk is now **the first run by someone who did not build it**
+(2026-09-11). The drop-in kit (WP-41) has two jobs that have never been done:
+- work on an app that nobody on this project has read;
+- calibrate thresholds without the hand-written golden set that every calibration so far
+  has used.
+
+`apps/mobile` was closed as a different product (WP-10), so `llama.rn` is no longer a risk
+this project carries.
 
 Two smaller risks are worth knowing before touching the router:
 
-- **`tauAct` reads a signal small models do not produce.** The gate held 15.7% of
-  calls on 8B and 0.7% on 1.5B — small models report high confidence
-  unconditionally.
+- **A model's self-reported confidence is not a signal.** `TAU_ACT_BY_KIND` read it and
+  held back 15.7% of calls on 8B but only 0.7% on 1.5B. It was replaced by
+  `REQUIRES_STAGE2_AGREEMENT` (WP-17), which a model cannot inflate.
 - **Golden-set runs are not deterministic.** 7 of 200 entries flipped between
   identical 8B runs at temperature 0, which is why the gate compares against a
   committed baseline with a tolerance rather than an absolute threshold.
@@ -97,7 +104,7 @@ Measurements: [FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).
 | File | Answers |
 |---|---|
 | [vision.md](./vision.md) | Why this exists, what it refuses to be |
-| [roadmap.md](./roadmap.md) | MVP 1 / 2 / 3, sprint-level |
+| [../../PLAN.md](../../PLAN.md) | **The plan.** §0's queue, §7's work packages, §9's risks — replaced `roadmap.md`, deleted 2026-09-10 |
 | [architecture.md](./architecture.md) | The five layers, and how they talk |
 | [coding-standards.md](./coding-standards.md) | Clean Architecture, SOLID, folder rules |
 | [ui-guidelines.md](./ui-guidelines.md) | The sphere, and the AI-first-not-AI-only rule |

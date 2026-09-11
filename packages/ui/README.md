@@ -52,6 +52,21 @@ Import both once, at the app's root: `@import '@nextgen/ui/tokens.css';`
 | `NavDrawer` | the conventional structure, off-canvas — registry-driven, hidden until asked for |
 | `TracePanel` | "why?", rendered from the record — candidate scores included |
 
+## Guided-step anchors (WP-27)
+
+[`src/anchor.ts`](src/anchor.ts) resolves a generated step's anchor against the live page.
+`resolveAnchor`, `resolveSteps` and `accessibleName` work over a minimal DOM interface,
+so they are tested without a browser (16 tests). **It refuses rather than guesses.**
+Resolution happens in this order:
+1. The accessible name, together with the role.
+2. The build-time selector, which is used only if the element it finds carries the same
+   name and role.
+
+If a name matches twice, or a selector lands on an element whose name contradicts the
+label, the step renders as plain text with nothing highlighted. A hint that fails to
+highlight costs little; a hint that points at the wrong field sends the user to the wrong
+input.
+
 ## The sphere is distinguished by form, not colour
 
 Colour is the second channel, never the first. That is what makes the
@@ -85,4 +100,5 @@ type scale in `rem` with no fixed-height text boxes, so 200% does not clip;
 `aria-live` region and the sphere carries `role="img"` with its state in the label.
 
 **Not yet verified with a real screen reader or an automated axe pass.** That is the
-honest gap.
+honest gap, and it is scheduled as PLAN.md WP-45: automated checks first, then the
+owner's NVDA pass. The accessibility claim is not made until that pass is done.

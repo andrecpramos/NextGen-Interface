@@ -1,4 +1,5 @@
-import { normalize } from './text.ts';
+import { normalize, contentTokens } from './text.ts';
+import { actionSignalApplies } from './action.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
@@ -37,12 +38,41 @@ export function stage1(utterance: string, registry: Registry): Stage1Hit | null 
     }
   }
 
-  // Only accept a substring hit when the trigger covers most of the utterance.
-  // Otherwise "how much did I spend on transport" would match the bare trigger
-  // "transport" and skip the semantics entirely.
-  if (best && best.matched.length / t.length >= 0.6) return best;
+  // Only accept a substring hit when the trigger covers most of what the user
+  // actually said. "how much did I spend on transport" must not match the bare
+  // trigger "transport" and skip the semantics entirely.
+  //
+  // Coverage is measured over CONTENT words, not characters (WP-38 lever 1).
+  // The character rule counted the question's wrapper against the trigger, so a
+  // correct trigger sitting inside a normal question could not clear the bar:
+  // *"Para que serve a 'Composição corporal'?"* scored 0.53 with exactly the
+  // right trigger. Measured over the fut-app golden set, 102 entries had a
+  // trigger on the correct capability, 2 cleared 0.6, and 100 sat below it.
+  //
+  // The bar itself is unchanged at 0.6, and the rule it enforces is unchanged:
+  // "spend transport" is still 1 of 2 content words and still refused. What
+  // changed is that "para que serve" no longer counts as evidence against a
+  // match, because it is not evidence about anything.
+  if (best && coverage(t, best.matched) >= 0.6) return best;
 
   return null;
+}
+
+/**
+ * What share of the utterance's content words the trigger accounts for.
+ *
+ * Returns 0 when the utterance is entirely filler — "what is this?" carries no
+ * content word to match, and a trigger must never win by default on a question
+ * that says nothing. Stage 1 answers with score 1.0 and never escalates, so an
+ * empty denominator has to fail closed.
+ */
+function coverage(utterance: string, trigger: string): number {
+  const content = contentTokens(utterance);
+  if (content.length === 0) return 0;
+  const inTrigger = new Set(contentTokens(trigger));
+  if (inTrigger.size === 0) return 0;
+  const matched = content.filter((word) => inTrigger.has(word)).length;
+  return matched / content.length;
 }
 
 // ------------------------------------------------------------- stage 2 ------
@@ -96,8 +126,26 @@ export async function stage2(
   const bestBoundary = boundary[0];
   const boundaryLead = bestBoundary ? bestBoundary.score - top.score : -Infinity;
 
+  // ADR-015. Topic similarity cannot tell a request *about* a subject from a
+  // request to *act on* it, because they are about the same subject — so an
+  // action verb is admitted as a second, independent signal, and a boundary is
+  // allowed to win on a smaller margin when one is present.
+  //
+  // `actionSignalApplies` carries the guard: it returns false when the best real
+  // candidate is itself `write` or `destructive`, so an application that really
+  // does offer deletion never starts refusing its own feature.
+  const actionMargin = thresholds.actionBoundaryMargin ?? thresholds.boundaryMargin;
+  const topCapability = registry.byId.get(top.capabilityId);
+  const requiredMargin = actionSignalApplies(
+    utterance,
+    topCapability?.kind,
+    registry.actionVocabulary,
+  )
+    ? actionMargin
+    : thresholds.boundaryMargin;
+
   let decision: Stage2Decision = 'escalate';
-  if (bestBoundary && boundaryLead >= thresholds.boundaryMargin) {
+  if (bestBoundary && boundaryLead >= requiredMargin) {
     // The application has said, in the registry, that it does not do this.
     decision = 'refuse';
   } else if (top.score < thresholds.tauFloor) {
@@ -135,7 +183,9 @@ export interface Stage3Result {
   readonly capabilityId: string | null;
   /**
    * The model's own claim about how sure it is. Not calibrated, and at 1B not
-   * even informative — see TAU_ACT_BY_KIND in config.ts and FINDINGS Finding 8.
+   * even informative (FINDINGS Finding 8) — no longer gates anything as of
+   * WP-17; see REQUIRES_STAGE2_AGREEMENT in config.ts. Kept in the trace for
+   * `why` and for debugging, not as a safety signal.
    */
   readonly selfReportedConfidence: number;
   /** Raw, unfiltered. The caller validates every key against the registry. */
@@ -161,12 +211,18 @@ interface Stage3Options {
  *
  * Two properties this MUST preserve (ADR-003):
  *   1. Only the top-k candidates are shown. Never the full registry. This caps
- *      latency and is the reason injected text cannot introduce a destructive
- *      capability into the choice set.
+ *      latency and stops stage 3 from *introducing* a destructive capability
+ *      that stage 2's own ranking did not already surface.
+ *      ⚠️ It does NOT stop injected text from getting a destructive capability
+ *      ranked into that top-k in the first place — `gs-0174` (WP-17,
+ *      2026-09-09) is stage 2 itself ranking `module.delete` first for text
+ *      carrying a hidden delete instruction. That gap is open; see
+ *      FINDINGS.md and REQUIRES_STAGE2_AGREEMENT in config.ts for what does
+ *      and does not defend against it.
  *   2. Output is schema-constrained. Ollama's `format` is the equivalent of
  *      llama.cpp's GBNF grammar — it makes the JSON almost always parseable. It
- *      does NOT make it correct, which is what the confidence gate is for, and
- *      it does not make it *certain*: measured 0.7% parse failure on
+ *      does NOT make it correct, which is what REQUIRES_STAGE2_AGREEMENT is
+ *      partly for, and it does not make it *certain*: measured 0.7% parse failure on
  *      llama3.1:8b, so the fallback below is mandatory, not defensive.
  */
 export async function stage3(
@@ -207,12 +263,17 @@ export async function stage3(
     required: ['capabilityId', 'confidence'],
   };
 
+  // WP-16 (Rule 1, D-2): the application description comes from the registry,
+  // never from a string written into core-intent. core-intent knows no subject
+  // matter — that is the product boundary (PLAN.md §1.5) — so the ONLY thing
+  // distinguishing one adopter's prompt from another's must be data threaded
+  // through `Registry`, not a branch or a constant in this file.
   const system = [
     'You route a user utterance to exactly one capability from the provided list.',
     'You may ONLY choose an id from the list. Never invent one.',
-    'This is a personal finance application. It tracks transactions, budgets, categories and account balances.',
-    `If the utterance is not about this application's data at all — weather, jokes, general knowledge, sending messages, moving real money — choose "${OUT_OF_SCOPE_ID}".`,
-    `If the utterance IS about personal finance but is too vague to identify one capability, pick the closest and set confidence below 0.4. Do not use "${OUT_OF_SCOPE_ID}" for vague in-domain requests.`,
+    `This application: ${registry.domainDescription}`,
+    `If the utterance is not about this application's data or actions at all — weather, jokes, general knowledge, or something an unrelated app would handle — choose "${OUT_OF_SCOPE_ID}".`,
+    `If the utterance IS about this application but is too vague to identify one capability, pick the closest and set confidence below 0.4. Do not use "${OUT_OF_SCOPE_ID}" for vague in-domain requests.`,
     'Set confidence to how certain you are, from 0 to 1.',
     'Extract only parameters you can read directly from the utterance. Never guess a value.',
     'Never compute totals, dates or arithmetic — leave those to the caller.',

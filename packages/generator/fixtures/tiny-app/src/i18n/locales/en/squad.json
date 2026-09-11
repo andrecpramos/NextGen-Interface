@@ -1,0 +1,6 @@
+{
+  "overview": { "title": "Squad overview" },
+  "players": { "title": "Player directory", "subtitle": "Everyone at the club" },
+  "player": { "title": "Player profile" },
+  "teams": { "title": "Teams" }
+}

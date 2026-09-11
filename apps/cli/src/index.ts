@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     console.log(`  Module model:  ${options.moduleModel ?? 'llama3.1:8b'} via Ollama`);
   }
   console.log('  Data:  empty — nothing is saved until you tell it to remember something.');
-  console.log("  Type 'help' for ideas, 'why' after any turn, 'exit' to quit.\n");
+  console.log("  Type 'help' for ideas, 'why' after any turn, 'undo' to take back a delete, 'exit' to quit.\n");
 
   const rl = createInterface({ input: stdin, output: stdout });
 
@@ -117,6 +117,12 @@ async function main(): Promise<void> {
       console.log('');
       for (const line of app.why().split('\n')) console.log(`  ${line}`);
       console.log('');
+      continue;
+    }
+    if (lower === 'undo') {
+      // WP-18. Takes back the last reversible action — a deleted module comes
+      // back exactly as it was, a revert puts back the version it replaced.
+      console.log(`\n  ${await app.undo()}\n`);
       continue;
     }
     if (lower === 'trace') {

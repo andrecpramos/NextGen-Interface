@@ -24,10 +24,34 @@ import { assertValidRegistry } from './validate.ts';
  * users actually produce, which is why coding-standards.md requires ≥3 examples.
  */
 export function capabilityDocument(cap: Capability): string {
+  // A trigger that already appears in the title or description contributes
+  // WEIGHT, not signal — and weight is exactly what must not be added here.
+  //
+  // WP-38 made this concrete. The generator derives triggers from nav labels,
+  // and a nav label is usually the title, so 141 of 245 generated triggers were
+  // already in the document. Embedding them doubled the title's weight for every
+  // real capability while declared boundaries — which have no triggers — got no
+  // such boost. Measured: capability ranking improved (top-1 +5.1) and
+  // out-of-scope refusal fell 32.4% → 26.5%, and it removed the separation
+  // ADR-015's action margin needs, taking a measured 20% → 45% refusal gain down
+  // to nothing on the same golden set.
+  //
+  // So the fix is not "stop embedding triggers" — a hand-written trigger like
+  // "how much have I spent" is real phrasing a title does not carry. It is to
+  // stop counting the same words twice.
+  // Accent-insensitive, because a generated trigger is already normalised:
+  // "avaliacoes fisicas" must be recognised as a duplicate of the title
+  // "Avaliações físicas". A plain lowercase compare misses every accented
+  // Portuguese label, which is most of them on the pilot application.
+  const flatten = (s: string) =>
+    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const seen = flatten(`${cap.title ?? ''} ${cap.description ?? ''}`);
+  const novel = (cap.triggers ?? []).filter((t) => !seen.includes(flatten(t)));
+
   return [
     cap.title,
     cap.description,
-    ...(cap.triggers ?? []),
+    ...novel,
     ...(cap.examples ?? []).map(exampleText),
   ].join('. ');
 }
@@ -129,9 +153,19 @@ export interface GoldenEntry {
 /**
  * The third use of `examples`: test fixtures.
  *
- * Only examples carrying an `expect` block become entries — a bare `say` is a
- * phrasing sample for retrieval, not an assertion. This is what stops the golden
- * set drifting away from the registry as capabilities change.
+ * **Every example becomes an entry** (WP-19). Declaring an utterance as an
+ * example of a capability *is* the assertion that it resolves to that
+ * capability — if it does not, either the example or the declaration is wrong,
+ * and that is precisely what the fixture is for. Requiring a hand-written
+ * `expect` block before an example counted produced the opposite: nobody wrote
+ * one, both reference apps emitted a 0-byte file, and CI diffed an artefact
+ * asserting nothing. An `expect` block now *refines* the derived expectation
+ * (params, the stage it must resolve by) rather than gating its existence.
+ *
+ * This matters more from WP-25 on than it ever did by hand: a generated
+ * registry's examples are written by a model, so the entries derived from them
+ * are the corpus that catches a generator that declares a capability nobody can
+ * reach by asking for it.
  *
  * These are *generated* entries and do not replace the hand-written corpus. The
  * hand-written one is deliberately adversarial (35% of it cannot resolve before
@@ -143,18 +177,17 @@ export function generateGoldenEntries(registry: RegistryFile, prefix = 'gen'): G
   let n = 0;
   for (const cap of registry.capabilities) {
     for (const ex of cap.examples ?? []) {
-      if (typeof ex === 'string' || !ex.expect) continue;
-      const e = ex as CapabilityExample;
+      const refine: CapabilityExample['expect'] = typeof ex === 'string' ? undefined : ex.expect;
       n++;
       out.push({
         id: `${prefix}-${String(n).padStart(4, '0')}`,
         bucket: 'generated',
-        utterance: e.say,
+        utterance: exampleText(ex),
         expect: {
           outcome: cap.kind === 'unsupported' ? 'out_of_scope' : 'execute',
           ...(cap.kind === 'unsupported' ? {} : { capability: cap.id }),
-          ...(e.expect?.params ? { params: e.expect.params } : {}),
-          ...(e.expect?.maxStage ? { maxStage: e.expect.maxStage } : {}),
+          ...(refine?.params ? { params: refine.params } : {}),
+          ...(refine?.maxStage ? { maxStage: refine.maxStage } : {}),
           ...(cap.kind === 'write' || cap.kind === 'destructive'
             ? { requiresConfirmation: true }
             : {}),

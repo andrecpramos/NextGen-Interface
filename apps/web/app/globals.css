@@ -337,7 +337,8 @@ body {
   max-width: 68ch;
 }
 
-.module-detail__history {
+.module-detail__history,
+.module-detail__related {
   margin-top: calc(var(--u) * 4);
   padding-top: calc(var(--u) * 2);
   border-top: 1px solid var(--hairline);

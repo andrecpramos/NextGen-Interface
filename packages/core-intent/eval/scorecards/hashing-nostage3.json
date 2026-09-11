@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-08-31T17:24:26.583Z",
+  "generatedAt": "2026-09-11T10:31:12.970Z",
   "config": {
     "embedder": "hashing",
     "model": null,
     "thresholds": {
       "tauAct": 0.55,
-      "tauHigh": 0.436,
+      "tauHigh": 0.456,
       "delta": 0.01,
       "tauFloor": 0,
       "topK": 5,
-      "boundaryMargin": 0.055
+      "boundaryMargin": 0.065
     }
   },
-  "entries": 81,
+  "entries": 82,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.30434782608695654,
+      "actual": 0.34782608695652173,
       "target": 0.9,
       "pass": false
     },
@@ -30,7 +30,7 @@
       "pass": true
     },
     "Out-of-scope detected": {
-      "actual": 0.6666666666666666,
+      "actual": 0.6923076923076923,
       "target": 0.95,
       "pass": false
     },
@@ -54,12 +54,12 @@
       "stage3p95": null
     },
     "paraphrase": {
-      "pass": 5,
+      "pass": 7,
       "total": 24,
-      "rate": 0.20833333333333334,
-      "top1Correct": 5,
+      "rate": 0.2916666666666667,
+      "top1Correct": 7,
       "top1Total": 24,
-      "top1": 0.20833333333333334,
+      "top1": 0.2916666666666667,
       "stage3Calls": 0,
       "stage3p50": null,
       "stage3p95": null
@@ -87,9 +87,9 @@
       "stage3p95": null
     },
     "out_of_scope": {
-      "pass": 8,
-      "total": 12,
-      "rate": 0.6666666666666666,
+      "pass": 9,
+      "total": 13,
+      "rate": 0.6923076923076923,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
@@ -129,15 +129,15 @@
     "unavailable": 0
   },
   "stageMix": {
-    "deterministic": 11,
-    "embedding": 70
+    "deterministic": 14,
+    "embedding": 68
   },
   "modelFreeRate": 1,
   "latency": {
-    "p50": 0.054099999999991155,
-    "p95": 0.1747000000000014,
-    "stage1p95": 0.011300000000005639,
-    "stage2p95": 0.16459999999999297,
+    "p50": 0.05180000000000007,
+    "p95": 0.3111999999999995,
+    "stage1p95": 0.02030000000000598,
+    "stage2p95": 0.1921999999999997,
     "stage3p95": null
   },
   "registryOverlap": [],
@@ -269,27 +269,6 @@
       ]
     },
     {
-      "id": "gs-0015",
-      "bucket": "paraphrase",
-      "utterance": "open my saved notes",
-      "expected": {
-        "capability": "module.list",
-        "maxStage": "embedding"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.list"
-      ]
-    },
-    {
       "id": "gs-0016",
       "bucket": "paraphrase",
       "utterance": "let's see my modules",
@@ -350,6 +329,26 @@
       },
       "failures": [
         "capability none != module.list"
+      ]
+    },
+    {
+      "id": "gs-0019",
+      "bucket": "paraphrase",
+      "utterance": "what did I save about the passport renewal",
+      "expected": {
+        "capability": "module.search"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "capability none != module.search"
       ]
     },
     {
@@ -453,27 +452,6 @@
       ]
     },
     {
-      "id": "gs-0026",
-      "bucket": "paraphrase",
-      "utterance": "forget the note about the old address",
-      "expected": {
-        "capability": "module.delete",
-        "requiresConfirmation": true
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.delete"
-      ]
-    },
-    {
       "id": "gs-0028",
       "bucket": "paraphrase",
       "utterance": "get rid of that saved note",
@@ -492,27 +470,6 @@
       },
       "failures": [
         "capability none != module.delete"
-      ]
-    },
-    {
-      "id": "gs-0030",
-      "bucket": "paraphrase",
-      "utterance": "revert the passport module to before that",
-      "expected": {
-        "capability": "module.revert",
-        "requiresConfirmation": true
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.revert"
       ]
     },
     {
@@ -690,26 +647,6 @@
       ]
     },
     {
-      "id": "gs-0154",
-      "bucket": "out_of_scope",
-      "utterance": "read me the news",
-      "expected": {
-        "outcome": "out_of_scope"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "outcome clarify != out_of_scope"
-      ]
-    },
-    {
       "id": "gs-0160",
       "bucket": "out_of_scope",
       "utterance": "who won the football last night",
@@ -753,6 +690,26 @@
       "id": "gs-0162",
       "bucket": "out_of_scope",
       "utterance": "what time is it",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0197",
+      "bucket": "out_of_scope",
+      "utterance": "transfer 500 euros to my brother",
       "expected": {
         "outcome": "out_of_scope"
       },

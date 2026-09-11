@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "domainDescription": "An application with 2 screens across 2 areas: app, politica.",
+  "capabilities": [
+    {
+      "id": "app.overview",
+      "kind": "navigate",
+      "route": "/",
+      "title": "Main",
+      "description": "Main — part of the app area of the application, at /.",
+      "explanation": "Main is a screen in the app area of this application, at /.",
+      "examples": [
+        "open main",
+        "take me to main",
+        "abre main",
+        "leva-me para main"
+      ]
+    },
+    {
+      "id": "politica.politica_de_privacidade",
+      "kind": "navigate",
+      "route": "/politica-de-privacidade",
+      "title": "Politica Privacidade",
+      "description": "Politica Privacidade — part of the politica area of the application, at /politica-de-privacidade.",
+      "explanation": "Politica Privacidade is a screen in the politica area of this application, at /politica-de-privacidade. It shows: ← Voltar, Política de Privacidade, Última atualização: Abril 2025, 1. Quem somos.",
+      "explanationSource": "pages/PoliticaPrivacidade/PoliticaPrivacidade.jsx",
+      "examples": [
+        "open politica privacidade",
+        "take me to politica privacidade",
+        "abre politica privacidade",
+        "leva-me para politica privacidade"
+      ]
+    },
+    {
+      "id": "unsupported.external_actions",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Acting outside this application",
+      "description": "Booking an appointment, sending an email or a message, or doing something in another system on the user’s behalf. This assistant works inside this application only.",
+      "refusal": "I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you.",
+      "examples": [
+        "book a physio appointment for my son",
+        "send an email to the coach about this",
+        "schedule a doctor’s visit for this injury",
+        "marca uma consulta para o meu filho",
+        "envia um email ao treinador"
+      ]
+    },
+    {
+      "id": "unsupported.data_changes",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Changing records for you",
+      "description": "Creating, editing or deleting a record. This assistant takes the user to the screen where they can do it themselves; it never fills a form or saves a change on their behalf.",
+      "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself.",
+      "examples": [
+        "delete this record for me",
+        "change the date on this for me",
+        "fill in this form for me",
+        "apaga este registo por mim",
+        "altera a data disto por mim"
+      ]
+    },
+    {
+      "id": "unsupported.other_applications",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Questions about anything else",
+      "description": "General knowledge, other software, or any subject this application does not cover. The assistant answers about this application and nothing else.",
+      "refusal": "I only know this application — I can’t help with things outside it.",
+      "examples": [
+        "what’s the weather tomorrow",
+        "write me a poem",
+        "what’s in my email inbox",
+        "como está o tempo amanhã",
+        "escreve-me um poema"
+      ]
+    }
+  ]
+}

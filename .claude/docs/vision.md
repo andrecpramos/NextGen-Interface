@@ -17,14 +17,32 @@ what every action needs, a small local model can map "how much did I spend on fo
 onto a route, a query, and a rendered answer. The menu becomes an implementation
 detail.
 
-## Goals
+## Goals, and what each one has actually measured
+
+Updated 2026-09-10 against [MEASUREMENT.md](../../eval/fut-app/MEASUREMENT.md). A goal
+with no verdict beside it is a goal nobody has tested.
 
 1. **Prove AI navigation works** with a local model on consumer hardware, offline.
+   ⚠️ **Half met, and the offline half failed.** On a real 146-page application the
+   assistant reaches the right screen for **52.3%** of real questions against the app's
+   own command palette at 45.5% — so navigation by asking works, and beats the
+   incumbent where it was aimed. But only **2.4%** of turns settle without a model call,
+   because the browser-capable encoder scores 4.0% recall@1 at 145 capabilities against
+   a real encoder's 48.9%. *Offline* is currently unsupported by evidence at adopter
+   scale. See PLAN.md §13, D-4 — it is an open decision, not a solved problem.
 2. **Prove it generalises** — the same engine drives a second domain with
-   configuration, not a rewrite.
+   configuration, not a rewrite. ✅ **Met.** Swapping the registered application changes
+   zero lines in any `core-*` package, exercised by a test that runs the real router
+   against a second application's registry — and then again by generating a registry
+   for a third application nobody wrote by hand.
 3. **Keep it explainable** — the user can always ask "why did you do that?" and get
    a real answer built from a recorded trace, not a generated rationalisation.
-4. **Keep it private** — no financial data leaves the device by default. Ever.
+   ✅ **Met**, and unchanged by any of the above: no model is involved in `why`.
+4. **Keep it private** — no user data leaves the device by default.
+   ⚠️ **At risk from goal 1's failure.** The privacy story rested on most turns never
+   reaching a model. At 2.4% model-free, 205 of 210 turns reach one. Whether that model
+   is local or an adopter's endpoint is now a deployment question with real consequences,
+   not a footnote.
 
 ## Non-goals
 
@@ -88,3 +106,11 @@ knowledge pack — with zero changes to the engine. That is the real deliverable
 
 The test of the architecture is not whether the finance app works. It is how much
 code the second domain requires.
+
+**That test has since been run, and then raised.** The second application required
+zero changes to the engine. The *third* was not written by hand at all: a generator
+read an application's source and produced its registry, and the engine routed against
+it without modification. The question has therefore moved on — from *"how much code
+does a domain need?"* (answer: none, it is generated) to *"is the generated registry
+good enough to route against?"*, which is what
+[MEASUREMENT.md](../../eval/fut-app/MEASUREMENT.md) answers, in both directions.

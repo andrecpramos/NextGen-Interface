@@ -13,7 +13,8 @@ optional, because they are what AI coding agents read.
 ## Inputs
 
 - [vision.md](../docs/vision.md) — direction and non-goals
-- [roadmap.md](../docs/roadmap.md) — MVP scope and risk register
+- [PLAN.md](../../PLAN.md) — §0's queue is the scope, §9 the risk register. *(This was
+  `roadmap.md` until 2026-09-10; it planned a Flutter build ADR-006 rejected.)*
 - Previous iteration's traces, golden-set scorecard, and retro
 
 ## Planning rules
@@ -55,7 +56,7 @@ feature-only planning, which is why most AI projects overrun.
 
 ## Risk review
 
-The register in [roadmap.md](../docs/roadmap.md) is reviewed at every planning session.
+The register in [PLAN.md](../../PLAN.md) §9 is reviewed at every planning session.
 For each: still real? impact changed? mitigation working? New risks are added with an
 owner and a response, not just a description.
 
