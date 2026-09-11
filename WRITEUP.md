@@ -402,8 +402,12 @@ Warm every model with a throwaway call first and run them sequentially — a col
 - **Not that the questions are unbiased.** They are model-written from the application's own
   copy, and a question and a registry example can land on the same vocabulary by common
   descent. The out-of-scope third is hand-written and is where the worst result is.
-- **Not that this transfers.** `fut-app` is an application I have access to. A generator
-  built against one application may not survive a second, and that remains the largest
-  unproven step.
-- **Not that anything here is production-ready.** 61.8% of out-of-scope requests are
-  wrongly executed. That is a fix, not a footnote.
+- **Not that this transfers, beyond one data point.** `fut-app` is an application I have
+  access to. On one public app I do not own, discovery first found 1 of 8 routes, and the
+  cause was fixed (PLAN.md WP-28). That app had no role guards, so role extraction has
+  still only been validated here (WP-43).
+- **Not that anything here is production-ready. The out-of-scope limit is disclosed, not
+  solved.** On the 34 hand-written requests, the browser path declines 47.1% and executes
+  none. With a model in the loop, 41.2% are declined. The target was ~70%. Every
+  mechanism that was tried stopped short of it, and the ceiling is accepted as a stated
+  limit (PLAN.md §13, D-5).

@@ -184,9 +184,10 @@ conversations, not three months of code. Test it early and out of order.
 1. **The pilot is an app we own.** *(Revised 2026-09-09.)* `fut-app` — 146 pages, 30
    feature areas, role-gated, occasional users who do not know the vocabulary — is a
    genuine instance of the ICP in §2, so unlike WeFitAll it can prove **value** as well
-   as mechanism. But it is ours, and a generator built against it may not transfer. **A
-   target we do not own remains the unproven step**, and finding one is a work package
-   with a deadline, not a hope.
+   as mechanism. But it is ours, and a generator built against it may not transfer.
+   *(Updated 2026-09-11.)* On one public app we do not own (WP-28), discovery found 1 of 8
+   routes until it was fixed. That app had no role guards, so **role extraction on a
+   second app is still unproven**. That is WP-43.
 2. **The value proposition needs data; rung A1 does not have data.** "I no longer need
    to call customer service" requires answering *from the app's data* — Ladder A2 in
    PLAN.md §1.6. A1 navigates, guides and explains. The ladder schedules the climb
@@ -197,9 +198,16 @@ conversations, not three months of code. Test it early and out of order.
    straight back into auth, permissions and per-user scoping.
 4. **Accessibility is in the pitch and has never been verified.** No screen-reader pass,
    no axe run. Claiming it before testing it is the fastest way to lose a public-sector
-   buyer.
+   buyer. *(Scheduled 2026-09-11 as WP-45: automated checks first, then the owner's
+   NVDA pass. The claim is not made until that pass is done.)*
 5. **Solo capacity is the binding constraint**, and the failure mode is not technical:
    it is thirteen work packages half-finished at month six.
+6. **Out-of-scope refusal has a measured ceiling, and it is disclosed rather than
+   solved.** *(D-5, 2026-09-11.)* Some requests ask for things the app cannot do. The
+   browser path declines 47.1% of them, and with a model in the loop 41.2% are declined,
+   against a ~70% target. It is cheap to live with at rung A1: the assistant only reads
+   and navigates, and anything destructive always asks for confirmation. **It stops being
+   cheap the moment a rung adds actions**, so any move up Ladder A re-opens it.
 
 ---
 

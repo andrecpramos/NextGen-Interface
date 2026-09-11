@@ -164,6 +164,16 @@ to fix it, every lever was measured, and the claim was withdrawn rather than res
 [business-case.md](.claude/docs/business-case.md) §5. The numbers are published rather than
 buried, which is the point.
 
-Not built: the browser runtime, guided steps, the installable package, and a live
-deployment. Nothing here is production-ready — 61.8% of out-of-scope requests are
-currently answered with a navigation instead of a refusal.
+Built since then: the browser runtime, guided steps, the installable package and a script
+tag. Not built: the one-command drop-in kit (WP-41), and a live deployment, which the
+owner runs. Nothing here is production-ready.
+
+**A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do.
+The assistant does not decline all of them. On `fut-app`'s 34 hand-written out-of-scope
+requests:
+- The browser path, with no model, declines **47.1%**, executes none of them, and asks a
+  clarifying question for the rest.
+- With a model in the loop, **41.2%** are declined.
+
+The target was ~70%. Every mechanism that was tried is measured in PLAN.md §7.2 (WP-39,
+WP-40). The ceiling is accepted and stated here, not hidden.
