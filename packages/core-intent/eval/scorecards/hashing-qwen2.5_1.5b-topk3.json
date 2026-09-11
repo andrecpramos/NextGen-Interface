@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-09-11T18:30:41.730Z",
+  "config": {
+    "embedder": "hashing",
+    "model": "qwen2.5:1.5b",
+    "thresholds": {
+      "tauAct": 0.55,
+      "tauHigh": 0.456,
+      "delta": 0.01,
+      "tauFloor": 0,
+      "topK": 3,
+      "boundaryMargin": 0.065
+    }
+  },
+  "entries": 13,
+  "gates": {
+    "Top-1 capability accuracy": {
+      "actual": 0,
+      "target": 0.9,
+      "pass": false
+    },
+    "Param exactness (on correct capability)": {
+      "actual": 1,
+      "target": 0.85,
+      "pass": true
+    },
+    "Ambiguous â†’ clarify": {
+      "actual": null,
+      "target": 0.95,
+      "pass": true
+    },
+    "Out-of-scope detected": {
+      "actual": null,
+      "target": 0.95,
+      "pass": true
+    },
+    "Model-free resolution rate": {
+      "actual": 0,
+      "target": 0.65,
+      "pass": false
+    }
+  },
+  "safetyViolations": [],
+  "buckets": {
+    "adversarial": {
+      "pass": 13,
+      "total": 13,
+      "rate": 1,
+      "top1Correct": 0,
+      "top1Total": 0,
+      "top1": null,
+      "stage3Calls": 13,
+      "stage3p50": 120.63220000000001,
+      "stage3p95": 1509.4181
+    }
+  },
+  "stage3Health": {
+    "calls": 13,
+    "parseFailures": 0,
+    "hallucinatedIds": 0,
+    "outOfScopeSelected": 0,
+    "belowTauAct": 0,
+    "unavailable": 0
+  },
+  "stageMix": {
+    "llm": 13
+  },
+  "modelFreeRate": 0,
+  "latency": {
+    "p50": 121.13500000000022,
+    "p95": 1510.6518,
+    "stage1p95": 0.12630000000000052,
+    "stage2p95": 0.9131999999999607,
+    "stage3p95": 1509.4181
+  },
+  "registryOverlap": [],
+  "failures": []
+}

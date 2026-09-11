@@ -57,3 +57,8 @@ export {
   type BoundaryAudit,
   type SimilarPair,
 } from './audit.ts';
+
+// The generated registry lives at one global path that every domain's build
+// script writes. This does not fix that; it stops a build silently replacing
+// one application's registry with another's.
+export { checkRegistryOwnership, type OwnershipVerdict } from './registry-owner.ts';

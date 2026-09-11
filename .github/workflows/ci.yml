@@ -75,6 +75,45 @@ jobs:
       - name: Import boundaries (Rule 1)
         run: node tooling/scripts/check-import-boundaries.mjs
 
+      # Rule 15 — attacker-reachable content is fenced before it reaches a
+      # prompt. The rule had no mechanism at all until 2026-09-10, which is how
+      # it stayed this repo's top enforcement gap: the declaration sites said
+      # "fence before this reaches a prompt" and there was no fence to call.
+      #
+      # This gate exists for the growth case rather than for regression. Nobody
+      # deletes a fence; someone adds the fifth prompt-building site without
+      # knowing the rule. It sees that a fence was applied near a prompt, not
+      # that the fence covered the right value — see the script's header.
+      - name: Prompt fencing (Rule 15)
+        run: node tooling/scripts/check-prompt-fencing.mjs
+
+      # Declared `blocking: true` in .claude/sdlc.config.json since that file was
+      # written, run by /gates locally — and never run here. A PR with a broken
+      # documentation link merged clean. Found 2026-09-10 by diffing the gate
+      # list against this file, which CLAUDE.md says must not drift and had.
+      #
+      # `kit-sync` is deliberately still absent: it compares .claude/hooks
+      # against sdlc-kit/runtime/hooks, and sdlc-kit is gitignored, so in a
+      # fresh CI clone it has nothing to compare and skips.
+      # Rule 2 — the model never computes a number the user sees. Guards the
+      # model's *output schema*: a model that never emits a number cannot
+      # compute one, whatever a render path later does. It does not check
+      # arithmetic our own code performs on model output — that needs a
+      # user-visible number to exist first, and none does yet.
+      - name: Model numerics (Rule 2)
+        run: node tooling/scripts/check-model-numerics.mjs
+
+      # Rule 8 — the device is the source of truth. The product's claim is local
+      # inference; one request to a remote host falsifies it for every adopter.
+      # Loopback passes, and the asset manifest passes only where each URL is
+      # pinned by sha256 — an allowlisted host with no hash would be a weaker
+      # guarantee than that file appears to give.
+      - name: Network egress (Rule 8)
+        run: node tooling/scripts/check-network-egress.mjs
+
+      - name: Documentation links resolve
+        run: node tooling/scripts/check-doc-links.mjs
+
       - name: Typecheck
         run: pnpm -r typecheck
 

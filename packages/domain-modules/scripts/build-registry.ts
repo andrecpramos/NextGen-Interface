@@ -1,8 +1,9 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  checkRegistryOwnership,
   formatValidation,
   generateCapabilitiesJson,
   generateGoldenEntries,
@@ -57,6 +58,22 @@ console.log(`  ${routes.length} routes, ${golden.length} generated golden entrie
 if (checkOnly) {
   console.log('\n  --check: valid, nothing written\n');
   process.exit(0);
+}
+
+// OUT_INTENT is shared by every domain's build script (see the header). Refuse
+// to replace a registry that describes a different application unless a human
+// says so. Identical guard in domain-finance's script — deliberately duplicated
+// rather than shared, because a build script reaching into a sibling domain is
+// the coupling Rule 1 exists to prevent.
+if (!process.argv.includes('--force') && existsSync(OUT_INTENT)) {
+  const verdict = checkRegistryOwnership(
+    readFileSync(OUT_INTENT, 'utf8'),
+    registry.capabilities.map((c) => c.id),
+  );
+  if (!verdict.safe) {
+    console.error(`\n  refusing to write — ${verdict.reason}\n`);
+    process.exit(1);
+  }
 }
 
 mkdirSync(OUT_GEN, { recursive: true });

@@ -64,6 +64,39 @@
       "fix": "An entry point in main/types/exports either does not exist, is not covered by `files`, or is TypeScript source. Run `pnpm build` first — the gate reads built output. A .ts entry point cannot work at all: Node refuses to strip types inside node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), which is what made every package in this repo uninstallable until 2026-09-11. If a package is not meant to be installed, mark it private."
     },
     {
+      "id": "prompt-fencing",
+      "title": "Rule 15 — a prompt never interpolates unfenced input",
+      "command": "node tooling/scripts/check-prompt-fencing.mjs",
+      "blocking": true,
+      "rule": "15",
+      "fix": "Wrap the value: fence('what this is', value), or redactTag('tagname', value) if the prompt already delimits with tags. If the prompt genuinely needs no fence, say why in the source with a `// rule15-ok: <reason>` comment next to the call. Note what this gate can and cannot see: it proves a fence was applied near a prompt, not that it covered the right value — fencing legitimately happens upstream. Reading for that is the boundary-auditor agent's job."
+    },
+    {
+      "id": "adversarial-live",
+      "title": "Adversarial bucket against a real model (local only)",
+      "command": "node tooling/scripts/check-adversarial.mjs",
+      "blocking": true,
+      "rule": "15",
+      "localOnly": true,
+      "fix": "A NEW entry made the router select a forbidden capability. Establish which layer moved before recording it: did the fence stop applying (check-prompt-fencing.mjs), or did the model disregard an intact fence (Finding 14's case — print the prompt and count the delimiters before assuming a bypass)? This gate is deliberately absent from CI: GitHub Actions has no model server, which is exactly why the adversarial bucket passed trivially there for so long and why three of Finding 14's four violations had never been seen. It skips cleanly with a loud message when Ollama is unreachable."
+    },
+    {
+      "id": "network-egress",
+      "title": "Rule 8 — the device is the source of truth",
+      "command": "node tooling/scripts/check-network-egress.mjs",
+      "blocking": true,
+      "rule": "8",
+      "fix": "A remote host in a runtime string literal falsifies the local-inference claim for every adopter. Loopback is fine. A model asset that must be downloaded belongs in packages/core-voice/src/assets.ts pinned by sha256, so a compromised host cannot substitute a different binary. Two things it cannot see: OLLAMA_HOST can be pointed anywhere by the environment, and a host assembled at run time from parts."
+    },
+    {
+      "id": "model-numerics",
+      "title": "Rule 2 — the model never returns a number",
+      "command": "node tooling/scripts/check-model-numerics.mjs",
+      "blocking": true,
+      "rule": "2",
+      "fix": "A number the model returns is a number the model computed. Have code compute it — the query engine sums, money.ts does the arithmetic — and let the model choose the capability and read values out of the utterance. If the number is genuinely never shown to a user, say why in the source with `// rule2-ok: <reason>`. This guards the model's output schema, not arithmetic our own code does on it: no user-visible number is rendered anywhere yet, so the render-path test the register used to propose would assert over an empty set."
+    },
+    {
       "id": "doc-links",
       "title": "Every relative documentation link resolves",
       "command": "node tooling/scripts/check-doc-links.mjs",

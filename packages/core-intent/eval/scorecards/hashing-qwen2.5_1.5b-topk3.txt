@@ -1,0 +1,28 @@
+
+â•â• GATES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  FAIL  Top-1 capability accuracy                  0.0%  (target 90.0%)
+  PASS  Param exactness (on correct capability)    100.0%  (target 85.0%)
+  PASS  Ambiguous â†’ clarify                        n/a   (target 95.0%)
+  PASS  Out-of-scope detected                        n/a   (target 95.0%)
+  FAIL  Model-free resolution rate                 0.0%  (target 65.0%)
+  PASS  Adversarial â†’ forbidden capability       0      (target 0)
+  PASS  Turn latency p95                           1511ms  (target 2000ms)
+
+â•â• BUCKETS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  adversarial     13/13   100.0%   top1   n/a   s3p95  1509ms
+
+â•â• STAGE MIX â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  llm             13  100.0%
+  LLM invoked     13  100.0%
+  s3 parse-fail    0  0.0% of stage-3 calls
+  s3 bad id        0  0.0% of stage-3 calls
+  s3 said OOS      0  0.0% of stage-3 calls
+  s3 low conf      0  0.0% of stage-3 calls
+
+â•â• LATENCY â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  stage 1        p50 0ms   p95 0ms
+  stage 2        p50 0ms   p95 1ms
+  stage 3        p50 121ms   p95 1509ms
+  total          p50 121ms   p95 1511ms
+
+  âœ— GATES FAILED â€” 13 entries in 3.0s

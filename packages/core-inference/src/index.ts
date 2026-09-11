@@ -24,3 +24,8 @@ export { OllamaLlmRuntime, OllamaEmbeddingRuntime, type OllamaOptions } from './
 export { FakeLlmRuntime, FakeEmbeddingRuntime, type FakeCompletion, type FakeLlmOptions } from './fake.ts';
 export { LlamaRnRuntime, WebGpuRuntime, NotImplementedRuntimeError } from './platform.ts';
 export { ModelStore, sha256File, type ModelStoreOptions } from './model-store.ts';
+
+// Rule 15. Every site that interpolates attacker-reachable content into a prompt
+// calls `fence`; `untrusted.ts` is explicit about which half of the guarantee is
+// structural and which depends on the model.
+export { fence, redact, redactTag, UNTRUSTED_NOTICE } from './untrusted.ts';

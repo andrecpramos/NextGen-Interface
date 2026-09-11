@@ -11,7 +11,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./ollama": "./src/ollama.ts"
+    "./ollama": "./src/ollama.ts",
+    "./untrusted": "./src/untrusted.ts"
   },
   "files": [
     "dist",
@@ -28,6 +29,10 @@
       "./ollama": {
         "types": "./dist/ollama.d.ts",
         "default": "./dist/ollama.js"
+      },
+      "./untrusted": {
+        "types": "./dist/untrusted.d.ts",
+        "default": "./dist/untrusted.js"
       }
     }
   }

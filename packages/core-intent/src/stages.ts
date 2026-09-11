@@ -2,6 +2,9 @@ import { normalize, contentTokens } from './text.ts';
 import { actionSignalApplies } from './action.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
+// The subpath, not the package root: the root re-exports the model store, which imports
+// node:crypto/fs/path, and stages.ts is in the browser bundle (lessons.md L11).
+import { redactTag } from '@nextgen/core-inference/untrusted';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
 import { OUT_OF_SCOPE_ID } from './config.ts';
 import { STAGE, type Candidate, type Embedder, type Registry, type SlotValue, type Stage } from './types.ts';
@@ -252,6 +255,12 @@ export async function stage3(
   // WP-01 caveat: that only works if the model will actually pick it. gemma3:1b
   // never does, across 140 calls (FINDINGS Finding 7). The mechanism below is
   // correct and insufficient; do not assume out-of-scope input is caught here.
+  // rule2-ok: `confidence` is the only number the model is asked for anywhere in
+  // this codebase, and it is never shown to a user. It is routing telemetry —
+  // read by the dispatcher's threshold gate and recorded in the trace, which is
+  // exactly why it is named `selfReportedConfidence` at every point it is
+  // handled. FINDINGS Finding 8 measured it near-constant at 1B, so it is not
+  // even trustworthy as telemetry; displaying it would be worse than useless.
   const schema: JsonSchema = {
     type: 'object',
     properties: {
@@ -287,7 +296,13 @@ export async function stage3(
     'Capabilities:',
     JSON.stringify(menu, null, 2),
     '',
-    `<utterance>${utterance}</utterance>`,
+    // Rule 15. The system message already tells the model that what is inside
+    // these tags is data — but the utterance was interpolated raw, so an input
+    // containing `</utterance>` closed the region early and everything after it
+    // arrived as prompt. The instruction was right; nothing enforced it.
+    // `redactTag` leaves every non-attacking utterance byte-identical, so the
+    // prompt this produces is unchanged and no recalibration is owed.
+    `<utterance>${redactTag('utterance', utterance)}</utterance>`,
   ].join('\n');
 
   const result = await opts.runtime.complete<{
