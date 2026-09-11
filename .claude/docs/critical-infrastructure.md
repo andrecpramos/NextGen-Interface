@@ -136,7 +136,7 @@ taps through.
 | Rule 14 — thresholds calibrated per encoder, never hand-set | `tooling/scripts/check-thresholds.mjs`, in CI | **enforced (added 2026-09-08)** |
 | Rule 11 — deterministic slot values beat model-extracted ones | `slots.test.ts` | **enforced by test** |
 | Rule 2 — the model never computes a number the user sees | comments at `core-intent/src/types.ts`, `ui/src/types.ts`, `apps/web/lib/render.ts` | **convention — no test** |
-| Derived artefacts follow their inputs: a change to `normalize()`, the encoder or a registry regenerates the thresholds, indexes and scorecards built from it | `check-thresholds.mjs` covers the reference registry's profiles only. `calibrate-registries.mjs`, `rebuild-indexes.mjs` and `verify-browser-parity.mjs` exist, and **nothing runs them** | **none. Went stale once, on 2026-09-11: ten shipped indexes, with CI green (PLAN.md WP-46)** |
+| Derived artefacts follow their inputs: a change to `normalize()`, the encoder or a registry regenerates the thresholds, indexes and scorecards built from it | `tooling/scripts/check-derived-artefacts.mjs`, in CI since WP-46. It runs `rebuild-indexes.mjs --check` (each shipped index equals a fresh rebuild by the generator's own `writeIndexes`), `calibrate-registries.mjs --check` (the per-registry thresholds equal a fresh sweep) and `verify-browser-parity.mjs` (the browser makes the server's decision on all 210 turns). `check-thresholds.mjs` still covers the reference registry | **gate (2026-09-11, WP-46).** It went stale once before this existed: ten shipped indexes, with CI green |
 
 > **The gap Rule 14's gate closes.** `pnpm router:calibrate` writes its
 > recommendation to `eval/scorecards/thresholds-<kind>.json`, and **nothing reads
@@ -363,6 +363,7 @@ session rather than claiming the set.
 | `network-egress` | 2026-09-10 | Pointed `OLLAMA` at a remote host **and** deleted an asset's `sha256`; exited 1 naming both, with different reasons |
 | `adversarial-live` | 2026-09-10 | Removed `gs-0181` from the baseline; exited 1 identifying it as new. Its first draft reported a missing scorecard as a "new safety violation" — alarming and wrong, since nothing unsafe had happened and the gate simply could not look. Now a separate `BROKEN` path |
 | `registry-owner` (build scripts) | 2026-09-10 | Ran `domain-finance`'s build directly against the modules registry; refused and left the file byte-identical. Note the pre-existing hook denying `pnpm registry:build:finance` did **not** catch this — it matches a command string, and invoking the script directly walks past it |
+| `derived-artefacts` | 2026-09-11 | Deleted the `normalize()` punctuation line: the exact change that went stale unnoticed that morning. **All three checks failed**: 10 of 10 indexes stale, the per-registry `tauHigh` 0.61 shipped vs 0.59 re-swept, and browser parity broken. Restored with `git checkout`, and all three passed. About a second per run |
 | `import-boundaries` | — | not yet deliberately broken, **but it caught a real one 2026-09-10**: a doc comment in `core-inference` naming two domain packages. The text grep is blunt on purpose and the comment was reworded rather than the gate relaxed |
 | `registry-check` | — | not yet deliberately broken |
 | `check-thresholds` | — | not yet deliberately broken |
@@ -395,7 +396,7 @@ session rather than claiming the set.
 | — | Top-1 accuracy does not regress across a prompt change | none — `evaluate-golden.mjs` would catch it, nothing runs it. Cost 7 points once already ([L9](lessons.md)) | **none** |
 | — | The browser entry loads with no Node globals ([L11](lessons.md)) | `packages/embed/src/embed.test.ts` runs the built bundle in a bare `vm` context holding only `window`, `console` and `performance` | **test (2026-09-11, WP-29)** |
 | — | The published package view is importable | `check-packaging.mjs` reads each manifest with `publishConfig` applied, after `pnpm build` in CI | **gate (WP-26)** |
-| — | Shipped indexes and per-registry thresholds match their inputs | none. The scripts exist but are not wired in (PLAN.md WP-46) | **none** |
+| — | Shipped indexes and per-registry thresholds match their inputs | `check-derived-artefacts.mjs`, CI (WP-46) | **gate (2026-09-11)** — covers `eval/fut-app/generated`; an adopter's own kit build is checked by its `doctor`, not here |
 
 ---
 
@@ -416,11 +417,13 @@ one that topped this list.)*
    accepted it, option B, on 2026-09-11.** The gap closes when PLAN.md WP-47 implements
    it, not before. An accepted decision that is not yet implemented is the same problem
    with a document attached.
-2. **Derived artefacts are not gated.** Section 4. On 2026-09-11 a one-line change to
-   `normalize()` left ten shipped indexes and two threshold profiles stale, and CI stayed
-   green. Only a manual parity run noticed. Every adopter's browser would have received
-   vectors that no longer matched its own query encoder. PLAN.md WP-46 wires the three
-   existing scripts into CI.
+2. ~~**Derived artefacts are not gated.**~~ ✅ **Gated 2026-09-11 (WP-46).** On
+   2026-09-11, a one-line change to `normalize()` left ten shipped indexes and two
+   threshold profiles stale, and CI stayed green. Only a manual parity run noticed.
+   Every adopter's browser would have received vectors that no longer matched its own
+   query encoder. `check-derived-artefacts.mjs` now runs the three scripts that would
+   have caught it, in CI, and it was made to fail on exactly that change (see "Gates
+   seen failing on purpose").
 3. **Rule 2 is half-gated, and the other half cannot be tested yet.**
    `check-model-numerics.mjs` (CI, 2026-09-10) fails any model output schema
    declaring `type: 'number'` without a `// rule2-ok:` justification — a model

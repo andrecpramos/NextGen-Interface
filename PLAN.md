@@ -45,11 +45,12 @@ or pick up a WP:
   not when you reach it.
 - **A change to an upstream function must list what it invalidates.** One line in
   `normalize()` made two threshold profiles, ten indexes and two scorecards stale (Rule
-  14). Until WP-46 gates this, regenerate by hand, in this order:
+  14). **Since WP-46, CI catches the shipped ones** (`check-derived-artefacts.mjs`). It
+  does not fix them, so regenerate by hand, in this order:
   1. `router:calibrate`
   2. `eval/fut-app/rebuild-indexes.mjs`
-  3. `eval/fut-app/calibrate-registries.mjs`
-  4. `eval/fut-app/verify-browser-parity.mjs`
+  3. `eval/fut-app/calibrate-registries.mjs --embedder hashing`
+  4. `node tooling/scripts/check-derived-artefacts.mjs`
 - **Three lessons that each cost a false claim before they were written down:**
   - Prove an artefact where it will run ([L11](.claude/docs/lessons.md)).
   - Record every give-up at the moment it happens ([L12](.claude/docs/lessons.md)).
@@ -71,7 +72,7 @@ on 2026-09-11; see §13.
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
 | 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **Left:** WP-43's app, a `calibrate` command, and the owner's run | M4 | M | agent |
-| 2 | **WP-46** · Gate the derived artefacts. Browser/server parity, per-registry calibration and index staleness all go into CI. Then an upstream change like `normalize()`'s cannot leave shipped vectors stale again | M4 | S | agent |
+| 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
 | 3 | **WP-42** · Audit the generated descriptions. 100 of 145 have never been read by a person, and a wrong one misroutes silently | M4 | S–M | agent, then owner sample |
 | 4 | **WP-43** · A second external app, **with role guards**. Rule 17 has only ever been validated on `fut-app` | M4 | M | agent |
 | 5 | **WP-45** · Accessibility. The agent runs automated checks and writes an NVDA checklist; the owner does the screen-reader pass | M4 | S | agent, then owner |
@@ -87,7 +88,7 @@ adversarial violations). So the fence narrows WP-48 without replacing it.
 
 **Why this order.**
 - **WP-41 comes first**, because the other items are exercised *through* it.
-- **WP-46 is cheap**, and it closes the exact failure that the last session hit by hand.
+- ~~**WP-46 is cheap**~~ ✅ Done. It closed the exact failure that the last session hit by hand.
 - **WP-42 and WP-43 come before the owner's run.** They are the two ways the kit could be
   wrong on an app nobody has checked, and each is far cheaper to find here than in
   `fut-app`.
@@ -513,7 +514,8 @@ NextGen_Interface/
 ├── eval/fut-app/     ground truth · golden set · generated registries · measurements
 ├── models/           voice/        — gitignored, downloaded assets
 ├── tooling/scripts/  check-import-boundaries · check-thresholds · check-scorecard
-│                     check-packaging · check-doc-links · check-kit-sync
+│                     check-packaging · check-doc-links · check-kit-sync · check-derived-artefacts
+│                     check-prompt-fencing · check-model-numerics · check-network-egress · check-adversarial
 └── PLAN.md · README.md · WRITEUP.md · INSTALL.md · SETUP.md · CLAUDE.md
 ```
 
@@ -790,7 +792,7 @@ adversarial violation is new, see above).
 | 2026-09-11: WP-26 pointed the workspace at `dist` | `apps/web` typechecked against stale types, and `pnpm web` and vitest ran old builds | `publishConfig`: the workspace resolves source, and the tarball ships `dist` | **The workspace view and the published view are different artefacts.** Check each where it is consumed |
 | 2026-09-11 (WP-28): discovery gave up on unreadable routes before recording any skips | On an app we do not own it found 1 of 8 routes and reported **0** skips | Read `lazy`, aliases and path tables; add the `unreadable-route` reason | **A report cannot mention what the tool never saw** (L12) |
 | 2026-09-11 (WP-29): the "browser" entry reached `node:*` through a dependency, and read `process.env` at module scope | `ReferenceError` on first load in any page, while `check-packaging.mjs` passed | A `core-inference/ollama` subpath, and guarded reads | **An entry point that exists is not one that loads** (L11) |
-| **2026-09-11 (WP-21): `normalize()` kept sentence punctuation** | Whisper ends every transcript with a full stop, so "My modules." missed the stage-1 trigger. 10 of 40 spoken turns routed differently from typed. Typed input had the same bug all along | Strip `.` and `,` unless a digit is on both sides. Recalibrate, and rebuild every index | **Changing an upstream function invalidates everything derived from it.** Two threshold profiles, ten indexes and two scorecards went stale, and only a manual parity run noticed. WP-46 gates it |
+| **2026-09-11 (WP-21): `normalize()` kept sentence punctuation** | Whisper ends every transcript with a full stop, so "My modules." missed the stage-1 trigger. 10 of 40 spoken turns routed differently from typed. Typed input had the same bug all along | Strip `.` and `,` unless a digit is on both sides. Recalibrate, and rebuild every index | **Changing an upstream function invalidates everything derived from it.** Two threshold profiles, ten indexes and two scorecards went stale, and only a manual parity run noticed. **WP-46 now gates it in CI** |
 | **2026-09-11 (WP-41): the uncalibrated default was assumed to be merely cautious** | On a 145-screen app it sent 2 of 7 confident stage-2 answers to the wrong screen, and wrongly refused 1 of 105 real questions. The first draft of `doctor` told adopters it would only "ask more clarifying questions" | Measured before the claim shipped. `doctor` now states the numbers | **A default is a calibration made for somebody else's registry.** This is Rule 14 again, seen from the adopter's side: uncalibrated does not mean conservative |
 
 ---
@@ -2087,7 +2089,24 @@ the kit ships the shipped profile, and `doctor` says **uncalibrated** in plain w
 
 ---
 
-### WP-46 · Gate the derived artefacts
+### WP-46 · Gate the derived artefacts ✅ **COMPLETE — 2026-09-11**
+
+> **Done.** [`check-derived-artefacts.mjs`](tooling/scripts/check-derived-artefacts.mjs)
+> runs in CI's `verify` job and is declared in `sdlc.config.json`. It runs three existing
+> scripts, without changing what any of them computes:
+> - `rebuild-indexes.mjs --check` rebuilds every index with the generator's own
+>   `writeIndexes`, and compares it with the shipped one, ignoring the timestamp.
+> - `calibrate-registries.mjs --check` re-runs the sweep and compares the thresholds only.
+> - `verify-browser-parity.mjs` replays 210 turns through both the shipped index and the
+>   server path.
+>
+> **The acceptance test, run on the real change.** With the `normalize()` fix deleted,
+> **all three checks failed**:
+> - 10 of 10 indexes were stale;
+> - `tauHigh` was 0.61 as shipped but 0.59 when re-calibrated;
+> - browser parity broke.
+>
+> With the fix restored, all three passed. Each run takes about a second.
 
 **Goal.** A change to anything upstream of a shipped artefact fails CI until the artefact
 is regenerated.
@@ -2110,7 +2129,9 @@ would have stayed green. This is L6 and L11 again: a check that nobody runs is n
 where they conflict.
 
 **Acceptance.**
-- [ ] Revert the `normalize()` fix locally: CI goes red. Restore it: CI goes green.
+- [x] Revert the `normalize()` fix locally, and the gate goes red on all three checks.
+      Restore it, and it goes green. This was run locally with the same command CI runs;
+      CI on this PR is the second proof.
 
 ---
 
@@ -2322,6 +2343,7 @@ pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 node tooling/scripts/check-doc-links.mjs           # every relative link resolves
+node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
 pnpm -r typecheck
 pnpm -r test                                       # 544 tests, 14 packages
 pnpm registry:check                                # Rule 10
@@ -2340,7 +2362,7 @@ node --experimental-strip-types eval/fut-app/prove-refusal.mjs COACH   # model-f
 node --experimental-strip-types eval/fut-app/evaluate-golden.mjs       # headline numbers, per-registry thresholds
 node --experimental-strip-types eval/fut-app/calibrate-registries.mjs  # Rule 14 for the generated registries
 node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs       # after ANY change to the encoder's input
-node --experimental-strip-types eval/fut-app/verify-browser-parity.mjs # shipped index == server decision (not in CI: WP-46)
+node --experimental-strip-types eval/fut-app/verify-browser-parity.mjs # shipped index == server decision (in CI via check-derived-artefacts)
 
 # the drop-in kit (WP-41): what an adopter runs; it writes only <app>/nextgen
 node packages/kit/src/cli.ts init   <app folder>
@@ -2386,7 +2408,7 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON. One `package.json`
 - [ ] Failure paths implemented, not just the happy path
 - [ ] **If the change sits upstream of a shipped artefact** (text normalisation, the
       encoder, a registry), everything derived from it was regenerated, in the order §0
-      gives, and `verify-browser-parity.mjs` is green
+      gives, and `check-derived-artefacts.mjs` is green. CI runs it too
 - [ ] **Any step that needs the owner is named in the WP**, in the queue's Who column,
       before the work starts
 - [ ] **A browser-facing artefact was run with only a browser's globals** (L11), not only

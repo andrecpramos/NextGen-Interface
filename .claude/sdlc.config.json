@@ -104,6 +104,20 @@
       "fix": "The named target does not exist. Either the file moved (update the link) or the link was always wrong. Note this gate only sees markdown links — a path in a JSON string or a code comment is not checked."
     },
     {
+      "id": "derived-artefacts",
+      "title": "WP-46 — shipped indexes, thresholds and browser decisions follow their inputs",
+      "command": "node tooling/scripts/check-derived-artefacts.mjs",
+      "blocking": true,
+      "rule": "14",
+      "when": [
+        "packages/core-intent/src/**",
+        "packages/core-capability/src/**",
+        "packages/generator/src/**",
+        "eval/fut-app/**"
+      ],
+      "fix": "Something upstream of eval/fut-app/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements."
+    },
+    {
       "id": "kit-sync",
       "title": "Hooks identical in .claude/ and sdlc-kit/runtime/",
       "command": "node tooling/scripts/check-kit-sync.mjs",
