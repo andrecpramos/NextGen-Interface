@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-12 · **Branch:** `feature/wp45-accessibility`, based on `develop` · **16 workspace packages · 629 tests,
+**Verified against disk:** 2026-09-12 · **Branch:** `feature/wp44-portuguese-voice`, based on `develop` · **16 workspace packages · 632 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -76,7 +76,7 @@ on 2026-09-11; see §13.
 | 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows ([DESCRIPTION_AUDIT.md](eval/fut-app/DESCRIPTION_AUDIT.md)) | M4 | S–M | **owner** |
 | 4 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](eval/tutor-app/RESULT.md)) | M4 | M | done |
 | 5 | ◐ **WP-45** · Accessibility, **agent half done 2026-09-12**. `check-accessibility.mjs` runs the **built bundle** in a real DOM and audits every state a user can reach: **18 checks, 0 serious or critical**, now a CI gate. **It found a real defect on its first run** — focus fell to the document body when an answer replaced the link the user was standing on; fixed, with both halves of the rule as tests. **Left:** the owner runs [the 17-item NVDA pass](eval/a11y/NVDA-CHECKLIST.md). Until then the claim is *"automated checks pass; no screen reader has confirmed it"* | M4 | S | **owner** |
-| 6 | **WP-44** · Portuguese and real-voice acceptance. `fut-app` is Portuguese, and WP-21 measured English synthetic speech only | — | S | agent + owner recordings |
+| 6 | ◐ **WP-44** · Portuguese voice, **agent half done 2026-09-12**. A multilingual whisper model and a pt_PT voice are hash-pinned; 40 pt-PT turns across 8 roles, 3 passes, both recognisers on identical audio. **Agreement 93.3% (`base`) and 91.7% (`small`)** — above the 80% bar, but **the split is 26/26 in-domain and 11/14 at the boundary**, and word error is **46–59%** against English's 7.1%. Found that **Piper is not deterministic**, so the first model comparison was measuring different recordings ([VOICE-PT.md](eval/fut-app/VOICE-PT.md)). **Left:** the owner records 20 real utterances — the Stop-if is defined on real speech | — | S | **owner** |
 | 7 | **WP-35** · **The owner's run.** Drop the kit into `fut-app`, deploy, measure cost per session on real traffic, check guided steps on a real form, record the side-by-side clip | M3/M4 | M | **owner** |
 | 8 | ✅ **WP-47** · ADR-016 option B, **done 2026-09-12**. Each domain writes its own `generated/registry.json`; the eval scripts require `--registry=`. **Both domains now build back to back without clobbering, and CI diffs both in one job** — the gate got wider. The hook denying `pnpm registry:build:finance` is deleted along with its reason. Ranked gap #1 since 2026-09-08 is closed. Two Rule 1 holes found on the way (below) | M4 | S–M | done |
 
@@ -471,8 +471,8 @@ someone who did not write it.
 
 ### Tests
 
-629 tests across 15 packages, all green on 2026-09-12, after WP-41, WP-46, WP-42's agent
-half, WP-43, WP-47 and WP-45's agent half landed. `services/api` has none.
+632 tests across 15 packages, all green on 2026-09-12, after WP-41, WP-46, WP-42's agent
+half, WP-43, WP-47 and the agent halves of WP-45 and WP-44 landed. `services/api` has none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -483,7 +483,7 @@ half, WP-43, WP-47 and WP-45's agent half landed. `services/api` has none.
 | `core-trace` | 28 | | `core-dispatch` | 26 |
 | `ui` | 16 (anchor resolver) | | `apps/cli` | 15 |
 | `kit` | 12 (WP-41: init, build, doctor) | | `embed` | 27 (the script tag, the chat box, WP-45's focus rule) |
-| `core-voice` | 4 (asset store; acceptance is an eval) | | | |
+| `core-voice` | 7 (asset store, and WP-44's manifest) | | | |
 
 ---
 
@@ -2263,8 +2263,22 @@ stops until it is provably correct.
 - The owner records 20 real utterances, and the same comparison runs on those.
 
 **Acceptance.**
-- [ ] Agreement between typed and spoken, and WER, are reported separately for synthetic
-      pt-PT and for real speech.
+- [x] **Synthetic pt-PT reported** — [VOICE-PT.md](eval/fut-app/VOICE-PT.md),
+      `voice-acceptance.json`. Agreement **93.3%** (`base`, 92.5–95.0% over three
+      passes) and **91.7%** (`small`, 90.0–92.5%); word error **59.3%** and **46.3%**.
+      `small` halves the word error and buys **nothing** in agreement, so there is no
+      reason to ship it for routing. **Three findings the headline hides:** every
+      repeated disagreement is `out_of_scope` → `clarify` (the boundary degrades under
+      mishearing, navigation does not); one of the three is the *router's* brittleness,
+      not the recogniser's — `small` transcribed it almost perfectly and the decision
+      still flipped; and **Piper is not deterministic**, so the first `base`-vs-`small`
+      comparison was measuring two different recordings and had to be rebuilt around one
+      synthesis pass heard by both.
+- [ ] **Real speech, reported separately and never averaged with synthetic** — the owner
+      records 20 utterances; the protocol is in
+      [VOICE-PT.md](eval/fut-app/VOICE-PT.md#the-half-that-is-still-owed), including the
+      three utterances most worth including. **A synthetic run cannot separate Piper's
+      pronunciation from whisper's hearing; a human speaker can, in one run.**
 
 **Stop if.** Agreement is below 80% on real speech. Then voice stays out of the Portuguese
 pitch.
@@ -2425,7 +2439,7 @@ node tooling/scripts/check-thresholds.mjs          # Rule 14
 node tooling/scripts/check-doc-links.mjs           # every relative link resolves
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
 pnpm -r typecheck
-pnpm -r test                                       # 629 tests, 15 packages
+pnpm -r test                                       # 632 tests, 15 packages
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
@@ -2455,7 +2469,9 @@ node --experimental-strip-types eval/fut-app/experiment-self-calibration.mjs   #
 pnpm build && node tooling/scripts/check-packaging.mjs                 # what a tarball really exposes
 node packages/embed/build.mjs                                          # the script tag → packages/embed/dist/nextgen.js
 node --experimental-strip-types packages/core-voice/eval/acceptance.mjs \
-  --registry=packages/domain-modules/generated/registry.json           # voice round trip; needs models/voice
+  --registry=packages/domain-modules/generated/registry.json           # voice round trip, ENGLISH; needs models/voice
+node --experimental-strip-types eval/fut-app/voice-acceptance.mjs \
+  --n 40 --whisper base,small --repeat 3                               # WP-44: the same round trip in pt-PT
 
 # router
 pnpm router:inspect          # score distributions, recall@k — always look here first

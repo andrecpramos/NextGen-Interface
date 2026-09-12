@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { VoiceAssetStore, WHISPER_CLI_ASSET, WHISPER_MODEL_ASSET } from './assets.ts';
+import { VoiceAssetStore, WHISPER_CLI_ASSET, WHISPER_MODELS, type WhisperModelId } from './assets.ts';
 import type { SttEngine, SttResult } from './types.ts';
 
 const run = promisify(execFile);
@@ -17,6 +17,17 @@ interface WhisperJsonOutput {
 export interface WhisperCppOptions {
   readonly store: VoiceAssetStore;
   readonly timeoutMs?: number;
+  /** `base.en` (default, English-only, WP-21's) or `base` (multilingual, WP-44's). */
+  readonly model?: WhisperModelId;
+  /**
+   * The language being spoken, as an ISO code — `pt` for Portuguese.
+   *
+   * Only meaningful with the multilingual model, and worth being explicit about:
+   * left to auto-detect, whisper decides per clip, and a short utterance it
+   * mis-detects comes back translated into English rather than transcribed. A
+   * measurement cannot afford that ambiguity.
+   */
+  readonly language?: string;
 }
 
 /**
@@ -35,10 +46,19 @@ export class WhisperCppSttEngine implements SttEngine {
   readonly name = 'whisper.cpp';
   readonly #store: VoiceAssetStore;
   readonly #timeoutMs: number;
+  readonly #model: WhisperModelId;
+  readonly #language: string | undefined;
 
   constructor(options: WhisperCppOptions) {
     this.#store = options.store;
     this.#timeoutMs = options.timeoutMs ?? 60_000;
+    this.#model = options.model ?? 'base.en';
+    this.#language = options.language;
+  }
+
+  /** Which model this engine hears with — a word error rate means nothing without it. */
+  get model(): WhisperModelId {
+    return this.#model;
   }
 
   async isAvailable(): Promise<boolean> {
@@ -58,7 +78,8 @@ export class WhisperCppSttEngine implements SttEngine {
     const workDir = await mkdtemp(join(tmpdir(), 'nextgen-whisper-'));
     const outputBase = join(workDir, 'result');
     try {
-      await run(exe, ['-m', model, '-f', wavPath, '-np', '-nt', '-oj', '-of', outputBase], {
+      const language = this.#language ? ['-l', this.#language] : [];
+      await run(exe, ['-m', model, '-f', wavPath, '-np', '-nt', '-oj', '-of', outputBase, ...language], {
         timeout: this.#timeoutMs,
       });
 
@@ -79,6 +100,6 @@ export class WhisperCppSttEngine implements SttEngine {
   }
 
   async #modelPath(): Promise<string> {
-    return this.#store.ensure(WHISPER_MODEL_ASSET);
+    return this.#store.ensure(WHISPER_MODELS[this.#model]);
   }
 }
