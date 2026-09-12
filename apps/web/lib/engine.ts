@@ -68,7 +68,7 @@ const cache: EngineCache = (globalRef.__nextgenEngine ??= {
  * Both candidates are checked rather than assumed.
  */
 function findRegistry(): string {
-  const rel = join('packages', 'core-intent', 'eval', 'registry.json');
+  const rel = join('packages', 'domain-modules', 'generated', 'registry.json');
   const candidates = [
     resolve(process.cwd(), '..', '..', rel), // apps/web  → repo root
     resolve(process.cwd(), rel),             // repo root

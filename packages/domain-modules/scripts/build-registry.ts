@@ -21,17 +21,15 @@ import { registry } from '../src/capabilities.ts';
  * the app router reads, and the golden-set fixtures that assert the two
  * agree.
  *
- * ⚠️ `OUT_INTENT` is one global path, not namespaced per domain — only one
- * domain's build script may be authoritative at a time. This is now the one
- * the root `registry:build`/`registry:check` scripts invoke; running
- * `domain-finance`'s standalone would silently clobber this output.
+ * `OUT_INTENT` is this domain's own `generated/registry.json` (WP-47, ADR-016).
+ * Until then every domain wrote one shared path and only one could be
+ * authoritative at a time; the eval scripts now take `--registry=` instead.
  *
  *   node scripts/build-registry.ts [--check]
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = join(HERE, '..', '..', '..');
-const OUT_INTENT = join(REPO, 'packages', 'core-intent', 'eval', 'registry.json');
+const OUT_INTENT = join(HERE, '..', 'generated', 'registry.json');
 const OUT_GEN = join(HERE, '..', 'generated');
 
 const checkOnly = process.argv.includes('--check');
@@ -60,9 +58,11 @@ if (checkOnly) {
   process.exit(0);
 }
 
-// OUT_INTENT is shared by every domain's build script (see the header). Refuse
-// to replace a registry that describes a different application unless a human
-// says so. Identical guard in domain-finance's script — deliberately duplicated
+// OUT_INTENT is this domain's own path since WP-47, so this refusal now needs a
+// misconfigured output rather than a mistyped command. Kept anyway: replacing a
+// registry that describes a different application is the worst failure available
+// here, and it is one `existsSync` to rule out. Identical guard in
+// domain-finance's script — deliberately duplicated
 // rather than shared, because a build script reaching into a sibling domain is
 // the coupling Rule 1 exists to prevent.
 if (!process.argv.includes('--force') && existsSync(OUT_INTENT)) {

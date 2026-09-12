@@ -49,9 +49,9 @@ Regenerate now and confirm the generated files are what you expect. They are
 committed in the **same commit** as the declaration; a declaration without its
 artefacts is what the staleness gate exists to catch.
 
-Do not run `pnpm registry:build:finance` — every domain's build script writes the
-same `packages/core-intent/eval/registry.json`, so it silently replaces the
-registry the router reads. The guard hook denies it.
+`pnpm registry:build:finance` is safe to run: since WP-47 each domain writes its
+own `packages/domain-<name>/generated/registry.json`. Rebuild whichever domain you
+changed, and commit its `generated/` directory.
 
 ## 4 · Failing test
 

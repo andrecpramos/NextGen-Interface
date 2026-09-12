@@ -219,7 +219,7 @@ export class NextGenApp {
     // The registry is generated from domain-modules by `pnpm registry:build`.
     const registryPath = options.registryPath ?? join(
       import.meta.dirname, '..', '..', '..',
-      'packages', 'core-intent', 'eval', 'registry.json',
+      'packages', 'domain-modules', 'generated', 'registry.json',
     );
     const registry = await loadRegistry(registryPath, embedder);
 

@@ -129,12 +129,25 @@ authoritative domain went ungated.
 
 **Fixed.** The step now diffs `packages/domain-modules/generated/*`. The comment
 above it records what it used to diff and why, so the next person to touch the
-paths knows what the trap looked like. The underlying `OUT_INTENT` shared-path
-collision is *not* fixed — a third domain forces that issue.
+paths knows what the trap looked like.
+
+**And fixed underneath, 2026-09-12 (WP-47, ADR-016).** The `OUT_INTENT` shared-path
+collision that forced the gate to be domain-scoped in the first place is gone: each
+domain writes its own `generated/registry.json`, and the step now builds **both**
+domains and diffs both directories in one job. The gate got *wider*, which is the
+first time a fix here has gone in that direction.
+
+**It nearly happened a second time, 2026-09-12.** Widening the same gate to both
+domains, `domain-finance/generated/registry.json` turned out never to have been
+committed — before WP-47 that build wrote the shared path. So the build produced an
+**untracked** file, and `git diff --quiet` does not see untracked files: green again,
+checking nothing again. Caught by running the gate's own command and reading its
+output rather than trusting it. It now uses `git status --porcelain`.
 
 **The lesson.** A job name is marketing; the `run:` lines are the truth. **A gate
 nobody has seen fail is a gate nobody knows works.** Make every new gate fail on
-purpose once, and record that you did.
+purpose once, and record that you did. And when a gate asks git a question, check it
+is asking about the files that exist rather than only the ones git already tracks.
 
 **Enforcement:** the "Gates seen failing on purpose" table in
 [critical-infrastructure.md](critical-infrastructure.md). Still mostly empty,

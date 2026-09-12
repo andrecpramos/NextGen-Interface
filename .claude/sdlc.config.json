@@ -161,13 +161,13 @@
     {
       "id": "registry-stale",
       "title": "Generated artefacts match the committed ones",
-      "command": "pnpm registry:build && git diff --quiet -- packages/core-intent/eval/registry.json packages/domain-modules/generated",
+      "command": "pnpm registry:build && pnpm registry:build:finance && test -z \"$(git status --porcelain -- packages/domain-modules/generated packages/domain-finance/generated)\"",
       "blocking": true,
       "when": [
         "packages/domain-*/src/capabilities.ts",
         "packages/domain-*/scripts/**"
       ],
-      "fix": "pnpm registry:build, then stage the generated files in the same commit as the declaration change."
+      "fix": "Run pnpm registry:build and pnpm registry:build:finance, then stage the generated files in the same commit as the declaration change. Untracked counts as stale: a domain's first registry.json has never been committed."
     },
     {
       "id": "router-floor",
@@ -210,13 +210,7 @@
     "denyBroadStaging": true,
     "denyProductionWrites": true,
     "denyBranchFromProduction": true,
-    "extraDeny": [
-      {
-        "pattern": "pnpm\\s+registry:build:finance",
-        "reason": "Every domain's build script writes the same packages/core-intent/eval/registry.json. Running the finance build silently replaces the registry the router reads with the finance registry.",
-        "instead": "pnpm registry:build (domain-modules is the authoritative one). See .claude/docs/critical-infrastructure.md."
-      }
-    ]
+    "extraDeny": []
   },
   "postEdit": [
     {

@@ -178,12 +178,13 @@ Two warnings, both learned the hard way:
 
 `packages/domain-modules/src/capabilities.ts` is the source of truth — it is the
 **registered** domain since WP-14, and it is what `pnpm registry:build` builds.
-`domain-finance` is a second reference application; building *it* writes the same global
-`registry.json` and would silently replace the one the router loads, which is why a hook
-blocks it. After editing:
+`domain-finance` is a second reference application. Since WP-47 each domain writes its
+own `packages/domain-<name>/generated/registry.json`, so building either is safe and CI
+checks both. (Until then they shared one path, building the wrong one silently replaced
+the registry the router loads, and a hook blocked it.) After editing:
 
 ```bash
-pnpm registry:build     # regenerates registry.json, routes.json, golden fixtures
+pnpm registry:build     # regenerates this domain's generated/: registry.json, routes.json, fixtures
 pnpm registry:check     # the CI gate
 pnpm router:calibrate   # RE-CALIBRATE — see below
 ```

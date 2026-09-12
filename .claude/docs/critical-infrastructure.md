@@ -38,18 +38,20 @@ subsystem reads.
 | Rule 13 — limits declared, not judged | the `unsupported` kind and `defineBoundary`, asserted in both domains' tests | **enforced** |
 | Generated artefacts match the committed ones | CI step "Registry artefacts are current" | **enforced (fixed 2026-09-08)** |
 
-> ⚠️ **The known fragility: `OUT_INTENT` is one global path.** Every domain's
-> `scripts/build-registry.ts` writes the same
-> `packages/core-intent/eval/registry.json`, so **only one domain's build script
-> can be authoritative at a time**. `pnpm registry:build` (domain-modules) is the
-> authoritative one; running `pnpm registry:build:finance` silently replaces the
-> registry the router reads with the finance registry.
+> ✅ **Resolved 2026-09-12 (WP-47, [ADR-016](../decisions/ADR-016.md) option B).**
+> Each domain now writes its own `packages/domain-<name>/generated/registry.json`,
+> and the eval scripts take `--registry=`. There is no longer a path two builds
+> compete for, so **both domains' artefacts are checked in one CI job** and
+> `pnpm registry:build:finance` is an ordinary command. The hook that denied it
+> has been removed, because the reason for denying it is gone.
 >
-> This is why CI cannot check both domains' artefacts in one job, and why the
-> staleness gate covers `domain-modules/generated/` only. **Until 2026-09-08 that
-> gate diffed `domain-finance/generated/` — files the build never touches — so it
-> passed vacuously while real drift went ungated.** Fixed; the underlying
-> shared-path collision is not. A third domain forces the issue.
+> **What it was, and why the code still carries the scars.** Every domain's
+> `scripts/build-registry.ts` wrote the same
+> `packages/core-intent/eval/registry.json`, so only one domain's build could be
+> authoritative at a time, and running the other silently replaced the registry
+> the router reads. That is why the staleness gate covered `domain-modules/generated/`
+> only — and **until 2026-09-08 it diffed `domain-finance/generated/`, files the
+> build never touched, so it passed vacuously while real drift went ungated.**
 >
 > ### The clobber is now loud — 2026-09-10
 >
@@ -59,20 +61,18 @@ subsystem reads.
 > `unsupported` excluded because both domains declare boundaries under it — the
 > build refuses and names both sides. `--force` overrides.
 >
-> **This does not fix the collision, and must not be read as fixing it.** Where
-> generated artefacts should live is an architectural question: per-domain paths
-> change what the evaluator loads and what the staleness gate diffs, and that is
-> owed an ADR rather than an inference by whoever edited the file last. What
-> changed is only that a silent default became an explicit one.
+> **This did not fix the collision** — it made the mistake loud while the shared
+> path stayed. The fix was [ADR-016](../decisions/ADR-016.md), accepted by the owner
+> on 2026-09-11 and implemented by WP-47 on 2026-09-12.
 >
-> **That ADR is [ADR-016](../decisions/ADR-016.md). The owner accepted option B on
-> 2026-09-11.** It gives each domain's output its own path, with the eval scripts taking
-> `--registry=`. It sequences the change so that the first step, adding the flag with
-> today's path as its default, is provable by an unchanged scorecard. Until PLAN.md
-> WP-47 implements it, the guard and the documented order are what this repo has.
+> `checkRegistryOwnership` is kept. With per-domain paths a cross-application
+> write needs a misconfigured output path rather than a mistyped command, so it now
+> guards a narrower mistake than the one it was written for — but it is 14 tests
+> and one call per build script, and the failure it catches is still the worst one
+> available: a registry that describes an application nobody meant to ship.
 >
-> **There was already a `guard-git`-style hook denying `pnpm registry:build:finance`,
-> and it is not a substitute.** It matches a command string, so
+> **A `guard-git`-style hook denying `pnpm registry:build:finance` was not a
+> substitute either** (removed by WP-47 along with its reason). It matched a command string, so
 > `node packages/domain-finance/scripts/build-registry.ts` walked straight past
 > it — which is how this was verified. Like every hook here it also binds agents
 > and not humans (§9). The guard is in the build script because that is the one
@@ -364,7 +364,9 @@ session rather than claiming the set.
 | `adversarial-live` | 2026-09-10 | Removed `gs-0181` from the baseline; exited 1 identifying it as new. Its first draft reported a missing scorecard as a "new safety violation" — alarming and wrong, since nothing unsafe had happened and the gate simply could not look. Now a separate `BROKEN` path |
 | `registry-owner` (build scripts) | 2026-09-10 | Ran `domain-finance`'s build directly against the modules registry; refused and left the file byte-identical. Note the pre-existing hook denying `pnpm registry:build:finance` did **not** catch this — it matches a command string, and invoking the script directly walks past it |
 | Rule 17 role extraction | **2026-09-12, on a real app, not deliberately** | WP-43 ran the kit on a public app whose routes are gated by a parent `<Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>`. All 16 screens, including 4 admin-only ones, were emitted into a single `PUBLIC` registry; `SKIPPED.md` reported 0 skips and `doctor` said "nothing needs fixing". **§8's kill criterion fired.** Fixed by inheriting a parent guard, dropping an unreadable one, and taking the role universe from the route table; re-scored against a ground truth written before the run: **33 of 48 role assignments and 15 leaks before, 48 of 48 and 0 leaks after** |
+| `registry-stale` (untracked) | **2026-09-12** | Not deliberate — found while widening it. `domain-finance/generated/registry.json` had never been committed (its build wrote the shared path instead), so WP-47 made the build produce an **untracked** file. `git diff --quiet` does not see untracked files and passed; `git status --porcelain` over the same paths failed naming it. **This gate would have gone vacuous for the second time, by a different route.** It now uses `--porcelain` |
 | `derived-artefacts` | 2026-09-11 | Deleted the `normalize()` punctuation line: the exact change that went stale unnoticed that morning. **All three checks failed**: 10 of 10 indexes stale, the per-registry `tauHigh` 0.61 shipped vs 0.59 re-swept, and browser parity broken. Restored with `git checkout`, and all three passed. About a second per run |
+| Rule 1 test (`domain.test.ts`) | **2026-09-12** | Appended `// domain-modules` to `core-voice/eval/acceptance.mjs`; the test failed naming the file, and passed again when reverted. **It was widened to make that possible.** It collected `.ts` and `.js` only, so a `.mjs` in a core package could name a domain and pass — and one did, for as long as WP-47's own help text sat there. The extension list now covers `.ts`/`.js`/`.mjs`/`.cjs`. Note `check-import-boundaries.mjs` scans `core-*/src` and never saw either, which is why both exist |
 | `import-boundaries` | — | not yet deliberately broken, **but it caught a real one 2026-09-10**: a doc comment in `core-inference` naming two domain packages. The text grep is blunt on purpose and the comment was reworded rather than the gate relaxed |
 | `registry-check` | — | not yet deliberately broken |
 | `check-thresholds` | — | not yet deliberately broken |
@@ -407,17 +409,14 @@ session rather than claiming the set.
 What remains of it is #6 below, which is a smaller problem, and a different one from the
 one that topped this list.)*
 
-1. **The registry's shared `OUT_INTENT` path.** Section 1. One domain's build
-   overwrites another's. **No longer silent** — `checkRegistryOwnership` refuses
-   a cross-application write in both build scripts since 2026-09-10 — but the
-   shared path itself is unchanged, and a documented build order is still what
-   keeps the artefacts coherent. **Still ranked first, because the guard buys
-   time rather than a solution:** it makes the mistake visible at the moment it
-   is made, and does nothing for a third domain. **The ADR it had been owed since the
-   collision was first written down is [ADR-016](../decisions/ADR-016.md). The owner
-   accepted it, option B, on 2026-09-11.** The gap closes when PLAN.md WP-47 implements
-   it, not before. An accepted decision that is not yet implemented is the same problem
-   with a document attached.
+1. ~~**The registry's shared `OUT_INTENT` path.**~~ ✅ **Closed 2026-09-12 (WP-47,
+   [ADR-016](../decisions/ADR-016.md) option B).** One domain's build overwrote
+   another's, and a documented build order was what kept the artefacts coherent.
+   Each domain now writes `packages/domain-<name>/generated/registry.json`; the eval
+   scripts take `--registry=`; CI checks both domains in one job; the hook denying
+   the finance build is gone. This topped the list from 2026-09-08 to 2026-09-12,
+   through one guard and one ADR, because neither a loud failure nor an accepted
+   decision is a fix. **A third domain no longer forces anything.**
 2. ~~**Derived artefacts are not gated.**~~ ✅ **Gated 2026-09-11 (WP-46).** On
    2026-09-11, a one-line change to `normalize()` left ten shipped indexes and two
    threshold profiles stale, and CI stayed green. Only a manual parity run noticed.

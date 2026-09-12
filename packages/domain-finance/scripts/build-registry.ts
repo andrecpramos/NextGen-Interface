@@ -21,14 +21,18 @@ import { registry } from '../src/capabilities.ts';
  * assert the two agree. A route cannot exist that the AI does not know about,
  * and the AI cannot know about a route that does not exist.
  *
+ * `OUT_INTENT` is this domain's own `generated/registry.json` (WP-47, ADR-016).
+ * Until then every domain wrote one shared path, this build was not the
+ * authoritative one, and running it clobbered the registry the router loads.
+ * It is now an ordinary command, checked by CI alongside domain-modules.
+ *
  *   node scripts/build-registry.ts [--check]
  *
  * `--check` validates and prints without writing — the CI form.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO = join(HERE, '..', '..', '..');
-const OUT_INTENT = join(REPO, 'packages', 'core-intent', 'eval', 'registry.json');
+const OUT_INTENT = join(HERE, '..', 'generated', 'registry.json');
 const OUT_GEN = join(HERE, '..', 'generated');
 
 const checkOnly = process.argv.includes('--check');
@@ -57,13 +61,13 @@ if (checkOnly) {
   process.exit(0);
 }
 
-// OUT_INTENT is shared by every domain's build script. This one is NOT the
-// authoritative build — `pnpm registry:build` runs domain-modules — so an
-// unguarded run here is precisely the documented way to break the router:
-// it replaces the registry the app loads with a different application's
-// capabilities, and everything downstream keeps working, on the wrong app.
-// Identical guard in domain-modules' script, duplicated rather than shared so
-// neither build script reaches into a sibling domain.
+// Until WP-47 this was the documented way to break the router: every domain's
+// build wrote one shared path, so an unguarded run here replaced the registry the
+// app loads with a different application's capabilities, and everything
+// downstream kept working, on the wrong app. Each domain now writes its own path
+// and the guard is a backstop against a misconfigured OUT_INTENT. Identical guard
+// in domain-modules' script, duplicated rather than shared so neither build
+// script reaches into a sibling domain.
 if (!process.argv.includes('--force') && existsSync(OUT_INTENT)) {
   const verdict = checkRegistryOwnership(
     readFileSync(OUT_INTENT, 'utf8'),

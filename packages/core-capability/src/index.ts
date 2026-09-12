@@ -58,7 +58,6 @@ export {
   type SimilarPair,
 } from './audit.ts';
 
-// The generated registry lives at one global path that every domain's build
-// script writes. This does not fix that; it stops a build silently replacing
-// one application's registry with another's.
+// Each domain writes its own generated/registry.json (WP-47). This stops a build
+// pointed at the wrong path from replacing one application's registry with another's.
 export { checkRegistryOwnership, type OwnershipVerdict } from './registry-owner.ts';

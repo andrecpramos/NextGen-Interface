@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { checkRegistryOwnership } from './registry-owner.ts';
 
 /**
- * The registry lives at one global path every domain's build script writes.
  * These cover the judgement that decides whether a write replaces one
- * application's capabilities with another's.
+ * application's capabilities with another's. Since WP-47 each domain writes its
+ * own path, so the refusal is a backstop rather than a daily hazard — the
+ * judgement it encodes is unchanged.
  */
 
 const registryJson = (ids: readonly string[]) =>

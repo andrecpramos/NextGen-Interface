@@ -17,11 +17,20 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  * other. Look at the distribution before touching config.js.
  */
 const args = process.argv.slice(2);
+const registryPath = args.find((a) => a.startsWith('--registry='))?.split('=')[1];
+if (!registryPath) {
+  console.error(
+    '\n  --registry=<path> is required: this package knows no application.' +
+    '\n  The repo-root scripts (pnpm router:eval, router:floor, router:calibrate,' +
+    '\n  router:inspect) pass it for you.\n',
+  );
+  process.exit(2);
+}
 const embedderKind = args.find((a) => a.startsWith('--embedder='))?.split('=')[1] || 'hashing';
 const single = args.find((a) => !a.startsWith('--'));
 
 const embedder = makeEmbedder(embedderKind);
-const registry = await loadRegistry(join(HERE, 'registry.json'), embedder);
+const registry = await loadRegistry(registryPath, embedder);
 
 if (single) {
   const s2 = await stage2(single, registry, embedder);

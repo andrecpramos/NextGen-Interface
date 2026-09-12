@@ -21,9 +21,9 @@ import { registry as financeRegistryFile } from '@nextgen/domain-finance';
  */
 
 /** Mirrors `loadRegistry`'s derivation, for a `RegistryFile` already in memory
- * rather than on disk — `domain-finance`'s registry is not written to
- * `core-intent/eval/registry.json` (that path is `domain-modules`-only; see
- * `.claude/docs/critical-infrastructure.md`). */
+ * rather than on disk — this test never reads `domain-finance`'s generated
+ * `registry.json`, it builds the registry straight from the in-memory
+ * `RegistryFile`. */
 async function toRegistry(file: RegistryFile, embedder: HashingEmbedder): Promise<Registry> {
   const capabilities = file.capabilities;
   const documents = capabilities.map(capabilityDocument);
