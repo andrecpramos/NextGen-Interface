@@ -66,7 +66,7 @@ describe('Rule 1 — no core-* package imports domain-modules', () => {
       if (entry === 'node_modules' || entry === 'dist' || entry.startsWith('.')) continue;
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
-      else if (entry.endsWith('.ts') || entry.endsWith('.js')) out.push(full);
+      else if (/\.(ts|js|mjs|cjs)$/.test(entry)) out.push(full);
     }
     return out;
   }

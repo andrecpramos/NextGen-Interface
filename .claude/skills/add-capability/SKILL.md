@@ -17,7 +17,7 @@ degrades for every *other* capability too.
 |---|---|
 | The declarations | `packages/domain-<name>/src/capabilities.ts` |
 | Generated route table + fixtures | `packages/domain-<name>/generated/` |
-| The registry the router reads | `packages/core-intent/eval/registry.json` (**one global path**) |
+| The registry the router reads | `packages/domain-<name>/generated/registry.json` (one per domain, WP-47) |
 | The golden set | `packages/core-intent/eval/golden-set.jsonl` |
 | Scorecards | `packages/core-intent/eval/scorecards/` |
 
@@ -90,17 +90,14 @@ pnpm registry:build      # domain-modules (what the root script builds since WP-
 pnpm registry:check      # validate only — this is the CI gate
 ```
 
-Commit `packages/domain-<name>/generated/` and
-`packages/core-intent/eval/registry.json` alongside the source change. A
-declaration edited without regenerating is silent drift: the app and the router
-disagree, and nothing fails until a user hits it.
+Commit `packages/domain-<name>/generated/` — the registry included — alongside the
+source change. A declaration edited without regenerating is silent drift: the app
+and the router disagree, and nothing fails until a user hits it.
 
-> ⚠️ `OUT_INTENT` in `scripts/build-registry.ts` is a single global path shared by
-> both domains, so **only one domain's build script is authoritative at a time**.
-> Running `domain-finance`'s build (`pnpm registry:build:finance`) overwrites the
-> registry the router reads with the finance registry. If you run it, run
-> `pnpm registry:build` afterwards to put the modules registry back, and check
-> `git diff packages/core-intent/eval/registry.json` before committing.
+> Since WP-47 each domain writes its own `generated/registry.json`, so
+> `pnpm registry:build:finance` is safe to run and CI checks both domains in one
+> job. Before that they shared one path and running the wrong build silently
+> replaced the registry the router reads.
 
 ### 4. Prove you did not crowd the neighbours
 

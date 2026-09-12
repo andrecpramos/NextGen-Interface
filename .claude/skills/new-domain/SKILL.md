@@ -116,13 +116,12 @@ stage-2 margins for its neighbours.
 pnpm registry:check      # validate; the CI gate
 ```
 
-> ⚠️ `OUT_INTENT` in every `build-registry.ts` points at the **one** global
-> `packages/core-intent/eval/registry.json`. Only one domain's build script can
-> be authoritative at a time — running a second domain's build silently
-> overwrites the registry the router reads. The root `registry:build` script is
-> the authoritative one (`domain-modules` since WP-14). If you add a third
-> domain, decide explicitly which one the root script points at, and check
-> `git diff packages/core-intent/eval/registry.json` before every commit.
+> `OUT_INTENT` in your `build-registry.ts` points at your own
+> `packages/domain-<name>/generated/registry.json`. Keep it that way: until WP-47
+> every domain wrote one shared path, only one could be authoritative at a time,
+> and adding a third domain was the thing nobody had a plan for. Add your build to
+> the `registry-stale` gate in `.claude/sdlc.config.json` and to CI's
+> "Registry artefacts are current" step, so your generated files are diffed too.
 
 ### 6. Wire it at the composition root — and only there
 

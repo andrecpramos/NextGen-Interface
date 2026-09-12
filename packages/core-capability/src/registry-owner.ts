@@ -1,26 +1,19 @@
 /**
  * Who owns the generated registry?
  *
- * `packages/core-intent/eval/registry.json` is **one global path**. Every
- * domain's `build-registry.ts` writes it, so only one domain can be
- * authoritative at a time, and running the wrong build silently replaces the
- * registry the router loads with a different application's capabilities. The
- * router then routes correctly — to the wrong app.
+ * Each domain writes its own `packages/domain-<name>/generated/registry.json`
+ * (WP-47, ADR-016). This refuses a write whose capability namespaces describe a
+ * *different* application than the file already on disk — so a build pointed at
+ * the wrong output path stops and names both sides, rather than leaving a
+ * registry that the router reads correctly and that describes the wrong app.
+ * `--force` overrides.
  *
- * `critical-infrastructure.md` has carried this as a known fragility with the
- * note *"survivable with two domains and a documented order; not survivable
- * with three"*. A documented order is a convention, and a convention is obeyed
- * until someone is in a hurry.
- *
- * **This does not fix the collision.** Where generated artefacts should live is
- * an architectural question — per-domain paths change what the evaluator loads
- * and what CI's staleness gate diffs — and it is owed an ADR, not an inference
- * by whoever touched the file last. What this does is make the failure *loud*:
- * an overwrite that changes which application the registry describes now stops
- * and says so, and proceeds only when a human passes `--force`.
- *
- * Turning a silent default into an explicit one is the part that does not need
- * a decision from anybody.
+ * It was written for a sharper problem. Until WP-47 all domains wrote one global
+ * `packages/core-intent/eval/registry.json`, only one could be authoritative at a
+ * time, and `critical-infrastructure.md` carried it as *"survivable with two
+ * domains and a documented order; not survivable with three"*. This made that
+ * failure loud in 2026-09-10; ADR-016 removed it in 2026-09-12. What remains is a
+ * cheap check against a rarer mistake, and it is kept for that.
  */
 
 /**

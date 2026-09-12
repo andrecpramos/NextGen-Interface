@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp42-description-audit`, based on `develop` · **16 workspace packages · 627 tests,
+**Verified against disk:** 2026-09-12 · **Branch:** `feature/wp47-registry-per-app`, based on `develop` · **16 workspace packages · 627 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -78,7 +78,7 @@ on 2026-09-11; see §13.
 | 5 | **WP-45** · Accessibility. The agent runs automated checks and writes an NVDA checklist; the owner does the screen-reader pass | M4 | S | agent, then owner |
 | 6 | **WP-44** · Portuguese and real-voice acceptance. `fut-app` is Portuguese, and WP-21 measured English synthetic speech only | — | S | agent + owner recordings |
 | 7 | **WP-35** · **The owner's run.** Drop the kit into `fut-app`, deploy, measure cost per session on real traffic, check guided steps on a real form, record the side-by-side clip | M3/M4 | M | **owner** |
-| 8 | **WP-47** · ADR-016 option B: one registry file per reference app, and the eval scripts take `--registry`. Starts after both open PRs merge | M4 | S–M | agent |
+| 8 | ✅ **WP-47** · ADR-016 option B, **done 2026-09-12**. Each domain writes its own `generated/registry.json`; the eval scripts require `--registry=`. **Both domains now build back to back without clobbering, and CI diffs both in one job** — the gate got wider. The hook denying `pnpm registry:build:finance` is deleted along with its reason. Ranked gap #1 since 2026-09-08 is closed. Two Rule 1 holes found on the way (below) | M4 | S–M | done |
 
 **Deferred with a hard trigger:** **WP-48**, the injection defence for `gs-0174`. It must
 land before any `write` or `destructive` capability ships to an adopter (§7.5, §8).
@@ -126,7 +126,7 @@ records each one, with its reasoning.
 | | Decision | Result |
 |---|---|---|
 | ~~**D-5**~~ | ✅ **2026-09-11: (a), accept the out-of-scope ceiling and disclose it.** Disclosed in [README.md](README.md), [WRITEUP.md](WRITEUP.md) §10 and [business-case.md](.claude/docs/business-case.md) §7 | Re-opens if a rung adds actions |
-| ~~**ADRs**~~ | ✅ **2026-09-11: ADR-013 and ADR-014 accepted. ADR-016 accepted, option B**; it is implemented after the merge (WP-47) | — |
+| ~~**ADRs**~~ | ✅ **2026-09-11: ADR-013 and ADR-014 accepted. ADR-016 accepted, option B** — **implemented 2026-09-12 (WP-47)**, with one divergence recorded in the ADR: no default registry path anywhere, because a default naming `domain-modules` inside `core-intent` broke Rule 1 | — |
 | ~~**fut-app**~~ | ✅ **2026-09-11: agents do not install into `fut-app`.** The owner drops the kit in (WP-41), and that run is WP-35 | — |
 | ~~**Push**~~ | ✅ **2026-09-11: both feature branches pushed, and PRs opened into `develop`.** **Done the same day: #6 merged, and #7 rebased onto it with its scorecards regenerated** | — |
 | ~~**Gaps 5–8**~~ | ✅ **2026-09-11:**<br>• Accessibility → WP-45; the owner does the NVDA pass.<br>• Cost per session → measured live in WP-35 only.<br>• Injection → WP-48, deferred with a hard trigger.<br>• Generalisation → WP-42, WP-43 and WP-44 | — |
@@ -981,7 +981,7 @@ eval/fut-app/verify.mjs`.
 **Acceptance.**
 - [x] Passes validation — `validateRegistry()` directly (not `pnpm registry:check`,
       which is `domain-modules`-only and would clobber the router's actual registry;
-      see `eval/fut-app/verify.mjs`'s own note)
+      see `eval/fut-app/verify.mjs`'s own note) — *that clobber is gone since WP-47*
 - [x] Covers all 36 deep-link routes plus the three sampled feature areas — 32 direct,
       4 documented, reasoned omissions (two legacy redirects, a stale-bookmark redirect,
       a dev-only route)
@@ -1112,7 +1112,7 @@ words as evidence.** Output shape decided in [ADR-014](.claude/decisions/ADR-014
 - [x] Output passes validation unmodified — all 10 role registries through
       `validateRegistry()`, the same function `pnpm registry:check` runs. Not run *through*
       that gate, for WP-31's reason: it is `domain-modules`-only and a second registry
-      writing through it clobbers the one the router loads
+      writing through it clobbers the one the router loads — *gone since WP-47*
 - [x] **Precision and recall against WP-31 recorded** — 100% / 100%, **and the denominator
       stated**: only the 45 routes WP-31 wrote ground truth for are judged; the other 100
       capabilities are not hand-verified (REPORT.md says so prominently)
@@ -1976,7 +1976,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | ~~**WP-22**~~ ✅ | Contract tests for `apps/web`, 2026-09-10 | **16 tests, the first this app has ever had** — `render.ts` is where every view the surface receives is built, so a mistake there is one the user sees. Three of the properties are safety, not cosmetics: the drawer may offer **only** `navigate` capabilities (a one-tap `destructive` entry would bypass ADR-004's confirmation entirely), a confirmation card must hide the raw uploaded source text it carries internally while showing every value being approved, and a rendered trace must carry the runners-up (Rule 9). Needed a vitest alias — the web layer declares `import 'server-only'`, which Next injects and which resolves nowhere else | Done |
 | ~~**WP-11**~~ ✅ | Documentation — **complete 2026-09-10.** `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`, and SETUP.md's three wrong claims about which file is the registry source; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | `roadmap.md` deleted last. It was **not** blocked by `docs/runbook` — that branch deletes a pre-rename path (§12) — and it was **not** wholly dead: FINDINGS scores WP-01 against its Sprint 0 gate, so that gate and the success-metrics table moved to [history.md](.claude/docs/history.md#sprint-0-and-the-original-success-metrics) rather than being lost | Done |
 | ~~**WP-10**~~ ✖ | `apps/mobile` | **Closed 2026-09-11 as a different product.** A native app is not a web layer that an adopter installs (ADR-013). The device-inference gate stands if it ever returns | Closed |
-| **WP-47** | ADR-016, option B: one registry file per reference app. **Accepted 2026-09-11** | Both open PRs touch CI config. Doing this before they merge would mean resolving it twice | After `feature/plan-execution` and `feature/rule-15-untrusted-fence` both merge into `develop` |
+| ~~**WP-47**~~ ✅ | ADR-016, option B, **done 2026-09-12** | `git mv` of `core-intent/eval/registry.json` into `domain-modules/generated/`; both build scripts, both apps, the voice acceptance script, the four `router:*` scripts, CI's staleness gate and `.claude/sdlc.config.json` follow it. **Proof it worked:** `pnpm registry:build` then `pnpm registry:build:finance` back to back, and `git diff` over *both* generated directories is empty — the sequence that was the documented way to break the router. The scorecard was unchanged by the move (identical apart from `generatedAt` and `latency`), which is what ADR-016 asked step 1 to prove. **The widening nearly went vacuous, exactly as ADR-016 predicted a wide artefact diff might:** `domain-finance/generated/registry.json` had never been committed, so the build produced an *untracked* file and `git diff --quiet` passed while seeing nothing. The gate now uses `git status --porcelain`, and the file is committed. **Two Rule 1 holes, both closed:** a default path naming `domain-modules` inside `core-intent/eval` failed `domain.test.ts` (`check-import-boundaries.mjs` scans `core-*/src` and missed it) → no default anywhere, the root scripts pass the flag; and the test itself collected `.ts`/`.js` only, so `core-voice/eval/acceptance.mjs` named a domain and passed → widened to `.mjs`/`.cjs` and made to fail on purpose. **Newly visible, not fixed here:** `router:inspect --registry=<finance>` runs for the first time, and it applies `THRESHOLD_PROFILES`, which are keyed by encoder and were calibrated against `domain-modules`. Rule 14 says a threshold belongs to the encoder *and* the capability surface, so the second domain has no valid profile — scoring it needs a finance golden set, which is its own work package. 627 tests green | Done |
 | **WP-48** | Injection defence for `gs-0174` | The pilot ships only `read` and `navigate`, and Rule 5 confirms every destructive action. Today's exposure is the reference app's `module.delete`, which sits behind a confirmation. **The owner decided on 2026-09-11 to defer this with a hard trigger** | **Before any `write` or `destructive` capability ships to an adopter.** A kill criterion in §8 enforces it |
 
 ---
@@ -2413,14 +2413,14 @@ node tooling/scripts/check-thresholds.mjs          # Rule 14
 node tooling/scripts/check-doc-links.mjs           # every relative link resolves
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
 pnpm -r typecheck
-pnpm -r test                                       # 544 tests, 14 packages
+pnpm -r test                                       # 627 tests, 15 packages
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
 
-# registry
-pnpm registry:build          # regenerate registry.json + routes.json — domain-modules
-pnpm registry:build:finance  # same, for the finance reference app
+# registry — each domain writes its OWN packages/domain-<name>/generated/ (WP-47)
+pnpm registry:build          # domain-modules
+pnpm registry:build:finance  # domain-finance; safe to run, and CI diffs both
 
 # the generator (WP-25) — reads an app's source, writes NOTHING into it (Rule 16)
 node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/generator.config.json --model llama3.1:8b
@@ -2441,7 +2441,8 @@ node --experimental-strip-types eval/fut-app/experiment-self-calibration.mjs   #
 # the shippable artefacts
 pnpm build && node tooling/scripts/check-packaging.mjs                 # what a tarball really exposes
 node packages/embed/build.mjs                                          # the script tag → packages/embed/dist/nextgen.js
-node --experimental-strip-types packages/core-voice/eval/acceptance.mjs  # voice round trip; needs models/voice
+node --experimental-strip-types packages/core-voice/eval/acceptance.mjs \
+  --registry=packages/domain-modules/generated/registry.json           # voice round trip; needs models/voice
 
 # router
 pnpm router:inspect          # score distributions, recall@k — always look here first
@@ -2451,9 +2452,14 @@ pnpm router:baseline         # llama3.1:8b
 pnpm router:floor            # stages 1+2 only; the ONLY deterministic run
 pnpm router:compare          # side-by-side scorecards
 
+# Every router:* script passes --registry=../domain-modules/generated/registry.json.
+# core-intent knows no application (Rule 1), so run directly and you must say which:
+pnpm --filter @nextgen/core-intent inspect -- \
+  --registry=../domain-finance/generated/registry.json "transfer 500 euros to my brother"
+
 cd packages/core-intent
-node eval/evaluate.js --embedder=hashing --no-stage3       # model-free ceiling
-node eval/inspect.js --embedder=ollama "where do I see membership prices"
+node eval/evaluate.js --registry=../domain-modules/generated/registry.json --embedder=hashing --no-stage3
+node eval/inspect.js  --registry=../domain-modules/generated/registry.json --embedder=ollama "where do I see membership prices"
 ```
 
 ⚠️ **Warm every model with a throwaway call before any timed run, and run them
@@ -2541,7 +2547,7 @@ in session:
 | 6 · Cost per session unknown | Measure it live only, after deployment | WP-35 |
 | 7 · Injection (`gs-0174`) | Defer, with a hard trigger | WP-48, and §8 |
 | 8 · Generalisation unproven | All three checks | WP-42, WP-43 and WP-44 |
-| 9 · ADR-016 unsigned | Accept option B; implement after the merge | WP-47 |
+| 9 · ADR-016 unsigned | Accept option B; implement after the merge | ✅ WP-47, done 2026-09-12 |
 
 ---
 

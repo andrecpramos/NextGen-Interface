@@ -29,6 +29,15 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  */
 
 const args = process.argv.slice(2);
+const registryPath = args.find((a) => a.startsWith('--registry='))?.split('=')[1];
+if (!registryPath) {
+  console.error(
+    '\n  --registry=<path> is required: this package knows no application.' +
+    '\n  The repo-root scripts (pnpm router:eval, router:floor, router:calibrate,' +
+    '\n  router:inspect) pass it for you.\n',
+  );
+  process.exit(2);
+}
 const embedderKind = args.find((a) => a.startsWith('--embedder='))?.split('=')[1] || 'hashing';
 
 /**
@@ -44,7 +53,7 @@ const OOS_FLOOR = deferOos ? 0 : 0.95; // out-of-scope utterances kept below tau
 const AMBIG_FLOOR = 0.95;     // ambiguous utterances NOT accepted outright
 
 const embedder = makeEmbedder(embedderKind);
-const registry = await loadRegistry(join(HERE, 'registry.json'), embedder);
+const registry = await loadRegistry(registryPath, embedder);
 
 const entries = readFileSync(join(HERE, 'golden-set.jsonl'), 'utf8')
   .split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));

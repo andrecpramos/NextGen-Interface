@@ -20,7 +20,8 @@
 // measure English and nothing else. The roadmap's "accented English + Portuguese"
 // bar cannot be tested with these assets, and this script does not pretend to.
 //
-//   node --experimental-strip-types packages/core-voice/eval/acceptance.mjs [--n 40]
+//   node --experimental-strip-types packages/core-voice/eval/acceptance.mjs \
+//     --registry=<path to a built registry.json> [--n 40]
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,9 +46,17 @@ const store = new VoiceAssetStore({ directory: join(ROOT, 'models', 'voice') });
 const tts = new PiperTtsEngine({ store });
 const stt = new WhisperCppSttEngine({ store, timeoutMs: 120_000 });
 
-// The registered application, English, with the thresholds calibrated for it.
+// The application under test, English, with the thresholds calibrated for it.
 const embedder = makeEmbedder('hashing');
-const registry = await loadRegistry(join(ROOT, 'packages', 'core-intent', 'eval', 'registry.json'), embedder);
+const registryArg = process.argv.find((a) => a.startsWith('--registry='))?.split('=')[1];
+if (!registryArg) {
+  console.error(
+    '\n  --registry=<path> is required: this package knows no application.' +
+    '\n  Pass the generated registry of the application to measure.\n',
+  );
+  process.exit(2);
+}
+const registry = await loadRegistry(registryArg, embedder);
 const thresholds = THRESHOLD_PROFILES.hashing;
 
 const entries = readFileSync(join(ROOT, 'packages', 'core-intent', 'eval', 'golden-set.jsonl'), 'utf8')

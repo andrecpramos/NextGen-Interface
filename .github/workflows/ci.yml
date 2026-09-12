@@ -146,27 +146,26 @@ jobs:
       # `git diff --quiet` also trips on pnpm-lock.yaml, which pnpm rewrites
       # whenever any workspace manifest changed — an unrelated failure.
       #
-      # These paths are DOMAIN-MODULES, because that is what the root
-      # `registry:build` script builds (WP-14 made it the registered domain).
-      # Until 2026-09-08 this step diffed `domain-finance/generated/` instead —
-      # files that build never touches — so it passed vacuously while real
-      # drift in `domain-modules/generated/` went ungated.
-      #
-      # domain-finance's artefacts are deliberately NOT checked here.
-      # `registry:build:finance` writes the same global
-      # `core-intent/eval/registry.json`, so running both in one job leaves
-      # whichever ran last as the authoritative registry. Covering finance
-      # needs that shared-path collision fixed first — see
-      # .claude/docs/critical-infrastructure.md, "The capability registry".
+      # Both domains are checked, in one job. Until WP-47 every domain build wrote
+      # the same packages/core-intent/eval/registry.json, so running both here left
+      # whichever ran last as the authoritative registry — which is why finance was
+      # excluded. Each domain now writes its own
+      # packages/domain-<name>/generated/registry.json (ADR-016), so the collision is
+      # gone and this gate covers every domain rather than whichever one happened to
+      # be authoritative.
       - name: Registry artefacts are current
         run: |
           pnpm registry:build
-          if ! git diff --quiet -- \
-              packages/core-intent/eval/registry.json \
-              packages/domain-modules/generated/routes.json \
-              packages/domain-modules/generated/golden.generated.jsonl; then
-            echo "::error::Registry artefacts are stale. Run 'pnpm registry:build' and commit the result."
-            git diff --stat -- packages/core-intent/eval/registry.json packages/domain-modules/generated
+          pnpm registry:build:finance
+          # --porcelain rather than `git diff --quiet`, deliberately: a domain whose
+          # registry.json has never been committed produces an UNTRACKED file, and
+          # git diff does not see untracked files. domain-finance was in exactly that
+          # state when WP-47 moved the paths, so this gate would have gone vacuous
+          # for the second time, in the same gate, by a different route.
+          STALE=$(git status --porcelain -- packages/domain-modules/generated packages/domain-finance/generated)
+          if [ -n "$STALE" ]; then
+            echo "::error::Registry artefacts are stale or uncommitted. Rebuild both domains and commit the result."
+            echo "$STALE"
             exit 1
           fi
 
