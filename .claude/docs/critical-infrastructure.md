@@ -1,8 +1,11 @@
 # Critical infrastructure and the rules that bind it
 
-**Audited against the tree:** 2026-09-10 for §8 and the ranked gaps, and 2026-09-09 for
-the rest. Sections 1 and 4, the matrix and the gaps were updated again on 2026-09-11.
+**Audited against the tree:** 2026-09-12 — every file and test the matrix names was
+opened and checked to assert what the row claims. Earlier passes: 2026-09-11 (§1, §4, the
+matrix, the gaps), 2026-09-10 (§8 and the ranked gaps), 2026-09-09 (the rest).
 Re-audit trigger: any change to `ci.yml`, any new gate, any new rule, or a release.
+*It fired twice before this pass — WP-47 rewrote the staleness step and WP-45 added a
+gate — which is why the pass happened.*
 
 What this is: every component whose failure is not a local bug, the rules that
 govern it, **where that rule is actually enforced**, and whether it is currently
@@ -14,6 +17,15 @@ hurry. Every row below says which kind it is, and the
 [gaps](#enforcement-gaps-ranked) section lists the ones that are still only
 written down. Nothing here claims protection that does not exist — if a cell says
 `convention`, there is no gate.
+
+**A second distinction, easy to miss: `gate` does not always mean *CI runs it*.**
+Two of the gates in [`sdlc.config.json`](../sdlc.config.json) are `blocking: true`
+and are deliberately **not** in `ci.yml`, because CI cannot run them:
+`adversarial-live` needs a model server (GitHub Actions has none — that is why the
+golden-set job is model-free, ADR-011), and `kit-sync` compares against `sdlc-kit/`,
+which lives outside this repository. Both are real gates for `/gates` on a
+developer machine and no protection at all on a pull request. Rows below that
+depend on them say so.
 
 Rule numbers are [PLAN.md](../../PLAN.md) section 2. The ADRs in
 [decisions/](../decisions/) are the constitution; this file is a map of how they are
@@ -365,6 +377,7 @@ session rather than claiming the set.
 | `registry-owner` (build scripts) | 2026-09-10 | Ran `domain-finance`'s build directly against the modules registry; refused and left the file byte-identical. Note the pre-existing hook denying `pnpm registry:build:finance` did **not** catch this — it matches a command string, and invoking the script directly walks past it |
 | Rule 17 role extraction | **2026-09-12, on a real app, not deliberately** | WP-43 ran the kit on a public app whose routes are gated by a parent `<Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>`. All 16 screens, including 4 admin-only ones, were emitted into a single `PUBLIC` registry; `SKIPPED.md` reported 0 skips and `doctor` said "nothing needs fixing". **§8's kill criterion fired.** Fixed by inheriting a parent guard, dropping an unreadable one, and taking the role universe from the route table; re-scored against a ground truth written before the run: **33 of 48 role assignments and 15 leaks before, 48 of 48 and 0 leaks after** |
 | `registry-stale` (untracked) | **2026-09-12** | Not deliberate — found while widening it. `domain-finance/generated/registry.json` had never been committed (its build wrote the shared path instead), so WP-47 made the build produce an **untracked** file. `git diff --quiet` does not see untracked files and passed; `git status --porcelain` over the same paths failed naming it. **This gate would have gone vacuous for the second time, by a different route.** It now uses `--porcelain` |
+| `generated-golden` | **2026-09-12** | Deleted the `normalize()` sentence-punctuation line — the change that went stale unnoticed on 2026-09-11 and the same shape as the one that cost seven points. Exited 1 naming what moved: top-1 0.0795 → 0.0739, out-of-scope refused 47.1% → 41.2%, and the three turns that changed decision, two of them refusals degrading to clarifies. Restored, and it passed |
 | `accessibility` (WP-45) | **2026-09-12, on its first run, not deliberately** | Pointed at the built widget for the first time, it failed: focus fell to the document body when an answer replaced the link the user was standing on — a keyboard user silently returned to the top of the host page. Fixed, then made to fail on purpose twice more: removing the focus restoration fails exactly one unit test, and `widget.test.ts` now holds both halves (focus returns when the user was inside the answer; focus is left alone when they were not) |
 | `derived-artefacts` | 2026-09-11 | Deleted the `normalize()` punctuation line: the exact change that went stale unnoticed that morning. **All three checks failed**: 10 of 10 indexes stale, the per-registry `tauHigh` 0.61 shipped vs 0.59 re-swept, and browser parity broken. Restored with `git checkout`, and all three passed. About a second per run |
 | Rule 1 test (`domain.test.ts`) | **2026-09-12** | Appended `// domain-modules` to `core-voice/eval/acceptance.mjs`; the test failed naming the file, and passed again when reverted. **It was widened to make that possible.** It collected `.ts` and `.js` only, so a `.mjs` in a core package could name a domain and pass — and one did, for as long as WP-47's own help text sat there. The extension list now covers `.ts`/`.js`/`.mjs`/`.cjs`. Note `check-import-boundaries.mjs` scans `core-*/src` and never saw either, which is why both exist |
@@ -379,7 +392,7 @@ session rather than claiming the set.
 
 | # | Rule | Enforced by | Kind |
 |---|---|---|---|
-| 1 | `core-*` never imports a domain | `check-import-boundaries.mjs`, CI, PostToolUse hook | **gate** |
+| 1 | `core-*` never imports a domain | `check-import-boundaries.mjs`, CI, PostToolUse hook — **plus `domain.test.ts`, which is what actually catches it**: the gate scans `core-*/src` only, and WP-47 put a domain name in `core-*/eval` twice (a default registry path, then a usage example in a `.mjs` the test did not yet collect). Both were caught by the test, neither by the gate | **gate + test** |
 | 2 | Model never computes a user-visible number | `check-model-numerics.mjs`, CI — the model's output schema may not declare a number without a `// rule2-ok:` reason | **gate (2026-09-10), half the rule** — arithmetic on model output is still convention, and untestable until a number is rendered anywhere |
 | 3 | Model never emits SQL or a raw route | `dispatcher.test.ts`; query engine design | **test** |
 | 4 | Model-produced ids validated against the registry | `dispatcher.test.ts`, `cascade.ts`, `stages.ts` | **test** |
@@ -397,10 +410,12 @@ session rather than claiming the set.
 | 16 | The installer never modifies the adopter's source | `emit.test.ts` (`writeOutput` refuses an output dir inside `appRoot`) + `generate.test.ts` fingerprints the whole fixture tree before and after a run | **test (2026-09-10, WP-25)** |
 | 17 | An unreachable capability is absent from the user's registry | `emit.test.ts` diffs two role registries; `score-generated.mjs` re-checks all 10 generated registries against the master on every scoring run | **test (2026-09-10, WP-25)** |
 | — | Every capability can say what it is (WP-36) | `explanation-required` in `validate.ts`, gated by `pnpm registry:check` | **gate (2026-09-10)** |
-| — | Top-1 accuracy does not regress across a prompt change | none — `evaluate-golden.mjs` would catch it, nothing runs it. Cost 7 points once already ([L9](lessons.md)) | **none** |
+| — | Top-1 accuracy does not regress across a prompt change | `evaluate-golden.mjs --check`, CI — the model-free floor on the **generated** registries against the committed scorecard, every rate and every per-turn decision, timing excluded | **gate (2026-09-12)** — the model-free floor only; anything involving stage 3 needs a model server CI does not have, so a regression that only appears with a model is still ungated |
 | — | The browser entry loads with no Node globals ([L11](lessons.md)) | `packages/embed/src/embed.test.ts` runs the built bundle in a bare `vm` context holding only `window`, `console` and `performance` | **test (2026-09-11, WP-29)** |
 | — | The published package view is importable | `check-packaging.mjs` reads each manifest with `publishConfig` applied, after `pnpm build` in CI | **gate (WP-26)** |
 | — | Shipped indexes and per-registry thresholds match their inputs | `check-derived-artefacts.mjs`, CI (WP-46) | **gate (2026-09-11)** — covers `eval/fut-app/generated`; an adopter's own kit build is checked by its `doctor`, not here |
+| — | The shipped widget has no serious or critical accessibility violation | `check-accessibility.mjs`, CI (WP-45) — axe-core over the **built** `packages/embed/dist/nextgen.js` in a real DOM, in every state a user can reach, plus keyboard, focus, live-region and reduced-motion checks the stylesheet is read for | **gate (2026-09-12)** — blind to colour contrast (jsdom computes no layout, and the widget paints in the user's own system colours), to announcement order, and to anything as rendered. Those are [the NVDA pass](../../eval/a11y/NVDA-CHECKLIST.md), which a person runs and nobody has |
+| — | Two domains cannot overwrite each other's generated registry | per-domain output paths (ADR-016, WP-47) + the `registry-stale` gate, CI — it builds **both** domains and fails on `git status --porcelain`, so an artefact that was never committed counts as stale | **gate (2026-09-12)** — this replaced a convention (a documented build order) with a structure; `checkRegistryOwnership` is kept as a backstop against a misconfigured output path |
 
 ---
 
@@ -409,6 +424,11 @@ session rather than claiming the set.
 *(Rule 15 was #1 here until 2026-09-10. It is now fenced at all four prompt sites (§8).
 What remains of it is #6 below, which is a smaller problem, and a different one from the
 one that topped this list.)*
+
+**Numbers 1, 2, 5 and 7 are closed** and are kept struck through rather than deleted,
+because what a gap cost before it was closed is the argument for closing the next one.
+**The highest open gap is now #3**, and #8 below was added by the 2026-09-12 audit: it had
+been sitting in the matrix as `none` without ever appearing on this list.
 
 1. ~~**The registry's shared `OUT_INTENT` path.**~~ ✅ **Closed 2026-09-12 (WP-47,
    [ADR-016](../decisions/ADR-016.md) option B).** One domain's build overwrote
@@ -484,6 +504,15 @@ one that topped this list.)*
      model-facing safety is verified by whoever runs `/gates` on a machine with
      Ollama — a convention, and this document's standard for a convention is that
      it holds until someone is in a hurry.
+8. ~~**Nothing re-runs the golden set when a prompt changes.**~~ ✅ **Closed 2026-09-12,
+   the same day it was named.** It had sat in the matrix as `none` since that table was
+   written and had never reached this list — its own small lesson about where a gap goes
+   to be forgotten. `evaluate-golden.mjs --check` now runs in CI: the model-free floor on
+   the **generated** registries, compared with the committed scorecard on every rate and
+   every per-turn decision, with timing excluded so a busy runner cannot fail it.
+   Deterministic, ~0.3s. **Made to fail on purpose** by the exact change that cost the
+   seven points ([L9](lessons.md)) — see the table above.
+
 7. ~~**Rules 16 and 17 have no mechanism at all**~~ **Both have had tests since WP-25
    (2026-09-10); see the matrix. What remains open is Rule 17 on a second app (PLAN.md
    WP-43).** The original entry read: — they were added on 2026-09-09 with
