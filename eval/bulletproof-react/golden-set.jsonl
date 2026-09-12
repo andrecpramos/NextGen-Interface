@@ -1,0 +1,32 @@
+{"id": "bp-01", "utterance": "where are the discussions", "route": "/app/discussions"}
+{"id": "bp-02", "utterance": "show me all the threads", "route": "/app/discussions"}
+{"id": "bp-03", "utterance": "I want to read the discussion list", "route": "/app/discussions"}
+{"id": "bp-04", "utterance": "open this discussion", "route": "/app/discussions/:discussionId"}
+{"id": "bp-05", "utterance": "read the comments on that thread", "route": "/app/discussions/:discussionId"}
+{"id": "bp-06", "utterance": "take me to the front page", "route": "/"}
+{"id": "bp-07", "utterance": "go to the home page", "route": "/"}
+{"id": "bp-08", "utterance": "what is this product about", "route": "/"}
+{"id": "bp-09", "utterance": "open my dashboard", "route": "/app"}
+{"id": "bp-10", "utterance": "where do I see my overview", "route": "/app"}
+{"id": "bp-11", "utterance": "take me to the main app screen", "route": "/app"}
+{"id": "bp-12", "utterance": "where do I change my own details", "route": "/app/profile"}
+{"id": "bp-13", "utterance": "open my profile", "route": "/app/profile"}
+{"id": "bp-14", "utterance": "I want to update my name and bio", "route": "/app/profile"}
+{"id": "bp-15", "utterance": "show me the list of users", "route": "/app/users"}
+{"id": "bp-16", "utterance": "who are the members of this team", "route": "/app/users"}
+{"id": "bp-17", "utterance": "where do I manage people", "route": "/app/users"}
+{"id": "bp-18", "utterance": "I need to sign in", "route": "/auth/login"}
+{"id": "bp-19", "utterance": "where is the login page", "route": "/auth/login"}
+{"id": "bp-20", "utterance": "log me in", "route": "/auth/login"}
+{"id": "bp-21", "utterance": "I want to create an account", "route": "/auth/register"}
+{"id": "bp-22", "utterance": "where do I sign up", "route": "/auth/register"}
+{"id": "bp-23", "utterance": "register a new user account", "route": "/auth/register"}
+{"id": "bp-24", "utterance": "book me a flight to Berlin", "route": null}
+{"id": "bp-25", "utterance": "what is the weather tomorrow", "route": null}
+{"id": "bp-26", "utterance": "send an email to my manager", "route": null}
+{"id": "bp-27", "utterance": "delete this discussion for me", "route": null}
+{"id": "bp-28", "utterance": "pay my invoice", "route": null}
+{"id": "bp-29", "utterance": "write me a poem about databases", "route": null}
+{"id": "bp-30", "utterance": "call the support line for me", "route": null}
+{"id": "bp-31", "utterance": "change my password to hunter2", "route": null}
+{"id": "bp-32", "utterance": "what time is it in Tokyo", "route": null}

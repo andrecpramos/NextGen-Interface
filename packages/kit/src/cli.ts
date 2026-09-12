@@ -2,22 +2,29 @@
 import { resolve } from 'node:path';
 
 import { build } from './build.ts';
+import { calibrate } from './calibrate.ts';
 import { init } from './detect.ts';
 import { doctor } from './doctor.ts';
 
 /**
  *   nextgen init <app folder> [--out <kit folder>] [--force]
  *   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
+ *   nextgen calibrate [kit folder] --golden <file.jsonl>
  *   nextgen doctor [kit folder]
  *
  * The kit folder defaults to ./nextgen. Nothing is ever written outside it
  * (Rule 16). `build` without --model needs no model server: descriptions are
  * derived from the app's own labels, which is flatter but always available.
+ *
+ * `calibrate` requires a golden set you wrote (Rule 14), and there is
+ * deliberately no way to calibrate from the generator's own examples — measured,
+ * that makes the engine wrongly refuse real requests. See calibrate.ts.
  */
 
 const USAGE = `usage:
   nextgen init <app folder> [--out <kit folder>] [--force]
   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
+  nextgen calibrate [kit folder] --golden <file.jsonl>
   nextgen doctor [kit folder]`;
 
 function flag(name: string): string | null {
@@ -72,6 +79,26 @@ async function main(): Promise<number> {
     console.log(`\n  ${record.capabilities} screen(s) across ${record.roles.length} role(s); ${record.skipped.length} left out.`);
     console.log(`  Next: nextgen doctor ${kit}\n`);
     return record.invalid.length > 0 ? 1 : 0;
+  }
+
+  if (command === 'calibrate') {
+    const golden = flag('golden');
+    if (!golden) {
+      console.error(USAGE);
+      console.error(
+        '\n  --golden is required: a file of turns YOU wrote, one JSON object per line:\n' +
+          '    {"utterance": "where do I see the invoices?", "route": "/billing", "role": "ADMIN"}\n' +
+          '    {"utterance": "book me a flight", "route": null, "role": "ADMIN"}\n' +
+          '\n  "route": null means the assistant should refuse it. Include both kinds:\n' +
+          '  a sweep with nothing to refuse cannot find the refusal threshold.\n' +
+          '  There is no option to calibrate from the generator\'s own examples — measured,\n' +
+          '  it wrongly refuses real requests, which is worse than keeping the default.\n',
+      );
+      return 2;
+    }
+    const result = await calibrate(resolve(positional() ?? 'nextgen'), golden);
+    console.log(result.text);
+    return 0;
   }
 
   if (command === 'doctor') {

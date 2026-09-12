@@ -6,4 +6,5 @@
 export { detectApp, init, type Detection, type Finding, type InitResult } from './detect.ts';
 export { build, readConfig, type BuildOptions, type BuildRecord } from './build.ts';
 export { doctor, type DoctorReport } from './doctor.ts';
+export { calibrate, type CalibrateResult, type GoldenTurn } from './calibrate.ts';
 export { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
