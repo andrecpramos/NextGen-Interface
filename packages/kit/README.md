@@ -6,6 +6,7 @@ into a folder of its own, and explains in plain words what it could and could no
 ```bash
 nextgen init  <your app folder>     # finds the route table, roles, translations, language
 nextgen build [kit folder]          # writes bundle/ (served) and review/ (never served)
+nextgen calibrate [kit folder] --golden questions.jsonl   # Rule 14, from questions you wrote
 nextgen doctor [kit folder]         # what was read, what was left out and why, how to mount it
 ```
 
@@ -29,13 +30,47 @@ source before writing anything. On bulletproof-react, a public app not written f
 stays in `review/`. `build` rebuilds `bundle/` from nothing each time, so a role your app
 no longer has cannot leave a registry behind. `doctor` re-checks both.
 
+## Calibrating (Rule 14)
+
+Thresholds belong to a registry. The profile the kit ships was tuned on a 7-screen app;
+on a 145-screen one it sent **2 of 7** confident answers to the wrong screen and refused
+1 real question in 105. Until you calibrate, `doctor` says so in those words.
+
+```bash
+nextgen calibrate <kit folder> --golden questions.jsonl
+nextgen build <kit folder>      # picks the calibration up
+```
+
+`questions.jsonl` is **yours to write** — one JSON object per line:
+
+```json
+{"utterance": "where do I see the invoices?", "route": "/billing", "role": "ADMIN"}
+{"utterance": "book me a flight", "route": null, "role": "ADMIN"}
+```
+
+`"route": null` means the assistant should refuse it. Include both kinds: a sweep with
+nothing to refuse cannot find the refusal threshold, and it will tell you so. `role` may
+be omitted when your app has one audience. About 20 turns is the minimum that means
+anything — below that `calibrate` refuses rather than fitting noise.
+
+It splits your questions **by destination**, 40% to calibrate on and 60% held out, and
+reports the held-out numbers: a threshold validated on a rephrasing of the question it was
+tuned on measures nothing. It also warns when the result is worse than it looks — when it
+never refuses anything, when held-out precision falls below the 100% the sweep enforces,
+and when it refuses real requests it should not.
+
+**There is deliberately no way to calibrate from the generator's own example questions.**
+That was measured on an app where both kinds of data exist
+([experiment-self-calibration.mjs](../../eval/fut-app/experiment-self-calibration.mjs)):
+it made the engine **wrongly refuse 7 real requests in 105**, against 1 for the untouched
+default. Offering it would be offering a worse outcome than doing nothing, wrapped in
+something that looks like diligence.
+
+The sweep itself is `@nextgen/core-intent/calibrate`, shared with this repository's own
+calibration script so that Rule 14 has exactly one implementation.
+
 ## What it does not do yet
 
-- **Calibrate.** Without a calibration, the thresholds are defaults tuned on a 7-screen
-  app. On a 145-screen app they sent 2 of 7 confident answers to the wrong screen.
-  Calibrating on the kit's own example questions was measured and was worse
-  ([experiment-self-calibration.mjs](../../eval/fut-app/experiment-self-calibration.mjs)).
-  Calibration needs real questions, and there is no `nextgen calibrate` command yet.
 - **Guess your navigation manifests.** A hand-kept list of routes with labels makes
   descriptions much better. Add it to `manifests` in the config.
 - **Read role guards written inside components.** If your app checks roles in the page
@@ -44,6 +79,7 @@ no longer has cannot leave a registry behind. `doctor` re-checks both.
 
 ## Tests
 
-`src/kit.test.ts` runs `init → build → doctor` on two fixture apps of different shapes.
-It checks that the app is byte-for-byte unchanged, and that the bundle carries no role
-annotations and no master list.
+`src/kit.test.ts` runs `init → build → calibrate → doctor` on two fixture apps of
+different shapes. It checks that the app is byte-for-byte unchanged, that the bundle
+carries no role annotations and no master list, and that `calibrate` refuses the cases it
+cannot stand behind — before a build, and on a golden set too small to believe.

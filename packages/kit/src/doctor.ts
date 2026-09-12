@@ -116,9 +116,16 @@ export function doctor(kitDir: string): DoctorReport {
     say('  7-screen app. On a 145-screen app, those defaults sent 2 of 7 confident answers to');
     say('  the wrong screen, and refused 1 real question in 105. Calibrated for that app, it');
     say('  made neither mistake. The kit cannot calibrate from its own example questions:');
-    say('  that was measured too, and it was worse. Calibrating needs real questions, each');
-    say('  with the screen it should reach. Put the result in calibration/thresholds.hashing.json');
-    say('  and build again (PLAN.md WP-41).');
+    say('  that was measured too, and it was worse — it wrongly refused 7 real requests in 105.');
+    say('  Calibrating needs real questions you wrote, each with the screen it should reach:');
+    say('');
+    say('    nextgen calibrate <kit folder> --golden your-questions.jsonl');
+    say('    nextgen build <kit folder>        # picks up the calibration');
+    say('');
+    say('  One JSON object per line: {"utterance": "...", "route": "/where", "role": "ADMIN"}.');
+    say('  Use "route": null for a question it should refuse, and include both kinds — a sweep');
+    say('  with nothing to refuse cannot find the refusal threshold. About 20 turns is the');
+    say('  minimum that means anything; fewer and it fits noise.');
   }
   say();
 

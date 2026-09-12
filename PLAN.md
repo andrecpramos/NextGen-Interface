@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-12 · **Branch:** `feature/wp44-portuguese-voice`, based on `develop` · **16 workspace packages · 632 tests,
+**Verified against disk:** 2026-09-12 · **Branch:** `feature/wp41-kit-calibrate`, based on `develop` · **16 workspace packages · 647 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -71,7 +71,7 @@ on 2026-09-11; see §13.
 
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
-| 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **Left:** WP-43's app, a `calibrate` command, and the owner's run | M4 | M | agent |
+| 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
 | 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
 | 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows ([DESCRIPTION_AUDIT.md](eval/fut-app/DESCRIPTION_AUDIT.md)) | M4 | S–M | **owner** |
 | 4 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](eval/tutor-app/RESULT.md)) | M4 | M | done |
@@ -471,18 +471,18 @@ someone who did not write it.
 
 ### Tests
 
-632 tests across 15 packages, all green on 2026-09-12, after WP-41, WP-46, WP-42's agent
+647 tests across 15 packages, all green on 2026-09-12, after WP-41, WP-46, WP-42's agent
 half, WP-43, WP-47 and the agent halves of WP-45 and WP-44 landed. `services/api` has none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `core-intent` | 120 | | `generator` | 103 (incl. WP-42's extraction fixes and WP-43's guards) |
+| `core-intent` | 130 (incl. WP-41's shared calibration sweep) | | `generator` | 103 (incl. WP-42's extraction fixes and WP-43's guards) |
 | `data` | 60 (incl. WP-18) | | `core-capability` | 59 (incl. WP-27, the registry-ownership guard) |
 | `apps/web` | 44 | | `core-inference` | 42 (incl. the Rule 15 fence) |
 | `domain-modules` | 39 | | `domain-finance` | 34 |
 | `core-trace` | 28 | | `core-dispatch` | 26 |
 | `ui` | 16 (anchor resolver) | | `apps/cli` | 15 |
-| `kit` | 12 (WP-41: init, build, doctor) | | `embed` | 27 (the script tag, the chat box, WP-45's focus rule) |
+| `kit` | 17 (WP-41: init, build, calibrate, doctor) | | `embed` | 27 (the script tag, the chat box, WP-45's focus rule) |
 | `core-voice` | 7 (asset store, and WP-44's manifest) | | | |
 
 ---
@@ -2025,6 +2025,9 @@ kit has to explain itself well enough to be run by someone who did not write it.
 >   repository, if the rebuilt registries match it (INSTALL.md §0).
 >
 > **Left:**
+> 0. ~~**WP-43's app.**~~ ✅ Done by WP-43 itself — the kit was run end to end on
+>    [Tutor-Support-System](eval/tutor-app/RESULT.md), which is where the Rule 17 leak was
+>    found, fixed and re-scored.
 > 1. ~~**A chat box.**~~ ✅ **Built the same day.** `NextGen.start('/nextgen', role)`
 >    mounts an accessible "ask where to go" box in a shadow root. It speaks the page's
 >    language, Portuguese or English. It moves the browser only for an executed
@@ -2033,11 +2036,19 @@ kit has to explain itself well enough to be run by someone who did not write it.
 >    otherwise it explains and stays put. Choices are real links (Rule 7). 21 tests; the
 >    bundle grew from 9.3KB to 12.0KB gzipped. **Not yet verified with a screen reader
 >    (WP-45).**
-> 2. **WP-43's app.**
-> 3. **A `nextgen calibrate` command.** It needs the sweep extracted from
->    `calibrate-registries.mjs` into one shared module first: two copies of a calibration
->    sweep is how Rule 14 drifts.
-> 4. **The owner's run.**
+> 2. ~~**A `nextgen calibrate` command.**~~ ✅ **2026-09-12.** The sweep moved first, as
+>    this row required: it is now `core-intent/src/calibrate.ts`, used by both
+>    `eval/fut-app/calibrate-registries.mjs` and the kit, so Rule 14 has one
+>    implementation. **The extraction is proved faithful by the gate**: the fut-app
+>    thresholds after the refactor are identical to the shipped ones, which is what
+>    `calibrate-registries.mjs --check` asserts in CI.
+>
+>    The command takes a golden set **the adopter wrote**, and offers no way to calibrate
+>    from the generator's own examples — measured, that wrongly refuses real requests.
+>    It refuses below 20 turns, refuses when nothing is held out, splits by destination,
+>    and warns when the result is worse than it looks. Run end to end on bulletproof-react,
+>    an app nobody here wrote: [eval/bulletproof-react/RESULT.md](eval/bulletproof-react/RESULT.md).
+> 3. **The owner's run.**
 
 **Goal.** An adopter adds the kit to their app and runs one command, and the assistant
 works. The owner will do exactly this in `fut-app`, so this WP is judged by how that run
@@ -2439,7 +2450,7 @@ node tooling/scripts/check-thresholds.mjs          # Rule 14
 node tooling/scripts/check-doc-links.mjs           # every relative link resolves
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
 pnpm -r typecheck
-pnpm -r test                                       # 632 tests, 15 packages
+pnpm -r test                                       # 647 tests, 15 packages
 pnpm registry:check                                # Rule 10
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
