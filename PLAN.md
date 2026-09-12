@@ -69,6 +69,31 @@ to turn the pieces into **one thing an adopter drops into their own codebase and
 **The owner's own run of it in `fut-app` is the acceptance test.** The owner decided this
 on 2026-09-11; see §13.
 
+> ## ⏸️ Nothing in this queue is waiting on an agent — 2026-09-12
+>
+> WP-46, WP-43 and WP-47 are closed. WP-41, WP-42, WP-44 and WP-45 have had their agent
+> half done and are now **half-finished on purpose**: each remaining step needs a person,
+> a device or a repository agents do not write to. Picking one up and "finishing" it in
+> software would mean fabricating the half that exists to be real.
+>
+> **The four things waiting on the owner**, cheapest first:
+>
+> | | What | How long | Where |
+> |---|---|---|---|
+> | WP-45 | The NVDA pass — 17 items, hands off the mouse | ~15 min | [NVDA-CHECKLIST.md](eval/a11y/NVDA-CHECKLIST.md) |
+> | WP-44 | Record 20 pt-PT utterances and re-run the comparison | ~20 min | [VOICE-PT.md](eval/fut-app/VOICE-PT.md#the-half-that-is-still-owed) |
+> | WP-42 | Mark 25 generated descriptions right/vague/wrong | ~30 min | [DESCRIPTION_AUDIT.md](eval/fut-app/DESCRIPTION_AUDIT.md) |
+> | WP-35 | Drop the kit into `fut-app`, deploy, measure | the real one | [INSTALL.md](INSTALL.md) |
+>
+> Until each is done, the claim it supports stays at what was actually measured —
+> *"automated accessibility checks pass; no screen reader has confirmed it"*, *"synthetic
+> Portuguese only"*, *"20 of 145 descriptions read against source"*, and no cost-per-session
+> figure at all.
+>
+> **The one thing an agent may still pick up is WP-48**, and only when its trigger fires:
+> before any `write` or `destructive` capability ships to an adopter (§7.5, §8). It is
+> deferred, not forgotten, and the trigger has not fired.
+
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
 | 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
