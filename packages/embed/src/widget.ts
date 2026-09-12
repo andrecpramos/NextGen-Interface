@@ -8,8 +8,11 @@
 // - System colours (Canvas, CanvasText, LinkText, Highlight), so it follows the
 //   user's light, dark or forced-colours setting without knowing the host's theme.
 // - 48px targets, a visible focus ring, `role="search"`, and an `aria-live`
-//   result. Focus stays in the input, so the next question needs no reaching.
-//   This is designed in, and not yet verified with a screen reader (PLAN.md WP-45).
+//   result. Focus returns to the input when an answer replaces what the user was
+//   standing on, and is left alone otherwise (`showResult`, below).
+//   Audited by tooling/scripts/check-accessibility.mjs, which is where that focus
+//   rule came from - it was claimed here before it was true. Still not verified
+//   with a screen reader: eval/a11y/NVDA-CHECKLIST.md is the owner's pass (WP-45).
 // - Choices are real `<a href>` links. Every destination stays reachable without
 //   the assistant, by keyboard, middle-click or copy (Rule 7).
 
@@ -110,6 +113,24 @@ export function mount(target: Element, assistant: Routable, options: MountOption
     return p;
   };
 
+  /**
+   * Replace the answer without dropping the user's place (WP-45).
+   *
+   * A keyboard or screen-reader user can be standing on a link from the last
+   * answer when the next one lands — submit a question, tab into the results
+   * while it is still in flight, and the slower the device the wider that window
+   * is. `replaceChildren` then removes the focused element, and focus falls to
+   * the document body: the user is silently returned to the top of the host
+   * page, mid-sentence. Put them back in the input, which is where the widget's
+   * design says focus belongs anyway.
+   */
+  const showResult = (...nodes: readonly Node[]): void => {
+    const active = root.activeElement;
+    const wasInside = active !== null && result.contains(active);
+    result.replaceChildren(...nodes);
+    if (wasInside) input.focus();
+  };
+
   function render(shown: View): void {
     const nodes: HTMLElement[] = [paragraph('title', shown.title)];
     if (shown.body) nodes.push(paragraph('body', shown.body));
@@ -134,7 +155,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
       nodes.push(list);
     }
     result.setAttribute('data-tone', shown.tone);
-    result.replaceChildren(...nodes);
+    showResult(...nodes);
   }
 
   // A newer question wins, even if an older one resolves after it.
@@ -145,7 +166,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
     if (!utterance) return null;
     const mine = ++latest;
     result.setAttribute('aria-busy', 'true');
-    result.replaceChildren(paragraph('body', words.thinking));
+    showResult(paragraph('body', words.thinking));
 
     let shown: View;
     try {
@@ -170,7 +191,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
   input.addEventListener('keydown', (event) => {
     if ((event as KeyboardEvent).key === 'Escape') {
       input.value = '';
-      result.replaceChildren();
+      showResult();
     }
   });
 
