@@ -2474,6 +2474,9 @@ node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
 node tooling/scripts/check-doc-links.mjs           # every relative link resolves
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
+node tooling/scripts/check-accessibility.mjs      # WP-45: axe over the BUILT widget, every state
+node --experimental-strip-types \
+  eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
 pnpm -r typecheck
 pnpm -r test                                       # 647 tests, 15 packages
 pnpm registry:check                                # Rule 10

@@ -60,6 +60,9 @@ pnpm -r typecheck
 pnpm -r test
 pnpm registry:check                                # Rule 10: >=3 examples per capability
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
+node tooling/scripts/check-accessibility.mjs       # WP-45: no serious/critical a11y violation
+node --experimental-strip-types \
+  eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
 ```
 
 The golden-set gate and its tolerances are described in
