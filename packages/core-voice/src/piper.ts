@@ -3,12 +3,18 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { PIPER_ASSET, PIPER_VOICE_CONFIG_ASSET, PIPER_VOICE_ONNX_ASSET, VoiceAssetStore } from './assets.ts';
+import { PIPER_ASSET, PIPER_VOICES, VoiceAssetStore, type PiperVoiceId } from './assets.ts';
 import type { TtsEngine } from './types.ts';
 
 export interface PiperOptions {
   readonly store: VoiceAssetStore;
   readonly timeoutMs?: number;
+  /**
+   * Which voice to speak with. Default `en_US`, which is what WP-21 measured.
+   * `pt_PT` is European Portuguese (WP-44) — a voice is per-language, so asking
+   * the English voice to read Portuguese measures nothing but mispronunciation.
+   */
+  readonly voice?: PiperVoiceId;
 }
 
 /**
@@ -28,10 +34,17 @@ export class PiperTtsEngine implements TtsEngine {
   readonly name = 'piper';
   readonly #store: VoiceAssetStore;
   readonly #timeoutMs: number;
+  readonly #voice: PiperVoiceId;
 
   constructor(options: PiperOptions) {
     this.#store = options.store;
     this.#timeoutMs = options.timeoutMs ?? 30_000;
+    this.#voice = options.voice ?? 'en_US';
+  }
+
+  /** Which voice this engine speaks with — a run's report is incomplete without it. */
+  get voice(): PiperVoiceId {
+    return this.#voice;
   }
 
   async isAvailable(): Promise<boolean> {
@@ -76,8 +89,8 @@ export class PiperTtsEngine implements TtsEngine {
 
   async #paths(): Promise<{ exe: string; model: string; config: string; espeakData: string }> {
     const piperDir = await this.#store.ensure(PIPER_ASSET);
-    const model = await this.#store.ensure(PIPER_VOICE_ONNX_ASSET);
-    const config = await this.#store.ensure(PIPER_VOICE_CONFIG_ASSET);
+    const model = await this.#store.ensure(PIPER_VOICES[this.#voice].onnx);
+    const config = await this.#store.ensure(PIPER_VOICES[this.#voice].config);
     return {
       exe: join(piperDir, 'piper', 'piper.exe'),
       model,

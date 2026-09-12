@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { AssetIntegrityError, VoiceAssetStore, type AssetDescriptor } from './assets.ts';
+import { AssetIntegrityError, PIPER_VOICES, VoiceAssetStore, WHISPER_MODELS, type AssetDescriptor } from './assets.ts';
 
 /**
  * No real network here — same discipline `core-inference`'s `ModelStore`
@@ -104,5 +104,40 @@ describe('VoiceAssetStore', () => {
 
     const second = new VoiceAssetStore({ directory: dir, fetchImpl: throwingFetch() });
     await second.ensure(zipDescriptor);
+  });
+});
+
+/**
+ * WP-44 added a second language, and the way to get that wrong silently is to
+ * point two entries at one file — a "Portuguese" run that quietly uses the
+ * English voice would produce a plausible word error rate and mean nothing.
+ * These assert the manifest is actually distinct.
+ */
+describe('the manifest — one asset per language, and no accidental aliases', () => {
+  it('gives every declared asset its own url, hash and filename', () => {
+    const assets = [
+      ...Object.values(PIPER_VOICES).flatMap((v) => [v.onnx, v.config]),
+      ...Object.values(WHISPER_MODELS),
+    ];
+    for (const field of ['id', 'url', 'sha256', 'filename'] as const) {
+      const seen = assets.map((a) => a[field]);
+      expect(new Set(seen).size, `two assets share a ${field}`).toBe(assets.length);
+    }
+  });
+
+  it('keeps English-only and multilingual whisper as separate models', () => {
+    // base.en cannot transcribe Portuguese at all, and is better at English than
+    // the multilingual one. Replacing rather than adding would have silently
+    // invalidated WP-21's English numbers.
+    expect(WHISPER_MODELS['base.en'].filename).toContain('.en');
+    expect(WHISPER_MODELS.base.filename).not.toContain('.en');
+    expect(Object.keys(WHISPER_MODELS)).toContain('small');
+  });
+
+  it('ships European Portuguese, not Brazilian', () => {
+    // pt-BR against a pt-PT golden set would measure the wrong accent against
+    // the wrong words, and still produce a number.
+    expect(PIPER_VOICES.pt_PT.onnx.filename).toMatch(/^pt_PT-/);
+    expect(PIPER_VOICES.pt_PT.onnx.url).toContain('/pt_PT/');
   });
 });

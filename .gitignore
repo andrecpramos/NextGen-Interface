@@ -68,3 +68,8 @@ infrastructure/supabase/.temp/
 # The portable SDLC kit lives outside this repo and is reused across projects.
 # Ignored here so a working copy dropped in for a bootstrap is never committed.
 sdlc-kit/
+
+# WP-44: the owner's voice recordings. Audio of a real person, kept local by
+# default — the measurement they feed (voice-acceptance.real.json) is committed,
+# the recordings themselves are not.
+eval/fut-app/recordings/

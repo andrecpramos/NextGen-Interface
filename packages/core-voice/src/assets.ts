@@ -50,6 +50,41 @@ export const WHISPER_MODEL_ASSET: AssetDescriptor = {
   filename: 'ggml-base.en-q5_1.bin',
 };
 
+/**
+ * The multilingual base model (WP-44).
+ *
+ * `base.en` above is English-only: it cannot transcribe Portuguese at all, which
+ * is the limit WP-21 stated before its result and could not test around. This is
+ * the same size and quantisation, trained on 99 languages. It is a *separate*
+ * asset rather than a replacement, because English-only is measurably better at
+ * English and WP-21's numbers were measured with it — swapping it out would
+ * silently invalidate them.
+ */
+export const WHISPER_MODEL_MULTILINGUAL_ASSET: AssetDescriptor = {
+  id: 'whisper-model-base-q5_1',
+  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin',
+  sha256: '422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898',
+  sizeBytes: 59707625,
+  filename: 'ggml-base-q5_1.bin',
+};
+
+/**
+ * The small multilingual model (WP-44).
+ *
+ * Three times the size of `base` and the difference is not cosmetic: on this
+ * repository's own pt-PT measurement `base` returns 63.3% word error and `small`
+ * returns far less (eval/fut-app/VOICE-PT.md). Kept as a third option rather than
+ * the default because it is 190MB and slower, and because English-only `base.en`
+ * remains the right choice for English.
+ */
+export const WHISPER_MODEL_SMALL_ASSET: AssetDescriptor = {
+  id: 'whisper-model-small-q5_1',
+  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin',
+  sha256: 'ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb',
+  sizeBytes: 190085487,
+  filename: 'ggml-small-q5_1.bin',
+};
+
 export const PIPER_ASSET: AssetDescriptor = {
   id: 'piper-win-amd64',
   url: 'https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip',
@@ -74,6 +109,52 @@ export const PIPER_VOICE_CONFIG_ASSET: AssetDescriptor = {
   sizeBytes: 4885,
   filename: 'en_US-lessac-medium.onnx.json',
 };
+
+/**
+ * European Portuguese, not Brazilian (WP-44).
+ *
+ * `fut-app` is a Portuguese club application and its golden set is pt-PT, so a
+ * pt-BR voice would measure the wrong accent against the wrong words. The config
+ * below declares `language.code: "pt_PT"`, `region: "PT"`.
+ */
+export const PIPER_VOICE_PT_ONNX_ASSET: AssetDescriptor = {
+  id: 'piper-voice-pt_PT-tugao-medium-onnx',
+  url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx',
+  sha256: '223a7aaca69a155c61897e8ada7c3b13bc306e16c72dbb9c2fed733e2b0927d4',
+  sizeBytes: 63201294,
+  filename: 'pt_PT-tugao-medium.onnx',
+};
+
+export const PIPER_VOICE_PT_CONFIG_ASSET: AssetDescriptor = {
+  id: 'piper-voice-pt_PT-tugao-medium-config',
+  url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/pt/pt_PT/tug%C3%A3o/medium/pt_PT-tug%C3%A3o-medium.onnx.json',
+  sha256: 'fe0918dfc0f1a89264a6eea4afe8e95d8e9fed3cc6c81b5c2f87fcb2b50c7320',
+  sizeBytes: 5026,
+  filename: 'pt_PT-tugao-medium.onnx.json',
+};
+
+/** The voices this repository has assets for. A voice is a pair: weights and config. */
+export const PIPER_VOICES = {
+  en_US: { onnx: PIPER_VOICE_ONNX_ASSET, config: PIPER_VOICE_CONFIG_ASSET },
+  pt_PT: { onnx: PIPER_VOICE_PT_ONNX_ASSET, config: PIPER_VOICE_PT_CONFIG_ASSET },
+} as const;
+
+export type PiperVoiceId = keyof typeof PIPER_VOICES;
+
+/**
+ * The whisper models this repository has assets for.
+ *
+ * `base.en` is English-only and better at English; `base` is multilingual and the
+ * only one that can hear Portuguese. Which one a run used belongs in its report:
+ * a word error rate means nothing without it.
+ */
+export const WHISPER_MODELS = {
+  'base.en': WHISPER_MODEL_ASSET,
+  base: WHISPER_MODEL_MULTILINGUAL_ASSET,
+  small: WHISPER_MODEL_SMALL_ASSET,
+} as const;
+
+export type WhisperModelId = keyof typeof WHISPER_MODELS;
 
 export class AssetIntegrityError extends Error {
   readonly assetId: string;

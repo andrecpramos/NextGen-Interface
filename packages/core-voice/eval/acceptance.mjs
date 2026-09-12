@@ -15,10 +15,18 @@
 // Both binaries and both models are hash-pinned assets (core-voice/assets.ts);
 // the whisper CLI downloads on first use and is refused if its sha256 differs.
 //
-// ⚠️ LIMIT, stated before the result rather than after: the installed whisper
-// model is `base.en` — English only — and the only Piper voice is en_US. This can
-// measure English and nothing else. The roadmap's "accented English + Portuguese"
-// bar cannot be tested with these assets, and this script does not pretend to.
+// ⚠️ LIMIT, stated before the result rather than after: this script measures
+// ENGLISH, with `base.en` and the en_US voice. That is deliberate and unchanged —
+// English-only whisper is better at English, and WP-21's numbers were measured
+// with it.
+//
+// Portuguese is measured separately by eval/fut-app/voice-acceptance.mjs (WP-44),
+// which added a multilingual model and a pt_PT voice to the manifest and routes
+// against fut-app's own role registries. Read eval/fut-app/VOICE-PT.md before
+// quoting any voice number: English here is 7.1% word error, Portuguese there is
+// 46-59%, and they are not interchangeable.
+//
+// Still untested by either: accented speech, and any real microphone.
 //
 //   node --experimental-strip-types packages/core-voice/eval/acceptance.mjs \
 //     --registry=<path to a built registry.json> [--n 40]
