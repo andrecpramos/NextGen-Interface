@@ -78,6 +78,19 @@ class FakeElement {
     }
     return outcome;
   }
+  contains(node: FakeElement | null): boolean {
+    if (!node) return false;
+    if (node === this) return true;
+    return this.children.some((child) => child.contains(node));
+  }
+  focus(): void {
+    this.ownerDocument.activeElement = this;
+  }
+  /** As a real shadow root reports it: the focused node, but only if it is ours. */
+  get activeElement(): FakeElement | null {
+    const active = this.ownerDocument.activeElement;
+    return active && this.contains(active) ? active : null;
+  }
   find(predicate: (el: FakeElement) => boolean): FakeElement | undefined {
     for (const child of [...this.children, ...(this.shadowRoot ? [this.shadowRoot] : [])]) {
       if (predicate(child)) return child;
@@ -91,6 +104,7 @@ class FakeElement {
 class FakeDocument {
   readonly documentElement: FakeElement;
   readonly defaultView = null;
+  activeElement: FakeElement | null = null;
   constructor(lang: string) {
     this.documentElement = new FakeElement('html', this);
     this.documentElement.setAttribute('lang', lang);
@@ -182,6 +196,43 @@ describe('the chat box — a turn', () => {
     expect(moves).toEqual([]); // a clarify moves nothing until the user picks
     expect(links[1]!.fire('click').prevented).toBe(true);
     expect(moves).toEqual(['/squad']);
+  });
+
+  it('keeps the user\'s place when a new answer removes the link they were on', async () => {
+    // WP-45, found by the axe run and not by anyone reading this code: submit a
+    // question, tab into the previous answer while it is still in flight, and
+    // `replaceChildren` deletes the focused link. Focus then falls to the
+    // document body — a screen-reader user is silently returned to the top of
+    // the host page. Focus belongs in the input, ready for the next question.
+    const { mounted, host, input, doc } = setup(
+      assistantReturning({
+        outcome: 'clarify',
+        candidates: [
+          { capabilityId: 'calendar.overview', score: 0.5 },
+          { capabilityId: 'squad.list', score: 0.4 },
+        ],
+      }),
+    );
+    await mounted.ask('jogos');
+    const link = host.find((el) => el.tagName === 'a')!;
+    link.focus();
+    expect(host.shadowRoot!.activeElement).toBe(link);
+
+    await mounted.ask('jogos outra vez');
+    expect(doc.activeElement).toBe(input);
+    expect(host.shadowRoot!.activeElement).toBe(input);
+  });
+
+  it('leaves focus alone when the user was not inside the answer', async () => {
+    // The other half: a widget that seizes focus on every answer is its own
+    // accessibility bug. If the user is reading elsewhere on the page, the
+    // answer is announced by the live region and nothing moves.
+    const { mounted, doc, target } = setup(assistantReturning({ capabilityId: 'calendar.overview' }));
+    const elsewhere = doc.createElement('a');
+    target.append(elsewhere);
+    elsewhere.focus();
+    await mounted.ask('onde vejo o calendário');
+    expect(doc.activeElement).toBe(elsewhere);
   });
 
   it('ignores an empty question', async () => {

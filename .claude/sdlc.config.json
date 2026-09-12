@@ -118,6 +118,17 @@
       "fix": "Something upstream of eval/fut-app/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements."
     },
     {
+      "id": "accessibility",
+      "title": "WP-45 — the shipped widget has no serious or critical a11y violations",
+      "command": "node tooling/scripts/check-accessibility.mjs",
+      "blocking": true,
+      "when": [
+        "packages/embed/src/**",
+        "packages/ui/src/**"
+      ],
+      "fix": "Run node tooling/scripts/check-accessibility.mjs and read eval/a11y/axe.json. This is the automated half only: colour contrast, announcement order and anything as-rendered are eval/a11y/NVDA-CHECKLIST.md, which a person runs."
+    },
+    {
       "id": "kit-sync",
       "title": "Hooks identical in .claude/ and sdlc-kit/runtime/",
       "command": "node tooling/scripts/check-kit-sync.mjs",

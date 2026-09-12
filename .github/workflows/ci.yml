@@ -185,6 +185,17 @@ jobs:
       - name: Derived artefacts are current (WP-46)
         run: node tooling/scripts/check-derived-artefacts.mjs
 
+      # WP-45. Runs the BUILT bundle in a real DOM and audits every state a user
+      # can reach. It found one real defect on its first run: focus fell to the
+      # document body when an answer replaced the link the user was standing on.
+      #
+      # This is the automated half. Colour contrast comes back "incomplete" here
+      # and not "pass" - jsdom computes no layout, and the widget paints in system
+      # colours that belong to the user's OS. eval/a11y/NVDA-CHECKLIST.md is the
+      # half a person runs, and the accessibility claim waits on it.
+      - name: Accessibility - no serious or critical violations (WP-45)
+        run: node tooling/scripts/check-accessibility.mjs
+
   golden-set:
     name: golden-set regression (model-free)
     runs-on: ubuntu-latest

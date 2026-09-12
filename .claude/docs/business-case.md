@@ -65,7 +65,7 @@ account areas · complex B2B SaaS with low-frequency administrative tasks.
 |---|---|---|
 | **Deflected support contacts** | Tickets/calls per 1,000 sessions, before and after | **High** — this is the hard number and the reason a budget exists |
 | **Task completion** | % of users who start a journey and finish it | High — directly attributable |
-| **Accessibility** | WCAG / European Accessibility Act obligations | Medium — a conversational path plus keyboard and screen-reader support is a genuine compliance asset, but **only once the a11y work is actually verified**, which it never has been |
+| **Accessibility** | WCAG / European Accessibility Act obligations | Medium — a conversational path plus keyboard and screen-reader support is a genuine compliance asset. **Half-verified since 2026-09-12 (WP-45):** automated checks pass in CI and found one real defect; the screen-reader pass has not been run, so the compliance asset cannot be sold yet |
 | **No re-platform** | Weeks of integration vs. a redesign programme | High — this is the pitch that gets the first meeting |
 | **Demand intelligence** | What users asked for and could not get | **Underrated.** See below |
 
@@ -196,10 +196,12 @@ conversations, not three months of code. Test it early and out of order.
 3. **The valuable apps are behind a login.** Reading from source sidesteps this for
    generation, which is why it was chosen — but any *data* capability in phase 2 walks
    straight back into auth, permissions and per-user scoping.
-4. **Accessibility is in the pitch and has never been verified.** No screen-reader pass,
-   no axe run. Claiming it before testing it is the fastest way to lose a public-sector
-   buyer. *(Scheduled 2026-09-11 as WP-45: automated checks first, then the owner's
-   NVDA pass. The claim is not made until that pass is done.)*
+4. **Accessibility is in the pitch and is now half-verified.** *(WP-45, 2026-09-12:
+   the axe run exists and is a CI gate — 18 checks, 0 serious or critical, on the built
+   bundle in a real DOM, and it found and fixed one real focus defect. The screen-reader
+   pass has still not happened.)* Until it does, the sayable claim is exactly
+   *"automated accessibility checks pass; no screen reader has confirmed it"*. Claiming
+   more before testing it is the fastest way to lose a public-sector buyer.
 5. **Solo capacity is the binding constraint**, and the failure mode is not technical:
    it is thirteen work packages half-finished at month six.
 6. **Out-of-scope refusal has a measured ceiling, and it is disclosed rather than

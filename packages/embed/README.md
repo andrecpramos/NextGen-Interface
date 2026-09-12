@@ -30,8 +30,12 @@ single-page app, pass the router so that moving does not reload the page:
 - **`widget.ts`** draws that inside a shadow root, so the host's stylesheet cannot reach
   it. It uses system colours, 48px targets, a visible focus ring, `role="search"`, a
   labelled input, and an `aria-live` result. Choices are real links, so every
-  destination stays reachable without the assistant (Rule 7). **It has not yet been
-  verified with a screen reader (PLAN.md WP-45).**
+  destination stays reachable without the assistant (Rule 7). Audited by
+  `tooling/scripts/check-accessibility.mjs`, which runs the built bundle in a real DOM
+  and found one real defect ([eval/a11y/RESULT.md](../../eval/a11y/RESULT.md)): focus
+  fell to the document body when an answer replaced the link the user was standing on.
+  **Automated checks pass; no screen reader has been used on it yet
+  ([the NVDA pass](../../eval/a11y/NVDA-CHECKLIST.md), PLAN.md WP-45).**
 
 ## The router underneath
 

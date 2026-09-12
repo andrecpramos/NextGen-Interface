@@ -1,0 +1,133 @@
+{
+  "checkedAt": "2026-09-12T12:36:01.111Z",
+  "artefact": "packages/embed/dist/nextgen.js",
+  "data": "eval/fut-app/generated (PARENT)",
+  "tool": "axe-core 4.13.0 in jsdom",
+  "cannotCheck": [
+    "colour contrast (no layout, and system colours)",
+    "announcement order",
+    "rendered focus and target size"
+  ],
+  "states": {
+    "idle": {
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    "thinking": {
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    "choose (3 links)": {
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    "limit (0 links)": {
+      "violations": [],
+      "incomplete": [
+        "color-contrast"
+      ]
+    },
+    "host page + widget": {
+      "violations": [],
+      "incomplete": [
+        "color-contrast",
+        "landmark-one-main",
+        "page-has-heading-one"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "ok": true,
+      "label": "idle: 0 serious/critical",
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
+    },
+    {
+      "ok": true,
+      "label": "thinking: 0 serious/critical",
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
+    },
+    {
+      "ok": true,
+      "label": "choose (3 links): 0 serious/critical",
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
+    },
+    {
+      "ok": true,
+      "label": "limit (0 links): 0 serious/critical",
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
+    },
+    {
+      "ok": true,
+      "label": "host page + widget: 0 serious/critical",
+      "detail": "incomplete (jsdom cannot judge): color-contrast, landmark-one-main, page-has-heading-one"
+    },
+    {
+      "ok": true,
+      "label": "the refusal state above really is a refusal",
+      "detail": "a declared boundary, presented as a limit"
+    },
+    {
+      "ok": true,
+      "label": "no positive tabindex (the host page keeps its own tab order)",
+      "detail": "input and button are natural stops"
+    },
+    {
+      "ok": true,
+      "label": "the input has a real <label for>",
+      "detail": "for=\"nextgen-q\" id=\"nextgen-q\""
+    },
+    {
+      "ok": true,
+      "label": "Enter submits the form (no pointer required)"
+    },
+    {
+      "ok": true,
+      "label": "Escape clears the question and the result"
+    },
+    {
+      "ok": true,
+      "label": "focus is still in the input after Escape"
+    },
+    {
+      "ok": true,
+      "label": "focus survives the answer being replaced",
+      "detail": "stayed on INPUT"
+    },
+    {
+      "ok": true,
+      "label": "the result is a polite live region, present from mount",
+      "detail": "role=status aria-live=polite"
+    },
+    {
+      "ok": true,
+      "label": "the widget speaks the page's language",
+      "detail": "lang=pt → \"Pergunte para onde quer ir\" · lang=en → \"Ask where to go\""
+    },
+    {
+      "ok": true,
+      "label": "honours prefers-reduced-motion"
+    },
+    {
+      "ok": true,
+      "label": "no motion declared outside that block",
+      "detail": "nothing to suppress"
+    },
+    {
+      "ok": true,
+      "label": "inputs, buttons and links declare 48px targets",
+      "detail": "3 rule(s) at 48px"
+    },
+    {
+      "ok": true,
+      "label": "a visible focus ring is declared",
+      "detail": "outline on :focus-visible"
+    }
+  ]
+}
