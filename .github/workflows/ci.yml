@@ -196,6 +196,15 @@ jobs:
       - name: Accessibility - no serious or critical violations (WP-45)
         run: node tooling/scripts/check-accessibility.mjs
 
+      # The model-free floor on the GENERATED registries. CI's golden-set job below
+      # scores the reference app's set; nothing scored fut-app's, so a change to a
+      # description, a trigger or normalize() could move what the router decides on
+      # the app this is piloted on and no job would notice. That is what L9 cost
+      # seven accuracy points. Deterministic (hashing, no stage 3) and ~0.3s, and
+      # timing is excluded from the comparison so a busy runner cannot fail it.
+      - name: Generated registries still decide the same way
+        run: node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing --check
+
   golden-set:
     name: golden-set regression (model-free)
     runs-on: ubuntu-latest
