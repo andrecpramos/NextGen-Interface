@@ -384,7 +384,7 @@ session rather than claiming the set.
 | `import-boundaries` | — | not yet deliberately broken, **but it caught a real one 2026-09-10**: a doc comment in `core-inference` naming two domain packages. The text grep is blunt on purpose and the comment was reworded rather than the gate relaxed |
 | `registry-check` | — | not yet deliberately broken |
 | `check-thresholds` | — | not yet deliberately broken |
-| `scorecard` | — | not yet deliberately broken |
+| `scorecard` | **2026-09-13** | **It could not be broken, which was the finding.** The configured local command was `--baseline X --current X` — the same path on both sides — so every delta was zero by construction. Setting every rate in that scorecard to 0.01, a total collapse, still printed *"OK — no accuracy regression beyond tolerance"*, and `/gates` reported it green. It now takes `--baseline-ref HEAD`, and the script **refuses** a same-path invocation rather than reporting a pass. Re-run against the same collapse: 5 regressions, exit 1 |
 
 ---
 
@@ -404,6 +404,7 @@ session rather than claiming the set.
 | 10 | Every capability ships >=3 examples | `validate.ts` + `registry:check`, CI | **gate** |
 | 11 | Deterministic slots beat model-extracted | `slots.test.ts` | **test** |
 | 12 | A routing bug becomes a permanent golden entry | none | convention |
+| — | Golden-set accuracy does not regress on the reference app | `check-scorecard.mjs`, CI (a baseline copied aside, then a fresh `router:floor`) and `/gates` (against the scorecard committed at `HEAD`) | **gate** — **and it was vacuous locally until 2026-09-13**: the configured command compared the committed file with itself, so it could not fail. See the table above |
 | 13 | Limits declared in the registry | `unsupported` kind, `defineBoundary`, domain tests | **test** |
 | 14 | Thresholds calibrated per encoder | `check-thresholds.mjs`, CI | **gate (new)** |
 | 15 | Domain content untrusted in a prompt | `fence()` / `redactTag()` in `core-inference`, at all four prompt sites; `untrusted.test.ts`, `cascade.test.ts`, golden `gs-0181..0183` | **test (2026-09-10)** — structural only; the model's *obedience* is not enforced, §8 |

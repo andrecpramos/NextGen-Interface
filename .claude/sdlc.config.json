@@ -207,14 +207,14 @@
     },
     {
       "id": "scorecard",
-      "title": "Golden-set regression against the committed baseline",
-      "command": "node tooling/scripts/check-scorecard.mjs --baseline packages/core-intent/eval/scorecards/hashing-nostage3.json --current packages/core-intent/eval/scorecards/hashing-nostage3.json --tolerance 0.05",
+      "title": "Golden-set regression against the scorecard committed at HEAD",
+      "command": "node tooling/scripts/check-scorecard.mjs --baseline-ref HEAD --current packages/core-intent/eval/scorecards/hashing-nostage3.json --tolerance 0.05",
       "blocking": true,
       "when": [
         "packages/domain-*/src/capabilities.ts",
         "packages/core-intent/**"
       ],
-      "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold."
+      "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold. This compares your working tree against the scorecard committed at HEAD, so it only has something to say after `pnpm router:floor` has re-run; CI does the same with a baseline copied aside before the run."
     },
     {
       "id": "audit",
