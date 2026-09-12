@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp42-description-audit`, based on `develop` · **16 workspace packages · 621 tests,
+**Verified against disk:** 2026-09-11 · **Branch:** `feature/wp42-description-audit`, based on `develop` · **16 workspace packages · 627 tests,
 all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -74,7 +74,7 @@ on 2026-09-11; see §13.
 | 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **Left:** WP-43's app, a `calibrate` command, and the owner's run | M4 | M | agent |
 | 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
 | 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows ([DESCRIPTION_AUDIT.md](eval/fut-app/DESCRIPTION_AUDIT.md)) | M4 | S–M | **owner** |
-| 4 | **WP-43** · A second external app, **with role guards**. Rule 17 has only ever been validated on `fut-app` | M4 | M | agent |
+| 4 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](eval/tutor-app/RESULT.md)) | M4 | M | done |
 | 5 | **WP-45** · Accessibility. The agent runs automated checks and writes an NVDA checklist; the owner does the screen-reader pass | M4 | S | agent, then owner |
 | 6 | **WP-44** · Portuguese and real-voice acceptance. `fut-app` is Portuguese, and WP-21 measured English synthetic speech only | — | S | agent + owner recordings |
 | 7 | **WP-35** · **The owner's run.** Drop the kit into `fut-app`, deploy, measure cost per session on real traffic, check guided steps on a real form, record the side-by-side clip | M3/M4 | M | **owner** |
@@ -437,9 +437,10 @@ As of 2026-09-11:
   hand-written questions (§9). For `fut-app` it lives in an eval script
   ([calibrate-registries.mjs](eval/fut-app/calibrate-registries.mjs)), not in the
   generator.
-- **Evidence beyond one role-gated app.** Role extraction is validated on `fut-app` only
-  (WP-43), and 100 of the 145 generated descriptions have never been read by a person
-  (WP-42).
+- **Evidence beyond two role-gated apps.** Role extraction is now validated on a second,
+  external app (WP-43) — where it leaked first and was fixed — but a guard written *inside*
+  a page component is still not read at all. 100 of the 145 generated descriptions have
+  never been read by a person (WP-42).
 
 Everything this section used to list now exists, and §7 describes each one:
 - declared explanations (WP-36);
@@ -470,12 +471,12 @@ someone who did not write it.
 
 ### Tests
 
-621 tests across 15 packages, all green on 2026-09-11, after PR #7 merged and WP-41,
-WP-46 and WP-42's agent half landed. `services/api` has none.
+627 tests across 15 packages, all green on 2026-09-12, after WP-41, WP-46, WP-42's agent
+half and WP-43 landed. `services/api` has none.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `core-intent` | 120 | | `generator` | 97 (incl. WP-42's extraction fixes) |
+| `core-intent` | 120 | | `generator` | 103 (incl. WP-42's extraction fixes and WP-43's guards) |
 | `data` | 60 (incl. WP-18) | | `core-capability` | 59 (incl. WP-27, the registry-ownership guard) |
 | `apps/web` | 44 | | `core-inference` | 42 (incl. the Rule 15 fence) |
 | `domain-modules` | 39 | | `domain-finance` | 34 |
@@ -793,6 +794,7 @@ adversarial violation is new, see above).
 | 2026-09-11 (WP-28): discovery gave up on unreadable routes before recording any skips | On an app we do not own it found 1 of 8 routes and reported **0** skips | Read `lazy`, aliases and path tables; add the `unreadable-route` reason | **A report cannot mention what the tool never saw** (L12) |
 | 2026-09-11 (WP-29): the "browser" entry reached `node:*` through a dependency, and read `process.env` at module scope | `ReferenceError` on first load in any page, while `check-packaging.mjs` passed | A `core-inference/ollama` subpath, and guarded reads | **An entry point that exists is not one that loads** (L11) |
 | **2026-09-11 (WP-21): `normalize()` kept sentence punctuation** | Whisper ends every transcript with a full stop, so "My modules." missed the stage-1 trigger. 10 of 40 spoken turns routed differently from typed. Typed input had the same bug all along | Strip `.` and `,` unless a digit is on both sides. Recalibrate, and rebuild every index | **Changing an upstream function invalidates everything derived from it.** Two threshold profiles, ten indexes and two scorecards went stale, and only a manual parity run noticed. **WP-46 now gates it in CI** |
+| **2026-09-12 (WP-43): a guard the parser could not read became "everyone"** | On a public app whose routes are gated by a parent `<Route element={<ProtectedRoute allowedRoles={[…]} />}>`, all 16 screens — 4 of them admin-only — shipped in one `PUBLIC` registry, with 0 skips reported and `doctor` saying "nothing needs fixing" | Inherit a parent guard; `null` (drop and report) for one that cannot be evaluated; take the role universe from the route table when there is no permissions module | **A default that is safe for one app is a leak in another.** `PUBLIC` was correct for a site with no roles and catastrophic for a site with three. A fallback has to be justified by what the app *says*, not by what makes output appear |
 | **2026-09-11 (WP-42): a page's error fallback was read as the page** | On an app we do not own, a screen with no doc comment had one literal string under it — an `ErrorBoundary` fallback — so its description became *"a user tries to view comments but sees an error message"*. A user asking for that screen would be sent somewhere the registry describes as broken | `readPage` skips `fallback`/`errorFallback`/`loadingFallback`/`errorElement` subtrees. The first fix also skipped `forbiddenFallback` and made another description worse, so it was narrowed | **A failure state is not the screen.** An error fallback describes a *moment*; an authorization fallback describes the *audience*, which is true of the screen. Extraction decides description quality far more than the prompt does |
 | **2026-09-11 (WP-41): the uncalibrated default was assumed to be merely cautious** | On a 145-screen app it sent 2 of 7 confident stage-2 answers to the wrong screen, and wrongly refused 1 of 105 real questions. The first draft of `doctor` told adopters it would only "ask more clarifying questions" | Measured before the claim shipped. `doctor` now states the numbers | **A default is a calibration made for somebody else's registry.** This is Rule 14 again, seen from the adopter's side: uncalibrated does not mean conservative |
 
@@ -2070,8 +2072,8 @@ the kit ships the shipped profile, and `doctor` says **uncalibrated** in plain w
 - [ ] Runs end to end on `fixtures/tiny-app`, `fixtures/data-router-app`,
       bulletproof-react (a scratch clone) and WP-43's app. **`git status` in each shows
       no modified file** (Rule 16). *Done for the first three:* both fixtures are checked
-      byte-for-byte by the tests, and bulletproof-react's `git status` showed one new
-      folder. **WP-43's app does not exist yet.**
+      byte-for-byte by the tests, and bulletproof-react's and WP-43's app both showed one
+      new folder and no modified file.
 - [x] `doctor` names every skipped or unreadable route, each with its reason and what to
       do, in words rather than reason codes.
 - [x] Uninstalling means deleting the kit's folder and the mount line. Nothing else is
@@ -2193,7 +2195,36 @@ undecided for `fut-app` until the owner's sheet comes back.**
 
 ---
 
-### WP-43 · A second external app, with role guards
+### WP-43 · A second external app, with role guards ✅ **COMPLETE — 2026-09-12** · ⚠️ **its kill criterion fired**
+
+> **It leaked, and that is the finding.** On
+> [Tutor-Support-System](https://github.com/lamnh404/Tutor-Support-System) (MIT, 16 routes,
+> three roles), the first run put **all 16 screens — including four admin-only ones — into
+> a single `PUBLIC` registry**. `SKIPPED.md` reported 0 skips and `doctor` ended with
+> "nothing needs fixing". §8's *"any role mis-assignment by the generator, ever"* fired on
+> the first app that could trigger it.
+>
+> **Two causes, one of them the more serious:**
+> 1. A **third guard shape** the parser did not read: the roles sit on a parent
+>    `<Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>` and its children
+>    inherit them.
+> 2. **An unreadable guard became "everyone".** With no permissions module, every route
+>    resolved to one invented audience, `PUBLIC` — the inversion of Rule 17's own rule
+>    that an unreadable guard drops its route.
+>
+> **Fixed:** a parent guard is inherited and can only be narrowed; a guard that cannot be
+> evaluated yields `null` and is reported as `unresolved-roles`; and with no permissions
+> module the role universe is what the route table itself names. `PUBLIC` survives only
+> for an app that names no roles at all, which is what it was written for.
+>
+> **Re-scored against [GROUND_TRUTH.md](eval/tutor-app/GROUND_TRUTH.md), written from the
+> source before the generator ever ran on it:** 16 of 16 routes, **48 of 48 role
+> assignments correct, 0 leaks**, 0 files modified in the clone.
+> [RESULT.md](eval/tutor-app/RESULT.md) has the per-registry tables.
+>
+> **Still not read:** bulletproof-react's shape, a guard *inside* the page component. That
+> app still yields one audience, and `init`'s warning plus `doctor`'s role list are what an
+> adopter has. Sizing that is separate work, and nobody has asked for it yet.
 
 **Goal.** Validate Rule 17's role extraction outside `fut-app`. WP-28's external app had no
 role guards, so this has never been tested anywhere else.
@@ -2207,9 +2238,13 @@ role guards, so this has never been tested anywhere else.
 4. Run the kit (WP-41) on it.
 
 **Acceptance.**
-- [ ] **0 role leaks.**
-- [ ] Recall against the hand-written ground truth is reported.
-- [ ] Every guard that could not be read appears under `unresolved-roles`.
+- [x] **0 role leaks** — after the fix. **On the first run there were 15**, scored the
+      same way against the same ground truth. That is the result this work package
+      existed to produce.
+- [x] Recall against the hand-written ground truth is reported: **16 of 16 routes, 48 of
+      48 role assignments**.
+- [x] Every guard that could not be read appears under `unresolved-roles` — proven by
+      `fixtures/guarded-app`, whose last route's guard is computed at run time.
 
 **Stop if.** Any role leak. §8's existing kill criterion applies: automatic role extraction
 stops until it is provably correct.

@@ -394,6 +394,39 @@ function routeObjectsIn(node: ts.Node): RouteObject[] {
   return out;
 }
 
+/**
+ * The roles an application names, when it has no permissions module to read (WP-43).
+ *
+ * `readRoleModel` answers `[PUBLIC]` for an app with no permissions file, and for a
+ * three-page marketing site that is right: one audience, named for who it serves.
+ * It was wrong for an app that gates its routes inline — every screen, including
+ * four admin-only ones, came out as one PUBLIC audience with nothing reported.
+ *
+ * So when there is no permissions module but the route table itself names roles,
+ * those roles are the universe. An unguarded route then means "any role this
+ * application has", which is what the router enforces, instead of inventing an
+ * audience the application never mentions.
+ */
+function rolesFromRouteTable(source: ts.SourceFile, declared: RoleModel): RoleModel {
+  if (declared.allRoles.length > 0 && declared.allRoles[0] !== SINGLE_AUDIENCE) return declared;
+
+  const found = new Set<RoleName>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name) && (ROLE_PROPS as readonly string[]).includes(node.name.text)) {
+      const value = node.initializer;
+      const expression = value && ts.isJsxExpression(value) ? value.expression : undefined;
+      const roles = expression
+        ? evaluateRoles(expression, { constants: new Map(), identityHelpers: new Set() })
+        : null;
+      for (const role of roles ?? []) found.add(role);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+
+  return found.size > 0 ? { allRoles: [...found].sort(), namedSets: declared.namedSets } : declared;
+}
+
 /** A route discovery found but could not read — reported, never silently dropped (WP-28). */
 export interface UnreadableRoute {
   readonly path: string;
@@ -550,6 +583,55 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
   return ts.isIdentifier(tag) ? tag.text : tag.getText();
 }
 
+/**
+ * The roles a guard *wrapper* route imposes on everything beneath it (WP-43).
+ *
+ * `<Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>` is a route with
+ * no path of its own whose element is a guard component. Its children inherit
+ * the restriction, exactly as the router enforces it at run time.
+ *
+ * Returns `undefined` when the element imposes nothing (no guard, or a guard with
+ * no role list — "any signed-in user", which narrows nothing by role), and `null`
+ * when a guard names roles this generator cannot evaluate. `null` propagates and
+ * drops the route, because Rule 17's kill criterion is zero mis-assignments and
+ * an unreadable guard is not an absent one.
+ */
+const ROLE_PROPS = ['allowedRoles', 'roles', 'requiredRoles', 'anyOfRoles'] as const;
+
+function guardRoles(properties: Map<string, ts.Expression>): readonly RoleName[] | null | undefined {
+  const element = properties.get('element') ?? properties.get('Component');
+  if (!element) return undefined;
+  const node = unwrap(element);
+  const opening = ts.isJsxElement(node)
+    ? node.openingElement
+    : ts.isJsxSelfClosingElement(node)
+      ? node
+      : null;
+  if (!opening) return undefined;
+
+  const attributes = jsxRouteProperties(
+    ts.isJsxElement(node) ? node : (node as ts.JsxSelfClosingElement),
+  );
+  for (const name of ROLE_PROPS) {
+    const expression = attributes.get(name);
+    if (!expression) continue;
+    const evaluated = evaluateRoles(expression, { constants: new Map(), identityHelpers: new Set() });
+    return evaluated && evaluated.length > 0 ? evaluated : null;
+  }
+  return undefined;
+}
+
+/** Two role sets, both of which must hold: a child cannot widen its parent's guard. */
+function narrow(
+  parent: readonly RoleName[] | null | undefined,
+  child: readonly RoleName[] | null | undefined,
+): readonly RoleName[] | null | undefined {
+  if (parent === null || child === null) return null;
+  if (parent === undefined) return child;
+  if (child === undefined) return parent;
+  return parent.filter((role) => child.includes(role));
+}
+
 function collect(
   entries: readonly RouteObject[],
   parentPath: string,
@@ -563,6 +645,7 @@ function collect(
     unreadable: UnreadableRoute[];
     out: DiscoveredRoute[];
   },
+  inherited?: readonly RoleName[] | null,
 ): void {
   for (const { node, properties, children } of entries) {
     const pathExpression = properties.get('path');
@@ -580,8 +663,13 @@ function collect(
     }
     const path = joinPath(parentPath, segment);
 
+    // What this route's own element imposes, narrowed by whatever it inherited.
+    // A guard route usually has no path and no children of its own beyond the
+    // ones it protects, so this is computed before the destination checks below.
+    const here = narrow(inherited, guardRoles(properties));
+
     if (children) {
-      collect(childRoutesOf(children, node), path, context);
+      collect(childRoutesOf(children, node), path, context, here);
     }
 
     // A catch-all is the app's own 404, not a place anyone asks to go.
@@ -620,10 +708,18 @@ function collect(
     let roles: readonly RoleName[] | null;
     let roleKey: string | null = null;
     if (!rolesExpression) {
-      // No guard at all: reachable by every authenticated role. This is the one
-      // place a missing guard means "everyone", and it is a fact about the route
-      // table's own contract, not an inference about an unreadable expression.
-      roles = context.roles.allRoles;
+      // WP-43. A third shape, found on an app we do not own: the guard is a
+      // PARENT route whose element carries the roles, and the guarded routes are
+      // its children.
+      //
+      //   <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+      //     <Route path="/admin/users" element={<UserManagement />} />
+      //
+      // Before this, that app's four admin-only screens were emitted as PUBLIC —
+      // one registry, every user, no skip reported. Rule 17 is a security
+      // property and that was a leak, so an inherited guard is read here, and an
+      // inherited guard that cannot be read is `null` like any other.
+      roles = here === undefined ? context.roles.allRoles : here;
     } else {
       const accessed = unwrap(rolesExpression);
       roleKey = ts.isPropertyAccessExpression(accessed) ? accessed.name.text : null;
@@ -660,7 +756,7 @@ export function discoverRoutes(config: GeneratorConfig): {
 } {
   const routesFile = resolve(config.appRoot, config.routesFile);
   const source = parse(routesFile);
-  const roles = readRoleModel(config);
+  const roles = rolesFromRouteTable(source, readRoleModel(config));
   const aliases = readAliases(config.appRoot);
   const out: DiscoveredRoute[] = [];
   const unreadable: UnreadableRoute[] = [];
