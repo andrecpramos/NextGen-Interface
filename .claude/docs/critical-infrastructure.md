@@ -359,8 +359,18 @@ A gate nobody has seen fail is a gate nobody knows works. Section 1's vacuous
 staleness gate is the standing proof: green for weeks, checking nothing.
 
 Every new gate is made to fail deliberately once, and that is recorded here.
-The table starts mostly empty, which is the honest state — fill one row per
-session rather than claiming the set.
+
+**As of 2026-09-13 every gate that can be exercised locally has been**, and the
+column that used to read "not yet deliberately broken" is empty. Two gates are not
+in this table and cannot be: `adversarial-live` needs a model server and
+`kit-sync` needs a folder outside this repository — both are `blocking: true` for
+a local `/gates` run and absent from CI, which is said again near the top of this
+file because it is the easiest thing here to misread.
+
+Doing this in one pass was worth more than the rows suggest: two of the four
+attempts found something. The `scorecard` gate could not be made to fail at all
+(it compared a file with itself), and this table's own `import-boundaries` row
+turned out to credit the gate with a catch only the test could have made.
 
 | Gate | Last seen failing correctly | How it was made to fail |
 |---|---|---|
@@ -381,9 +391,9 @@ session rather than claiming the set.
 | `accessibility` (WP-45) | **2026-09-12, on its first run, not deliberately** | Pointed at the built widget for the first time, it failed: focus fell to the document body when an answer replaced the link the user was standing on — a keyboard user silently returned to the top of the host page. Fixed, then made to fail on purpose twice more: removing the focus restoration fails exactly one unit test, and `widget.test.ts` now holds both halves (focus returns when the user was inside the answer; focus is left alone when they were not) |
 | `derived-artefacts` | 2026-09-11 | Deleted the `normalize()` punctuation line: the exact change that went stale unnoticed that morning. **All three checks failed**: 10 of 10 indexes stale, the per-registry `tauHigh` 0.61 shipped vs 0.59 re-swept, and browser parity broken. Restored with `git checkout`, and all three passed. About a second per run |
 | Rule 1 test (`domain.test.ts`) | **2026-09-12** | Appended `// domain-modules` to `core-voice/eval/acceptance.mjs`; the test failed naming the file, and passed again when reverted. **It was widened to make that possible.** It collected `.ts` and `.js` only, so a `.mjs` in a core package could name a domain and pass — and one did, for as long as WP-47's own help text sat there. The extension list now covers `.ts`/`.js`/`.mjs`/`.cjs`. Note `check-import-boundaries.mjs` scans `core-*/src` and never saw either, which is why both exist |
-| `import-boundaries` | — | not yet deliberately broken, **but it caught a real one 2026-09-10**: a doc comment in `core-inference` naming two domain packages. The text grep is blunt on purpose and the comment was reworded rather than the gate relaxed |
-| `registry-check` | — | not yet deliberately broken |
-| `check-thresholds` | — | not yet deliberately broken |
+| `import-boundaries` | **2026-09-13** | Added `import { x } from '@nextgen/domain-modules'` to `core-trace/src/index.ts`; exited 1 naming the file and line. **Correcting this row while doing so:** it used to say the gate caught a doc comment in `core-inference` on 2026-09-10 and that "the text grep is blunt on purpose". **There is no text grep.** The gate matches quoted specifiers after `from`/`import`/`require`, plus declared dependencies — a comment naming a domain does not trip it, verified by adding one. What caught that comment was `domain.test.ts`, which greps every file. Rule 1's protection has now been credited to the gate twice while the test did the catching both times |
+| `registry-check` | **2026-09-13** | Deleted three of `module.capture`'s four examples; exited 1 with `[examples-min] module.capture: "module.capture" has 1 example(s); at least 3 are required` (Rule 10), and the build refused to write a registry it had judged invalid |
+| `check-thresholds` | **2026-09-13** | Changed `THRESHOLD_PROFILES.hashing.tauHigh` from the calibrated 0.456 to a hand-picked 0.5 — the exact move Rule 14 exists to forbid. Exited 1: *"config.ts has 0.5, the sweep recommends 0.456"*, naming when the calibration was run and telling the reader to re-sweep rather than transcribe a guess |
 | `scorecard` | **2026-09-13** | **It could not be broken, which was the finding.** The configured local command was `--baseline X --current X` — the same path on both sides — so every delta was zero by construction. Setting every rate in that scorecard to 0.01, a total collapse, still printed *"OK — no accuracy regression beyond tolerance"*, and `/gates` reported it green. It now takes `--baseline-ref HEAD`, and the script **refuses** a same-path invocation rather than reporting a pass. Re-run against the same collapse: 5 regressions, exit 1 |
 
 ---
