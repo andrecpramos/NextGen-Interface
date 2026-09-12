@@ -17,7 +17,9 @@
 // deterministic floor gave byte-identical accuracy and p95 drifting 0.228 ->
 // 0.277ms. Gating on latency here would flap for no signal.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { thresholdsFor } from '../../packages/core-intent/src/config.ts';
 
 const arg = (name, fallback) => {
@@ -27,10 +29,41 @@ const arg = (name, fallback) => {
 
 const baselinePath = arg('baseline');
 const currentPath = arg('current');
+const baselineRef = arg('baseline-ref');
 const tolerance = Number(arg('tolerance', '0.05'));
 
-if (!baselinePath || !currentPath) {
-  console.error('usage: check-scorecard.mjs --baseline <json> --current <json> [--tolerance 0.05]');
+const USAGE =
+  'usage: check-scorecard.mjs --current <json> [--tolerance 0.05]\n' +
+  '                          --baseline <json>      a second file to compare against, or\n' +
+  '                          --baseline-ref <ref>   the same path as committed at <ref>, e.g. HEAD';
+
+if (!currentPath || (!baselinePath && !baselineRef)) {
+  console.error(USAGE);
+  process.exit(2);
+}
+
+/**
+ * A baseline must be a DIFFERENT set of numbers from the current run.
+ *
+ * This is not a style preference. Until 2026-09-13 the configured local gate read
+ * `--baseline X --current X` — the same path on both sides — under the title
+ * "Golden-set regression against the committed baseline". Every rate in that file
+ * was set to 0.01, a total collapse, and the gate printed *"OK — no accuracy
+ * regression beyond tolerance"*, because every delta was zero by construction.
+ * `/gates` reported it green.
+ *
+ * That is this repository's signature failure and its third instance: a gate that
+ * passes because it is looking at nothing (see the staleness gate that diffed a
+ * directory the build never wrote, and the one blind to untracked files). Refusing
+ * the configuration is what stops a fourth.
+ */
+if (baselinePath && !baselineRef && resolve(baselinePath) === resolve(currentPath)) {
+  console.error(
+    '\n  --baseline and --current are the same file, so every delta is zero and the\n' +
+      '  regression half of this gate cannot fail. That is not a check.\n\n' +
+      '  To compare against what is committed:  --baseline-ref HEAD --current <path>\n' +
+      '  To compare two runs:                   --baseline <other.json> --current <path>\n',
+  );
   process.exit(2);
 }
 
@@ -39,7 +72,20 @@ const load = (p) => {
   return JSON.parse(t.charCodeAt(0) === 0xfeff ? t.slice(1) : t);
 };
 
-const baseline = load(baselinePath);
+/** The file as committed at a ref, without touching the working tree. */
+const loadFromGit = (ref, p) => {
+  const posix = p.split('\\').join('/');
+  try {
+    const text = execFileSync('git', ['show', `${ref}:${posix}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
+  } catch {
+    console.error(`\n  Could not read ${posix} at ${ref}. Is it committed?\n`);
+    process.exit(2);
+  }
+};
+
+const baselineLabel = baselineRef ? `${currentPath} at ${baselineRef}` : baselinePath;
+const baseline = baselineRef ? loadFromGit(baselineRef, baselinePath ?? currentPath) : load(baselinePath);
 const current = load(currentPath);
 const failures = [];
 const notes = [];
@@ -52,7 +98,7 @@ const committed = baseline.config?.thresholds ?? {};
 for (const key of Object.keys(live)) {
   if (committed[key] !== live[key]) {
     failures.push(
-      `STALE  ${baselinePath}\n         config.thresholds.${key} = ${committed[key]} but config.ts now says ${live[key]}\n` +
+      `STALE  ${baselineLabel}\n         config.thresholds.${key} = ${committed[key]} but config.ts now says ${live[key]}\n` +
         `         The committed scorecard describes a configuration that no longer exists. Re-run the eval and commit the result.`,
     );
   }
@@ -88,7 +134,7 @@ if (violations > 0) {
 }
 
 // -------------------------------------------------------------------- report --
-console.log(`\n  scorecard gate — baseline ${baselinePath}`);
+console.log(`\n  scorecard gate — baseline ${baselineLabel}`);
 console.log(`                   current  ${currentPath}`);
 console.log(`                   embedder ${embedder}, tolerance +/-${tolerance}, ${Object.keys(baseGates).length} gate(s)\n`);
 

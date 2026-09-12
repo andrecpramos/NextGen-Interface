@@ -144,10 +144,25 @@ committed — before WP-47 that build wrote the shared path. So the build produc
 checking nothing again. Caught by running the gate's own command and reading its
 output rather than trusting it. It now uses `git status --porcelain`.
 
+**And a third time, 2026-09-13.** The local `scorecard` gate was configured
+`--baseline X --current X`: the same file on both sides, under the title *"Golden-set
+regression against the committed baseline"*. Every rate in that scorecard was set to
+0.01 — a total collapse — and it printed *"OK — no accuracy regression beyond
+tolerance"*, because every delta was zero by construction. It had never been made to
+fail, which is the only reason nobody noticed. `check-scorecard.mjs` now refuses a
+same-path invocation outright, and the gate compares against the scorecard committed
+at `HEAD`.
+
 **The lesson.** A job name is marketing; the `run:` lines are the truth. **A gate
 nobody has seen fail is a gate nobody knows works.** Make every new gate fail on
 purpose once, and record that you did. And when a gate asks git a question, check it
 is asking about the files that exist rather than only the ones git already tracks.
+
+**The sharper version, after three instances:** every one of these was a gate whose
+*arguments* were wrong, not whose logic was. The comparison worked perfectly — against
+the wrong directory, blind to untracked files, or against itself. So when a gate is
+written, the thing to make fail on purpose is not the function; it is **the command line
+as configured**.
 
 **Enforcement:** the "Gates seen failing on purpose" table in
 [critical-infrastructure.md](critical-infrastructure.md). Still mostly empty,
