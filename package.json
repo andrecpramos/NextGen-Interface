@@ -2,6 +2,7 @@
   "name": "nextgen-interface",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "AI-native application platform. Conversation is the interface; screens are what the AI drives.",
   "packageManager": "pnpm@11.1.2",

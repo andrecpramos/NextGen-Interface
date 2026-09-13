@@ -131,6 +131,11 @@ jobs:
       - name: Packaging is importable (WP-26)
         run: node tooling/scripts/check-packaging.mjs
 
+      # Keeps develop releasable: one version across the packages, a CHANGELOG section
+      # for it, and the LICENSE in each. release.yml runs the same script with --tag.
+      - name: Releasable - version, changelog, license
+        run: node tooling/scripts/check-release.mjs
+
       # An adopter installs tarballs, not this workspace. Pack the kit's packages,
       # npm-install them into a scratch project outside the repository, and run
       # init, build and doctor through the installed bin — on this runner's Node

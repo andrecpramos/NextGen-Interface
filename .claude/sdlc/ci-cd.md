@@ -28,6 +28,22 @@ Three jobs on push to `main`, on PRs into `main`, and on manual dispatch.
 architecturally load-bearing, so it should fail in seconds rather than after a
 full install-and-typecheck.
 
+### Releases
+
+[`release.yml`](../../.github/workflows/release.yml) runs on a pushed `v*.*.*` tag, and
+on nothing else.
+
+1. It refuses a tag that is not on `main`.
+2. It runs `check-release.mjs --tag`: one version everywhere, a dated CHANGELOG
+   section, and the LICENSE in each package.
+3. It re-runs what the tarballs depend on: typecheck, tests, build, packaging, and the
+   install check.
+4. It attaches the tarballs and `SHA256SUMS.txt` to a GitHub Release.
+
+It publishes to no package registry. The browser gates (CSP, accessibility) are not
+repeated: they ran on `main`'s own push. The procedure is in
+[branching.md](branching.md), "Releasing".
+
 ---
 
 ## Two things the pipeline deliberately does **not** do

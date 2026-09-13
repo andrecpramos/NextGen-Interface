@@ -14,7 +14,8 @@
 // would. tooling/scripts/check-install.mjs proves the result installs and runs.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -52,8 +53,14 @@ for (const name of readdirSync(join(ROOT, 'packages'))) {
 }
 
 const files = readdirSync(OUT).filter((f) => f.endsWith('.tgz')).sort();
-console.log(`\n  Packed ${files.length} package(s) into release/:\n`);
+
+// `sha256sum -c SHA256SUMS.txt` format, so an adopter can verify what they downloaded.
+const sums = files.map((f) => `${createHash('sha256').update(readFileSync(join(OUT, f))).digest('hex')}  ${f}`);
+writeFileSync(join(OUT, 'SHA256SUMS.txt'), `${sums.join('\n')}\n`);
+
+console.log(`\n  Packed ${files.length} package(s) into release/, with SHA256SUMS.txt:\n`);
 for (const f of files) console.log(`    ${f}`);
-console.log('\n  In your project (Node 20 or newer):\n');
-console.log(`    npm install -D ${files.map((f) => join(OUT, f)).join(' ')}`);
+console.log('\n  In your project (Node 20 or newer), keeping the tarballs in the repository so npm ci works:\n');
+console.log(`    copy ${join(OUT, '*.tgz')} into vendor/nextgen/`);
+console.log('    npm install -D vendor/nextgen/*.tgz');
 console.log('    npx nextgen init .\n');
