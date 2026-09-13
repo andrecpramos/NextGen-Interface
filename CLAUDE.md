@@ -4,7 +4,7 @@ Instructions for any AI agent working in this repository. Loaded automatically
 every session; this file is about **process**.
 
 **Everything else lives in [`.claude/`](.claude/README.md)** — one directory for
-workflow *and* knowledge. The rules are [PLAN.md](PLAN.md) §2, with their real
+workflow *and* knowledge. The rules are [PLAN.md](.MDFiles/PLAN.md) §2, with their real
 enforcement mapped in [.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md); the ADRs are
 [.claude/decisions/](.claude/decisions/); the mistakes already made are
 [.claude/docs/lessons.md](.claude/docs/lessons.md).

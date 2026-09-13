@@ -3,7 +3,7 @@
 **Last verified:** 2026-09-10 · Node 25.1.0 · pnpm 11.1.2 · Windows 11
 
 ⚠️ **This describes running the *reference* applications.** The product is a navigation
-layer generated for someone else's app — see [README.md](README.md) and
+layer generated for someone else's app — see [README.md](../README.md) and
 [WRITEUP.md](WRITEUP.md). The two are the same engine; only the registry differs.
 
 There is one working reference app: **`apps/cli`**, the whole stack as a terminal loop.
@@ -75,7 +75,7 @@ sense.
 There is deliberately **no `lint` at the root.** The reference apps run TypeScript
 directly via Node's native type stripping; `pnpm build` builds only the installable
 packages (WP-26). ESLint is not wired up yet — see
-[ci-cd.md](.claude/sdlc/ci-cd.md), which explains why a job wrapping a no-op is worse than
+[ci-cd.md](../.claude/sdlc/ci-cd.md), which explains why a job wrapping a no-op is worse than
 no job.
 
 ## 5b. Run the CLI
@@ -106,7 +106,7 @@ pnpm app:offline
 
 Same app, **no language model at all** — stages 1 and 2 only. Notice what still works:
 `budgets` still resolves, and "transfer 500 to my brother" is still refused, in about
-0ms, because [ADR-009](.claude/decisions/ADR-009.md) made out-of-scope a matter of routing
+0ms, because [ADR-009](../.claude/decisions/ADR-009.md) made out-of-scope a matter of routing
 rather than a judgement the model makes. Anything the first two stages cannot settle
 becomes a *question* instead of a guess. That is the degradation path, and it is worth
 seeing before trusting anything else.
@@ -131,7 +131,7 @@ pnpm router:compare   # every model side by side
 
 `router:eval` **exits non-zero**, and that is correct: several gates are genuinely not
 met yet (top-1 is 80% against a 90% target). See
-[FINDINGS.md](packages/core-intent/eval/FINDINGS.md) for what each number means before
+[FINDINGS.md](../packages/core-intent/eval/FINDINGS.md) for what each number means before
 reading anything into it.
 
 Two warnings, both learned the hard way:
@@ -208,7 +208,7 @@ repeated mistake in the project's history.
 | `pnpm router:compare` | scorecards side by side across models |
 
 `router:eval` and `router:floor` **exit non-zero by design**. Read
-[FINDINGS.md](packages/core-intent/eval/FINDINGS.md) before reading anything into a
+[FINDINGS.md](../packages/core-intent/eval/FINDINGS.md) before reading anything into a
 number.
 
 ### Housekeeping
@@ -223,7 +223,7 @@ number.
 `why` · `trace` · `stats` · `help` · `exit` — see §5b.
 
 There is **no `pnpm lint`.** It was removed rather than left to fail: ESLint is not
-wired up. (`pnpm build` exists since WP-26, and builds only the installable packages.) [ci-cd.md](.claude/sdlc/ci-cd.md) explains why a green job that certifies
+wired up. (`pnpm build` exists since WP-26, and builds only the installable packages.) [ci-cd.md](../.claude/sdlc/ci-cd.md) explains why a green job that certifies
 nothing is worse than an absent one.
 
 ---

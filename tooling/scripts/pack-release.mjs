@@ -63,4 +63,5 @@ for (const f of files) console.log(`    ${f}`);
 console.log('\n  In your project (Node 20 or newer), keeping the tarballs in the repository so npm ci works:\n');
 console.log(`    copy ${join(OUT, '*.tgz')} into vendor/nextgen/`);
 console.log('    npm install -D vendor/nextgen/*.tgz');
+console.log('    (Windows PowerShell passes * unexpanded: npm install -D (Get-ChildItem vendor/nextgen/*.tgz | Resolve-Path -Relative))');
 console.log('    npx nextgen init .\n');

@@ -15,11 +15,33 @@ nextgen preview [kit folder]        # try it on your app before wiring anything 
 **Installing it.** Download a GitHub Release's tarballs into your project's
 `vendor/nextgen/` (or build them with `pnpm pack:release` in this repository), then
 `npm install -D vendor/nextgen/*.tgz` and run `npx nextgen …`. Node 20 or
-newer, ES modules only. Proprietary: see [LICENSE](LICENSE). [INSTALL.md](../../INSTALL.md) has the whole path, and
+newer, ES modules only. Proprietary: see [LICENSE](LICENSE). [INSTALL.md](../../.MDFiles/INSTALL.md) has the whole path, and
 `tooling/scripts/check-install.mjs` proves it on every pull request. Inside this
 repository the command is also `node packages/kit/src/cli.ts`.
 
 The kit folder defaults to `<app>/nextgen`: beside `src/`, never inside it.
+
+## Quick start
+
+```bash
+npm install -D vendor/nextgen/*.tgz   # a release's tarballs, committed under vendor/nextgen/
+npx nextgen init .                   # writes ./nextgen/ only; check every GUESSED answer
+npx nextgen build nextgen
+npx nextgen doctor nextgen           # read all of it
+npx nextgen preview nextgen          # try the answers before wiring anything in
+```
+
+On Windows PowerShell, which passes `*` to npm unexpanded, install with `npm install -D (Get-ChildItem vendor/nextgen/*.tgz | Resolve-Path -Relative)`.
+
+Then serve `nextgen/bundle/` at `/nextgen/`, giving each user only their own role's files
+([below](#serving-each-role-only-its-own-files)), and add one line to your page:
+
+```html
+<script src="/nextgen/nextgen.js" data-nextgen-role="ROLE" defer></script>
+```
+
+The step-by-step version, with calibration and a single-page-app router, is
+[GETTING-STARTED.md](../../GETTING-STARTED.md) in the repository.
 
 ## What it writes, and where
 
@@ -108,7 +130,7 @@ production must never do; the page says so.
 
 `nextgen doctor --report field-report.md` writes doctor's text plus every screen it declared, with its
 roles, and everything it left out. It lists screens against roles, so share it only with people who
-may know that. Playing the adopter on a project of your own? [FIELD-TEST.md](../../FIELD-TEST.md) is the
+may know that. Playing the adopter on a project of your own? [FIELD-TEST.md](../../.MDFiles/FIELD-TEST.md) is the
 protocol.
 
 ## Keeping your own checks green

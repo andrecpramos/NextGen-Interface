@@ -27,7 +27,7 @@ which lives outside this repository. Both are real gates for `/gates` on a
 developer machine and no protection at all on a pull request. Rows below that
 depend on them say so.
 
-Rule numbers are [PLAN.md](../../PLAN.md) section 2. The ADRs in
+Rule numbers are [PLAN.md](../../.MDFiles/PLAN.md) section 2. The ADRs in
 [decisions/](../decisions/) are the constitution; this file is a map of how they are
 held up.
 
@@ -547,7 +547,7 @@ been sitting in the matrix as `none` without ever appearing on this list.
 
 ## Related
 
-- [PLAN.md](../../PLAN.md) section 2 — the seventeen rules as stated
+- [PLAN.md](../../.MDFiles/PLAN.md) section 2 — the seventeen rules as stated
 - [decisions/](../decisions/) — the ADRs the rules come from
 - [.claude/README.md](../README.md) — the hooks, skills and agents that apply them
 - [sdlc/ci-cd.md](../sdlc/ci-cd.md) — what each CI job gates and why

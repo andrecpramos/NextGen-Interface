@@ -1,6 +1,6 @@
 # Business case — who pays, why, and what would have to be true
 
-**Written 2026-09-08.** Companion to [PLAN.md](../../PLAN.md), which is the execution
+**Written 2026-09-08.** Companion to [PLAN.md](../../.MDFiles/PLAN.md), which is the execution
 document. This file is for humans deciding *whether* to build; PLAN.md is for whoever
 is building. Nothing here is settled — it is a set of falsifiable claims and the tests
 that would falsify them.

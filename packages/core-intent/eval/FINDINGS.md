@@ -799,7 +799,7 @@ not read the embedding at all.
 **Date:** 2026-09-09 · **Registry:** 7 capabilities, modules · **Golden set:** 82 entries
 (81 + `gs-0197`, added by this work) · **Models:** `qwen2.5:1.5b`, `llama3.1:8b`, warm.
 
-[Defect 1](../../../PLAN.md) asserted, on every stage-3 call regardless of the registered
+[Defect 1](../../../.MDFiles/PLAN.md) asserted, on every stage-3 call regardless of the registered
 application, *"This is a personal finance application. It tracks transactions, budgets,
 categories and account balances."* `stages.ts` now reads `registry.domainDescription`
 instead — a field on `RegistryFile` (D-2, [ADR-013](../../../.claude/decisions/ADR-013.md))

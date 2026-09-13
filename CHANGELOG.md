@@ -14,8 +14,8 @@ where to go" box to the page. It never modifies the app's files.
 
 ### What you install
 
-Eight tarballs, attached to the GitHub Release; [INSTALL.md](INSTALL.md) §0 has the
-commands. `@nextgen/kit` is the one you use; the other seven are its dependencies and the
+Eight tarballs, attached to the GitHub Release; [GETTING-STARTED.md](GETTING-STARTED.md) has
+the steps. `@nextgen/kit` is the one you use; the other seven are its dependencies and the
 engine underneath.
 
 | Package | What it is |
