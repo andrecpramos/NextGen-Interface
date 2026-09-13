@@ -32,7 +32,7 @@ export interface Detection {
 
 const SOURCE = /\.(tsx?|jsx?)$/;
 const TEST_FILE = /\.(test|spec|stories)\.[jt]sx?$/;
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '__tests__', '__mocks__', 'testing', 'e2e', 'out']);
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '__tests__', '__mocks__', 'testing', 'e2e', 'out', 'public']);
 
 function isDir(path: string): boolean {
   return existsSync(path) && statSync(path).isDirectory();
@@ -104,7 +104,19 @@ function findLocales(root: string): { dir: string; languages: string[] } | null 
 }
 
 function htmlLang(appDir: string, appRoot: string): { lang: string; file: string } | null {
-  for (const file of [join(appDir, 'index.html'), join(appDir, 'public', 'index.html'), join(appRoot, 'index.html')]) {
+  const candidates = [
+    join(appDir, 'index.html'),
+    join(appDir, 'public', 'index.html'),
+    join(appRoot, 'index.html'),
+    // Where <html> is a component: Next.js app router layouts and pages-router
+    // documents, a Remix root, a SvelteKit app.html.
+    ...[join(appDir, 'app'), join(appDir, 'src', 'app')].flatMap((d) => ['tsx', 'jsx', 'js'].map((x) => join(d, `layout.${x}`))),
+    ...[join(appDir, 'pages'), join(appDir, 'src', 'pages')].flatMap((d) => ['tsx', 'jsx', 'js'].map((x) => join(d, `_document.${x}`))),
+    join(appDir, 'app', 'root.tsx'),
+    join(appDir, 'app', 'root.jsx'),
+    join(appDir, 'src', 'app.html'),
+  ];
+  for (const file of candidates) {
     if (!existsSync(file)) continue;
     const match = /<html[^>]*\blang=["']([^"']+)["']/i.exec(readFileSync(file, 'utf8'));
     if (match) return { lang: match[1]!, file };
@@ -112,11 +124,179 @@ function htmlLang(appDir: string, appRoot: string): { lang: string; file: string
   return null;
 }
 
+// --------------------------------------------------------------- framework --
+
+const SUPPORTED = 'React Router, Next.js and Remix';
+
+interface Framework {
+  readonly kind: 'react-router' | 'next' | 'remix';
+  readonly name: string;
+  readonly evidence: string;
+  /** For a folder-layout router: its source root, and the routes folder relative to it. */
+  readonly appRoot?: string;
+  readonly routesFile?: string;
+}
+
+function dependenciesOf(dir: string): Record<string, string> {
+  const file = join(dir, 'package.json');
+  if (!existsSync(file)) return {};
+  try {
+    const manifest = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) as Record<string, Record<string, string> | undefined>;
+    return { ...manifest.peerDependencies, ...manifest.devDependencies, ...manifest.dependencies };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Which router is this, decided from `package.json` and the folders it implies,
+ * before any file is read for routes.
+ *
+ * Until readiness item 3 the kit assumed React Router and, finding no route table
+ * in a Next.js app, said "No route table found" — true, and no help to anyone whose
+ * app is not React Router. A framework it has no adapter for is now named, with
+ * what the kit can read, and nothing is written.
+ */
+function detectFramework(dir: string): Framework {
+  const dependencies = dependenciesOf(dir);
+  const names = Object.keys(dependencies);
+
+  if ('next' in dependencies) {
+    for (const root of [join(dir, 'src'), dir]) {
+      for (const folder of ['app', 'pages']) {
+        const routes = join(root, folder);
+        if (isDir(routes)) {
+          return {
+            kind: 'next',
+            name: `Next.js ${dependencies.next}`,
+            evidence: `next in package.json, and ${toPosix(relative(dir, routes))}/`,
+            appRoot: routes,
+            routesFile: '.',
+          };
+        }
+      }
+    }
+  }
+
+  const remix = names.find((name) => name.startsWith('@remix-run/') || name === '@react-router/dev');
+  if (remix && isDir(join(dir, 'app', 'routes'))) {
+    return {
+      kind: 'remix',
+      name: remix.startsWith('@remix-run/') ? 'Remix' : 'React Router 7 (file routes)',
+      evidence: `${remix} in package.json, and app/routes/`,
+      appRoot: join(dir, 'app'),
+      routesFile: 'routes',
+    };
+  }
+
+  const unsupported: readonly (readonly [string, string])[] = [
+    ['@sveltejs/kit', 'SvelteKit'],
+    ['nuxt', 'Nuxt'],
+    ['@angular/router', 'Angular'],
+    ['@tanstack/react-router', 'TanStack Router'],
+    ['@solidjs/router', 'Solid Router'],
+    ['vue-router', 'Vue Router'],
+  ];
+  for (const [dependency, name] of unsupported) {
+    if (dependency in dependencies) {
+      throw new Error(
+        `This looks like ${/^[AEIOU]/.test(name) ? 'an' : 'a'} ${name} application (${dependency} in package.json). The kit reads ${SUPPORTED} ` +
+          'today, so it cannot build a registry for this app yet. Nothing was written.',
+      );
+    }
+  }
+  return { kind: 'react-router', name: 'React Router', evidence: 'no other router in package.json' };
+}
+
+/** `init` for a router declared by a folder layout: Next.js, Remix. */
+function detectFileRouter(dir: string, framework: Framework): Detection {
+  const appRoot = framework.appRoot!;
+  const routesFile = framework.routesFile!;
+  const findings: Finding[] = [
+    { what: 'framework', value: framework.name, evidence: framework.evidence, confident: true },
+    {
+      what: 'routes',
+      value: toPosix(relative(dir, resolve(appRoot, routesFile))) || '.',
+      evidence:
+        framework.kind === 'next'
+          ? 'the folder layout, read with Next.js rules; app/ and pages/ are both read when both exist'
+          : 'flat routes, read with Remix rules; a module with no default export is not a page',
+      confident: true,
+    },
+    {
+      what: 'role table',
+      value: null,
+      evidence: 'a folder layout declares no roles. If some screens are for some roles only, list them in "routeRoles" by path prefix',
+      confident: false,
+    },
+  ];
+  const warnings: string[] = [];
+
+  const files = sourceFiles(dir).map((file) => ({ file, text: readFileSync(file, 'utf8') }));
+  const hints = files.flatMap(({ file, text }) => [...text.matchAll(ROLE_HINT)].map((m) => `${m[1]} in ${toPosix(relative(dir, file))}`));
+  if (hints.length > 0) {
+    warnings.push(
+      `This app mentions roles (${hints.slice(0, 3).join('; ')}). A folder layout says nothing about who may open a ` +
+        'screen, so every screen goes into ONE registry that every user receives, unless you list restricted ' +
+        'screens in "routeRoles" by path prefix, for example { "/admin": ["ADMIN"] }. Until then, users would see ' +
+        'the names of screens they cannot open (Rule 17).',
+    );
+  }
+
+  findings.push({
+    what: 'navigation manifests',
+    value: null,
+    evidence: 'not detected. Optional: a hand-kept list of routes with labels makes descriptions better. Add it to "manifests"',
+    confident: true,
+  });
+
+  const locales = findLocales(appRoot) ?? findLocales(dir);
+  const html = htmlLang(dir, appRoot);
+  let languages: string[];
+  if (locales) {
+    const primary = html
+      ? (locales.languages.find((l) => l.toLowerCase() === html.lang.toLowerCase()) ??
+        locales.languages.find((l) => l.split('-')[0]!.toLowerCase() === html.lang.split('-')[0]!.toLowerCase()))
+      : undefined;
+    languages = primary ? [primary, ...locales.languages.filter((l) => l !== primary)] : locales.languages;
+    findings.push({ what: 'translations', value: toPosix(relative(appRoot, locales.dir)), evidence: `languages: ${locales.languages.join(', ')}`, confident: true });
+  } else {
+    languages = [html?.lang ?? 'en'];
+    findings.push({ what: 'translations', value: null, evidence: 'none found. Labels are read from the source as written', confident: true });
+  }
+  findings.push({
+    what: 'app language',
+    value: languages[0]!,
+    evidence: html ? `<html lang="${html.lang}"> in ${toPosix(relative(dir, html.file))}` : 'no <html lang> found, so English was assumed: confirm it',
+    confident: Boolean(html),
+  });
+  if (!html) {
+    warnings.push(
+      `The app's language is a guess (${languages[0]}). It decides the language of every description, and a ` +
+        'question in another language will not find them. Put the app\'s own language first in "languages".',
+    );
+  }
+
+  const config: GeneratorConfig = {
+    appRoot,
+    router: framework.kind,
+    routesFile,
+    roleSetExport: 'ROUTE_ROLES',
+    allRolesExport: 'APP_ROLES',
+    manifests: [],
+    localesDir: locales ? toPosix(relative(appRoot, locales.dir)) : null,
+    languages,
+  };
+  return { config, findings, warnings };
+}
+
 // ------------------------------------------------------------------ detect --
 
 export function detectApp(appDir: string): Detection {
   const dir = resolve(appDir);
   if (!isDir(dir)) throw new Error(`No folder at ${dir}.`);
+  const framework = detectFramework(dir);
+  if (framework.kind !== 'react-router') return detectFileRouter(dir, framework);
   const appRoot = isDir(join(dir, 'src')) ? join(dir, 'src') : dir;
   const rel = (path: string): string => toPosix(relative(appRoot, path));
 

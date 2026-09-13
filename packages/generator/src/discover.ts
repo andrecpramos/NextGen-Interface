@@ -3,6 +3,8 @@ import { dirname, join, resolve } from 'node:path';
 
 import ts from 'typescript';
 
+import { discoverNextRoutes, discoverRemixRoutes } from './filesystem.ts';
+
 import type { DiscoveredRoute, GeneratorConfig, RoleName } from './types.ts';
 
 /**
@@ -431,6 +433,8 @@ function rolesFromRouteTable(source: ts.SourceFile, declared: RoleModel): RoleMo
 export interface UnreadableRoute {
   readonly path: string;
   readonly detail: string;
+  /** Why it is left out, when that is not simply "unreadable" — a catch-all. */
+  readonly reason?: import('./types.ts').SkipReason;
 }
 
 /** Module specifier prefixes the app's own tsconfig maps, e.g. `@/` -> `<appRoot>/`. */
@@ -754,6 +758,49 @@ export function discoverRoutes(config: GeneratorConfig): {
   roles: RoleModel;
   unreadable: readonly UnreadableRoute[];
 } {
+  const found = discoverByRouter(config);
+  return { ...found, routes: applyRouteRoles(found.routes, config.routeRoles) };
+}
+
+/**
+ * `routeRoles`: roles an application enforces in code, declared by the adopter.
+ *
+ * A folder layout declares no roles, and many apps guard a screen in a middleware,
+ * a layout or a loader that no static reading can follow. Without this, such an
+ * app's restricted screens would reach every role. The longest prefix that matches
+ * at a segment boundary wins — `/admin` covers `/admin/users`, never
+ * `/administration` — and it replaces whatever discovery found, an unreadable
+ * guard included, because the adopter has now said what the code does.
+ */
+function applyRouteRoles(
+  routes: readonly DiscoveredRoute[],
+  routeRoles: GeneratorConfig['routeRoles'],
+): readonly DiscoveredRoute[] {
+  if (!routeRoles) return routes;
+  const prefixes = Object.keys(routeRoles).sort((a, b) => b.length - a.length);
+  if (prefixes.length === 0) return routes;
+  return routes.map((route) => {
+    const prefix = prefixes.find((candidate) => {
+      const base = candidate.replace(/\/+$/, '') || '/';
+      return base === '/' || route.path === base || route.path.startsWith(`${base}/`);
+    });
+    return prefix ? { ...route, roles: [...new Set(routeRoles[prefix]!)], roleKey: null } : route;
+  });
+}
+
+function discoverByRouter(config: GeneratorConfig): {
+  routes: readonly DiscoveredRoute[];
+  roles: RoleModel;
+  unreadable: readonly UnreadableRoute[];
+} {
+  if (config.router === 'next' || config.router === 'remix') {
+    const roles = readRoleModel(config);
+    const routesDir = resolve(config.appRoot, config.routesFile);
+    const found =
+      config.router === 'next' ? discoverNextRoutes(routesDir, roles.allRoles) : discoverRemixRoutes(routesDir, roles.allRoles);
+    return { routes: found.routes, roles, unreadable: found.leftOut.map(({ path, reason, detail }) => ({ path, reason, detail })) };
+  }
+
   const routesFile = resolve(config.appRoot, config.routesFile);
   const source = parse(routesFile);
   const roles = rolesFromRouteTable(source, readRoleModel(config));

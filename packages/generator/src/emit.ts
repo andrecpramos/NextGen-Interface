@@ -57,6 +57,7 @@ const REASON_HEADINGS: Record<SkippedRoute['reason'], string> = {
   'declared-legacy': 'The application says it is legacy or superseded',
   'bookmark-redirect': 'Redirects out of its own section — a bookmark shim, not a destination',
   'no-component': 'Route renders no component',
+  'catch-all': 'A catch-all serving content pages, which no single capability can stand for',
   'duplicate-route': 'Another capability already declares this route',
   // WP-28. Before this reason existed such a route produced no entry at all —
   // under-discovery that no report could mention. Listed so it can be fixed.

@@ -43,6 +43,10 @@ const WHY: Readonly<Record<SkipReason, { readonly means: string; readonly fix: s
   },
   'bookmark-redirect': { means: 'it only redirects to another section', fix: 'nothing to do' },
   'no-component': { means: 'it renders no page of its own', fix: 'nothing to do, if it is a layout or a redirect' },
+  'catch-all': {
+    means: 'it matches many pages that come from content, not code, so no single screen can be offered for it',
+    fix: 'list the pages it serves in a navigation manifest, if users should be able to ask for them',
+  },
   'duplicate-route': { means: 'another screen already covers the same path', fix: 'nothing to do' },
 };
 
@@ -146,7 +150,7 @@ export function doctor(kitDir: string): DoctorReport {
     }
   }
   for (const report of record.invalid) problems.push(`a registry failed validation:\n${report}`);
-  if (record.capabilities === 0) problems.push('no screens were found. Check "routesFile" in nextgen.config.json');
+  if (record.capabilities === 0) problems.push('no screens were found. Check "router" and "routesFile" in nextgen.config.json');
 
   // 6. How to mount it.
   const role = record.roles[0] ?? 'PUBLIC';

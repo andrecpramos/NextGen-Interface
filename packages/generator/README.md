@@ -94,9 +94,27 @@ application's own labels. The output is flatter and says so.
 
 ## Adapters
 
-React Router in both dialects (a route-config array, and nested `<Route>` elements), in
-TypeScript or JavaScript sources. An application with no roles at all gets one registry
-for a single `PUBLIC` audience.
+Set by `router` in the config (`init` detects it from `package.json` and the folder layout):
+
+| `router` | Reads | Since |
+|---|---|---|
+| `react-router` (default) | a route table: a route-config array or nested `<Route>` elements, TypeScript or JavaScript | WP-25 |
+| `next` | the `app` router (route groups, `[param]`, optional catch-alls at their base URL; private folders, `@slots`, interceptions, `route.*` handlers and special files are not pages) and the `pages` router beside it (`index`, `[param]`; `api/`, `_app`, `_document`, `404` are not) | readiness 3a |
+| `remix` | flat routes in `app/routes`: `_index`, pathless `_layout.`, `name_`, `$param`, `(optional)`, `[.]` escapes, folder `route.tsx`. A module with no default export is a resource route, not a page; a layout and its `_index` are one destination | readiness 3a |
+
+A **catch-all** (`[...slug]`, a Remix `$`) serves pages that come from content, not code, so it
+is reported as a `catch-all` skip rather than declared. A page's own `metadata.title` (Next.js)
+or `meta` title (Remix) is used when it is a string literal; `generateMetadata` is code, and not
+evaluated.
+
+A folder layout declares no roles, so every route of a `next` or `remix` app goes to the app's
+whole audience. **`routeRoles`** declares roles an app enforces in code, by path prefix:
+`{ "/admin": ["ADMIN"] }`. The longest prefix matching at a segment boundary wins, and it
+applies to every router. An application with no roles at all gets one registry for a single
+`PUBLIC` audience.
+
+Measured on two public apps not written for it, against ground truth recorded first:
+[eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md).
 
 **The data-router shape** (WP-28, 2026-09-11) is also read:
 - `lazy: () => import(...)`;

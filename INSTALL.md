@@ -31,7 +31,8 @@ npx nextgen build  nextgen
 npx nextgen doctor nextgen
 ```
 
-Nothing is published to npm yet; the tarballs are the package. **This path is checked on
+Nothing is published to npm yet; the tarballs are the package. The kit reads **React Router,
+Next.js and Remix** applications; on anything else, `init` names what it found and writes nothing. **This path is checked on
 every pull request** by `tooling/scripts/check-install.mjs`: the tarballs are installed
 with npm into a project outside this repository, the three commands run through the
 installed `nextgen` on Node 20 and on the current Node, the app's own files are hashed
