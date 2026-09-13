@@ -4,7 +4,7 @@ Six public applications, one per routing style the kit did not read on 2026-09-1
 is listed here **by reading its source tree by hand, before a single line of adapter code
 was written**, so the adapters are scored against what the application is and not against
 what they happen to find. This is WP-31's method, applied to frameworks rather than to
-one app ([PLAN.md §8](../../PLAN.md): ground truth independent of the generator, or the
+one app ([PLAN.md §8](../../.MDFiles/PLAN.md): ground truth independent of the generator, or the
 score is meaningless).
 
 None of these is tuned for. The owner's own field test is on a project nobody here has

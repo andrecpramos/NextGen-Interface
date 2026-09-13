@@ -15,6 +15,9 @@ The old site keeps working exactly as it does. **Every screen the assistant can 
 stays reachable without it** — that one is not negotiable
 ([ADR-005](.claude/decisions/ADR-005.md)).
 
+> **Adding this to your app?** Start with **[GETTING-STARTED.md](GETTING-STARTED.md)**: one page,
+> five steps. Everything below is about how it was built and measured.
+
 ## Does it work?
 
 Measured on a real 146-page application it was never designed for, against a registry
@@ -38,7 +41,7 @@ wrong place.
 
 **An earlier headline here, 56.8% vs 45.5%, measured a different configuration:** a server
 running `nomic-embed-text` and `llama3.1:8b` to pick one screen. The script tag calls
-neither. That run is kept, labelled, in [WRITEUP.md](WRITEUP.md) §5; it is not what an
+neither. That run is kept, labelled, in [WRITEUP.md](.MDFiles/WRITEUP.md) §5; it is not what an
 adopter gets.
 
 **It does not decide for free.** The mechanism meant to settle most turns on its own does
@@ -48,7 +51,7 @@ accepted ADR added a second, non-topical signal on top. With a model they moved 
 number from **2.4% to 11.0%** against a 60% target. **The product is a better way to
 navigate; a cheaper one is not claimed** until a deployment measures it.
 
-**[WRITEUP.md](WRITEUP.md) is the whole story**, negative results first, every claim
+**[WRITEUP.md](.MDFiles/WRITEUP.md) is the whole story**, negative results first, every claim
 linked to the artefact that backs it. Read that before anything else here.
 
 ## The idea
@@ -157,9 +160,10 @@ figure is meaningless.
 
 | Question | File |
 |---|---|
-| Does this work, and what is the evidence? | **[WRITEUP.md](WRITEUP.md)** |
-| What is the plan, and what is next? | [PLAN.md](PLAN.md) |
-| How do I run it? | [SETUP.md](SETUP.md) |
+| Does this work, and what is the evidence? | **[WRITEUP.md](.MDFiles/WRITEUP.md)** |
+| What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
+| How do I add it to my app? | [GETTING-STARTED.md](GETTING-STARTED.md) |
+| How do I run it? | [SETUP.md](.MDFiles/SETUP.md) |
 | Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 15 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
 | What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
@@ -171,19 +175,19 @@ The engine is built and measured. The generation works. **The cost model is reso
 it resolved against us**: 11.0% of turns settle without a model call, against a 60% target
 that was a pre-committed kill criterion and triggered. A fixed budget was then spent trying
 to fix it, every lever was measured, and the claim was withdrawn rather than restated —
-[PLAN.md](PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
+[PLAN.md](.MDFiles/PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
 [business-case.md](.claude/docs/business-case.md) §5. The numbers are published rather than
 buried, which is the point.
 
 Built since then: the browser runtime, guided steps, the installable package, a script tag
 that runs under a strict Content-Security-Policy, and the drop-in kit —
-`nextgen init / build / doctor / preview / calibrate` ([INSTALL.md](INSTALL.md)). The kit
+`nextgen init / build / doctor / preview / calibrate` ([INSTALL.md](.MDFiles/INSTALL.md)). The kit
 reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps, and on six
 public apps it had never seen it found every route in ground truth written beforehand and
 changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
 
 Not done: a live deployment, and a field test by someone other than its author
-([FIELD-TEST.md](FIELD-TEST.md)). The owner runs both. Nothing here is production-ready.
+([FIELD-TEST.md](.MDFiles/FIELD-TEST.md)). The owner runs both. Nothing here is production-ready.
 
 **A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do.
 The assistant does not decline all of them. On `fut-app`'s 34 hand-written out-of-scope
@@ -197,8 +201,9 @@ WP-40). The ceiling is accepted and stated here, not hidden.
 
 ## Installing it, and the license
 
-Adopters install eight tarballs attached to a GitHub Release — [INSTALL.md](INSTALL.md) §0 has
-the commands, and [CHANGELOG.md](CHANGELOG.md) what each release contains.
+Adopters install eight tarballs attached to a GitHub Release. [GETTING-STARTED.md](GETTING-STARTED.md)
+has the steps, [INSTALL.md](.MDFiles/INSTALL.md) the full reference, and [CHANGELOG.md](CHANGELOG.md) what each
+release contains.
 
 **Proprietary — all rights reserved.** Use requires a written agreement with the copyright
 holder; see [LICENSE](LICENSE).

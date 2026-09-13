@@ -263,9 +263,9 @@
   ],
   "docs": {
     "root": ".claude",
-    "rules": "PLAN.md",
+    "rules": ".MDFiles/PLAN.md",
     "decisions": ".claude/decisions",
-    "plan": "PLAN.md"
+    "plan": ".MDFiles/PLAN.md"
   },
   "guard": {
     "denyBroadStaging": true,

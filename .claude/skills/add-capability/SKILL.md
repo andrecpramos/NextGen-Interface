@@ -150,7 +150,7 @@ has to stay zero.
 ## Related
 
 - `packages/core-capability/README.md` — the schema itself
-- [ADR-004](../../../.claude/decisions/ADR-004.md) — capability kinds and the policy table
-- [ADR-009](../../../.claude/decisions/ADR-009.md) — why out-of-scope is declared, not judged
-- [.claude/roles/qa.md](../../../.claude/roles/qa.md) — golden-set composition and regression triage
+- [ADR-004](../../decisions/ADR-004.md) — capability kinds and the policy table
+- [ADR-009](../../decisions/ADR-009.md) — why out-of-scope is declared, not judged
+- [.claude/roles/qa.md](../../roles/qa.md) — golden-set composition and regression triage
 - `router-regression` skill — when step 4 goes red

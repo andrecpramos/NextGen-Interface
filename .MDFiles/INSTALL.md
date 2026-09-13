@@ -18,10 +18,13 @@ outside the workspace that makes it.
 
 ## 0 · With the kit — start here (WP-41)
 
+> **Just want the steps?** [GETTING-STARTED.md](../GETTING-STARTED.md) is the one-page version.
+> This page is the full reference.
+
 ### Get the tarballs
 
 **From a GitHub Release — the normal way.** Every release attaches eight `.tgz` files and
-`SHA256SUMS.txt`, and its notes are that version's section of [CHANGELOG.md](CHANGELOG.md).
+`SHA256SUMS.txt`, and its notes are that version's section of [CHANGELOG.md](../CHANGELOG.md).
 The repository is private, so you need access to it. In your project:
 
 ```bash
@@ -47,6 +50,7 @@ Then copy `release/*.tgz` into your project's `vendor/nextgen/`.
 # In YOUR project, on Node 20 or newer. A dev dependency: nothing from these packages
 # runs in production except the files `build` writes.
 npm install -D vendor/nextgen/*.tgz
+# Windows PowerShell passes * unexpanded, so there: npm install -D (Get-ChildItem vendor/nextgen/*.tgz | Resolve-Path -Relative)
 npx nextgen init   .           # the folder that contains src/
 npx nextgen build  nextgen
 npx nextgen doctor nextgen
@@ -61,7 +65,7 @@ npx nextgen preview nextgen          # try the answers on your app before wiring
 tarballs from two releases.
 
 **License.** Proprietary. You may use it only under a written agreement with the copyright
-holder ([LICENSE](LICENSE)); every tarball carries the same file.
+holder ([LICENSE](../LICENSE)); every tarball carries the same file.
 
 Playing the adopter on a project of your own? **[FIELD-TEST.md](FIELD-TEST.md)** is the protocol: what to
 write down first, what to record at each step, and when to stop.
@@ -107,7 +111,7 @@ needs from this repository is already here.
 
 1. **`init` on `fut-app/frontend`.** Then compare `frontend/nextgen/nextgen.config.json`
    with this repository's
-   [`eval/fut-app/generator.config.json`](eval/fut-app/generator.config.json), which is the
+   [`eval/fut-app/generator.config.json`](../eval/fut-app/generator.config.json), which is the
    config every measurement used. Two things `init` does not do:
    - add `"manifests": ["lib/deepLinks.ts", "lib/navConfigs.ts"]`;
    - make sure `"languages"` starts with `"pt-PT"`.

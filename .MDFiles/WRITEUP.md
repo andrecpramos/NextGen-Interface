@@ -45,21 +45,21 @@ The claim to be tested was that stages 1 and 2 carry most of the traffic.
 A generator that reads an application's source and emits its registry, and an engine that
 routes against it.
 
-**The generator** ([`packages/generator`](packages/generator/README.md)) parses the app's
+**The generator** ([`packages/generator`](../packages/generator/README.md)) parses the app's
 route table and permission module with the TypeScript compiler API, reads each page
 component's body, and emits **one registry per role** — because a capability a user cannot
 reach must be *absent* from what they receive, not hidden in it
-([ADR-014](.claude/decisions/ADR-014.md)). It writes nothing into the application it reads.
+([ADR-014](../.claude/decisions/ADR-014.md)). It writes nothing into the application it reads.
 
 On `fut-app` it turned **154 discovered routes into 145 capabilities plus 4 declared
 limits, across 10 role registries**, skipping 9 routes and recording why for each
-([SKIPPED.md](eval/fut-app/generated/SKIPPED.md)).
+([SKIPPED.md](../eval/fut-app/generated/SKIPPED.md)).
 
 **How good is a machine-written registry?** A registry was hand-written first, by a person,
-before any generator existed ([WP-31](eval/fut-app/GROUND_TRUTH.md)), covering 45 routes.
+before any generator existed ([WP-31](../eval/fut-app/GROUND_TRUTH.md)), covering 45 routes.
 Scored against it, the generator got **100% recall and 100% role exactness** — every route
 found, every role set exactly right, zero leaks across ten registries
-([REPORT.md](eval/fut-app/REPORT.md)).
+([REPORT.md](../eval/fut-app/REPORT.md)).
 
 > ⚠️ **Read the denominator.** That 100% is over the 45 routes a human independently wrote
 > down. The other 100 capabilities are not hand-verified, because verifying them would mean
@@ -69,7 +69,7 @@ found, every role set exactly right, zero leaks across ten registries
 
 ## 4. How it was measured
 
-**210 questions** ([GOLDEN_SET.md](eval/fut-app/GOLDEN_SET.md)), tagged by role and
+**210 questions** ([GOLDEN_SET.md](../eval/fut-app/GOLDEN_SET.md)), tagged by role and
 language: 41% "take me to…", 42% "what is…", 16% out-of-scope, 63% Portuguese.
 
 The honest problem with a golden set is who writes it. Here:
@@ -101,7 +101,7 @@ The 56.8% below is a server running `nomic-embed-text` and `llama3.1:8b`, which 
 screen. The script tag an adopter installs calls neither: it routes in the browser with no
 model, through the widget's own presenter, and shows at most three screens. Measured like
 for like against the same palette baseline
-([`like-for-like.mjs`](eval/fut-app/like-for-like.mjs), 2026-09-13):
+([`like-for-like.mjs`](../eval/fut-app/like-for-like.mjs), 2026-09-13):
 
 | 176 routable questions | Script tag, no model | Palette | |
 |---|---|---|---|
@@ -162,7 +162,7 @@ That last row is the useful one. The assistant is not better at search; it is be
 > WP-40 trades **1.2 points of top-1 for 14.7 points of refusal**, deliberately: sending
 > someone to a slightly worse screen is recoverable, telling them the app cannot do
 > something it can is not. All three runs are in
-> [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) and [WP38.md](eval/fut-app/WP38.md).
+> [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) and [WP38.md](../eval/fut-app/WP38.md).
 
 ## 6. What failed, and why
 
@@ -235,7 +235,7 @@ That last paragraph was written as an admission. The lever was then tried, and t
 follow-up is that it **did not rescue the number** — 2.4% became **8.1%**, not 60%.
 
 Three things came out of it that are worth more than the six points
-([WP38.md](eval/fut-app/WP38.md)):
+([WP38.md](../eval/fut-app/WP38.md)):
 
 **Triggers helped accuracy for a reason unrelated to triggers.** The embedded document for
 a capability includes its trigger phrases, so adding 245 of them changed every stage-2
@@ -316,7 +316,7 @@ and opposite requests.
 A verb signal was then measured and it separates them where similarity cannot — **88.2% of
 out-of-scope questions flagged against 2.8% of in-domain ones**, taking model-free refusal
 from 20% to **45%** on held-out data with zero false refusals. It is proposed, not shipped
-([ADR-015](.claude/decisions/ADR-015.md)).
+([ADR-015](../.claude/decisions/ADR-015.md)).
 
 ## 7. Findings worth keeping
 
@@ -396,23 +396,23 @@ the number either way". It is 2.4%. The number is published.
 
 | Claim | Evidence |
 |---|---|
-| 145 capabilities + 4 limits across 10 role registries, 9 routes skipped with reasons | [`eval/fut-app/generated/`](eval/fut-app/generated/SKIPPED.md), [REPORT.md](eval/fut-app/REPORT.md) |
-| 100% recall and role exactness vs a hand-written registry, over 45 routes | [`score-generated.mjs`](eval/fut-app/score-generated.mjs), [GROUND_TRUTH.md](eval/fut-app/GROUND_TRUTH.md) |
-| Script tag, no model: right screen among ≤3 shown 69.9% vs palette 45.5%, shown first 53.4% vs 42.6%, 0 wrong; per-role and per-language splits | [`like-for-like.mjs`](eval/fut-app/like-for-like.mjs), [`like-for-like.json`](eval/fut-app/like-for-like.json) |
-| Server configuration (`llama3.1:8b`): assistant 52.3% vs palette 45.5% at WP-33, 56.8% after WP-40; per-role and per-language splits | [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md), `scorecard-ollama-llama3_1_8b.json` |
-| The palette baseline is the app's real command list and matcher | [`palette.mjs`](eval/fut-app/palette.mjs) |
-| 2.4% settled without a model call | [`evaluate-golden.mjs`](eval/fut-app/evaluate-golden.mjs) |
-| recall@1 of 4.0% vs 48.9% between encoders | [`inspect-retrieval.mjs`](eval/fut-app/inspect-retrieval.mjs) |
-| No precision/coverage operating point that is both free and right | [`calibrate-registries.mjs`](eval/fut-app/calibrate-registries.mjs), `thresholds.ollama.json` |
-| 61.8% of out-of-scope wrongly executed; section boundaries changed it by zero | [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
-| A verb signal separates 88.2% vs 2.8%, and doubles model-free refusal | [`experiment-action-verbs.mjs`](eval/fut-app/experiment-action-verbs.mjs), [ADR-015](.claude/decisions/ADR-015.md) |
+| 145 capabilities + 4 limits across 10 role registries, 9 routes skipped with reasons | [`eval/fut-app/generated/`](../eval/fut-app/generated/SKIPPED.md), [REPORT.md](../eval/fut-app/REPORT.md) |
+| 100% recall and role exactness vs a hand-written registry, over 45 routes | [`score-generated.mjs`](../eval/fut-app/score-generated.mjs), [GROUND_TRUTH.md](../eval/fut-app/GROUND_TRUTH.md) |
+| Script tag, no model: right screen among ≤3 shown 69.9% vs palette 45.5%, shown first 53.4% vs 42.6%, 0 wrong; per-role and per-language splits | [`like-for-like.mjs`](../eval/fut-app/like-for-like.mjs), [`like-for-like.json`](../eval/fut-app/like-for-like.json) |
+| Server configuration (`llama3.1:8b`): assistant 52.3% vs palette 45.5% at WP-33, 56.8% after WP-40; per-role and per-language splits | [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md), `scorecard-ollama-llama3_1_8b.json` |
+| The palette baseline is the app's real command list and matcher | [`palette.mjs`](../eval/fut-app/palette.mjs) |
+| 2.4% settled without a model call | [`evaluate-golden.mjs`](../eval/fut-app/evaluate-golden.mjs) |
+| recall@1 of 4.0% vs 48.9% between encoders | [`inspect-retrieval.mjs`](../eval/fut-app/inspect-retrieval.mjs) |
+| No precision/coverage operating point that is both free and right | [`calibrate-registries.mjs`](../eval/fut-app/calibrate-registries.mjs), `thresholds.ollama.json` |
+| 61.8% of out-of-scope wrongly executed; section boundaries changed it by zero | [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) |
+| A verb signal separates 88.2% vs 2.8%, and doubles model-free refusal | [`experiment-action-verbs.mjs`](../eval/fut-app/experiment-action-verbs.mjs), [ADR-015](../.claude/decisions/ADR-015.md) |
 | Rule 16 — the generator writes nothing into the app it reads | `generate.test.ts` fingerprints the whole fixture tree before and after |
 | Rule 17 — a role's registry omits what it cannot reach | `emit.test.ts` diffs two role registries; re-checked on every scoring run |
-| Declared refusal 0% → 40% on a 1B model | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) Finding 7 |
-| Field order changed extraction from 24 to 1056 characters | [history.md](.claude/docs/history.md), WP-14 |
-| A third output field cost 7 points of top-1 | [lessons.md](.claude/docs/lessons.md) L9, [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
-| Removing a wrong domain description improved accuracy 2–6 points | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) Finding 13 |
-| Golden-set gates are not run-to-run deterministic | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) Finding 10 |
+| Declared refusal 0% → 40% on a 1B model | [FINDINGS.md](../packages/core-intent/eval/FINDINGS.md) Finding 7 |
+| Field order changed extraction from 24 to 1056 characters | [history.md](../.claude/docs/history.md), WP-14 |
+| A third output field cost 7 points of top-1 | [lessons.md](../.claude/docs/lessons.md) L9, [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) |
+| Removing a wrong domain description improved accuracy 2–6 points | [FINDINGS.md](../packages/core-intent/eval/FINDINGS.md) Finding 13 |
+| Golden-set gates are not run-to-run deterministic | [FINDINGS.md](../packages/core-intent/eval/FINDINGS.md) Finding 10 |
 
 **Reproduce the headline numbers:**
 
