@@ -4,7 +4,8 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js, ~30KB raw, ~12KB gzipped
+node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~12KB gzipped)
+                                #   dist/index.js   (the same code as an ES module)
 ```
 
 ```html
@@ -71,5 +72,15 @@ scope. See [lessons.md L11](../../.claude/docs/lessons.md).
 
 ## Status
 
-Private, and not published. How the drop-in kit ships this file is PLAN.md WP-41.
+Installable from the tarballs `pnpm pack:release` writes; not published to npm. Three ways in:
+
+| Import | Is |
+|---|---|
+| `@nextgen/embed` | an ES module: `create`, `load`, `start`, `mount`, `present`, with types. Self-contained, so a bundler never re-resolves the workspace packages and meets a Node import |
+| `@nextgen/embed/nextgen.js` | the script tag, which `nextgen build` copies into `bundle/` |
+| `@nextgen/embed/package.json` | for tools that locate the package |
+
+ES modules only. `tooling/scripts/check-install.mjs` installs it outside this repository and
+routes a turn through the ES module on every pull request.
+
 **Serve each session only its own role's files**: Rule 17 is a delivery property.

@@ -15,9 +15,7 @@
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",
-    "@nextgen/core-intent": "workspace:*"
-  },
-  "devDependencies": {
+    "@nextgen/core-intent": "workspace:*",
     "typescript": "^5.7.2"
   },
   "files": [

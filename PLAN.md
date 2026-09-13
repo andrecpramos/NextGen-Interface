@@ -2477,6 +2477,7 @@ node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thre
 node tooling/scripts/check-accessibility.mjs      # WP-45: axe over the BUILT widget, every state
 node --experimental-strip-types \
   eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
+pnpm build && node tooling/scripts/check-install.mjs   # the tarballs install outside this repo, and run on Node 20
 pnpm -r typecheck
 pnpm -r test                                       # 647 tests, 15 packages
 pnpm registry:check                                # Rule 10

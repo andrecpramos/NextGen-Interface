@@ -131,6 +131,15 @@ jobs:
       - name: Packaging is importable (WP-26)
         run: node tooling/scripts/check-packaging.mjs
 
+      # An adopter installs tarballs, not this workspace. Pack the kit's packages,
+      # npm-install them into a scratch project outside the repository, and run
+      # init, build and doctor through the installed bin — on this runner's Node
+      # and on Node 20, the declared minimum — plus an ES-module import that routes
+      # a turn. Rule 16 is re-checked on the copied app. check-packaging reads
+      # manifests; this is the half only running them can see.
+      - name: Installs from tarballs and runs on Node 20
+        run: node tooling/scripts/check-install.mjs
+
       - name: Unit tests
         run: pnpm -r test
 
