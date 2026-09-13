@@ -96,6 +96,35 @@ why: nobody types a sentence into a command palette.
 
 ## 5. The result
 
+**Two configurations were measured, and this section first quoted the one nobody installs.**
+The 56.8% below is a server running `nomic-embed-text` and `llama3.1:8b`, which picks one
+screen. The script tag an adopter installs calls neither: it routes in the browser with no
+model, through the widget's own presenter, and shows at most three screens. Measured like
+for like against the same palette baseline
+([`like-for-like.mjs`](eval/fut-app/like-for-like.mjs), 2026-09-13):
+
+| 176 routable questions | Script tag, no model | Palette | |
+|---|---|---|---|
+| Right screen shown first | **53.4%** | 42.6% | +10.8 |
+| Right screen among what is shown (≤3) | **69.9%** | 45.5% | +24.4 |
+| **Guardians** (48) | **75.0%** | 18.8% | **+56.2** |
+| **Portuguese** (116) | **72.4%** | 37.1% | **+35.3** |
+| Coaches (104) | **68.3%** | 57.7% | +10.6 |
+| English (60) | **65.0%** | 61.7% | +3.3 |
+| Sent straight to a wrong screen | **0%** | — | |
+
+The cut rows compare "among what is shown" with the palette's top three. The palette finds
+the same 80 questions whether its list is cut at three or not, so the cut costs it nothing.
+
+**It gets there by offering, not deciding.** It navigates on its own for 1.7% of questions
+(3 of 176, all right), offers choices for 167, and says it is not sure for 3. So this is a
+comparison of short lists — the widget's against the palette's — and the widget's costs a
+click that a perfect guess would not. The shape of the server result holds: it wins most
+where the user knows least. **Unlike the server result, it does not lose in English**,
+because three choices forgive what one guess does not.
+
+### The server configuration: one screen, picked by a model
+
 > On a 146-page application it was never designed for, against a registry no human wrote,
 > the assistant sent users to the right screen for **56.8%** of real questions — against
 > **45.5%** for the command palette that application already ships — but only **11.0%** of
@@ -369,7 +398,8 @@ the number either way". It is 2.4%. The number is published.
 |---|---|
 | 145 capabilities + 4 limits across 10 role registries, 9 routes skipped with reasons | [`eval/fut-app/generated/`](eval/fut-app/generated/SKIPPED.md), [REPORT.md](eval/fut-app/REPORT.md) |
 | 100% recall and role exactness vs a hand-written registry, over 45 routes | [`score-generated.mjs`](eval/fut-app/score-generated.mjs), [GROUND_TRUTH.md](eval/fut-app/GROUND_TRUTH.md) |
-| Assistant 52.3% vs palette 45.5%; per-role and per-language splits | [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md), `scorecard-ollama-llama3_1_8b.json` |
+| Script tag, no model: right screen among ≤3 shown 69.9% vs palette 45.5%, shown first 53.4% vs 42.6%, 0 wrong; per-role and per-language splits | [`like-for-like.mjs`](eval/fut-app/like-for-like.mjs), [`like-for-like.json`](eval/fut-app/like-for-like.json) |
+| Server configuration (`llama3.1:8b`): assistant 52.3% vs palette 45.5% at WP-33, 56.8% after WP-40; per-role and per-language splits | [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md), `scorecard-ollama-llama3_1_8b.json` |
 | The palette baseline is the app's real command list and matcher | [`palette.mjs`](eval/fut-app/palette.mjs) |
 | 2.4% settled without a model call | [`evaluate-golden.mjs`](eval/fut-app/evaluate-golden.mjs) |
 | recall@1 of 4.0% vs 48.9% between encoders | [`inspect-retrieval.mjs`](eval/fut-app/inspect-retrieval.mjs) |

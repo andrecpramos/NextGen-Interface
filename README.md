@@ -18,21 +18,35 @@ stays reachable without it** — that one is not negotiable
 ## Does it work?
 
 Measured on a real 146-page application it was never designed for, against a registry
-no human wrote:
+no human wrote — and measured on **what an adopter installs**: the script tag, routing in
+the browser with no model, against the app's own command palette, like for like
+([like-for-like.json](eval/fut-app/like-for-like.json)):
 
-| | Assistant | The app's own command palette |
+| 176 real questions | Script tag, no model | The app's own command palette |
 |---|---|---|
-| Right screen, 176 real questions | **56.8%** | 45.5% |
-| Portuguese — the app's own language | **59.5%** | 37.1% |
-| Guardians — infrequent users | **45.8%** | 18.8% |
-| **Settled without a model call** | **11.0%** | — |
+| Right screen shown first | **53.4%** | 42.6% |
+| Right screen among what is shown (at most 3) | **69.9%** | 45.5% |
+| Portuguese — the app's own language | **72.4%** | 37.1% |
+| Guardians — infrequent users | **75.0%** | 18.8% |
+| English | **65.0%** | 61.7% |
+| Sent straight to a wrong screen | **0%** | — |
 
-**It beats the incumbent. It does not beat it for free.** The mechanism meant to make most
-turns cost nothing does not survive 145 capabilities — and that is settled rather than
-open: a fixed budget was spent on every lever anyone had identified
-([WP38.md](eval/fut-app/WP38.md)), and an accepted ADR added a second, non-topical signal
-on top. Together they moved the number from **2.4% to 11.0%** against a 60% target.
-**The product is a better way to navigate, not a cheaper one.**
+**It beats the incumbent by offering, not by deciding.** The script tag navigates on its
+own for only **1.7%** of questions. For almost everything else it shows up to three screens
+and the user picks one — a click more than a perfect guess, and it has sent nobody to a
+wrong place.
+
+**An earlier headline here, 56.8% vs 45.5%, measured a different configuration:** a server
+running `nomic-embed-text` and `llama3.1:8b` to pick one screen. The script tag calls
+neither. That run is kept, labelled, in [WRITEUP.md](WRITEUP.md) §5; it is not what an
+adopter gets.
+
+**It does not decide for free.** The mechanism meant to settle most turns on its own does
+not survive 145 capabilities — and that is settled rather than open: a fixed budget was
+spent on every lever anyone had identified ([WP38.md](eval/fut-app/WP38.md)), and an
+accepted ADR added a second, non-topical signal on top. With a model they moved the
+number from **2.4% to 11.0%** against a 60% target. **The product is a better way to
+navigate; a cheaper one is not claimed** until a deployment measures it.
 
 **[WRITEUP.md](WRITEUP.md) is the whole story**, negative results first, every claim
 linked to the artefact that backs it. Read that before anything else here.
@@ -164,9 +178,15 @@ to fix it, every lever was measured, and the claim was withdrawn rather than res
 [business-case.md](.claude/docs/business-case.md) §5. The numbers are published rather than
 buried, which is the point.
 
-Built since then: the browser runtime, guided steps, the installable package and a script
-tag. Not built: the one-command drop-in kit (WP-41), and a live deployment, which the
-owner runs. Nothing here is production-ready.
+Built since then: the browser runtime, guided steps, the installable package, a script tag
+that runs under a strict Content-Security-Policy, and the drop-in kit —
+`nextgen init / build / doctor / preview / calibrate` ([INSTALL.md](INSTALL.md)). The kit
+reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps, and on six
+public apps it had never seen it found every route in ground truth written beforehand and
+changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
+
+Not done: a live deployment, and a field test by someone other than its author
+([FIELD-TEST.md](FIELD-TEST.md)). The owner runs both. Nothing here is production-ready.
 
 **A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do.
 The assistant does not decline all of them. On `fut-app`'s 34 hand-written out-of-scope
