@@ -6,8 +6,9 @@
 // critical-infrastructure.md proposed closing Rule 2 with "a test asserting
 // arithmetic origin on the render path". Checked against the tree on
 // 2026-09-10, that test cannot be written: **no user-visible number is rendered
-// anywhere in this repository.** `apps/web/lib/render.ts` is the only producer
-// of an `AnswerView`, and its single `rows` construction sets `value: ''`.
+// anywhere in this repository.** `apps/web/lib/render.ts` was the only producer
+// of an `AnswerView` (its single `rows` construction set `value: ''`), and it was
+// removed with the reference web app on 2026-09-13.
 // `formatMoney` has no consumer outside `data` and its own tests.
 // `AnswerRow.bar` is never produced by anything.
 //

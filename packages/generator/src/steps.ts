@@ -24,7 +24,7 @@ import type { FormField } from './types.ts';
  *
  * `label` + `role` for semantic matching at run time (primary), and a `selector`
  * captured from source as the fallback — `#id` when the control has one,
- * `tag[name="…"]` otherwise. `packages/ui`'s resolver refuses the selector if it
+ * `tag[name="…"]` otherwise. `packages/embed`'s resolver refuses the selector if it
  * finds a control whose name contradicts `label`, so a stale selector degrades to
  * text instead of pointing at the wrong field.
  */
@@ -47,7 +47,7 @@ const TEMPLATES: Readonly<Record<string, Readonly<Record<Kind, string>>>> = {
   },
 };
 
-/** The ARIA role the runtime resolver will compute for this control. Must agree with `roleOf` in packages/ui. */
+/** The ARIA role the runtime resolver will compute for this control. Must agree with `roleOf` in packages/embed/src/anchor.ts. */
 function roleFor(field: FormField): string {
   const type = (field.type ?? '').toLowerCase();
   if (field.tag === 'textarea') return 'textbox';

@@ -81,8 +81,7 @@ is:
   correctly, never what a screen reader does with it.
 - **Nothing as rendered.** Visible focus, target size and reflow at 200%/400%
   zoom are checked in the stylesheet, not on screen.
-- **Only the embed widget.** `apps/web`'s React surface is the reference
-  application, not the product, and is not covered here.
+- **Only the embed widget**, which is the product's only user interface.
 - **One role, one language pair.** `PARENT`, Portuguese and English.
 
 Every one of those is an item in [NVDA-CHECKLIST.md](./NVDA-CHECKLIST.md).

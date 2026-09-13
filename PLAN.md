@@ -467,11 +467,11 @@ minutes. It is not a value test and must never be reported as one.
 | Declared boundaries / model-free refusal | ✅ and it is the core safety property |
 | Registry format, `defineCapability`, codegen, validation | ✅ it becomes the **integration contract** |
 | `TurnTrace` + `explain()` | ✅ and it becomes a selling feature |
-| `packages/ui` | ◐ the surface, plus the guided-step anchor resolver (WP-27, 16 tests). It still has to survive a host page's CSS (WP-35) |
+| ~~`packages/ui`~~ | **removed 2026-09-13** with `apps/web`; the guided-step anchor resolver and its 16 tests moved to `embed` |
 | `core-voice` | ◐ acceptance-tested in English (WP-21). The runtimes are desktop binaries, so a browser needs a different transport |
 | `core-inference` runtime seam | ✅ the seam is right. Stages 1+2 need no transport at all in the browser (WP-24), and the `core-inference/ollama` subpath keeps Node-only code out of browser bundles (WP-29) |
 | `data`, `domain-modules`, `domain-finance` | ◐ **reference applications** now: the generator's ground truth |
-| `apps/cli`, `apps/web` | ◐ reference implementations |
+| `apps/cli` | ◐ reference implementation (`apps/web` removed 2026-09-13) |
 | `generator` | ✅ the build step (WP-25, WP-27, WP-28). The kit wraps it (WP-41) |
 | `embed` | ✅ the script tag (WP-29) |
 
@@ -521,16 +521,16 @@ someone who did not write it.
 ### Tests
 
 647 tests across 15 packages, all green on 2026-09-12, after WP-41, WP-46, WP-42's agent
-half, WP-43, WP-47 and the agent halves of WP-45 and WP-44 landed. `services/api` has none.
+half, WP-43, WP-47 and the agent halves of WP-45 and WP-44 landed. `services/api` had none, and was deleted on 2026-09-13.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `core-intent` | 130 (incl. WP-41's shared calibration sweep) | | `generator` | 103 (incl. WP-42's extraction fixes and WP-43's guards) |
 | `data` | 60 (incl. WP-18) | | `core-capability` | 59 (incl. WP-27, the registry-ownership guard) |
-| `apps/web` | 44 | | `core-inference` | 42 (incl. the Rule 15 fence) |
+| ~~`apps/web`~~ | removed 2026-09-13 | | `core-inference` | 42 (incl. the Rule 15 fence) |
 | `domain-modules` | 39 | | `domain-finance` | 34 |
 | `core-trace` | 28 | | `core-dispatch` | 26 |
-| `ui` | 16 (anchor resolver) | | `apps/cli` | 15 |
+| ~~`ui`~~ | removed; its 16 anchor tests moved to `embed` | | `apps/cli` | 15 |
 | `kit` | 17 (WP-41: init, build, calibrate, doctor) | | `embed` | 27 (the script tag, the chat box, WP-45's focus rule) |
 | `core-voice` | 7 (asset store, and WP-44's manifest) | | | |
 
@@ -556,11 +556,9 @@ NextGen_Interface/
 │   ├── generator/        ✅ discover · pages · steps · prose · ids · synthesise · emit · 94 tests
 │   ├── embed/            ✅ WP-29, WP-41 — the script tag and the chat box, 12.0KB gzipped · 25 tests
 │   ├── kit/              ◐ WP-41 — nextgen init · build · doctor · 12 tests
-│   ├── ui/               ✅ tokens · Sphere · Composer · anchor resolver (WP-27) · 16 tests
 │   ├── domain-modules/   ◐ REFERENCE APP — 39 tests
 │   ├── domain-finance/   ◐ REFERENCE APP — 34 tests
 │   └── data/             ✅ money · schema · repositories · query-engine · undo · 60 tests
-├── services/api/     `export {}`   ⬜ empty by design (ADR-008)
 ├── eval/fut-app/     ground truth · golden set · generated registries · measurements
 ├── models/           voice/        — gitignored, downloaded assets
 ├── tooling/scripts/  check-import-boundaries · check-thresholds · check-scorecard
@@ -591,7 +589,7 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | ~~`tooling/tsconfig`~~ | Byte-identical to the root `tsconfig.base.json`, extended by nothing | **DELETED 2026-09-10 (WP-37)** |
 | ~~`tooling/eslint-config`~~ | Only a `package.json` — no `index.js`, no ESLint dependency, no dependents | **DELETED 2026-09-10 (WP-37)** |
 | ~~`hashing-llama3.1_8b.txt`~~ | 0 bytes, tracked, beside a real `.json`. Its real path was `packages/core-intent/eval/scorecards/`, not the `eval/scorecards/` recorded here | **DELETED 2026-09-10 (WP-37)** — and it was the only 0-byte tracked file left in the repo |
-| `services/api` | 3 files, `src/index.ts` is `export {}`, zero dependents | **Decided in [ADR-013](.claude/decisions/ADR-013.md), 2026-09-09** — keep, empty, reserved for Ladder B2's hosted trace store; use for nothing on rungs A1/B1/C1 without a new ADR |
+| ~~`services/api`~~ | 3 files, `src/index.ts` is `export {}`, zero dependents | **DELETED 2026-09-13**, the owner's decision (ADR-013 addendum). Before that, **decided in [ADR-013](.claude/decisions/ADR-013.md), 2026-09-09** — keep, empty, reserved for Ladder B2's hosted trace store; use for nothing on rungs A1/B1/C1 without a new ADR |
 | ~~**`domain-finance` is orphaned**~~ | **RESOLVED 2026-09-09 (WP-16)** — a `devDependency` of `apps/cli`; `domain-swap.test.ts` runs the real router against it. `NextGenApp` still cannot *register* it (its use cases are module-specific) — a separate, larger question | Closed |
 | `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead, and now verified.** WP-21 measured it on 2026-09-11: 97.5% agreement ([acceptance.mjs](packages/core-voice/eval/acceptance.mjs)). A browser transport is still unscoped work that nobody has costed |
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
@@ -2489,7 +2487,6 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](.claude/docs/busi
 pnpm install                 # a fresh clone needs: pnpm install --ignore-scripts
 
 # the reference apps
-pnpm web                     # assistant surface at http://localhost:3000
 pnpm app                     # the same stack as a CLI
 pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
 
@@ -2561,8 +2558,7 @@ sequentially.** On 2026-09-08 a cold `llama3.1:8b` took over four minutes to loa
 without warming, every latency figure is meaningless.
 
 **Environment**, from [CLAUDE.md](CLAUDE.md): Node 23.6+ required despite `engines`
-saying `>=20`. `jq` is not on PATH, so use Node for JSON. One `package.json`
-(`services/api`) carries a UTF-8 BOM that `JSON.parse` rejects.
+saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 
 ---
 

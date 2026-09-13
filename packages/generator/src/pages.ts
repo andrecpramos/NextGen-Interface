@@ -238,7 +238,7 @@ function childText(node: ts.Node): { text: string | null; key: string | null } {
  * A control's name comes from, in order: its own `aria-label`, a `<label
  * htmlFor>` pointing at its `id`, its `placeholder`, and — for a button — its own
  * text. That is the accessible-name order a screen reader uses, which is also
- * the order `packages/ui`'s runtime resolver matches in; the two have to agree or
+ * the order `packages/embed`'s runtime resolver matches in; the two have to agree or
  * a generated anchor would name a field the page does not.
  *
  * Hidden inputs are skipped, and so is any control nothing names: a step that

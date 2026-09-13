@@ -56,8 +56,7 @@ assistant reads the registry.
 | Data layer (`packages/data`) | 🟡 schema, money, query engine, undo, migrations present; not exercised end-to-end |
 | Inference adapters (`core-inference`) | 🟡 Ollama working. In the browser, stages 1+2 need no runtime at all (WP-24); mobile was closed (WP-10) |
 | Voice (`core-voice`) | ✅ acceptance-tested end to end in English: 97.5% agreement between typed and spoken (WP-21). Portuguese is WP-44 |
-| Apps (`apps/web`, `apps/cli`) | ✅ both run. `navigate` moves the browser (WP-35); the CLI has `undo` (WP-18) |
-| Backend (`services/api`) | ⛔ intentionally empty through MVP 2 ([ADR-008](../decisions/ADR-008.md)) |
+| App (`apps/cli`) | ✅ runs, with `undo` (WP-18). The browser surface `apps/web` was removed 2026-09-13; the product's UI is `embed` |
 
 ## Environment facts (verified 2026-09-09)
 

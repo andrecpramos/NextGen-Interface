@@ -6,7 +6,7 @@ import type { FormField } from './types.ts';
 /**
  * WP-27 — guided steps from a page's form.
  *
- * The anchors these produce are consumed by `packages/ui`'s resolver, so the
+ * The anchors these produce are consumed by `packages/embed`'s resolver, so the
  * properties tested here are the ones that resolver depends on: a real label to
  * match semantically, a role it computes the same way, and a selector that is
  * only ever a fallback.

@@ -78,7 +78,7 @@ it shipped with until 2026-09-13 was blocked, and the widget rendered unstyled.
 
 It is stages 1 and 2 of the router only. A script tag has no stage-3 transport, so a turn
 that would need a model degrades to a clarifying question and never to a guess. `steps()`
-uses the guided-step resolver from `packages/ui` (WP-27). That resolver would rather not
+uses the guided-step resolver in `src/anchor.ts` (WP-27). That resolver would rather not
 highlight anything than point at the wrong field.
 
 ## How it is tested

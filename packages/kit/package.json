@@ -40,7 +40,6 @@
     }
   },
   "dependencies": {
-    "@nextgen/core-capability": "workspace:*",
     "@nextgen/core-intent": "workspace:*",
     "@nextgen/embed": "workspace:*",
     "@nextgen/generator": "workspace:*"

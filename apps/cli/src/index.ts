@@ -7,8 +7,7 @@ import type { Decision } from '@nextgen/core-dispatch';
 /**
  * The assistant surface, as a terminal.
  *
- * Speak an intent, land on the right data, and be able to ask why. `apps/web`
- * (WP-09) puts a UI on the same assembly.
+ * Speak an intent, land on the right data, and be able to ask why.
  */
 
 const HELP = `

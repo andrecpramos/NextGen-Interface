@@ -230,7 +230,7 @@ export interface RoleModel {
  * still has to mean something there: it means every visitor gets the same
  * registry, and that registry is named for the single audience it serves.
  */
-export const SINGLE_AUDIENCE = 'PUBLIC';
+const SINGLE_AUDIENCE = 'PUBLIC';
 
 export function readRoleModel(config: GeneratorConfig): RoleModel {
   const permissions = config.permissionsFile ? resolve(config.appRoot, config.permissionsFile) : null;
@@ -936,7 +936,7 @@ function discoverByRouter(config: GeneratorConfig): {
 }
 
 /** Resolve a component import to a file on disk, trying the usual extensions. */
-export function resolveComponentFile(base: string | null): string | null {
+function resolveComponentFile(base: string | null): string | null {
   if (!base) return null;
   const extensions = ['.tsx', '.ts', '.jsx', '.js', '.vue', '.svelte'];
   const candidates = [

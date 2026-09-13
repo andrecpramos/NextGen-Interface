@@ -76,7 +76,7 @@ function scriptKind(file: string): ts.ScriptKind {
  * or an action with no page — and so not a destination. Everywhere, the name is
  * the component the rest of the generator titles a screen from.
  */
-export function defaultExport(file: string): { readonly exported: boolean; readonly name: string | null } {
+function defaultExport(file: string): { readonly exported: boolean; readonly name: string | null } {
   // A markup or MDX page has no default export to read: the file is the page.
   if (/\.(mdx|vue|svelte)$/.test(file)) return { exported: true, name: null };
   let text: string;

@@ -77,7 +77,7 @@ export const WHISPER_MODEL_MULTILINGUAL_ASSET: AssetDescriptor = {
  * the default because it is 190MB and slower, and because English-only `base.en`
  * remains the right choice for English.
  */
-export const WHISPER_MODEL_SMALL_ASSET: AssetDescriptor = {
+const WHISPER_MODEL_SMALL_ASSET: AssetDescriptor = {
   id: 'whisper-model-small-q5_1',
   url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin',
   sha256: 'ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb',

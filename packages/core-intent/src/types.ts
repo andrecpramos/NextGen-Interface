@@ -27,7 +27,6 @@
 export {
   isCapabilityKind,
   isExecutableKind,
-  exampleText,
   type Capability,
   type CapabilityExample,
   type CapabilityKind,

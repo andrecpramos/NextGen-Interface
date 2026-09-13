@@ -162,8 +162,7 @@
       "command": "node tooling/scripts/check-accessibility.mjs",
       "blocking": true,
       "when": [
-        "packages/embed/src/**",
-        "packages/ui/src/**"
+        "packages/embed/src/**"
       ],
       "fix": "Run node tooling/scripts/check-accessibility.mjs and read eval/a11y/axe.json. This is the automated half only: colour contrast, announcement order and anything as-rendered are eval/a11y/NVDA-CHECKLIST.md, which a person runs."
     },

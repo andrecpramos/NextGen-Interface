@@ -182,7 +182,7 @@ export function readAngularComponent(file: string): PageFacts | null {
   return inline ? readMarkupText(inline[1]!) : EMPTY;
 }
 
-export function readMarkupText(text: string): PageFacts {
+function readMarkupText(text: string): PageFacts {
   const markup = visibleMarkup(text);
   const keys = [...text.matchAll(TRANSLATION_CALL)].map((m) => m[2]!).filter((key) => !key.includes('${'));
   return {

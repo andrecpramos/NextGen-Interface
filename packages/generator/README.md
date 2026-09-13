@@ -148,7 +148,7 @@ plus one for the submit button, in the app's first language. Each step carries a
 - a build-time CSS selector, as the fallback.
 
 `steps.ts` writes them, and `pages.ts` reads the form fields. The runtime resolver in
-`packages/ui` refuses rather than guesses. If a label matches twice, or a selector finds
+`packages/embed` refuses rather than guesses. If a label matches twice, or a selector finds
 an element whose name contradicts the label, the step renders as text with nothing
 highlighted. It never points at the wrong field.
 

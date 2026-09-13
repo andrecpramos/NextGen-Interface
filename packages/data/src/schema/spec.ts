@@ -43,7 +43,7 @@ export interface TableSpec {
   readonly comment?: string;
 }
 
-export const ACCOUNTS: TableSpec = {
+const ACCOUNTS: TableSpec = {
   name: 'accounts',
   comment: 'An account holds a currency. Every transaction on it must agree (ADR-010).',
   columns: {
@@ -56,7 +56,7 @@ export const ACCOUNTS: TableSpec = {
   },
 };
 
-export const CATEGORIES: TableSpec = {
+const CATEGORIES: TableSpec = {
   name: 'categories',
   comment: 'A tree. "food" must aggregate "groceries" and "restaurants" — see the recursive CTE in the query engine.',
   columns: {
@@ -69,7 +69,7 @@ export const CATEGORIES: TableSpec = {
   indexes: [{ name: 'categories_parent_idx', columns: ['parentId'] }],
 };
 
-export const TRANSACTIONS: TableSpec = {
+const TRANSACTIONS: TableSpec = {
   name: 'transactions',
   comment: 'amountMinor is SIGNED: negative leaves the account, positive arrives (ADR-010).',
   columns: {
@@ -90,7 +90,7 @@ export const TRANSACTIONS: TableSpec = {
   ],
 };
 
-export const BUDGETS: TableSpec = {
+const BUDGETS: TableSpec = {
   name: 'budgets',
   columns: {
     id: { type: 'text', primaryKey: true },
@@ -103,7 +103,7 @@ export const BUDGETS: TableSpec = {
   indexes: [{ name: 'budgets_category_idx', columns: ['categoryId'] }],
 };
 
-export const TURN_TRACES: TableSpec = {
+const TURN_TRACES: TableSpec = {
   name: 'turn_traces',
   comment: 'A first-class entity, not a log file (Rule 9). Queried by the trace viewer, exported for eval sets.',
   columns: {
@@ -122,7 +122,7 @@ export const TURN_TRACES: TableSpec = {
   indexes: [{ name: 'turn_traces_created_idx', columns: ['createdAt'] }],
 };
 
-export const DATA_REFS: TableSpec = {
+const DATA_REFS: TableSpec = {
   name: 'data_refs',
   comment: 'What a turn read. "What data did you use?" is answered from this, not by asking the model.',
   columns: {
@@ -136,7 +136,7 @@ export const DATA_REFS: TableSpec = {
   indexes: [{ name: 'data_refs_turn_idx', columns: ['turnId'] }],
 };
 
-export const UNDO_JOURNAL: TableSpec = {
+const UNDO_JOURNAL: TableSpec = {
   name: 'undo_journal',
   comment: 'ADR-004: recorded BEFORE a destructive action, and it outlives the screen.',
   columns: {
@@ -150,7 +150,7 @@ export const UNDO_JOURNAL: TableSpec = {
   },
 };
 
-export const MODULE_CATEGORIES: TableSpec = {
+const MODULE_CATEGORIES: TableSpec = {
   name: 'module_categories',
   comment: 'A tree, same shape as categories — but entirely user/AI-created at runtime. No seeded taxonomy.',
   columns: {
@@ -162,7 +162,7 @@ export const MODULE_CATEGORIES: TableSpec = {
   indexes: [{ name: 'module_categories_parent_idx', columns: ['parentId'] }],
 };
 
-export const MODULES: TableSpec = {
+const MODULES: TableSpec = {
   name: 'modules',
   comment: 'What the user asked the AI to remember. body is the current canonical merged content — module_entries is the append-only log of what built it.',
   columns: {
@@ -177,7 +177,7 @@ export const MODULES: TableSpec = {
   indexes: [{ name: 'modules_category_idx', columns: ['categoryId'] }],
 };
 
-export const MODULE_ENTRIES: TableSpec = {
+const MODULE_ENTRIES: TableSpec = {
   name: 'module_entries',
   comment: 'Append-only provenance log, never edited. Answers "what was this module built from" the way data_refs answers "what did this turn read".',
   columns: {
