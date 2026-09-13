@@ -525,7 +525,18 @@ export function init(appDir: string, kitDir?: string, options: { force?: boolean
   writeFileSync(configFile, `${JSON.stringify(written, null, 2)}\n`, 'utf8');
   writeFileSync(
     join(target, REVIEW_DIR, 'detect.json'),
-    `${JSON.stringify({ detectedAt: new Date().toISOString(), findings: detection.findings, warnings: detection.warnings }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        detectedAt: new Date().toISOString(),
+        // The project folder, relative to the kit: where doctor looks for the scripts and
+        // ignore files that decide whether this folder turns the project's checks red.
+        projectDir: toPosix(relative(target, resolve(appDir))),
+        findings: detection.findings,
+        warnings: detection.warnings,
+      },
+      null,
+      2,
+    )}\n`,
     'utf8',
   );
   return { ...detection, kitDir: target, configFile };
