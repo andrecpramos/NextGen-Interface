@@ -156,13 +156,21 @@ export function doctor(kitDir: string): DoctorReport {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
     say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
   }
-  const roleArg = record.roles.length > 1 ? 'CURRENT_USER_ROLE' : `'${role}'`;
-  say('  2. Add to your page. This puts an accessible "ask where to go" box in the corner:');
-  say('       <script src="/nextgen/nextgen.js"></script>');
-  say(`       <script>NextGen.start('/nextgen', ${roleArg});</script>`);
-  say('     In a single-page app, pass your router so moving does not reload the page:');
-  say(`       NextGen.start('/nextgen', ${roleArg}, { navigate: (to) => router.navigate(to) })`);
-  say('     To place it yourself, pass { target: someElement }.');
+  const roleValue = record.roles.length > 1 ? 'CURRENT_USER_ROLE' : role;
+  say('  2. Add one line to your page. It puts an accessible "ask where to go" box in a corner.');
+  say('     It needs no inline script or style, so it works under a strict Content-Security-Policy:');
+  say(`       <script src="/nextgen/nextgen.js" data-nextgen-role="${roleValue}" defer></script>`);
+  if (record.roles.length > 1) {
+    say("     Write the signed-in user's role into data-nextgen-role on the server, HTML-escaped.");
+  }
+  say('     Optional: data-nextgen-target="#an-element" to place it yourself,');
+  say('     data-nextgen-position="bottom-left" (or top-left, top-right) to move the corner.');
+  say('  3. In a single-page app, stop its links reloading the page. In your own code:');
+  say("       window.addEventListener('nextgen:navigate', (event) => {");
+  say('         event.preventDefault();');
+  say('         router.navigate(event.detail.route);');
+  say('       });');
+  say("     Or use it as a module: import { start } from '@nextgen/embed', and pass { navigate }.");
   say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
   say();
 

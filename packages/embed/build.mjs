@@ -32,7 +32,17 @@ const common = {
   legalComments: 'none',
 };
 
-await build({ ...common, format: 'iife', globalName: 'NextGen', minify: true, outfile: script });
+// The script tag starts itself from its own data-nextgen-* attributes
+// (src/script-tag.ts), so a page needs no inline script. The ES module below
+// has no such side effect: importing it does nothing until called.
+await build({
+  ...common,
+  entryPoints: [fileURLToPath(new URL('./src/script-tag.ts', import.meta.url))],
+  format: 'iife',
+  globalName: 'NextGen',
+  minify: true,
+  outfile: script,
+});
 
 // For a single-page app that installs the package and wants
 // `import { start } from '@nextgen/embed'` with its own router's `navigate`.

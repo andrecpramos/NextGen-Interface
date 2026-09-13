@@ -64,6 +64,7 @@ node tooling/scripts/check-accessibility.mjs       # WP-45: no serious/critical 
 node --experimental-strip-types \
   eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
 pnpm build && node tooling/scripts/check-install.mjs   # the tarballs install outside this repo, and run on Node 20
+node tooling/scripts/check-csp.mjs                     # the widget under a strict CSP, in a real browser
 ```
 
 The golden-set gate and its tolerances are described in
@@ -95,7 +96,7 @@ Don't re-derive these procedures — they are written down. Full map:
 | ending a session | `/handoff` |
 | suspicious the docs have drifted | `docs-keeper` agent |
 | installing this SDLC in another repo | `sdlc-bootstrap` skill (the `sdlc-kit` folder lives outside this repo) |
-| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — thirteen of them, with what each cost |
+| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — fourteen of them, with what each cost |
 
 Three hooks enforce what you would otherwise have to remember: the branching
 contract at every context boundary, a guard denying broad staging and writes to

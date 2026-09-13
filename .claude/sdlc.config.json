@@ -154,6 +154,18 @@
       "fix": "Run node tooling/scripts/check-accessibility.mjs and read eval/a11y/axe.json. This is the automated half only: colour contrast, announcement order and anything as-rendered are eval/a11y/NVDA-CHECKLIST.md, which a person runs."
     },
     {
+      "id": "csp",
+      "title": "The documented one-line script tag starts, styles and routes under a strict Content-Security-Policy, in a real browser",
+      "command": "node tooling/scripts/check-csp.mjs",
+      "blocking": true,
+      "when": [
+        "packages/embed/**",
+        "packages/kit/src/doctor.ts",
+        "tooling/scripts/check-csp.mjs"
+      ],
+      "fix": "Read which check failed. A policy violation names the directive: no inline <style> or <script>, no style=\"\" attribute (set styles through the CSSOM, as widget.ts and start() do). \"Unstyled\" means the constructed stylesheet did not apply. Skips on a machine with no Chrome, Chromium or Edge; set NEXTGEN_BROWSER. Fails under CI instead of skipping."
+    },
+    {
       "id": "kit-sync",
       "title": "Hooks identical in .claude/ and sdlc-kit/runtime/",
       "command": "node tooling/scripts/check-kit-sync.mjs",

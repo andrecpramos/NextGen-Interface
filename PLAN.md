@@ -2478,6 +2478,7 @@ node tooling/scripts/check-accessibility.mjs      # WP-45: axe over the BUILT wi
 node --experimental-strip-types \
   eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
 pnpm build && node tooling/scripts/check-install.mjs   # the tarballs install outside this repo, and run on Node 20
+node tooling/scripts/check-csp.mjs                     # the widget under a strict CSP, in a real browser
 pnpm -r typecheck
 pnpm -r test                                       # 647 tests, 15 packages
 pnpm registry:check                                # Rule 10
