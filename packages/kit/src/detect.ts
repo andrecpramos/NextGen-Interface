@@ -58,9 +58,10 @@ const count = (text: string, pattern: RegExp): number => (text.match(pattern) ??
 
 // ------------------------------------------------------------ the route table --
 
-const ROUTER_CALL = /\b(createBrowserRouter|createHashRouter|createMemoryRouter|createRoutesFromElements|useRoutes)\s*\(/;
+const ROUTER_CALL = /\b(createBrowserRouter|createHashRouter|createMemoryRouter|createRoutesFromElements|useRoutes|createRouter|provideRouter|RouterModule\.forRoot)\s*\(/;
 /** A route table renders something. A paths table only names routes. */
-const RENDERS = /\b(element|Component|component|lazy)\s*:|<Route\b/;
+/** Angular spells the lazy page `loadComponent` and lazy children `loadChildren`. */
+const RENDERS = /\b(element|Component|component|lazy|loadComponent|loadChildren)\s*:|<Route\b/;
 
 function routeScore(text: string): number {
   const entries = count(text, /\bpath\s*:/g) + count(text, /<Route\b/g);
@@ -137,10 +138,10 @@ function htmlLang(appDir: string, appRoot: string): { lang: string; file: string
 
 // --------------------------------------------------------------- framework --
 
-const SUPPORTED = 'React Router, Next.js, Remix, SvelteKit and Nuxt';
+const SUPPORTED = 'React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt';
 
 interface Framework {
-  readonly kind: 'react-router' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
+  readonly kind: 'react-router' | 'vue-router' | 'angular' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
   readonly name: string;
   readonly evidence: string;
   /** For a folder-layout router: its source root, and the routes folder relative to it. */
@@ -225,11 +226,18 @@ function detectFramework(dir: string): Framework {
     }
   }
 
+  // Route tables in code, read the way React Router's are: no appRoot here, so detectApp
+  // goes on to find the table.
+  if ('@angular/router' in dependencies) {
+    return { kind: 'angular', name: `Angular ${dependencies['@angular/router']}`, evidence: '@angular/router in package.json; its routes are a Routes array in code' };
+  }
+  if ('vue-router' in dependencies) {
+    return { kind: 'vue-router', name: `Vue Router ${dependencies['vue-router']}`, evidence: 'vue-router in package.json; its routes are a route table in code' };
+  }
+
   const unsupported: readonly (readonly [string, string])[] = [
-    ['@angular/router', 'Angular'],
     ['@tanstack/react-router', 'TanStack Router'],
     ['@solidjs/router', 'Solid Router'],
-    ['vue-router', 'Vue Router'],
   ];
   for (const [dependency, name] of unsupported) {
     if (dependency in dependencies) {
@@ -268,6 +276,8 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
         remix: 'flat routes, read with Remix rules; a module with no default export is not a page',
         sveltekit: 'the folder layout, read with SvelteKit rules; a folder with +page.svelte is a page',
         nuxt: 'the folder layout, read with Nuxt rules; index.vue is its folder\'s page',
+        'vue-router': 'a route table in code',
+        angular: 'a Routes array in code',
       }[framework.kind],
       confident: true,
     },
@@ -348,12 +358,15 @@ export function detectApp(appDir: string): Detection {
   const dir = resolve(appDir);
   if (!isDir(dir)) throw new Error(`No folder at ${dir}.`);
   const framework = detectFramework(dir);
-  if (framework.kind !== 'react-router') return detectFileRouter(dir, framework);
+  if (framework.appRoot) return detectFileRouter(dir, framework);
   const appRoot = isDir(join(dir, 'src')) ? join(dir, 'src') : dir;
   const rel = (path: string): string => toPosix(relative(appRoot, path));
 
   const findings: Finding[] = [];
   const warnings: string[] = [];
+  if (framework.kind !== 'react-router') {
+    findings.push({ what: 'framework', value: framework.name, evidence: framework.evidence, confident: true });
+  }
   findings.push({
     what: 'source root',
     value: toPosix(relative(dir, appRoot)) || '.',
@@ -471,6 +484,7 @@ export function detectApp(appDir: string): Detection {
 
   const config: GeneratorConfig = {
     appRoot,
+    ...(framework.kind !== 'react-router' ? { router: framework.kind } : {}),
     routesFile: rel(routes.file),
     ...permissions,
     manifests: [],

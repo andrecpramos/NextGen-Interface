@@ -73,7 +73,7 @@ function isBookmarkRedirect(route: DiscoveredRoute, facts: PageFacts): boolean {
 
 function titleFromComponent(component: string | null): string | null {
   if (!component) return null;
-  const cleaned = component.replace(/(Page|Redirect|View|Screen)$/g, '');
+  const cleaned = component.replace(/(Page|Redirect|View|Screen|Component)$/g, '');
   const spaced = cleaned.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
   return spaced.length > 0 ? spaced : null;
 }
@@ -178,7 +178,11 @@ function humanise(text: string): string {
  * restores the context the sidebar was providing, from the feature the
  * capability already belongs to.
  */
-function qualifyTitles(titles: Map<string, Record<string, string>>, features: ReadonlyMap<string, string>): void {
+function qualifyTitles(
+  titles: Map<string, Record<string, string>>,
+  features: ReadonlyMap<string, string>,
+  unchanged: ReadonlySet<string> = new Set(),
+): void {
   const counts = new Map<string, number>();
   for (const perLanguage of titles.values()) {
     // Once per screen: the same title in two languages is one screen, not a duplicate.
@@ -188,7 +192,9 @@ function qualifyTitles(titles: Map<string, Record<string, string>>, features: Re
   }
   for (const [id, perLanguage] of titles) {
     const feature = features.get(id);
-    if (!feature) continue;
+    // `app` is what featureOf answers when nothing names a section: prefixing it says nothing,
+    // and it made the home page of two field apps "App home". The root page keeps its title.
+    if (!feature || feature === 'app' || unchanged.has(id)) continue;
     for (const [language, title] of Object.entries(perLanguage)) {
       if ((counts.get(title) ?? 0) < 2) continue;
       if (title.toLowerCase().startsWith(feature.toLowerCase())) continue;
@@ -308,7 +314,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     [...titles].map(([id, perLanguage]) => [id, Object.values(perLanguage)]),
   );
 
-  qualifyTitles(titles, features);
+  qualifyTitles(titles, features, new Set(accepted.filter(({ route }) => route.path === '/').map(({ id }) => id)));
 
   const requests: ProseRequest[] = accepted.map(({ route, id, facts }) => ({
     id,
