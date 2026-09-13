@@ -54,7 +54,7 @@ nothing else from the engine.
 - **I** — narrow interfaces. A reader and a writer are separate, so the query
   path can be handed the reader alone.
 - **D** — domains declare interfaces, infrastructure implements them, and the
-  composition roots (`apps/web`, `apps/cli`) are the only places they meet.
+  composition root (`apps/cli`) is the only place they meet.
 
 ## TypeScript conventions
 

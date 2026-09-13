@@ -125,7 +125,7 @@ pnpm registry:check      # validate; the CI gate
 
 ### 6. Wire it at the composition root — and only there
 
-Add the workspace dependency to `apps/cli` and `apps/web`, and register through
+Add the workspace dependency to `apps/cli`, and register through
 the domain's `index.ts`. That import is the only place the app knows the domain's
 name. Nothing in `packages/core-*` changes.
 

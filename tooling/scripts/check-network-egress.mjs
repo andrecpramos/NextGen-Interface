@@ -50,7 +50,7 @@ const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\]|::1)(:\d+)?$/i;
  * A URL with a host that could actually be resolved.
  *
  * The character class is deliberately strict rather than "anything up to the
- * next slash". The looser version flagged `apps/web/lib/voice.ts`, where the
+ * next slash". The looser version flagged the since-removed `apps/web/lib/voice.ts`, where the
  * string is an error message telling the user that microphone access needs a
  * secure context — *"(https://, or localhost)"* — and the comma after the scheme
  * was read as a hostname. A gate whose first finding is a sentence about
@@ -85,7 +85,7 @@ const walk = (dir) => {
 };
 
 const roots = [];
-for (const group of ['packages', 'apps', 'services']) {
+for (const group of ['packages', 'apps']) {
   const base = join(ROOT, group);
   let dirs;
   try {

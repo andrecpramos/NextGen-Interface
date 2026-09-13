@@ -24,10 +24,9 @@ import { registryFromIndex, makeEmbedder, route as routeTurn } from '@nextgen/co
 import type { Registry, RegistryFile, ShippedIndex, Thresholds, TurnTrace } from '@nextgen/core-intent/browser';
 import type { GuidedStep } from '@nextgen/core-capability';
 
-// The resolver is imported by path rather than through `@nextgen/ui`, whose index
-// also exports the React components. A script tag must not drag React in to
-// highlight a form field.
-import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
+// The guided-step resolver (WP-27). It lived in packages/ui, beside React components a
+// script tag must never drag in, and moved here when that package was removed.
+import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 
 import { mount, type MountOptions, type Mounted } from './widget.ts';
 

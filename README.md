@@ -82,12 +82,10 @@ packages/
   core-inference/  swappable LLM + embedding runtimes
   core-voice/      Whisper STT + Piper TTS adapters
   data/            node:sqlite schema, migrations, repositories
-  ui/              sphere, composer, confirmation cards
   domain-modules/  reference application — the registered one
   domain-finance/  reference application — proof the engine is domain-agnostic
 
 apps/cli           composition root, and the fastest way to see a turn
-apps/web           the assistant surface (Next.js)
 eval/fut-app       the measurement: ground truth, golden set, scorecards
 tooling/scripts    the CI gates that are not tests
 ```
@@ -106,7 +104,6 @@ They are what the generator is measured against.
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
 pnpm app                         # the reference app in a terminal
 pnpm app:offline                 # stages 1-2 only, no model, no Ollama needed
-pnpm web                         # the same stack behind a browser UI
 pnpm check                       # typecheck + 384 tests + registry validation
 ```
 

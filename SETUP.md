@@ -6,8 +6,9 @@
 layer generated for someone else's app — see [README.md](README.md) and
 [WRITEUP.md](WRITEUP.md). The two are the same engine; only the registry differs.
 
-There are two working apps: **`apps/web`**, the assistant surface in a browser, and
-`apps/cli`, the same stack as a terminal loop. There is **not** a mobile app — see
+There is one working reference app: **`apps/cli`**, the whole stack as a terminal loop.
+Its browser surface, `apps/web`, was removed on 2026-09-13; the product's browser UI is the
+script tag in `packages/embed`. There is **not** a mobile app — see
 [What is missing](#what-is-missing) at the end.
 
 ## The short version
@@ -15,7 +16,6 @@ There are two working apps: **`apps/web`**, the assistant surface in a browser, 
 ```bash
 pnpm install --ignore-scripts   # a fresh clone needs the flag; see CLAUDE.md
 pnpm app                       # the reference app in a terminal — the fastest look
-pnpm web                       # the same stack at http://localhost:3000
 ```
 
 Everything else on this page is detail.
@@ -72,44 +72,11 @@ pnpm registry:check # the capability registry is valid
 All three should pass. If `pnpm test` fails, stop here — nothing downstream will make
 sense.
 
-There is deliberately **no `build` and no `lint` at the root.** The workspace runs
-TypeScript directly via Node's native type stripping, so no package defines `build`;
-the only real build in the repo is `pnpm web:build`. ESLint is not wired up yet — see
+There is deliberately **no `lint` at the root.** The reference apps run TypeScript
+directly via Node's native type stripping; `pnpm build` builds only the installable
+packages (WP-26). ESLint is not wired up yet — see
 [ci-cd.md](.claude/sdlc/ci-cd.md), which explains why a job wrapping a no-op is worse than
 no job.
-
-## 5. Run the web app
-
-```bash
-pnpm web
-```
-
-Then open **http://localhost:3000**. The assistant is the landing surface and gets the
-whole stage. The conventional navigation Rule 7 requires lives off-canvas behind the
-☰ in the top-left — selecting from it runs the capability **directly**, with no router
-and no model involved.
-
-Try, in order:
-
-```
-  how are my budgets doing          # answers in ~25ms, without the model
-  how much did I spend on food this month
-  book me a flight to tokyo         # a declared limit — it refuses, and says why
-  add 12 euros for coffee today     # a write — a card appears, editable in place
-```
-
-On that last one, **change the amount before confirming**. That is the whole point of
-the card: it shows the *parsed parameters*, not your sentence, so a misheard twelve
-versus twenty is caught here or not at all. Then hit `why?` on any answer — the trace
-panel shows what it considered, the scores, what it read and how long it took, all
-rendered from the record rather than narrated by a model.
-
-The status bar says what is actually running: a teal dot and `local`, or an amber dot
-and `no model` if Ollama is not up. It does not fail without it — hover for detail.
-
-```bash
-pnpm web:build && pnpm web:start   # production build, if you want to check bundle size
-```
 
 ## 5b. Run the CLI
 
@@ -204,10 +171,7 @@ Every root script, and what it is for. All run from the repo root.
 
 | | |
 |---|---|
-| `pnpm web` | **the product** — assistant surface at http://localhost:3000 |
-| `pnpm web:build` | Next.js production build (the only real build in the repo) |
-| `pnpm web:start` | serve that production build |
-| `pnpm app` | the same stack as a terminal loop, with the model |
+| `pnpm app` | the reference app as a terminal loop, with the model |
 | `pnpm app:offline` | the same, stages 1–2 only — no model, no Ollama needed |
 
 ### Checking it
@@ -258,15 +222,8 @@ number.
 
 `why` · `trace` · `stats` · `help` · `exit` — see §5b.
 
-### Environment variables
-
-| | |
-|---|---|
-| `NEXTGEN_MODEL` | chat model for `apps/web`; defaults to `qwen2.5:1.5b` |
-
-There is **no `pnpm build` and no `pnpm lint`.** Both were removed rather than left to
-fail: no package defines `build` (the workspace runs TypeScript directly), and ESLint
-is not wired up. [ci-cd.md](.claude/sdlc/ci-cd.md) explains why a green job that certifies
+There is **no `pnpm lint`.** It was removed rather than left to fail: ESLint is not
+wired up. (`pnpm build` exists since WP-26, and builds only the installable packages.) [ci-cd.md](.claude/sdlc/ci-cd.md) explains why a green job that certifies
 nothing is worse than an absent one.
 
 ---
@@ -289,9 +246,7 @@ Honest status. The engine is complete; the product surface is not.
 | `domain-finance` | a second reference app — 27 capabilities, proof the engine is domain-agnostic |
 | `generator` | reads an application's source and emits one registry per role (WP-25). Also emits guided steps (WP-27) and reads data-router apps (WP-28) |
 | `apps/cli` | **the composition root**: the whole stack in a terminal, with `undo` (WP-18) |
-| `ui` | design system: sphere states, confirmation card, trace viewer (WP-08), plus the guided-step anchor resolver (WP-27) |
-| `apps/web` | **the assistant surface**: Next.js, a second surface over the same root (WP-09). `navigate` moves the browser (WP-35), 44 tests |
-| `embed` | the script tag: one file defining `window.NextGen`, 9.3KB gzipped (WP-29) |
+| `embed` | the script tag: one file defining `window.NextGen`, 9.3KB gzipped (WP-29), plus the guided-step anchor resolver (WP-27) |
 | `core-voice` | Whisper and Piper. Acceptance-tested end to end in English (WP-21) |
 
 ### Not built

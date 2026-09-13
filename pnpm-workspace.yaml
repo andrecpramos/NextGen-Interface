@@ -1,7 +1,6 @@
 packages:
   - 'apps/*'
   - 'packages/*'
-  - 'services/*'
   - 'tooling/*'
 
 # Records which dependencies MAY run build scripts. Nothing here actually needs
@@ -14,22 +13,4 @@ packages:
 # checkout hides it, because a populated node_modules leaves no builds to ignore.
 # CI therefore installs with --ignore-scripts; see .github/workflows/ci.yml.
 onlyBuiltDependencies:
-  - better-sqlite3
   - esbuild
-
-# Transitive advisories where we pull the patched version forward.
-#
-# postcss: Next 15.5.24 depends on postcss at an EXACT pin (8.4.31), which
-# carries two high advisories — GHSA-6g55-p6wh-862q (arbitrary file read) and
-# GHSA-r28c-9q8g-f849 (path traversal via sourceMappingURL). Both are fixed in
-# 8.5.18. The CVE gate in .github/workflows/ci.yml blocks on high, so without
-# this the branch cannot go green.
-#
-# Safe: a patch-level move inside 8.x, and Next uses postcss only in its CSS
-# build pipeline — nothing here ships postcss to a browser.
-#
-# This MUST live here and not in package.json's `pnpm` field. pnpm 11.1.2 reads
-# its settings from this file; an overrides block in package.json is silently
-# ignored, which `pnpm config list` will confirm.
-overrides:
-  postcss: ^8.5.26

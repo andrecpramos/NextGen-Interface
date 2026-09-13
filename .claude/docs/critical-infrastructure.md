@@ -147,7 +147,7 @@ taps through.
 |---|---|---|
 | Rule 14 — thresholds calibrated per encoder, never hand-set | `tooling/scripts/check-thresholds.mjs`, in CI | **enforced (added 2026-09-08)** |
 | Rule 11 — deterministic slot values beat model-extracted ones | `slots.test.ts` | **enforced by test** |
-| Rule 2 — the model never computes a number the user sees | comments at `core-intent/src/types.ts`, `ui/src/types.ts`, `apps/web/lib/render.ts` | **convention — no test** |
+| Rule 2 — the model never computes a number the user sees | a comment at `core-intent/src/types.ts`, and `check-model-numerics.mjs` on the model's output schema (below) | **convention — no test** |
 | Derived artefacts follow their inputs: a change to `normalize()`, the encoder or a registry regenerates the thresholds, indexes and scorecards built from it | `tooling/scripts/check-derived-artefacts.mjs`, in CI since WP-46. It runs `rebuild-indexes.mjs --check` (each shipped index equals a fresh rebuild by the generator's own `writeIndexes`), `calibrate-registries.mjs --check` (the per-registry thresholds equal a fresh sweep) and `verify-browser-parity.mjs` (the browser makes the server's decision on all 210 turns). `check-thresholds.mjs` still covers the reference registry | **gate (2026-09-11, WP-46).** It went stale once before this existed: ten shipped indexes, with CI green |
 
 > **The gap Rule 14's gate closes.** `pnpm router:calibrate` writes its
@@ -473,8 +473,8 @@ been sitting in the matrix as `none` without ever appearing on this list.
    **This entry used to say "a test asserting arithmetic origin on the render
    path would close it". That test cannot be written.** Checked against the tree
    2026-09-10: no user-visible number is rendered anywhere. `apps/web/lib/render.ts`
-   is the only `AnswerView` producer and its single `rows` construction sets
-   `value: ''`; `formatMoney` has no consumer outside `data` and its own tests;
+   was the only `AnswerView` producer (removed 2026-09-13) and its single `rows`
+   construction set `value: ''`; `formatMoney` has no consumer outside `data` and its own tests;
    `AnswerRow.bar` is never produced. The test would have asserted over an empty
    set and passed — the third vacuous gate this document would have recommended
    into existence. What remains open is arithmetic *our own code* does on model
