@@ -31,5 +31,8 @@
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",
     "@nextgen/core-intent": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0"
   }
 }

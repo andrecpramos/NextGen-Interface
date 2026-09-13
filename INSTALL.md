@@ -90,7 +90,8 @@ needs from this repository is already here.
    breaks Rule 16, and is the most important thing you could find.
 6. **Mount it.** This is your edit, like adding a dependency:
    - serve `bundle/` as `/nextgen`;
-   - add the two script lines `doctor` prints;
+   - add the one script line `doctor` prints. It uses no inline script or style, so a
+     strict Content-Security-Policy is fine (`tooling/scripts/check-csp.mjs`);
    - pass the signed-in user's role.
 
    For a local test, copying `bundle/` into `public/nextgen` serves every role's files.

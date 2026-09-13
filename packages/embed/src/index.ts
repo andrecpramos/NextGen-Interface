@@ -1,7 +1,10 @@
 // @nextgen/embed — Ladder C3 (WP-29): the navigation layer as one script tag.
 //
-//   <script src="/nextgen/nextgen.js"></script>
-//   <script>NextGen.start('/nextgen', 'PARENT');</script>
+//   <script src="/nextgen/nextgen.js" data-nextgen-role="PARENT" defer></script>
+//
+// The script tag starts itself from its own attributes (script-tag.ts), so a page
+// needs no inline script and it works under a strict Content-Security-Policy.
+// From a module instead: `import { start } from '@nextgen/embed'`.
 //
 // `start` loads the role's bundle and mounts the chat box (widget.ts, WP-41).
 // `load` gives the router alone, for a page that draws its own interface.
@@ -99,26 +102,56 @@ export async function load(basePath: string, role: string): Promise<Assistant> {
 }
 
 export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';
-export { mount, type MountOptions, type Mounted, type Routable } from './widget.ts';
+export { mount, NAVIGATE_EVENT, type MountOptions, type Mounted, type NavigateDetail, type Routable } from './widget.ts';
+
+/** Where `start` fixes the chat box when no `target` is given. */
+export type Corner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+
+/**
+ * Set through the CSSOM (`style.cssText`), which a strict `style-src` does not
+ * govern — measured alongside the stylesheet in widget.ts. An allowlist, so a
+ * value read from an HTML attribute never becomes CSS.
+ */
+const CORNER_CSS: Readonly<Record<Corner, string>> = {
+  'bottom-right': 'bottom:16px;right:16px;',
+  'bottom-left': 'bottom:16px;left:16px;',
+  'top-right': 'top:16px;right:16px;',
+  'top-left': 'top:16px;left:16px;',
+};
+
+export const CORNERS = Object.keys(CORNER_CSS) as readonly Corner[];
+
+export interface StartOptions extends MountOptions {
+  /** Mount inside this element instead of a fixed corner of the page. */
+  readonly target?: Element;
+  /** Which corner, when there is no `target`. Default `bottom-right`. */
+  readonly position?: Corner;
+}
 
 /**
  * One line to put the assistant on a page: load this role's bundle, then mount
- * the chat box, in `options.target` if one is given and otherwise fixed to the
- * page's corner. Pass `options.navigate` in a single-page app, so moving does
- * not reload the page.
+ * the chat box, in `options.target` if one is given and otherwise fixed to a
+ * corner of the page. In a single-page app, pass `options.navigate` — or listen
+ * for `nextgen:navigate` — so moving does not reload the page.
+ *
+ * Rejects when the bundle cannot be loaded. The script tag's own start-up catches
+ * that and warns instead, because it has no caller (script-tag.ts).
  */
-export async function start(
-  basePath: string,
-  role: string,
-  options: MountOptions & { readonly target?: Element } = {},
-): Promise<Mounted> {
+export async function start(basePath: string, role: string, options: StartOptions = {}): Promise<Mounted> {
   const assistant = await load(basePath, role);
+  await bodyReady();
   let target = options.target;
   if (!target) {
     const corner = document.createElement('div');
-    corner.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;';
+    corner.style.cssText = `position:fixed;${CORNER_CSS[options.position ?? 'bottom-right'] ?? CORNER_CSS['bottom-right']}z-index:2147483000;`;
     document.body.append(corner);
     target = corner;
   }
   return mount(target, assistant, options);
+}
+
+/** A script in <head> without `defer` runs before <body> exists. */
+function bodyReady(): Promise<void> {
+  if (document.body) return Promise.resolve();
+  return new Promise((resolve) => document.addEventListener('DOMContentLoaded', () => resolve(), { once: true }));
 }

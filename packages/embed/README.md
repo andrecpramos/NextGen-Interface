@@ -9,13 +9,42 @@ node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~12KB gzipped
 ```
 
 ```html
-<script src="/nextgen/nextgen.js"></script>
-<script>NextGen.start('/nextgen', 'COACH');</script>
+<script src="/nextgen/nextgen.js" data-nextgen-role="COACH" defer></script>
 ```
 
-That second line loads the role's bundle and mounts the **chat box** (WP-41). In a
-single-page app, pass the router so that moving does not reload the page:
-`NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
+That one line loads the role's bundle and mounts the **chat box** (WP-41). It needs no
+inline script and no inline style, so it works on a site with a strict
+Content-Security-Policy — checked in a real browser by `tooling/scripts/check-csp.mjs`.
+
+| Attribute | Does |
+|---|---|
+| `data-nextgen-role` | **required.** The signed-in user's role; write it on the server, HTML-escaped. Without it nothing starts |
+| `data-nextgen-base` | where the role's files are served. Default: the folder `nextgen.js` came from |
+| `data-nextgen-target` | a CSS selector to mount inside, instead of a corner |
+| `data-nextgen-position` | `bottom-right` (default), `bottom-left`, `top-right` or `top-left`. Anything else is ignored with a warning, and never becomes CSS |
+| `data-nextgen-lang` | the widget's language. Default: `<html lang>` |
+
+If it cannot start — a missing file, a target that matches nothing — it says so with
+`console.warn` and throws nothing, because a script tag has no caller to catch it.
+
+**In a single-page app**, stop its links reloading the page. From your own code (so a
+strict policy still allows it):
+
+```js
+window.addEventListener('nextgen:navigate', (event) => {
+  event.preventDefault();
+  router.navigate(event.detail.route);
+});
+```
+
+Modified clicks (a new tab, a new window) are always left to the browser. Or skip the
+script tag and use the module: `import { start } from '@nextgen/embed'`, passing
+`{ navigate }`.
+
+**Styling under CSP.** The widget's stylesheet is constructed and adopted by its shadow
+root, which a policy does not govern; a `<style>` element is used only where the browser
+cannot construct one. Measured in Edge 153 under `style-src 'self'`: the `<style>` element
+it shipped with until 2026-09-13 was blocked, and the widget rendered unstyled.
 
 ## The chat box
 

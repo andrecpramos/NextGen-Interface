@@ -5,6 +5,10 @@
 //
 // - Shadow DOM, so the host app's stylesheet cannot break the widget and the
 //   widget's cannot break the app (WP-35's "survives the host's CSS").
+// - No inline style. The stylesheet is constructed and adopted by the shadow root,
+//   which a strict Content-Security-Policy does not govern; a <style> element is
+//   used only where the browser cannot construct one (`adoptStyles`, below).
+//   Checked in a real browser by tooling/scripts/check-csp.mjs.
 // - System colours (Canvas, CanvasText, LinkText, Highlight), so it follows the
 //   user's light, dark or forced-colours setting without knowing the host's theme.
 // - 48px targets, a visible focus ring, `role="search"`, and an `aria-live`
@@ -26,11 +30,34 @@ export interface Routable {
   readonly registry: Registry;
 }
 
+/**
+ * Dispatched on `window`, cancelable, before the widget moves the browser.
+ *
+ * A page that loaded the script tag cannot hand the widget a router function
+ * through an HTML attribute, so it listens for this from its own script — which a
+ * strict Content-Security-Policy allows — and calls `preventDefault()` to make
+ * the move itself:
+ *
+ *   window.addEventListener('nextgen:navigate', (event) => {
+ *     event.preventDefault();
+ *     router.navigate(event.detail.route);
+ *   });
+ *
+ * Not dispatched when `navigate` is passed to `mount` or `start`: that already is
+ * the page making the move.
+ */
+export const NAVIGATE_EVENT = 'nextgen:navigate';
+
+export interface NavigateDetail {
+  readonly route: string;
+}
+
 export interface MountOptions {
   /**
-   * How to move the browser. The default is `location.assign`, which is correct
-   * everywhere but reloads a single-page app. Pass your router to avoid that:
-   * `{ navigate: (to) => router.navigate(to) }`.
+   * How to move the browser. The default offers the move to the page as a
+   * `nextgen:navigate` event and, if nothing takes it, uses `location.assign`,
+   * which is correct everywhere but reloads a single-page app. Pass your router
+   * to avoid that: `{ navigate: (to) => router.navigate(to) }`.
    */
   readonly navigate?: (route: string) => void;
   /** The page's language, which decides the widget's words. Default: `<html lang>`. */
@@ -67,19 +94,56 @@ a { display: inline-flex; align-items: center; min-height: 48px; color: LinkText
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 `;
 
+/**
+ * Style the shadow root without an inline style.
+ *
+ * Measured in Edge 153 under `style-src 'self'` (2026-09-13): a <style> element in
+ * a shadow root is blocked (`style-src-elem`) and the widget renders unstyled —
+ * which is how it shipped until then. A constructed stylesheet adopted by the root
+ * applies with no violation, because CSP does not govern the CSSOM. So construct
+ * one where the browser can, and fall back to a <style> element only where it
+ * cannot (older browsers, jsdom).
+ *
+ * The constructor comes from the target document's own window: a sheet built in
+ * one realm cannot be adopted by a root in another.
+ */
+function adoptStyles(root: ShadowRoot, doc: Document): void {
+  const Sheet = doc.defaultView?.CSSStyleSheet;
+  if (Sheet && 'adoptedStyleSheets' in root && typeof Sheet.prototype.replaceSync === 'function') {
+    const sheet = new Sheet();
+    sheet.replaceSync(CSS);
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+    return;
+  }
+  const style = doc.createElement('style');
+  style.textContent = CSS;
+  root.append(style);
+}
+
 export function mount(target: Element, assistant: Routable, options: MountOptions = {}): Mounted {
   const doc = target.ownerDocument;
   const view = doc.defaultView;
   const words: Words = { ...wordsFor(options.lang ?? doc.documentElement?.getAttribute('lang')), ...options.words };
   const currentPath = options.currentPath ?? (() => view?.location.pathname ?? '/');
-  const navigate = options.navigate ?? ((route: string) => view?.location.assign(route));
+
+  /** Offer the move to the page first. True when the page took it. */
+  const offered = (route: string): boolean => {
+    const Event = view?.CustomEvent;
+    if (!view || typeof Event !== 'function') return false;
+    const event = new Event<NavigateDetail>(NAVIGATE_EVENT, { detail: { route }, cancelable: true });
+    view.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  const navigate =
+    options.navigate ??
+    ((route: string) => {
+      if (!offered(route)) view?.location.assign(route);
+    });
 
   const host = doc.createElement('div');
   host.setAttribute('data-nextgen', '');
   const root = host.attachShadow({ mode: 'open' });
 
-  const style = doc.createElement('style');
-  style.textContent = CSS;
   const section = doc.createElement('section');
   section.setAttribute('aria-label', words.label);
   const form = doc.createElement('form');
@@ -103,7 +167,8 @@ export function mount(target: Element, assistant: Routable, options: MountOption
 
   form.append(label, input, button);
   section.append(form, result);
-  root.append(style, section);
+  adoptStyles(root, doc);
+  root.append(section);
   target.append(host);
 
   const paragraph = (className: string, text: string): HTMLElement => {
@@ -141,14 +206,23 @@ export function mount(target: Element, assistant: Routable, options: MountOption
         const a = doc.createElement('a');
         a.href = choice.route;
         a.textContent = choice.label;
-        // With a router supplied, follow the link without a reload. Without one, the
-        // link is an ordinary link, which is always correct.
-        if (options.navigate) {
-          a.addEventListener('click', (event) => {
+        a.addEventListener('click', (event) => {
+          const click = event as MouseEvent;
+          // A modified or non-primary click means "open it somewhere else": a new
+          // tab, a new window, a download. That is the link's job, not the router's.
+          if (click.defaultPrevented || click.button > 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) {
+            return;
+          }
+          // With a router, follow the link without a reload. Without one, offer the
+          // move to the page; if nothing takes it, the link is an ordinary link,
+          // which is always correct.
+          if (options.navigate) {
             event.preventDefault();
-            navigate(choice.route);
-          });
-        }
+            options.navigate(choice.route);
+          } else if (offered(choice.route)) {
+            event.preventDefault();
+          }
+        });
         item.append(a);
         list.append(item);
       }

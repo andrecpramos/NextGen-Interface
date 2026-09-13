@@ -363,6 +363,39 @@ with no network. Both were made to fail on this exact defect.
 
 ---
 
+## L14 · A test DOM enforces no security policy
+
+**What happened.** The widget was built, unit-tested through a fake DOM, audited by axe in
+jsdom — 18 checks, 0 serious — and shipped with a `doctor` that told adopters to paste:
+
+```html
+<script src="/nextgen/nextgen.js"></script>
+<script>NextGen.start('/nextgen', ROLE);</script>
+```
+
+Loaded in a real browser under `script-src 'self'; style-src 'self'` (2026-09-13), the
+second line was blocked (`script-src-elem`), so the widget never started; and when it was
+started another way, its `<style>` element was blocked too (`style-src-elem`), so it
+rendered with no styling at all. A strict Content-Security-Policy is what the most
+security-conscious adopters run. The product failed on exactly those sites, silently.
+
+**Why it was hard to see.** Neither jsdom nor a fake DOM implements CSP. Every check that
+existed ran somewhere a policy cannot be expressed, so every one of them was green, and
+correctly so for what it could see. Nobody had loaded the widget anywhere a policy applied.
+
+**The lesson.** Name the environment a check cannot represent, and test that environment
+for real. For anything injected into someone else's page, that means a real browser under
+the policy they might run. The fixes are standard once the problem is visible: no inline
+script (start from the tag's own `data-*` attributes), no inline style (a constructed
+stylesheet adopted by the shadow root, which CSP does not govern), styles set through the
+CSSOM rather than a `style` attribute.
+
+**Enforcement: level 1.** `check-csp.mjs` in CI loads the documented one-liner in headless
+Chrome under a strict policy and fails on any violation or an unstyled widget. Made to fail
+by restoring the `<style>` element: *"style-src-elem inline"*, *"input min-height 0px"*.
+
+---
+
 ## Adding a lesson
 
 Add an entry when a bug's cause was **not locally obvious** — when someone

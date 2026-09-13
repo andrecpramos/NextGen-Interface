@@ -205,6 +205,14 @@ jobs:
       - name: Accessibility - no serious or critical violations (WP-45)
         run: node tooling/scripts/check-accessibility.mjs
 
+      # The widget under a strict Content-Security-Policy, in headless Chrome (the
+      # runner image has it). jsdom and the fake DOM enforce no policy, so until this
+      # gate the widget rendered unstyled under `style-src 'self'` and the snippet
+      # doctor printed never started under `script-src 'self'`, with every other
+      # check green. Fails under CI if no browser is found: a skip protects nothing.
+      - name: Strict Content-Security-Policy, in a real browser
+        run: node tooling/scripts/check-csp.mjs
+
       # The model-free floor on the GENERATED registries. CI's golden-set job below
       # scores the reference app's set; nothing scored fut-app's, so a change to a
       # description, a trigger or normalize() could move what the router decides on
