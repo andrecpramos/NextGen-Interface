@@ -103,6 +103,8 @@ Set by `router` in the config (`init` detects it from `package.json` and the fol
 | `remix` | flat routes in `app/routes`: `_index`, pathless `_layout.`, `name_`, `$param`, `(optional)`, `[.]` escapes, folder `route.tsx`. A module with no default export is a resource route, not a page; a layout and its `_index` are one destination | readiness 3a |
 | `sveltekit` | `src/routes`: a folder with `+page.svelte` is a page; groups `(name)`, `[param]`, `[param=matcher]`, optional `[[param]]` (declared without it), a literal prefix such as `@[user]`; `+layout`, `+error` and a server-only route are not pages | readiness 3b |
 | `nuxt` | `app/pages` (Nuxt 4) or `pages` (Nuxt 3): `index`, `[param]`, optional `[[param]]`, groups `(name)`, nested parent pages (a parent and its own `index` are one destination) | readiness 3b |
+| `vue-router` | the route table in code, as `react-router`: `component` eager or `() => import(...)` lazy, through a Vite alias to a `.vue` file with or without its extension; `children`; a `redirect` entry is not a page; roles from `meta.roles` | readiness 3c |
+| `angular` | the `Routes` array in code: `component`, `loadComponent` (default or named export), `loadChildren` into another file's routes, paths without a leading slash; a `redirectTo` entry is not a page; roles from `data.roles`; the page's text is its `templateUrl` or inline `template` | readiness 3c |
 
 A **catch-all** (`[...slug]`, a Remix `$`) serves pages that come from content, not code, so it
 is reported as a `catch-all` skip rather than declared. A page's own title is used when it is a
@@ -117,9 +119,12 @@ A folder layout declares no roles, so every route of a `next` or `remix` app goe
 whole audience. **`routeRoles`** declares roles an app enforces in code, by path prefix:
 `{ "/admin": ["ADMIN"] }`. The longest prefix matching at a segment boundary wins, and it
 applies to every router. An application with no roles at all gets one registry for a single
-`PUBLIC` audience.
+`PUBLIC` audience. **A role named on a route** — by `routeRoles`, Angular `data.roles` or Vue
+Router `meta.roles` — joins that audience: it gets its own registry, holding the screens open to
+everyone and the ones narrowed to it, and no other registry holds a screen narrowed away from it.
+A `canActivate` or `beforeEnter` guard is code, and authentication is not a role: neither is read.
 
-Measured on four public apps not written for it, against ground truth recorded first:
+Measured on six public apps not written for it, against ground truth recorded first:
 [eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md).
 
 **The data-router shape** (WP-28, 2026-09-11) is also read:

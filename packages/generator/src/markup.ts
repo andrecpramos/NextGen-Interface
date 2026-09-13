@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 import type { FormField, PageFacts } from './types.ts';
 
@@ -58,7 +59,9 @@ function visibleMarkup(text: string): string {
     .replace(/<svelte:head\b[\s\S]*?<\/svelte:head>/gi, ' ')
     .replace(/<title\b[\s\S]*?<\/title>/gi, ' ')
     .replace(/<(\w+)\b[^>]*\b(?:v-if|v-else-if|\*ngIf)="[^"]*\berror\b[^"]*"[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-    .replace(/\{#if[^}]*\berror\b[^}]*\}[\s\S]*?\{\/if\}/gi, ' ');
+    .replace(/\{#if[^}]*\berror\b[^}]*\}[\s\S]*?\{\/if\}/gi, ' ')
+    // Angular's control flow: `@if (error) { ... }`.
+    .replace(/@if\s*\([^)]*\berror\b[^)]*\)\s*\{[^}]*\}/gi, ' ');
 }
 
 /** One `$t('prose key')` call alone is readable; any other expression is not; plain text is. */
@@ -158,6 +161,28 @@ export function readMarkupPage(file: string): PageFacts {
   } catch {
     return EMPTY;
   }
+  return readMarkupText(text);
+}
+
+/**
+ * An Angular component: the markup of its `templateUrl` file, or of its inline `template`.
+ * `null` when the file is not an Angular component, so the caller reads it as TypeScript.
+ */
+export function readAngularComponent(file: string): PageFacts | null {
+  let text: string;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch {
+    return null;
+  }
+  if (!/@Component\s*\(/.test(text)) return null;
+  const url = /templateUrl\s*:\s*['"]([^'"]+)['"]/.exec(text);
+  if (url) return readMarkupPage(join(dirname(file), url[1]!));
+  const inline = /\btemplate\s*:\s*`([\s\S]*?)`/.exec(text);
+  return inline ? readMarkupText(inline[1]!) : EMPTY;
+}
+
+export function readMarkupText(text: string): PageFacts {
   const markup = visibleMarkup(text);
   const keys = [...text.matchAll(TRANSLATION_CALL)].map((m) => m[2]!).filter((key) => !key.includes('${'));
   return {

@@ -146,8 +146,9 @@ export interface GeneratorConfig {
    *   - `remix`: `routes` — Remix v2, or React Router 7 `flatRoutes()`
    *   - `sveltekit`: `routes`, with `appRoot` the `src` folder
    *   - `nuxt`: `pages`, with `appRoot` the `app` folder (Nuxt 4), or `.` with `appRoot` the `pages` folder (Nuxt 3)
+   *   - `vue-router`, `angular`: like `react-router`, the route table in code (`router/index.ts`, `app/app.routes.ts`)
    */
-  readonly router?: 'react-router' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
+  readonly router?: 'react-router' | 'vue-router' | 'angular' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
   /** The route table (`react-router`), or the routes folder (every other router). */
   readonly routesFile: string;
   /**

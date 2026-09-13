@@ -473,6 +473,34 @@ function readAliases(appRoot: string): Aliases {
     if (parent === dir) break;
     dir = parent;
   }
+  return viteAliases(appRoot, out);
+}
+
+/**
+ * The aliases a Vite config declares, when no tsconfig does.
+ *
+ * A Vue app imports its views as `@/views/Home`, with `"@"` mapped to `src` in
+ * `vite.config.js` rather than in a tsconfig it may not have. Only the literal forms
+ * are read — `fileURLToPath(new URL("./src", import.meta.url))` and
+ * `path.resolve(__dirname, "src")` — and a computed one is left alone.
+ */
+function viteAliases(appRoot: string, out: Map<string, string>): Aliases {
+  if (out.size > 0) return out;
+  let dir = resolve(appRoot);
+  for (let depth = 0; depth < 4; depth++) {
+    for (const name of ['vite.config.ts', 'vite.config.js', 'vite.config.mjs', 'vite.config.mts']) {
+      const file = join(dir, name);
+      if (!existsSync(file)) continue;
+      const text = readFileSync(file, 'utf8');
+      const pattern =
+        /['"]([@~][\w-]*)['"]\s*:\s*(?:fileURLToPath\(\s*new URL\(\s*|path\.resolve\(\s*__dirname\s*,\s*|resolve\(\s*__dirname\s*,\s*)['"]\.?\/?([^'"]*)['"]/g;
+      for (const match of text.matchAll(pattern)) out.set(`${match[1]}/`, resolve(dir, match[2]!));
+      return out;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
   return out;
 }
 
@@ -552,9 +580,20 @@ function evaluateString(expression: ts.Expression, scope: StringScope): string |
 }
 
 /** `routes/app/users.tsx` -> `Users`; an `index` file takes its folder's name. */
+/**
+ * `component: () => import("@/views/Home")` (Vue Router) and `loadComponent: () => import(...)`
+ * (Angular) are the lazy page, spelled differently. A `component` that is a plain identifier is
+ * the eager page, and is read like `element`.
+ */
+function lazyComponentProperty(expression: ts.Expression | undefined): ts.Expression | undefined {
+  if (!expression) return undefined;
+  const node = unwrap(expression);
+  return (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && importSpecifierOf(node) !== null ? node : undefined;
+}
+
 function lazyComponentName(file: string): string {
   const parts = file.split(/[\\/]/);
-  let base = (parts.pop() ?? '').replace(/\.[jt]sx?$/, '');
+  let base = (parts.pop() ?? '').replace(/\.(?:[jt]sx?|vue|svelte)$/, '').replace(/\.component$/, '');
   if (base === 'index') base = parts.pop() ?? base;
   return base
     .split(/[-_]/)
@@ -603,6 +642,17 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
 const ROLE_PROPS = ['allowedRoles', 'roles', 'requiredRoles', 'anyOfRoles'] as const;
 
 function guardRoles(properties: Map<string, ts.Expression>): readonly RoleName[] | null | undefined {
+  // Angular `data: { roles: [...] }` and Vue Router `meta: { roles: [...] }`. A `canActivate`
+  // or `beforeEnter` guard is code: authentication is not a role, and a computed check is not read.
+  for (const holder of ['data', 'meta']) {
+    const value = properties.get(holder);
+    const object = value ? unwrap(value) : undefined;
+    if (!object || !ts.isObjectLiteralExpression(object)) continue;
+    const roles = objectProperties(object).get('roles');
+    if (!roles) continue;
+    const evaluated = evaluateRoles(roles, { constants: new Map(), identityHelpers: new Set() });
+    return evaluated && evaluated.length > 0 ? evaluated : null;
+  }
   const element = properties.get('element') ?? properties.get('Component');
   if (!element) return undefined;
   const node = unwrap(element);
@@ -676,14 +726,40 @@ function collect(
       collect(childRoutesOf(children, node), path, context, here);
     }
 
+    // Angular: `loadChildren: () => import('./profile/profile.routes')`. The routes are that
+    // file's default export or its exported `routes`, read with that file's own imports.
+    const loadChildren = properties.get('loadChildren');
+    if (loadChildren) {
+      const childFile = resolveSpecifierFile(importSpecifierOf(loadChildren), context.sourceFile, context.aliases);
+      if (!childFile) {
+        context.unreadable.push({
+          path,
+          detail: `lazy child routes could not be resolved: ${loadChildren.getText(context.source).slice(0, 120)}`,
+        });
+      } else {
+        const childSource = parse(childFile);
+        collect(routeObjectsIn(childSource), path, {
+          ...context,
+          source: childSource,
+          sourceFile: childFile,
+          components: componentSources(childSource, childFile, context.aliases),
+          scope: stringScope(childSource, childFile, context.aliases),
+        }, here);
+      }
+      continue;
+    }
+
     // A catch-all is the app's own 404, not a place anyone asks to go.
     if (segment === '*' || segment.includes('*')) continue;
 
     // `lazy: () => import('./routes/users')` — the data-router spelling a
     // code-split app uses for every page (WP-28). Its module is the page.
-    const lazyExpression = properties.get('lazy');
-    const hasElement = properties.has('element') || properties.has('Component');
+    const lazyExpression = properties.get('lazy') ?? properties.get('loadComponent') ?? lazyComponentProperty(properties.get('component'));
+    const hasElement =
+      properties.has('element') || properties.has('Component') || (properties.has('component') && !lazyComponentProperty(properties.get('component')));
 
+    // A redirect entry (`redirect`, Vue Router; `redirectTo`, Angular) declares no page of its own.
+    if (!hasElement && !lazyExpression && (properties.has('redirect') || properties.has('redirectTo'))) continue;
     if (!hasElement && !lazyExpression) {
       // A layout wrapper with children is not a destination — correctly silent.
       // A leaf with nothing readable to render is reported, not dropped.
@@ -697,7 +773,7 @@ function collect(
     let component: string | null;
     let componentFile: string | null;
     if (hasElement) {
-      component = elementComponent(properties.get('element') ?? properties.get('Component'));
+      component = elementComponent(properties.get('element') ?? properties.get('Component') ?? properties.get('component'));
       componentFile = component ? (context.components.get(component) ?? null) : null;
     } else {
       componentFile = resolveSpecifierFile(importSpecifierOf(lazyExpression!), context.sourceFile, context.aliases);
@@ -759,7 +835,35 @@ export function discoverRoutes(config: GeneratorConfig): {
   unreadable: readonly UnreadableRoute[];
 } {
   const found = discoverByRouter(config);
-  return { ...found, routes: applyRouteRoles(found.routes, config.routeRoles) };
+  return withRouteRolesInAudience({ ...found, routes: applyRouteRoles(found.routes, config.routeRoles) });
+}
+
+/**
+ * A role named on a route is a role the application has.
+ *
+ * Found on the first Angular build: `data: { roles: ['ADMIN'] }` narrowed `/admin` to ADMIN,
+ * but with no permissions module the audience was the single `PUBLIC` one, so no ADMIN
+ * registry was ever built. The admin screen did not leak — it reached nobody, which is the
+ * other way to be wrong. The same held for `routeRoles`, whose test only looked at discovery.
+ *
+ * So a role named on a route joins the audience, and a route that was open to the whole
+ * audience stays open to it, the new role included: an unguarded screen is one an admin can
+ * open too. A narrowed route keeps exactly its own roles, so nothing reaches a role that was
+ * not already allowed it (Rule 17).
+ */
+function withRouteRolesInAudience<T extends { routes: readonly DiscoveredRoute[]; roles: RoleModel }>(found: T): T {
+  const audience = found.roles.allRoles;
+  const named = [...new Set(found.routes.flatMap((route) => route.roles ?? []))];
+  const joining = named.filter((role) => !audience.includes(role));
+  if (joining.length === 0) return found;
+  const widened = [...audience, ...joining].sort();
+  const openToAll = (roles: readonly RoleName[]): boolean =>
+    roles.length === audience.length && audience.every((role) => roles.includes(role));
+  return {
+    ...found,
+    roles: { ...found.roles, allRoles: widened },
+    routes: found.routes.map((route) => (route.roles && openToAll(route.roles) ? { ...route, roles: widened } : route)),
+  };
 }
 
 /**
@@ -799,10 +903,14 @@ function discoverByRouter(config: GeneratorConfig): {
     sveltekit: discoverSvelteKitRoutes,
     nuxt: discoverNuxtRoutes,
   } as const;
-  if (config.router && config.router !== 'react-router') {
+  // Vue Router and Angular declare a route table in code, as React Router does: read below.
+  const layout = config.router
+    ? (folderLayouts as Partial<Record<string, typeof discoverNextRoutes>>)[config.router]
+    : undefined;
+  if (layout) {
     const roles = readRoleModel(config);
     const routesDir = resolve(config.appRoot, config.routesFile);
-    const found = folderLayouts[config.router](routesDir, roles.allRoles);
+    const found = layout(routesDir, roles.allRoles);
     return { routes: found.routes, roles, unreadable: found.leftOut.map(({ path, reason, detail }) => ({ path, reason, detail })) };
   }
 
@@ -830,8 +938,10 @@ function discoverByRouter(config: GeneratorConfig): {
 /** Resolve a component import to a file on disk, trying the usual extensions. */
 export function resolveComponentFile(base: string | null): string | null {
   if (!base) return null;
-  const extensions = ['.tsx', '.ts', '.jsx', '.js'];
+  const extensions = ['.tsx', '.ts', '.jsx', '.js', '.vue', '.svelte'];
   const candidates = [
+    // `@/views/Home.vue`: the import already names the file.
+    base,
     ...extensions.map((extension) => `${base}${extension}`),
     ...extensions.map((extension) => join(base, `index${extension}`)),
   ];

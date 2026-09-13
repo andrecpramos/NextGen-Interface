@@ -61,11 +61,11 @@ describe('init — the framework is recognised before anything is read', () => {
   });
 
   it.each([
-    ['Angular', { '@angular/router': '21.0.0' }, { 'src/app/app.routes.ts': 'export const routes = [];' }],
-    ['Vue Router', { 'vue-router': '5.0.0' }, { 'src/router/index.js': 'export default {}' }],
+    ['TanStack Router', { '@tanstack/react-router': '1.100.0' }, { 'src/routes/index.tsx': 'export const Route = {};' }],
+    ['Solid Router', { '@solidjs/router': '0.15.0' }, { 'src/index.tsx': 'export default {};' }],
   ] as const)('names %s plainly when it cannot read it yet, and says what it can', (name, dependencies, files) => {
     const dir = scratchApp(dependencies, files);
-    expect(() => detectApp(dir)).toThrow(new RegExp(`${name.replace(' ', '\\s')}.*React Router, Next\\.js, Remix, SvelteKit and Nuxt`, 's'));
+    expect(() => detectApp(dir)).toThrow(new RegExp(`${name.replace(' ', '\\s')}.*React Router, Vue Router, Angular, Next\\.js, Remix, SvelteKit and Nuxt`, 's'));
   });
 });
 

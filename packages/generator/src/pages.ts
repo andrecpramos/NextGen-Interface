@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 
-import { readMarkupPage } from './markup.ts';
+import { readAngularComponent, readMarkupPage } from './markup.ts';
 import type { FormField, PageFacts } from './types.ts';
 
 /**
@@ -378,6 +378,11 @@ function componentDoc(source: ts.SourceFile): string | null {
 export function readPage(file: string): PageFacts {
   // A Svelte or Vue component, or an HTML template, is markup rather than TSX.
   if (/\.(vue|svelte|html)$/.test(file)) return readMarkupPage(file);
+  // An Angular component is a class whose page is its template.
+  if (/\.ts$/.test(file)) {
+    const angular = readAngularComponent(file);
+    if (angular) return angular;
+  }
   const source = parse(file);
 
   const roots: string[] = [];

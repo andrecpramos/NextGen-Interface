@@ -106,8 +106,9 @@ describe('routeRoles — roles an app enforces in code, declared by the adopter'
     const roles = new Map(routes.map((r) => [r.path, r.roles]));
     expect(roles.get('/dashboard')).toEqual(['ADMIN']);
     expect(roles.get('/dashboard/settings')).toEqual(['ADMIN']);
-    expect(roles.get('/pricing')).toEqual(['PUBLIC']); // '/pri' is not a segment of '/pricing'
-    expect(roles.get('/')).toEqual(['PUBLIC']);
+    // ADMIN is named on a route, so it joins the audience, and open screens reach it too.
+    expect(roles.get('/pricing')).toEqual(['ADMIN', 'PUBLIC']); // '/pri' is not a segment of '/pricing'
+    expect(roles.get('/')).toEqual(['ADMIN', 'PUBLIC']);
   });
 
   it('lets the longest matching prefix win', () => {

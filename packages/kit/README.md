@@ -76,10 +76,10 @@ calibration script so that Rule 14 has exactly one implementation.
 
 ## Which apps it reads
 
-**React Router, Next.js (app and pages routers), Remix (flat routes), SvelteKit and Nuxt.** `init`
-recognises the framework from `package.json` before reading anything. Vue Router, Angular, TanStack
+**React Router, Vue Router, Angular, Next.js (app and pages routers), Remix (flat routes), SvelteKit
+and Nuxt.** `init` recognises the framework from `package.json` before reading anything. TanStack
 Router and Solid Router are named when found, with what the kit can read, and nothing is written.
-On four public apps it was not written for, it declared every screen and nothing else
+On six public apps it was not written for, it declared every screen and nothing else
 ([eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md)).
 
 ## What it does not do yet
