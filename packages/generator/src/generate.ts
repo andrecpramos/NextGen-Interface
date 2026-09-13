@@ -48,6 +48,7 @@ const EMPTY_FACTS: PageFacts = {
   i18nKeys: [],
   headings: [],
   doc: null,
+  title: null,
 };
 
 /** `/squad/players` and `/squad/players/:id` share a section; `/players/:id` does not. */
@@ -77,6 +78,13 @@ function titleFromComponent(component: string | null): string | null {
   return spaced.length > 0 ? spaced : null;
 }
 
+/** A component name used as a title, except that the root page named for its file is "Home". */
+function componentTitle(route: DiscoveredRoute): string | null {
+  const title = titleFromComponent(route.component);
+  if (route.path === '/' && (title === null || /^(index|root|app|main|page)$/i.test(title))) return 'Home';
+  return title;
+}
+
 function resolveTitles(
   route: DiscoveredRoute,
   labelKey: string | null,
@@ -90,11 +98,12 @@ function resolveTitles(
     if (!dictionary) continue;
     const fromLabel = labelKey ? translate(dictionary, labelKey) : null;
     const fromPage = fromLabel ?? firstResolvable(dictionary, facts.i18nKeys);
-    const title = fromPage ?? titleFromComponent(route.component);
+    const title = fromPage ?? facts.title ?? componentTitle(route);
     if (title) out[language] = title;
   }
   if (Object.keys(out).length === 0) {
-    const fallback = titleFromComponent(route.component) ?? route.path;
+    // No translations: the title the page declares for itself, then its component's name.
+    const fallback = facts.title ?? componentTitle(route) ?? route.path;
     out[languages[0] ?? 'en'] = fallback;
   }
   return out;
@@ -186,7 +195,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   const skipped: SkippedRoute[] = [];
   // WP-28: routes discovery found but could not read are reported, not dropped.
-  for (const u of unreadable) skipped.push({ path: u.path, reason: 'unreadable-route', detail: u.detail });
+  for (const u of unreadable) skipped.push({ path: u.path, reason: u.reason ?? 'unreadable-route', detail: u.detail });
   const taken = new Set<string>();
   const seenRoutes = new Set<string>();
   const accepted: { route: DiscoveredRoute; id: string; facts: PageFacts; labelKey: string | null }[] = [];

@@ -193,6 +193,15 @@ happened twice in one session, the second time after the lesson was already know
 **The lesson.** Use the file-writing tool for documents and for any code
 containing regexes, backslashes, or `$`. Heredocs are for short, literal text.
 
+
+**The same failure, one layer in (2026-09-13).** A Node patch script is the safe
+alternative to a heredoc, and it has its own trap: `String.prototype.replace` reads `$`
+patterns in the *replacement* string. `` $` `` means "the text before the match", so a doc
+comment mentioning a Remix `$` splat followed by a backtick pasted the whole header of
+`types.ts` into the middle of a union. The tests stayed green, because that file is only
+ever imported as types and is erased before they run; `tsc` caught it. Pass a function —
+`text.replace(from, () => to)` — and the replacement is inserted literally.
+
 ---
 
 ## L9 · Output fields compete for attention like instructions do
