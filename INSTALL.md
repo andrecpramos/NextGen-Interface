@@ -91,7 +91,8 @@ needs from this repository is already here.
 5. **Run `git status` in `fut-app`.** Expect only `?? frontend/nextgen/`. Anything else
    breaks Rule 16, and is the most important thing you could find.
 6. **Mount it.** This is your edit, like adding a dependency:
-   - serve `bundle/` as `/nextgen`;
+   - serve `bundle/` as `/nextgen` — each signed-in user only their own role's registry and index
+     (recipes: "Serving each role only its own files" in `packages/kit/README.md`);
    - add the one script line `doctor` prints. It uses no inline script or style, so a
      strict Content-Security-Policy is fine (`tooling/scripts/check-csp.mjs`);
    - pass the signed-in user's role.

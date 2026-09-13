@@ -35,6 +35,68 @@ source before writing anything. On bulletproof-react, a public app not written f
 stays in `review/`. `build` rebuilds `bundle/` from nothing each time, so a role your app
 no longer has cannot leave a registry behind. `doctor` re-checks both.
 
+## Serving each role only its own files
+
+`bundle/` holds one registry and one index per role. A role's file names the screens that role can
+reach, so serving every file to everyone tells each user the names of screens they cannot open
+(Rule 17). Serve `nextgen.js` and `thresholds.hashing.json` to everyone, and `registry.<ROLE>.json`
+and `index.<ROLE>.json` only to a user whose **session** has that role — never a role taken from
+the request, which anyone can change.
+
+**Express**, after your own session middleware:
+
+```js
+import path from 'node:path';
+
+const BUNDLE = path.resolve('nextgen/bundle');
+const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
+
+app.get('/nextgen/:file', (req, res) => {
+  const role = req.user?.role; // your session
+  const { file } = req.params;
+  const own = Boolean(role) && (file === `registry.${role}.json` || file === `index.${role}.json`);
+  if (!SHARED.has(file) && !own) return res.sendStatus(404);
+  res.sendFile(file, { root: BUNDLE });
+});
+```
+
+**Next.js** (app router), as `app/nextgen/[file]/route.ts`:
+
+```ts
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import { currentRole } from '@/lib/auth'; // yours
+
+const BUNDLE = path.join(process.cwd(), 'nextgen', 'bundle');
+const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
+
+export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }) {
+  const { file } = await params;
+  const role = await currentRole();
+  const own = role !== null && (file === `registry.${role}.json` || file === `index.${role}.json`);
+  if (!SHARED.has(file) && !own) return new Response(null, { status: 404 });
+  const type = file.endsWith('.js') ? 'text/javascript' : 'application/json';
+  return new Response(await readFile(path.join(BUNDLE, file)), { headers: { 'content-type': type } });
+}
+```
+
+Both allow only the exact file names above, so a crafted name cannot reach anything else.
+
+**nginx** in front of the app cannot know a user's role by itself. Let the app answer `/nextgen/`
+as above, or put those two role files behind `auth_request` to an endpoint of yours that checks the
+session.
+
+`doctor` refuses a multi-role bundle that sits inside `public/` or `static/`, because a web app serves
+those folders to everyone as they are.
+
+## Keeping your own checks green
+
+The kit folder sits inside your project, and its bundle is a minified script and generated JSON. If a
+script in your `package.json` runs Prettier, ESLint or Biome over the whole project, `doctor` names it
+and the one line to add — `"nextgen/"` in `.prettierignore`, for example. Prettier is measured failing
+on those files; ESLint and Biome depend on your config. The kit never edits your config files.
+
 ## Calibrating (Rule 14)
 
 Thresholds belong to a registry. The profile the kit ships was tuned on a 7-screen app;

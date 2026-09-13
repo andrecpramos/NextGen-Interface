@@ -1,11 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 import type { SkipReason } from '@nextgen/generator';
 
 import type { BuildRecord } from './build.ts';
 import type { Finding } from './detect.ts';
 import { BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
+import { describeSweep, sweepingTools } from './tooling.ts';
 
 /**
  * `nextgen doctor`: what the kit read, what it could not, and what to do.
@@ -63,7 +64,8 @@ export function doctor(kitDir: string): DoctorReport {
   if (!existsSync(join(kit, CONFIG_FILE))) {
     return { ok: false, text: `No kit here (${kit}). Run "nextgen init <your app folder>" first.` };
   }
-  const detect = readJson<{ findings: Finding[]; warnings: string[] }>(join(kit, REVIEW_DIR, 'detect.json'));
+  const detect = readJson<{ findings: Finding[]; warnings: string[]; projectDir?: string }>(join(kit, REVIEW_DIR, 'detect.json'));
+  const projectDir = detect?.projectDir !== undefined ? resolve(kit, detect.projectDir) : null;
   const record = readJson<BuildRecord>(join(kit, REVIEW_DIR, 'build.json'));
 
   say(`nextgen doctor — ${kit}`);
@@ -159,6 +161,20 @@ export function doctor(kitDir: string): DoctorReport {
   if (record.roles.length > 1) {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
     say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
+    say('     Recipes for Express, Next.js and nginx: "Serving each role only its own files" in');
+    say('     node_modules/@nextgen/kit/README.md. The role comes from your session, never from the request.');
+
+    // A bundle under the folder a web app serves as-is hands every role's file to everyone.
+    if (projectDir) {
+      const served = relative(projectDir, join(kit, BUNDLE_DIR)).split('\\').join('/');
+      if (/^(?:[\w-]+\/)?(?:public|static)\//.test(served)) {
+        problems.push(
+          `${served} is served to everyone: it sits in a folder your app serves as-is, and this app has ` +
+            `${record.roles.length} roles, so every user could read every role's screen list (Rule 17). ` +
+            'Build the kit outside it (nextgen init --out) and serve each role its own files',
+        );
+      }
+    }
   }
   const roleValue = record.roles.length > 1 ? 'CURRENT_USER_ROLE' : role;
   say('  2. Add one line to your page. It puts an accessible "ask where to go" box in a corner.');
@@ -178,7 +194,10 @@ export function doctor(kitDir: string): DoctorReport {
   say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
   say();
 
-  const warnings = [...(detect?.warnings ?? []), ...record.warnings];
+  // Checks in the adopter's own project that would trip over this folder (readiness item 4).
+  const kitFolder = projectDir ? (relative(projectDir, kit).split(/[\\/]/)[0] ?? 'nextgen') : 'nextgen';
+  const sweeps = projectDir ? sweepingTools(projectDir, kit).map((w) => describeSweep(w, kitFolder)) : [];
+  const warnings = [...(detect?.warnings ?? []), ...record.warnings, ...sweeps];
   if (warnings.length > 0) {
     say('Read these before you ship');
     for (const w of warnings) say(`  ! ${w}`);
