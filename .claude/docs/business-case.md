@@ -151,8 +151,13 @@ premised on a near-zero marginal cost. Option 4 does not: a free tier now gives 
 model call per turn, and the pricing floor is inference cost, not hosting.
 
 **What survives, and it is the thing to sell.** The product beats the incumbent it
-replaces — **56.8% vs 45.5%** for `fut-app`'s own command palette, and **59.5% vs 37.1%**
-in Portuguese, the language most of its users speak. That is a better-navigation argument
+replaces. The script tag an adopter installs shows the right screen for **69.9% vs 45.5%**
+against `fut-app`'s own command palette, and **72.4% vs 37.1%** in Portuguese, the language
+most of its users speak, and sends nobody to a wrong screen
+([like-for-like.json](../../eval/fut-app/like-for-like.json)). It gets there with no model,
+by offering up to three screens; a model-backed server picking one measured 56.8% vs 45.5%.
+That no-model number is a claim about what the user sees, not a cost estimate — that waits
+for a deployment. That is a better-navigation argument
 and it is measured. It is not a cheaper-navigation argument, and §4's comparison against a
 chat widget must stop implying otherwise: *"it costs a model call per turn"* is no longer
 a point of difference on cost, only on what the model is allowed to do — a registry-bound
@@ -168,7 +173,7 @@ Falsifiable claims, in the order they should be tested. Each maps to a work pack
 |---|---|---|---|
 | A1 | A usable, role-scoped registry can be generated from an app's source with no human editing | Generate for `fut-app`; score against its `deepLinks.ts`/`navConfigs` plus a hand-written sample | Precision or recall below ~70%, or **any** role mis-assignment |
 | ~~A2~~ | ~~Most real questions resolve with no model call~~ | ⚠️ **TESTED AND FAILED.** 2.4% at WP-33, **8.1%** after WP-38 spent a budget on it, against a 60% bar. §5 and the rungs in PLAN.md §1.6 are repriced accordingly | ~~Below 60%~~ — it failed |
-| **A2′** | *Replaces A2.* The assistant beats the navigation the adopter already ships | Same golden set, against `fut-app`'s own CommandPalette | It loses, or wins only in English. **Currently: 56.8% vs 45.5%, and 59.5% vs 37.1% in pt-PT — holds** |
+| **A2′** | *Replaces A2.* The assistant beats the navigation the adopter already ships | Same golden set, against `fut-app`'s own CommandPalette | It loses, or wins only in English. **Currently: 69.9% vs 45.5%, and 72.4% vs 37.1% in pt-PT, for the shipped script tag (56.8% vs 45.5% on the model-backed server) — holds** |
 | A3 | Guidance can anchor to elements without breaking on the adopter's next deploy | Anchor, then change the app, then re-run | Anchors mispoint rather than degrade |
 | A4 | Navigation + guidance alone is worth paying for | Ask three people in a candidate vertical | Everyone says "only if it answers with my data" |
 | A5 | Data answering (phase 2) is achievable without owning the adopter's backend | Design against WeFitAll's NestJS bookings API | Requires bespoke work per adopter |

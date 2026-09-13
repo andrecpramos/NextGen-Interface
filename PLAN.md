@@ -137,11 +137,35 @@ adversarial violations). So the fence narrows WP-48 without replacing it.
   (external app, 1 → 8 routes), WP-11 and WP-37. WP-20 and WP-10 were closed as not this
   product.
 
-**The headline result has not changed.** The assistant **beats `fut-app`'s own
-CommandPalette**: 56.8% vs 45.5% overall, and 60.3% vs 37.1% in Portuguese. The
-model-free rate is 8.1% against a 60% bar, so the cost claim was withdrawn (D-4).
+**The headline result, restated for what ships (2026-09-13).** The script tag an adopter
+installs — no model, at most three screens shown — **beats `fut-app`'s own CommandPalette**:
+the right screen is among what it shows for **69.9% vs 45.5%**, shown first for **53.4% vs
+42.6%**, **72.4% vs 37.1%** in Portuguese, and nobody is sent to a wrong screen
+([like-for-like.json](eval/fut-app/like-for-like.json)). The 56.8% vs 45.5% published before
+is the server configuration with `llama3.1:8b`, which the script tag does not call. A turn
+settled without asking the user is 11.0% on that server and 1.7% in the script tag, against
+a 60% bar, so the cost claim stays withdrawn (D-4).
 Out-of-scope refusal has a measured ceiling, which is accepted and disclosed (D-5). The
 numbers are in [eval/fut-app/MEASUREMENT.md](eval/fut-app/MEASUREMENT.md).
+
+### Readiness, 2026-09-13
+
+Asked "how ready is it, 0–100%", the agent half was pushed as far as it goes without a real
+adopter. Each item is a merged PR into `develop`:
+
+| # | Gap | Closed by |
+|---|---|---|
+| 1 | The kit crashed when installed outside the repo; nothing ran on Node 20 | #21 — tarballs install into a foreign project on Node 20 and 23+, and `check-install` gates it |
+| 2 | The widget broke under a strict Content-Security-Policy | #22 — no inline script or style; `check-csp` gates it in a real browser |
+| 3 | Only React Router apps could be read | #23, #24, #25 — Next.js, Remix, SvelteKit, Nuxt, Vue Router, Angular; six public apps, every route found, 0 wrong destinations, 0 files changed ([RESULT.md](eval/field-apps/RESULT.md)) |
+| 4 | The kit could turn an adopter's own lint or format checks red, or ship every role's screens publicly | #26 — `doctor` warns before the first, refuses the second |
+| 5 | No way to judge the answers before wiring anything in | #27 — `nextgen preview`, `doctor --report`, [FIELD-TEST.md](FIELD-TEST.md) |
+| 6 | The headline number described a configuration nobody installs | This PR — [like-for-like.mjs](eval/fut-app/like-for-like.mjs), and every headline restated |
+
+**What stays open is not an agent's to close:** a field test by someone who did not build it
+(FIELD-TEST.md), the four owner items above — WP-35 among them, the live deployment — and the golden set's
+circularity — its questions are model-written, so every number here is an upper bound until
+real users ask real questions.
 
 ### Decisions
 
@@ -2361,7 +2385,7 @@ M0  FOUNDATION ✅      WP-23 · WP-15 · WP-16 · WP-17
                              │
 M1  THE MEASUREMENT ✅ WP-31 → WP-30 GO → WP-25 → WP-32 → WP-33
                        ⟨ model-free <60%  ⇒ TRIGGERED → D-4 → WP-38 → repositioned ⟩
-                       ⟨ loses to the CommandPalette ⇒ did not: 56.8% vs 45.5% ⟩
+                       ⟨ loses to the CommandPalette ⇒ did not: 56.8% vs 45.5% server, 69.9% vs 45.5% shipped ⟩
                        WP-39 reverted → WP-40 ⟨ Stop-if TRIGGERED → D-5: accept, disclose ⟩
                              │
 M2  THE WRITE-UP ✅    WP-34 → WRITEUP.md
@@ -2701,7 +2725,9 @@ same day by [WP-33](eval/fut-app/MEASUREMENT.md), whose kill criterion triggered
 >
 > **Done.** [business-case.md](.claude/docs/business-case.md) §5 retires the cheap-to-run
 > claim and the free tier that depended on it; claim A2 is replaced by **A2′ — beat the
-> navigation the adopter already ships**, which is measured at 56.8% vs 45.5% and holds.
+> navigation the adopter already ships**, which is measured at 56.8% vs 45.5% on the server
+> configuration and 69.9% vs 45.5% for the shipped script tag (at most three screens shown, no
+> model), and holds.
 > **M3 is unblocked.**
 >
 > The options below are kept as written, because the reasoning that chose (b) is only
