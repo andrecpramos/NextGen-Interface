@@ -29,7 +29,11 @@ npm install -D <the .tgz paths pack:release printed>
 npx nextgen init   .           # the folder that contains src/
 npx nextgen build  nextgen
 npx nextgen doctor nextgen
+npx nextgen preview nextgen          # try the answers on your app before wiring anything in
 ```
+
+Playing the adopter on a project of your own? **[FIELD-TEST.md](FIELD-TEST.md)** is the protocol: what to
+write down first, what to record at each step, and when to stop.
 
 Nothing is published to npm yet; the tarballs are the package. The kit reads **React Router,
 Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt** applications; on anything else, `init` names
