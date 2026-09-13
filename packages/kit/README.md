@@ -8,6 +8,8 @@ nextgen init  <your app folder>     # finds the route table, roles, translations
 nextgen build [kit folder]          # writes bundle/ (served) and review/ (never served)
 nextgen calibrate [kit folder] --golden questions.jsonl   # Rule 14, from questions you wrote
 nextgen doctor [kit folder]         # what was read, what was left out and why, how to mount it
+nextgen doctor [kit folder] --report field-report.md   # the same, plus every screen and skip, as a file
+nextgen preview [kit folder]        # try it on your app before wiring anything in
 ```
 
 **Installing it.** `pnpm pack:release` in this repository writes the tarballs to
@@ -89,6 +91,24 @@ session.
 
 `doctor` refuses a multi-role bundle that sits inside `public/` or `static/`, because a web app serves
 those folders to everyone as they are.
+
+## Trying it before wiring it in
+
+```bash
+nextgen preview nextgen --app-url http://localhost:3000
+```
+
+A local page (127.0.0.1) that loads the built bundle exactly as a production page would — the one-line
+script tag, under a strict Content-Security-Policy — for any role, with one example question per
+screen a click away. When the assistant would move the browser, the page says where, and links into
+your running app if you pass `--app-url`. So you can judge the answers before touching your app, and
+the integration separately. It serves every role's files so you can switch between them, which
+production must never do; the page says so.
+
+`nextgen doctor --report field-report.md` writes doctor's text plus every screen it declared, with its
+roles, and everything it left out. It lists screens against roles, so share it only with people who
+may know that. Playing the adopter on a project of your own? [FIELD-TEST.md](../../FIELD-TEST.md) is the
+protocol.
 
 ## Keeping your own checks green
 
