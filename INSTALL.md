@@ -18,28 +18,60 @@ outside the workspace that makes it.
 
 ## 0 · With the kit — start here (WP-41)
 
-```bash
-# 1. Once, in a checkout of this repository: build and pack the packages.
-pnpm install --ignore-scripts
-pnpm pack:release              # writes release/*.tgz and prints the exact install line
+### Get the tarballs
 
-# 2. In YOUR project, on Node 20 or newer. Install as a dev dependency: nothing from
-#    these packages runs in production except the files `build` writes.
-npm install -D <the .tgz paths pack:release printed>
+**From a GitHub Release — the normal way.** Every release attaches eight `.tgz` files and
+`SHA256SUMS.txt`, and its notes are that version's section of [CHANGELOG.md](CHANGELOG.md).
+The repository is private, so you need access to it. In your project:
+
+```bash
+gh release download v0.1.0 --repo andrecpramos/AI-Interface --dir vendor/nextgen
+(cd vendor/nextgen && sha256sum -c SHA256SUMS.txt)     # optional: verify the download
+```
+
+Or download the files from the release page in a browser into `vendor/nextgen/`. On Windows,
+`Get-FileHash vendor/nextgen/*.tgz` prints the hashes to compare.
+
+**From a checkout of this repository**, for a build that has not been released:
+
+```bash
+pnpm install --ignore-scripts
+pnpm pack:release              # writes release/*.tgz and SHA256SUMS.txt
+```
+
+Then copy `release/*.tgz` into your project's `vendor/nextgen/`.
+
+### Install and run
+
+```bash
+# In YOUR project, on Node 20 or newer. A dev dependency: nothing from these packages
+# runs in production except the files `build` writes.
+npm install -D vendor/nextgen/*.tgz
 npx nextgen init   .           # the folder that contains src/
 npx nextgen build  nextgen
 npx nextgen doctor nextgen
 npx nextgen preview nextgen          # try the answers on your app before wiring anything in
 ```
 
+**Commit `vendor/nextgen/`.** npm records each package in `package.json` and the lockfile as
+`file:vendor/nextgen/…`, so your CI's `npm ci` needs the tarballs in your repository.
+
+**Upgrading:** empty `vendor/nextgen/`, download the new release into it, and run
+`npm install -D vendor/nextgen/*.tgz` again. All eight carry the same version; never mix
+tarballs from two releases.
+
+**License.** Proprietary. You may use it only under a written agreement with the copyright
+holder ([LICENSE](LICENSE)); every tarball carries the same file.
+
 Playing the adopter on a project of your own? **[FIELD-TEST.md](FIELD-TEST.md)** is the protocol: what to
 write down first, what to record at each step, and when to stop.
 
-Nothing is published to npm yet; the tarballs are the package. The kit reads **React Router,
+Nothing is published to a package registry; the tarballs are the package. The kit reads **React Router,
 Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt** applications; on anything else, `init` names
 what it found and writes nothing. **This path is checked on
-every pull request** by `tooling/scripts/check-install.mjs`: the tarballs are installed
-with npm into a project outside this repository, the three commands run through the
+every pull request** by `tooling/scripts/check-install.mjs`: the tarballs are vendored and
+installed with npm into a project outside this repository, reinstalled with a clean
+`npm ci` from the lockfile, the three commands run through the
 installed `nextgen` on Node 20 and on the current Node, the app's own files are hashed
 before and after, and a TypeScript file importing the packages type-checks under
 `bundler` and `nodenext` resolution. The packages are **ES modules only**; a CommonJS
@@ -121,6 +153,8 @@ needs from this repository is already here.
 
 | Package | When it runs | Why they need it |
 |---|---|---|
+| `@nextgen/kit` | build time | the `nextgen` command: `init`, `build`, `doctor`, `preview`, `calibrate` |
+| `@nextgen/embed` | run time | the widget — `bundle/nextgen.js`, or `import { start }` |
 | `@nextgen/generator` | build time | reads their source, emits one registry per role |
 | `@nextgen/core-intent` | run time | the three-stage router |
 | `@nextgen/core-capability` | both | the registry contract |
@@ -256,15 +290,16 @@ node packages/embed/build.mjs     # → packages/embed/dist/nextgen.js, ~9.3KB g
 
 **Serve each session only its own role's files.** Rule 17 is a delivery property: if every
 role's registry sits in a public folder, the role split protects nothing. `@nextgen/embed`
-is private for now; WP-41 decides how the kit ships it.
+ships in every release, and `nextgen build` copies its `nextgen.js` into `bundle/`.
 
 ---
 
 ## Uninstalling
 
 ```bash
-npm uninstall @nextgen/generator @nextgen/core-intent ...
-rm -rf ./generated
+npm uninstall @nextgen/kit @nextgen/embed @nextgen/generator @nextgen/core-intent \
+              @nextgen/core-capability @nextgen/core-inference @nextgen/core-dispatch @nextgen/core-trace
+rm -rf ./nextgen ./vendor/nextgen     # or ./generated, on the manual path below
 ```
 
 Nothing else. The layer never wrote outside `out`, so there is nothing else to find.
@@ -275,7 +310,7 @@ Nothing else. The layer never wrote outside `out`, so there is nothing else to f
 
 | | |
 |---|---|
-| Packages to install | 6 |
+| Packages to install | 8 tarballs, one `npm install` |
 | Files the adopter writes by hand | **1** — the config in step 2 |
 | Files of theirs we modify | **0** |
 | Time to first routed turn, from an empty directory | under an hour, most of it discovering step 2's answers |

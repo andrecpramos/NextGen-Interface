@@ -17,15 +17,18 @@
 //   1. Packs every package the kit needs with `pnpm pack`, which rewrites
 //      `workspace:*` and applies `publishConfig` exactly as a publish would.
 //   2. Creates a scratch project outside this repository holding a copy of the
-//      fixture app, and `npm install`s the tarballs into it — npm, not pnpm,
-//      because an adopter's project is not our workspace.
+//      fixture app, copies the tarballs into its vendor/nextgen/ and `npm install -D`s
+//      them from there — npm, not pnpm, because an adopter's project is not our
+//      workspace; vendored, because that is the path INSTALL.md gives an adopter.
 //   3. On the current Node AND on Node 20 (the declared minimum, fetched with
 //      `npx node@20`, so the claim is tested rather than asserted):
 //        - `nextgen init`, `nextgen build`, `nextgen doctor` through the installed bin
 //        - imports `@nextgen/embed` as an ES module and routes one turn from the
 //          bundle the kit just built
 //        - checks the app's own files are byte-for-byte unchanged (Rule 16)
-//   4. As a TypeScript adopter: type-checks an ES module importing the installed
+//   4. As the adopter's CI: package.json records every tarball as file:vendor/nextgen/…,
+//      and a clean `npm ci` from the lockfile installs a `nextgen` that runs.
+//   5. As a TypeScript adopter: type-checks an ES module importing the installed
 //      packages under `bundler` and `nodenext` resolution, with skipLibCheck off.
 //      (The packages are ESM-only; a CommonJS file cannot import them statically,
 //      and that is documented rather than tested.)
@@ -47,12 +50,17 @@ const KEEP = process.argv.includes('--keep');
 const SKIP_NODE20 = process.argv.includes('--skip-node20');
 const WINDOWS = process.platform === 'win32';
 
-/** The kit's dependency graph, leaves first. `core-trace` is not in it. */
-const PACKAGES = ['core-capability', 'core-inference', 'core-intent', 'generator', 'embed', 'kit'];
+/**
+ * Every publishable package, leaves first. The kit needs six of them, but a release attaches
+ * all eight and INSTALL.md installs them together, so that is what is installed here.
+ */
+const PACKAGES = ['core-capability', 'core-trace', 'core-inference', 'core-dispatch', 'core-intent', 'generator', 'embed', 'kit'];
 
 /** Built output each package must have before it can be packed. */
 const BUILT = {
   'core-capability': ['dist/index.js'],
+  'core-trace': ['dist/index.js'],
+  'core-dispatch': ['dist/index.js'],
   'core-inference': ['dist/index.js'],
   'core-intent': ['dist/index.js', 'dist/browser.js', 'dist/calibrate.js'],
   generator: ['dist/index.js'],
@@ -155,9 +163,13 @@ const app = join(consumer, 'app');
 const kitDir = join(app, 'nextgen');
 const before = hashTree(app, (p) => p.startsWith(kitDir));
 
+// Vendored inside the project, installed by relative path: what INSTALL.md tells an adopter
+// to do, and the only form their CI's `npm ci` can reproduce.
+mkdirSync(join(consumer, 'vendor', 'nextgen'), { recursive: true });
+for (const f of tgz) cpSync(join(tarballs, f), join(consumer, 'vendor', 'nextgen', f));
 const installed = run(
   'npm',
-  ['install', '--no-audit', '--no-fund', '--loglevel=error', ...tgz.map((f) => join(tarballs, f))],
+  ['install', '-D', '--no-audit', '--no-fund', '--loglevel=error', ...tgz.map((f) => `vendor/nextgen/${f}`)],
   consumer,
   { shell: WINDOWS, timeout: 480_000 },
 );
@@ -266,6 +278,30 @@ if (cli && installed.status === 0) {
     } else {
       say(`  ok    Rule 16: ${before.size} app files unchanged`);
     }
+  }
+}
+
+// ------------------------------------------------- the adopter's CI: npm ci --
+
+if (cli && installed.status === 0) {
+  say("\n  -- the adopter's CI: a clean npm ci from the lockfile --");
+  const manifest = JSON.parse(readFileSync(join(consumer, 'package.json'), 'utf8'));
+  const recorded = Object.entries(manifest.devDependencies ?? {}).filter(([name]) => name.startsWith('@nextgen/'));
+  const elsewhere = recorded.filter(([, spec]) => !spec.startsWith('file:vendor/nextgen/'));
+  if (recorded.length !== tgz.length || elsewhere.length > 0) {
+    fail('package.json records every tarball as file:vendor/nextgen/…', `        ${JSON.stringify(Object.fromEntries(recorded))}`);
+  } else {
+    say(`  ok    package.json records ${recorded.length} tarballs as file:vendor/nextgen/…`);
+  }
+
+  rmSync(join(consumer, 'node_modules'), { recursive: true, force: true });
+  const clean = run('npm', ['ci', '--no-audit', '--no-fund', '--loglevel=error'], consumer, { shell: WINDOWS, timeout: 480_000 });
+  if (clean.status !== 0) {
+    fail('npm ci from the lockfile', tail(clean.output, 20));
+  } else {
+    const doctor = run(process.execPath, [cli, 'doctor', join('app', 'nextgen')], consumer);
+    if (![0, 1].includes(doctor.status) || !doctor.output.includes('nextgen.js')) fail('nextgen doctor after npm ci', tail(doctor.output));
+    else say('  ok    npm ci from the lockfile, then nextgen doctor');
   }
 }
 

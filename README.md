@@ -197,3 +197,11 @@ requests:
 
 The target was ~70%. Every mechanism that was tried is measured in PLAN.md §7.2 (WP-39,
 WP-40). The ceiling is accepted and stated here, not hidden.
+
+## Installing it, and the license
+
+Adopters install eight tarballs attached to a GitHub Release — [INSTALL.md](INSTALL.md) §0 has
+the commands, and [CHANGELOG.md](CHANGELOG.md) what each release contains.
+
+**Proprietary — all rights reserved.** Use requires a written agreement with the copyright
+holder; see [LICENSE](LICENSE).

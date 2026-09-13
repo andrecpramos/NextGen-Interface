@@ -64,6 +64,20 @@
       "fix": "An entry point in main/types/exports either does not exist, is not covered by `files`, or is TypeScript source. Run `pnpm build` first — the gate reads built output. A .ts entry point cannot work at all: Node refuses to strip types inside node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), which is what made every package in this repo uninstallable until 2026-09-11. If a package is not meant to be installed, mark it private."
     },
     {
+      "id": "release",
+      "title": "Releasable — one version, a CHANGELOG section and the LICENSE in every package",
+      "command": "node tooling/scripts/check-release.mjs",
+      "blocking": true,
+      "when": [
+        "packages/*/package.json",
+        "packages/*/LICENSE",
+        "LICENSE",
+        "CHANGELOG.md",
+        "package.json"
+      ],
+      "fix": "Every publishable package must carry the same version, the root package.json's license and a byte-identical copy of the root LICENSE, and CHANGELOG.md must have a non-empty section for that version. After editing LICENSE, copy it into each publishable package. The release workflow also runs this with --tag, which requires the tag to be v<version> and the section to carry a date instead of 'unreleased'."
+    },
+    {
       "id": "install",
       "title": "The packed tarballs install into a project outside this repository and run on Node 20",
       "command": "pnpm build && node tooling/scripts/check-install.mjs",

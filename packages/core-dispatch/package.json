@@ -1,6 +1,12 @@
 {
   "name": "@nextgen/core-dispatch",
   "version": "0.1.0",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrecpramos/AI-Interface.git",
+    "directory": "packages/core-dispatch"
+  },
   "type": "module",
   "description": "Dispatcher: ADR-004 policy, navigation, query and undo. Where enforcement lives.",
   "main": "./src/index.ts",
@@ -19,6 +25,9 @@
     "dist",
     "README.md"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

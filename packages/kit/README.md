@@ -12,9 +12,10 @@ nextgen doctor [kit folder] --report field-report.md   # the same, plus every sc
 nextgen preview [kit folder]        # try it on your app before wiring anything in
 ```
 
-**Installing it.** `pnpm pack:release` in this repository writes the tarballs to
-`release/`; `npm install -D` them in your project and run `npx nextgen …`. Node 20 or
-newer, ES modules only. [INSTALL.md](../../INSTALL.md) has the whole path, and
+**Installing it.** Download a GitHub Release's tarballs into your project's
+`vendor/nextgen/` (or build them with `pnpm pack:release` in this repository), then
+`npm install -D vendor/nextgen/*.tgz` and run `npx nextgen …`. Node 20 or
+newer, ES modules only. Proprietary: see [LICENSE](LICENSE). [INSTALL.md](../../INSTALL.md) has the whole path, and
 `tooling/scripts/check-install.mjs` proves it on every pull request. Inside this
 repository the command is also `node packages/kit/src/cli.ts`.
 
