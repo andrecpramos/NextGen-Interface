@@ -208,7 +208,6 @@ importers:
       '@nextgen/core-intent':
         specifier: workspace:*
         version: link:../core-intent
-    devDependencies:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

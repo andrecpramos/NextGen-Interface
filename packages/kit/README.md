@@ -10,8 +10,13 @@ nextgen calibrate [kit folder] --golden questions.jsonl   # Rule 14, from questi
 nextgen doctor [kit folder]         # what was read, what was left out and why, how to mount it
 ```
 
-In this repository, the command is `node packages/kit/src/cli.ts`. The kit folder
-defaults to `<app>/nextgen`: beside `src/`, never inside it.
+**Installing it.** `pnpm pack:release` in this repository writes the tarballs to
+`release/`; `npm install -D` them in your project and run `npx nextgen …`. Node 20 or
+newer, ES modules only. [INSTALL.md](../../INSTALL.md) has the whole path, and
+`tooling/scripts/check-install.mjs` proves it on every pull request. Inside this
+repository the command is also `node packages/kit/src/cli.ts`.
+
+The kit folder defaults to `<app>/nextgen`: beside `src/`, never inside it.
 
 ## What it writes, and where
 

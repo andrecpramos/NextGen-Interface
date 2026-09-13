@@ -64,6 +64,18 @@
       "fix": "An entry point in main/types/exports either does not exist, is not covered by `files`, or is TypeScript source. Run `pnpm build` first — the gate reads built output. A .ts entry point cannot work at all: Node refuses to strip types inside node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), which is what made every package in this repo uninstallable until 2026-09-11. If a package is not meant to be installed, mark it private."
     },
     {
+      "id": "install",
+      "title": "The packed tarballs install into a project outside this repository and run on Node 20",
+      "command": "pnpm build && node tooling/scripts/check-install.mjs",
+      "blocking": true,
+      "when": [
+        "packages/**",
+        "tooling/scripts/check-install.mjs",
+        "tooling/scripts/pack-release.mjs"
+      ],
+      "fix": "Read which step failed and on which Node. A dependency that only resolves inside the workspace, a file reached by a checkout-only path, a Node API newer than 20, or a bin that is TypeScript source all install cleanly and fail on the adopter's first command. The scratch project is kept for inspection."
+    },
+    {
       "id": "prompt-fencing",
       "title": "Rule 15 — a prompt never interpolates unfenced input",
       "command": "node tooling/scripts/check-prompt-fencing.mjs",

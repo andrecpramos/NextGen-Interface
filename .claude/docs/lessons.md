@@ -332,6 +332,37 @@ new `continue` added to discovery.
 
 ---
 
+## L13 · A package that installs in the workspace is not a package that installs
+
+**What happened.** `@nextgen/generator` was published-ready since WP-26: built to
+`dist/`, entry points checked by `check-packaging.mjs`, 103 tests green. It parses
+an application's source with `typescript` **at run time** — and declared `typescript`
+as a devDependency. The first time its tarball was installed into a project outside
+this repository (2026-09-13), every `nextgen` command threw
+`ERR_MODULE_NOT_FOUND: Cannot find package 'typescript'`, on Node 25 and Node 20
+alike. `init` too, because the CLI imports the build module before it reads its
+arguments. The product could not start for anyone who was not us.
+
+**Why it was hard to see.** Inside the workspace every devDependency is installed, so
+the import resolved and nothing failed — not the tests, not the typecheck, not the
+packaging gate, which read manifests and checked that files existed. Each check was
+correct about what it looked at. None of them stood where an adopter stands.
+
+**The lesson.** An artefact is proven from where its user runs it, not from where it
+was built ([L11](#l11--an-entry-point-that-exists-is-not-one-that-loads) is the browser
+version of this). For a package that means: pack it, install the tarball into a
+project that is not the workspace, and run the commands. Reading `package.json` is the
+cheap half and cannot see the expensive failure.
+
+**Enforcement: level 1, twice.** `check-install.mjs` (CI) does the whole path — pack,
+`npm install` outside the repository, `init` / `build` / `doctor` on the runner's
+Node and on Node 20, an ES-module import that routes a turn, and a TypeScript adopter's
+typecheck. `check-packaging.mjs` now also fails any bare import in published
+JavaScript that is not a declared dependency, which catches this cause in a second
+with no network. Both were made to fail on this exact defect.
+
+---
+
 ## Adding a lesson
 
 Add an entry when a bug's cause was **not locally obvious** — when someone

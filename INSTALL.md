@@ -19,13 +19,31 @@ outside the workspace that makes it.
 ## 0 · With the kit — start here (WP-41)
 
 ```bash
-# once, in a checkout of this repository
+# 1. Once, in a checkout of this repository: build and pack the packages.
 pnpm install --ignore-scripts
+pnpm pack:release              # writes release/*.tgz and prints the exact install line
 
-# then, pointed at your app (the folder that contains src/)
-node <this repo>/packages/kit/src/cli.ts init   <your app>
-node <this repo>/packages/kit/src/cli.ts build  <your app>/nextgen
-node <this repo>/packages/kit/src/cli.ts doctor <your app>/nextgen
+# 2. In YOUR project, on Node 20 or newer. Install as a dev dependency: nothing from
+#    these packages runs in production except the files `build` writes.
+npm install -D <the .tgz paths pack:release printed>
+npx nextgen init   .           # the folder that contains src/
+npx nextgen build  nextgen
+npx nextgen doctor nextgen
+```
+
+Nothing is published to npm yet; the tarballs are the package. **This path is checked on
+every pull request** by `tooling/scripts/check-install.mjs`: the tarballs are installed
+with npm into a project outside this repository, the three commands run through the
+installed `nextgen` on Node 20 and on the current Node, the app's own files are hashed
+before and after, and a TypeScript file importing the packages type-checks under
+`bundler` and `nodenext` resolution. The packages are **ES modules only**; a CommonJS
+file cannot `import` them statically. (A single-page app's bundler handles that for you.)
+
+In a single-page app you can also use the widget as a module instead of a script tag:
+
+```js
+import { start } from '@nextgen/embed';
+start('/nextgen', currentUser.role, { navigate: (to) => router.navigate(to) });
 ```
 
 - **`init`** finds the route table, the role table, translations and the app's language.
