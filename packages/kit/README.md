@@ -76,15 +76,15 @@ calibration script so that Rule 14 has exactly one implementation.
 
 ## Which apps it reads
 
-**React Router, Next.js (app and pages routers) and Remix (flat routes).** `init` recognises the
-framework from `package.json` before reading anything. SvelteKit, Nuxt, Vue Router, Angular, TanStack
+**React Router, Next.js (app and pages routers), Remix (flat routes), SvelteKit and Nuxt.** `init`
+recognises the framework from `package.json` before reading anything. Vue Router, Angular, TanStack
 Router and Solid Router are named when found, with what the kit can read, and nothing is written.
-On two public apps it was not written for, it declared every screen and nothing else
+On four public apps it was not written for, it declared every screen and nothing else
 ([eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md)).
 
 ## What it does not do yet
 
-- **Read roles from a Next.js or Remix app.** A folder layout says nothing about who may open a
+- **Read roles from an app whose routes are a folder layout** (Next.js, Remix, SvelteKit, Nuxt). A folder layout says nothing about who may open a
   screen. If yours restricts some screens by role, list them in `routeRoles` by path prefix,
   `{ "/admin": ["ADMIN"] }`; `init` warns when your app mentions roles and there is none.
 

@@ -78,6 +78,38 @@ function titleFromComponent(component: string | null): string | null {
   return spaced.length > 0 ? spaced : null;
 }
 
+/** `Settings • Conduit`, `Pricing | Acme`: a page title followed by the site's name. */
+const TITLE_SEPARATOR = /\s+(?:[•|·—–:-]|::)\s+/;
+
+/**
+ * The site name most page titles end with, when there is one.
+ *
+ * `<title>Settings • Conduit</title>` names the page, then the site. The site half is the
+ * same on every page, so it tells the router nothing and makes every screen look alike
+ * to stage 2. It is recognised by being the shared tail of at least two titles.
+ */
+function sharedTitleSuffix(titles: readonly (string | null)[]): string | null {
+  const counts = new Map<string, number>();
+  for (const title of titles) {
+    if (!title) continue;
+    const parts = title.split(TITLE_SEPARATOR);
+    if (parts.length < 2) continue;
+    const tail = parts[parts.length - 1]!.trim();
+    counts.set(tail, (counts.get(tail) ?? 0) + 1);
+  }
+  const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] >= 2 ? best[0] : null;
+}
+
+/** A title without the site name. A title that is only the site name says nothing about the page. */
+function withoutSiteName(title: string | null, siteName: string | null): string | null {
+  if (!title || !siteName) return title;
+  if (title.trim() === siteName) return null;
+  const parts = title.split(TITLE_SEPARATOR);
+  if (parts.length > 1 && parts[parts.length - 1]!.trim() === siteName) return parts.slice(0, -1).join(' ').trim() || null;
+  return title;
+}
+
 /** A component name used as a title, except that the root page named for its file is "Home". */
 function componentTitle(route: DiscoveredRoute): string | null {
   const title = titleFromComponent(route.component);
@@ -149,7 +181,8 @@ function humanise(text: string): string {
 function qualifyTitles(titles: Map<string, Record<string, string>>, features: ReadonlyMap<string, string>): void {
   const counts = new Map<string, number>();
   for (const perLanguage of titles.values()) {
-    for (const title of Object.values(perLanguage)) {
+    // Once per screen: the same title in two languages is one screen, not a duplicate.
+    for (const title of new Set(Object.values(perLanguage))) {
       counts.set(title, (counts.get(title) ?? 0) + 1);
     }
   }
@@ -259,8 +292,10 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   const titles = new Map<string, Record<string, string>>();
   const features = new Map<string, string>();
+  const siteName = sharedTitleSuffix(accepted.map(({ facts }) => facts.title));
   for (const { route, id, facts, labelKey } of accepted) {
-    titles.set(id, resolveTitles(route, labelKey, facts, translations, config.languages));
+    const own = { ...facts, title: withoutSiteName(facts.title, siteName) };
+    titles.set(id, resolveTitles(route, labelKey, own, translations, config.languages));
     features.set(id, featureOf(route));
   }
 

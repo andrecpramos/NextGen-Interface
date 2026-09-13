@@ -144,9 +144,11 @@ export interface GeneratorConfig {
    * `routesFile` is that folder, relative to `appRoot`:
    *   - `next`: the `app` or `pages` folder (`.` when `appRoot` is it); both are read when both exist
    *   - `remix`: `routes` — Remix v2, or React Router 7 `flatRoutes()`
+   *   - `sveltekit`: `routes`, with `appRoot` the `src` folder
+   *   - `nuxt`: `pages`, with `appRoot` the `app` folder (Nuxt 4), or `.` with `appRoot` the `pages` folder (Nuxt 3)
    */
-  readonly router?: 'react-router' | 'next' | 'remix';
-  /** The route table (`react-router`), or the routes folder (`next`, `remix`). */
+  readonly router?: 'react-router' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
+  /** The route table (`react-router`), or the routes folder (every other router). */
   readonly routesFile: string;
   /**
    * Roles the application enforces in code the generator cannot read — a

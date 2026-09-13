@@ -3,7 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 
 import ts from 'typescript';
 
-import { discoverNextRoutes, discoverRemixRoutes } from './filesystem.ts';
+import { discoverNextRoutes, discoverNuxtRoutes, discoverRemixRoutes, discoverSvelteKitRoutes } from './filesystem.ts';
 
 import type { DiscoveredRoute, GeneratorConfig, RoleName } from './types.ts';
 
@@ -793,11 +793,16 @@ function discoverByRouter(config: GeneratorConfig): {
   roles: RoleModel;
   unreadable: readonly UnreadableRoute[];
 } {
-  if (config.router === 'next' || config.router === 'remix') {
+  const folderLayouts = {
+    next: discoverNextRoutes,
+    remix: discoverRemixRoutes,
+    sveltekit: discoverSvelteKitRoutes,
+    nuxt: discoverNuxtRoutes,
+  } as const;
+  if (config.router && config.router !== 'react-router') {
     const roles = readRoleModel(config);
     const routesDir = resolve(config.appRoot, config.routesFile);
-    const found =
-      config.router === 'next' ? discoverNextRoutes(routesDir, roles.allRoles) : discoverRemixRoutes(routesDir, roles.allRoles);
+    const found = folderLayouts[config.router](routesDir, roles.allRoles);
     return { routes: found.routes, roles, unreadable: found.leftOut.map(({ path, reason, detail }) => ({ path, reason, detail })) };
   }
 

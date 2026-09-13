@@ -80,7 +80,9 @@ function exportsNamed(text: string, pattern: RegExp): string[] {
 
 // ------------------------------------------------------------------ locales --
 
-const LOCALE_DIR = /^(locales?|i18n|lang(s|uages)?|translations)$/i;
+const LOCALE_DIR = /^(locales?|i18n|lang(s|uages)?|translations|internationali[sz]ation|messages)$/i;
+/** `en`, `pt-PT`, `zh_Hant`: a folder or file name that is a language, not `locales` or `common`. */
+const LANGUAGE_CODE = /^[a-z]{2,3}(?:[-_][A-Za-z]{2,4})?$/;
 
 /** A directory whose subdirectories each hold JSON: `locales/<lang>/<namespace>.json`. */
 function findLocales(root: string): { dir: string; languages: string[] } | null {
@@ -92,10 +94,19 @@ function findLocales(root: string): { dir: string; languages: string[] } | null 
       const path = join(dir, entry.name);
       if (LOCALE_DIR.test(entry.name)) {
         const languages = readdirSync(path, { withFileTypes: true })
-          .filter((sub) => sub.isDirectory() && readdirSync(join(path, sub.name)).some((f) => f.endsWith('.json')))
+          .filter(
+            (sub) =>
+              sub.isDirectory() && LANGUAGE_CODE.test(sub.name) && readdirSync(join(path, sub.name)).some((f) => f.endsWith('.json')),
+          )
           .map((sub) => sub.name)
           .sort();
         if (languages.length > 0) return { dir: path, languages };
+        // One flat file per language, as @nuxtjs/i18n, vue-i18n and next-intl lay them out.
+        const flat = readdirSync(path)
+          .filter((f) => f.endsWith('.json') && LANGUAGE_CODE.test(f.slice(0, -5)))
+          .map((f) => f.slice(0, -5))
+          .sort();
+        if (flat.length > 0) return { dir: path, languages: flat };
       }
       queue.push(path);
     }
@@ -126,10 +137,10 @@ function htmlLang(appDir: string, appRoot: string): { lang: string; file: string
 
 // --------------------------------------------------------------- framework --
 
-const SUPPORTED = 'React Router, Next.js and Remix';
+const SUPPORTED = 'React Router, Next.js, Remix, SvelteKit and Nuxt';
 
 interface Framework {
-  readonly kind: 'react-router' | 'next' | 'remix';
+  readonly kind: 'react-router' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
   readonly name: string;
   readonly evidence: string;
   /** For a folder-layout router: its source root, and the routes folder relative to it. */
@@ -189,9 +200,32 @@ function detectFramework(dir: string): Framework {
     };
   }
 
+  if ('@sveltejs/kit' in dependencies && isDir(join(dir, 'src', 'routes'))) {
+    return {
+      kind: 'sveltekit',
+      name: `SvelteKit ${dependencies['@sveltejs/kit']}`,
+      evidence: '@sveltejs/kit in package.json, and src/routes/',
+      appRoot: join(dir, 'src'),
+      routesFile: 'routes',
+    };
+  }
+
+  if ('nuxt' in dependencies) {
+    // Nuxt 4 keeps its pages in app/pages; Nuxt 3 at the project root.
+    const nuxt4 = join(dir, 'app', 'pages');
+    const nuxt3 = join(dir, 'pages');
+    if (isDir(nuxt4) || isDir(nuxt3)) {
+      return {
+        kind: 'nuxt',
+        name: `Nuxt ${dependencies.nuxt}`,
+        evidence: `nuxt in package.json, and ${isDir(nuxt4) ? 'app/pages' : 'pages'}/`,
+        appRoot: isDir(nuxt4) ? join(dir, 'app') : nuxt3,
+        routesFile: isDir(nuxt4) ? 'pages' : '.',
+      };
+    }
+  }
+
   const unsupported: readonly (readonly [string, string])[] = [
-    ['@sveltejs/kit', 'SvelteKit'],
-    ['nuxt', 'Nuxt'],
     ['@angular/router', 'Angular'],
     ['@tanstack/react-router', 'TanStack Router'],
     ['@solidjs/router', 'Solid Router'],
@@ -208,7 +242,18 @@ function detectFramework(dir: string): Framework {
   return { kind: 'react-router', name: 'React Router', evidence: 'no other router in package.json' };
 }
 
-/** `init` for a router declared by a folder layout: Next.js, Remix. */
+/** Nuxt sets <html lang> at run time; its i18n module's `defaultLocale` says which language the app speaks. */
+function nuxtDefaultLocale(dir: string): { lang: string; file: string } | null {
+  for (const name of ['nuxt.config.ts', 'nuxt.config.js', 'nuxt.config.mjs']) {
+    const file = join(dir, name);
+    if (!existsSync(file)) continue;
+    const match = /\bdefaultLocale\s*:\s*['"]([^'"]+)['"]/.exec(readFileSync(file, 'utf8'));
+    if (match) return { lang: match[1]!, file };
+  }
+  return null;
+}
+
+/** `init` for a router declared by a folder layout: Next.js, Remix, SvelteKit, Nuxt. */
 function detectFileRouter(dir: string, framework: Framework): Detection {
   const appRoot = framework.appRoot!;
   const routesFile = framework.routesFile!;
@@ -217,10 +262,13 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
     {
       what: 'routes',
       value: toPosix(relative(dir, resolve(appRoot, routesFile))) || '.',
-      evidence:
-        framework.kind === 'next'
-          ? 'the folder layout, read with Next.js rules; app/ and pages/ are both read when both exist'
-          : 'flat routes, read with Remix rules; a module with no default export is not a page',
+      evidence: {
+        'react-router': 'a route table',
+        next: 'the folder layout, read with Next.js rules; app/ and pages/ are both read when both exist',
+        remix: 'flat routes, read with Remix rules; a module with no default export is not a page',
+        sveltekit: 'the folder layout, read with SvelteKit rules; a folder with +page.svelte is a page',
+        nuxt: 'the folder layout, read with Nuxt rules; index.vue is its folder\'s page',
+      }[framework.kind],
       confident: true,
     },
     {
@@ -251,7 +299,7 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
   });
 
   const locales = findLocales(appRoot) ?? findLocales(dir);
-  const html = htmlLang(dir, appRoot);
+  const html = htmlLang(dir, appRoot) ?? (framework.kind === 'nuxt' ? nuxtDefaultLocale(dir) : null);
   let languages: string[];
   if (locales) {
     const primary = html
@@ -267,7 +315,11 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
   findings.push({
     what: 'app language',
     value: languages[0]!,
-    evidence: html ? `<html lang="${html.lang}"> in ${toPosix(relative(dir, html.file))}` : 'no <html lang> found, so English was assumed: confirm it',
+    evidence: html
+      ? html.file.includes('nuxt.config')
+        ? `defaultLocale "${html.lang}" in ${toPosix(relative(dir, html.file))}`
+        : `<html lang="${html.lang}"> in ${toPosix(relative(dir, html.file))}`
+      : 'no <html lang> found, so English was assumed: confirm it',
     confident: Boolean(html),
   });
   if (!html) {
