@@ -42,16 +42,66 @@ otherwise from the page component's name.
 `generateMetadata`, which is code and is not evaluated. A navigation manifest fixes that; the
 kit does not detect taxonomy's `config/dashboard.ts` (`{ title, href }`) as one.
 
-## The four it does not read yet
+## Readiness item 3b — SvelteKit and Nuxt
 
-`init` on sveltekit, movies (Nuxt), vue-realworld and angular-realworld stops before writing
-anything, naming the framework and what the kit can read:
+| App | Destinations declared | Wrong destinations | Catch-alls reported | Audiences | App's files changed | `doctor` |
+|---|---|---|---|---|---|---|
+| realworld (SvelteKit 2.52, Svelte 5) | **10 of 10** | **0** | — (none exist) | 1 | **0** | exit 0 |
+| movies (Nuxt 4 nightly, `app/pages`) | **8 of 8** | **0** | — (none exist) | 1 | **0** | exit 0 |
 
-> This looks like a SvelteKit application (@sveltejs/kit in package.json). The kit reads React
-> Router, Next.js and Remix today, so it cannot build a registry for this app yet. Nothing was written.
+With 3a, **35 of 35** destinations across four frameworks, and nothing declared that is not one.
 
-Before this item it said "No route table found". Readiness items 3b (SvelteKit, Nuxt) and 3c
-(Vue Router, Angular) are measured against the same ground truth.
+movies was read with its 14 flat locale files (`internationalization/pt-PT.json`, keyed by the English
+text itself), and English first, from `defaultLocale` in `nuxt.config.ts` — Nuxt sets `<html lang>` at
+run time, so there is no static attribute to read.
+
+### The titles it wrote
+
+| realworld | | movies | |
+|---|---|---|---|
+| `/` | Home | `/` | Home |
+| `/login` | Sign in | `/search` | Search |
+| `/register` | Sign up | `/person/:id` | Person |
+| `/settings` | Settings | `/genre/:no/movie` | Genre Movie |
+| `/article/:slug` | Article | `/genre/:no/tv` | Genre Tv |
+| `/profile/@:user/favorites` | Profile Favorites | `/:type/:id` | Type Id |
+
+realworld's titles come from `<svelte:head><title>Sign in • Conduit</title>`: the part every title
+shares after its separator is recognised as the site's name and removed, and the home page, whose
+title is only "Conduit", becomes "Home".
+
+**Found by this run and fixed before it was recorded — and what fixing it exposed:**
+- movies' home page came out as **"App home"**. `qualifyTitles` prefixes a title that several screens
+  share, and it counted a title once *per language*, so in an app with more than one language and an
+  untranslated title, a screen looked like its own duplicate. It now counts once per screen.
+- That fix removed a prefix three movies screens had only had **by accident**: "Genre movie" became
+  "Movie", and "Genre tv" became "Tv" — for the pages of one genre, "Movie" is worse, not better. The
+  cure is in the name of last resort: a page with no title of its own and no named component is now
+  named from the last **two** named segments of its path, so it keeps its section ("Genre Movie",
+  "Profile Favorites"). A declared title or a component name still wins.
+- The counting bug predates this item. The committed `fut-app` registries were generated with it and
+  are **not** regenerated here, because that would move artefacts calibrated against them (Rule 14). A
+  rebuild will un-prefix titles that were identical in both of fut-app's languages.
+
+**Still weak:**
+- movies' `/:type` pages are "Type" and "Type Id". Their real titles are a conditional
+  (`type === 'movie' ? 'Movies' : 'TV Shows'`) and data, which are code and not evaluated.
+- realworld has two screens called "Editor" (`/editor`, `/editor/:slug`) and two called "Profile"
+  (`/profile`, `/profile/@:user`). They compete with each other in stage 2. Telling them apart would
+  mean appending a word to a title, and the kit has no way to write that word in the app's language.
+- realworld's `/profile` is a `load` that always redirects. A redirect in a load function is not
+  read from markup, so it is declared, which the ground truth also counts as a destination.
+
+## The two it does not read yet
+
+`init` on vue-realworld and angular-realworld stops before writing anything, naming the framework
+and what the kit can read:
+
+> This looks like an Angular application (@angular/router in package.json). The kit reads React
+> Router, Next.js, Remix, SvelteKit and Nuxt today, so it cannot build a registry for this app yet.
+> Nothing was written.
+
+Readiness item 3c (Vue Router, Angular) is measured against the same ground truth.
 
 ## What this does not show
 

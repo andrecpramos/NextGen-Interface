@@ -101,11 +101,17 @@ Set by `router` in the config (`init` detects it from `package.json` and the fol
 | `react-router` (default) | a route table: a route-config array or nested `<Route>` elements, TypeScript or JavaScript | WP-25 |
 | `next` | the `app` router (route groups, `[param]`, optional catch-alls at their base URL; private folders, `@slots`, interceptions, `route.*` handlers and special files are not pages) and the `pages` router beside it (`index`, `[param]`; `api/`, `_app`, `_document`, `404` are not) | readiness 3a |
 | `remix` | flat routes in `app/routes`: `_index`, pathless `_layout.`, `name_`, `$param`, `(optional)`, `[.]` escapes, folder `route.tsx`. A module with no default export is a resource route, not a page; a layout and its `_index` are one destination | readiness 3a |
+| `sveltekit` | `src/routes`: a folder with `+page.svelte` is a page; groups `(name)`, `[param]`, `[param=matcher]`, optional `[[param]]` (declared without it), a literal prefix such as `@[user]`; `+layout`, `+error` and a server-only route are not pages | readiness 3b |
+| `nuxt` | `app/pages` (Nuxt 4) or `pages` (Nuxt 3): `index`, `[param]`, optional `[[param]]`, groups `(name)`, nested parent pages (a parent and its own `index` are one destination) | readiness 3b |
 
 A **catch-all** (`[...slug]`, a Remix `$`) serves pages that come from content, not code, so it
-is reported as a `catch-all` skip rather than declared. A page's own `metadata.title` (Next.js)
-or `meta` title (Remix) is used when it is a string literal; `generateMetadata` is code, and not
-evaluated.
+is reported as a `catch-all` skip rather than declared. A page's own title is used when it is a
+string literal: Next.js `metadata.title`, a Remix `meta` title, a Svelte `<title>`, or Nuxt's
+`useHead` / `useSeoMeta` / `definePageMeta`. `generateMetadata`, a conditional or data is code, and
+is not evaluated. A site name every title shares after its separator (`Settings • Conduit`) is
+removed. `.vue` and `.svelte` pages are read as markup (`markup.ts`): literal headings and text, a
+form's fields, and translation keys — never a heading built from data, and never a block shown only on
+failure. Locales may be one flat file per language (`locales/pt-PT.json`), keyed by the text itself.
 
 A folder layout declares no roles, so every route of a `next` or `remix` app goes to the app's
 whole audience. **`routeRoles`** declares roles an app enforces in code, by path prefix:
@@ -113,7 +119,7 @@ whole audience. **`routeRoles`** declares roles an app enforces in code, by path
 applies to every router. An application with no roles at all gets one registry for a single
 `PUBLIC` audience.
 
-Measured on two public apps not written for it, against ground truth recorded first:
+Measured on four public apps not written for it, against ground truth recorded first:
 [eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md).
 
 **The data-router shape** (WP-28, 2026-09-11) is also read:

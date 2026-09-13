@@ -77,7 +77,8 @@ function scriptKind(file: string): ts.ScriptKind {
  * the component the rest of the generator titles a screen from.
  */
 export function defaultExport(file: string): { readonly exported: boolean; readonly name: string | null } {
-  if (file.endsWith('.mdx')) return { exported: true, name: null };
+  // A markup or MDX page has no default export to read: the file is the page.
+  if (/\.(mdx|vue|svelte)$/.test(file)) return { exported: true, name: null };
   let text: string;
   try {
     text = readFileSync(file, 'utf8');
@@ -105,9 +106,13 @@ export function defaultExport(file: string): { readonly exported: boolean; reado
 
 /** `/dashboard/settings` → `SettingsPage`; `/` → `HomePage`. A title of last resort. */
 function nameFromPath(path: string): string {
-  const named = path.split('/').filter((segment) => segment && !segment.startsWith(':'));
-  const last = named[named.length - 1] ?? 'home';
-  const words = last.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  const segments = path.split('/').filter(Boolean);
+  const named = segments.filter((segment) => !segment.includes(':'));
+  // The last two named segments, so `/genre/:no/movie` is "Genre Movie", not "Movie": one word
+  // loses the section the page sits in. A route made only of parameters (`/:type/:id`) is named
+  // by them. Only `/` is home.
+  const source = named.length > 0 ? named.slice(-2).join(' ') : segments.join(' ');
+  const words = source.split(/[^a-zA-Z0-9]+/).filter(Boolean);
   return `${words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('') || 'Home'}Page`;
 }
 
@@ -316,6 +321,104 @@ export function discoverRemixRoutes(routesDir: string, allRoles: readonly RoleNa
 
   const found = [...byPath].map(([path, { file }]) => ({ path, file })).sort((a, b) => a.path.localeCompare(b.path));
   return { routes: toRoutes(found, allRoles), leftOut };
+}
+
+// --------------------------------------------------------------- SvelteKit --
+
+/** `[name]` and `[name=matcher]` to `:name`, wherever they sit in a segment: `@[user]` is `@:user`. */
+function svelteSegment(name: string): string {
+  return name.replace(/\[([^\]=]+)(?:=[^\]]+)?\]/g, ':$1');
+}
+
+/**
+ * A folder is a URL segment and `+page.svelte` makes it a destination.
+ *
+ * Not segments: groups `(name)`, and optional parameters `[[name]]`, which are declared
+ * without themselves. A rest parameter `[...rest]` is a catch-all, reported. `+layout`,
+ * `+error` and a `+page.server.js` with no `+page.svelte` are not pages, and neither is
+ * any component that lives beside one.
+ */
+function walkSvelteKit(dir: string, segments: readonly string[], found: Found[], leftOut: LeftOut[]): void {
+  const page = entriesOf(dir).find((e) => e.isFile() && e.name === '+page.svelte');
+  if (page) found.push({ path: toPath(segments), file: join(dir, page.name) });
+  for (const entry of entriesOf(dir)) {
+    if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+    const name = entry.name;
+    const child = join(dir, name);
+    if (/^\(.+\)$/.test(name) || /^\[\[.+\]\]$/.test(name)) {
+      walkSvelteKit(child, segments, found, leftOut);
+      continue;
+    }
+    if (/\[\.\.\..+\]/.test(name)) {
+      if (entriesOf(child).some((e) => e.isFile() && e.name === '+page.svelte')) {
+        leftOut.push({ path: toPath([...segments, name]), reason: 'catch-all', detail: CATCH_ALL_DETAIL });
+      }
+      continue;
+    }
+    walkSvelteKit(child, [...segments, svelteSegment(name)], found, leftOut);
+  }
+}
+
+/** A SvelteKit application: `routesDir` is `src/routes`. */
+export function discoverSvelteKitRoutes(routesDir: string, allRoles: readonly RoleName[]): FileDiscovery {
+  const found: Found[] = [];
+  const leftOut: LeftOut[] = [];
+  walkSvelteKit(routesDir, [], found, leftOut);
+  return { routes: toRoutes(found, allRoles), leftOut };
+}
+
+// -------------------------------------------------------------------- Nuxt --
+
+const NUXT_PAGE = /\.(vue|tsx|jsx)$/;
+
+/**
+ * Every file is a page: `index` is its folder's page, `[name]` a parameter, `[[name]]`
+ * optional (declared without it), `[...slug]` a catch-all (reported), `(name)` a group.
+ * A parent page `parent.vue` beside a `parent/` folder is one destination with its
+ * children; where `parent.vue` and `parent/index.vue` share a URL, the parent is kept,
+ * because it is what names the page.
+ */
+function walkNuxt(dir: string, segments: readonly string[], found: (Found & { index: boolean })[], leftOut: LeftOut[]): void {
+  for (const entry of entriesOf(dir)) {
+    const name = entry.name;
+    const child = join(dir, name);
+    if (entry.isDirectory()) {
+      if (name.startsWith('.') || name === 'node_modules') continue;
+      if (/^\(.+\)$/.test(name) || /^\[\[.+\]\]$/.test(name)) {
+        walkNuxt(child, segments, found, leftOut);
+        continue;
+      }
+      if (/^\[\.\.\..+\]$/.test(name)) {
+        leftOut.push({ path: toPath([...segments, name]), reason: 'catch-all', detail: CATCH_ALL_DETAIL });
+        continue;
+      }
+      walkNuxt(child, [...segments, name.replace(/\[([^\]]+)\]/g, ':$1')], found, leftOut);
+      continue;
+    }
+    if (!entry.isFile() || !NUXT_PAGE.test(name) || NOT_A_PAGE_FILE.test(name)) continue;
+    const stem = name.replace(NUXT_PAGE, '');
+    if (stem === 'index' || /^\[\[.+\]\]$/.test(stem)) {
+      found.push({ path: toPath(segments), file: child, index: stem === 'index' });
+    } else if (/^\[\.\.\..+\]$/.test(stem)) {
+      leftOut.push({ path: toPath([...segments, stem]), reason: 'catch-all', detail: CATCH_ALL_DETAIL });
+    } else {
+      found.push({ path: toPath([...segments, stem.replace(/\[([^\]]+)\]/g, ':$1')]), file: child, index: false });
+    }
+  }
+}
+
+/** A Nuxt application: `routesDir` is its `pages` folder (`app/pages` in Nuxt 4). */
+export function discoverNuxtRoutes(routesDir: string, allRoles: readonly RoleName[]): FileDiscovery {
+  const found: (Found & { index: boolean })[] = [];
+  const leftOut: LeftOut[] = [];
+  walkNuxt(routesDir, [], found, leftOut);
+  const byPath = new Map<string, Found & { index: boolean }>();
+  for (const route of found) {
+    const existing = byPath.get(route.path);
+    if (!existing || (existing.index && !route.index)) byPath.set(route.path, route);
+  }
+  const routes = [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path));
+  return { routes: toRoutes(routes, allRoles), leftOut };
 }
 
 function isDirectory(path: string): boolean {
