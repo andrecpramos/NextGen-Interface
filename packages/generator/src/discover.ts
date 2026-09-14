@@ -514,6 +514,42 @@ function resolveSpecifierFile(specifier: string | null | undefined, fromFile: st
   return null;
 }
 
+/**
+ * `element: <Navigate to="/x" />` written straight into a route table: where it sends the
+ * user — the literal target, or a template's known prefix — or null for a real page.
+ */
+function elementRedirect(expression: ts.Expression | undefined): string | null {
+  let node: ts.Node | undefined = expression;
+  while (node && ts.isParenthesizedExpression(node)) node = node.expression;
+  if (!node) return null;
+  const element = ts.isJsxSelfClosingElement(node) ? node : ts.isJsxElement(node) ? node.openingElement : null;
+  if (!element || !/^(Navigate|Redirect)$/.test(element.tagName.getText())) return null;
+  for (const attribute of element.attributes.properties) {
+    if (!ts.isJsxAttribute(attribute) || attribute.name.getText() !== 'to') continue;
+    const value = attribute.initializer;
+    if (value && ts.isStringLiteral(value)) return value.text;
+    if (value && ts.isJsxExpression(value) && value.expression) {
+      if (ts.isStringLiteralLike(value.expression)) return value.expression.text;
+      if (ts.isTemplateExpression(value.expression)) return value.expression.head.text;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve an import written anywhere in the application the way a route's page is resolved:
+ * relative, or through the app's own path aliases. A package, or a file outside the
+ * application, is null — the generator reads the adopter's code and nothing else.
+ */
+export function importResolver(appRoot: string): (specifier: string, fromFile: string) => string | null {
+  const aliases = readAliases(appRoot);
+  const root = resolve(appRoot);
+  return (specifier, fromFile) => {
+    const file = resolveSpecifierFile(specifier, fromFile, aliases);
+    return file && resolve(file).startsWith(root) ? file : null;
+  };
+}
+
 interface StringScope {
   resolveIdentifier(name: string): ts.Expression | undefined;
 }
@@ -810,6 +846,7 @@ function collect(
       });
     }
 
+    const redirectTo = hasElement ? elementRedirect(properties.get('element')) : null;
     context.out.push({
       path,
       component,
@@ -819,6 +856,7 @@ function collect(
       roleKey,
       devOnly: isDevGuarded(node),
       comment: leadingComment(context.source, node),
+      ...(redirectTo !== null ? { redirectTo } : {}),
     });
   }
 }

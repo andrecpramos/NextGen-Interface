@@ -29,7 +29,11 @@ export type SkipReason =
   /** WP-28: discovery found the route but could not read its path or component. */
   | 'unreadable-route'
   /** A catch-all (`[...slug]`, a Remix `$` splat) serving pages that come from content, not code. */
-  | 'catch-all';
+  | 'catch-all'
+  /** The same screen as a route that picks its own parameter and redirects to it: declared once, there. */
+  | 'reached-through-resolver'
+  /** Only redirects to a screen that is declared at its own address: an old name for it, not a place. */
+  | 'redirect-alias';
 
 export interface SkippedRoute {
   readonly path: string;
@@ -56,6 +60,11 @@ export interface DiscoveredRoute {
   readonly roles: readonly RoleName[] | null;
   /** The named role set the route referenced, e.g. `ROUTE_ROLES.squadManage`. */
   readonly roleKey: string | null;
+  /**
+   * Where a `<Navigate to="…" />` written straight into the route table sends the user, as
+   * far as it is known at build time. Absent for a route that renders a page.
+   */
+  readonly redirectTo?: string | null;
   /** Registered only under a development-build guard. */
   readonly devOnly: boolean;
   /** Leading comment on the route entry, verbatim. Untrusted (Rule 15). */
@@ -73,6 +82,16 @@ export interface PageFacts {
   readonly redirectTargets: readonly string[];
   /** i18n keys the page renders, in source order — its own vocabulary. */
   readonly i18nKeys: readonly string[];
+  /**
+   * The i18n keys the page renders as its own heading — its page header's `title`, or
+   * its `<h1>` — in source order. What a user reads at the top of the screen.
+   */
+  readonly titleKeys: readonly string[];
+  /**
+   * For a page that is one tab of a shared layout: the layout's own heading, which names the
+   * section the tab belongs to. Set only when the page is read through that layout (`readScreen`).
+   */
+  readonly sectionTitleKeys?: readonly string[];
   /** Literal heading/title text found in the body. Untrusted (Rule 15). */
   readonly headings: readonly string[];
   /** Leading block comment on the default export — why the page exists. */
@@ -106,6 +125,12 @@ export interface FormField {
 export interface ManifestEntry {
   readonly path: string;
   readonly labelKey: string | null;
+  /**
+   * The label of the nav group the entry sits in, when a nav config nests it:
+   * `{ label: 'nav.squad', items: [{ label: 'nav.overview', route: '/squad' }] }`.
+   * What the application's own command palette writes before the item's label.
+   */
+  readonly groupLabelKey?: string | null;
   /** Prose written by a developer about this route. Untrusted (Rule 15). */
   readonly reason: string | null;
 }

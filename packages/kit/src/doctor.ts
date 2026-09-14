@@ -49,6 +49,14 @@ const WHY: Readonly<Record<SkipReason, { readonly means: string; readonly fix: s
     fix: 'list the pages it serves in a navigation manifest, if users should be able to ask for them',
   },
   'duplicate-route': { means: 'another screen already covers the same path', fix: 'nothing to do' },
+  'reached-through-resolver': {
+    means: 'it is the same page as a route that picks its parameter itself, so it is offered once, at that route',
+    fix: 'nothing to do',
+  },
+  'redirect-alias': {
+    means: 'it only redirects to a screen that is offered at its own address, so it is an old name for that screen',
+    fix: 'nothing to do',
+  },
 };
 
 function readJson<T>(file: string): T | null {

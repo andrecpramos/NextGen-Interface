@@ -16,7 +16,7 @@ import type { FormField, PageFacts } from './types.ts';
  * Everything returned is the adopter's own text and untrusted (Rule 15).
  */
 
-const EMPTY: PageFacts = { isPureRedirect: false, redirectTargets: [], i18nKeys: [], headings: [], doc: null, fields: [], title: null };
+const EMPTY: PageFacts = { isPureRedirect: false, redirectTargets: [], i18nKeys: [], headings: [], doc: null, fields: [], title: null, titleKeys: [] };
 
 /** `{x}` (Svelte), `{{ x }}` (Vue, Angular), `${x}`: text that depends on data. */
 const EXPRESSION = /\{\{|\{[^}]*\}|\$\{/;
@@ -190,6 +190,7 @@ function readMarkupText(text: string): PageFacts {
     isPureRedirect: false,
     redirectTargets: [],
     i18nKeys: [...new Set(keys)],
+    titleKeys: [],
     headings: headingsOf(markup),
     doc: null,
     fields: fieldsOf(markup),

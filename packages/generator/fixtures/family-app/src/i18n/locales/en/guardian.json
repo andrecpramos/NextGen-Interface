@@ -1,0 +1,9 @@
+{
+  "pageTitle": "My children",
+  "medical": {
+    "titleFor": "Medical status for {{name}}",
+    "page": { "heading": "Your child's medical status" },
+    "subtitle": "Fitness and recovery status (no diagnosis)",
+    "confirm": { "share": { "title": "Share with the coach?" } }
+  }
+}

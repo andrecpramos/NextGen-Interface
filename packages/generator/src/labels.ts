@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, type Dirent } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 
 import ts from 'typescript';
@@ -61,6 +61,10 @@ function propertyMap(node: ts.ObjectLiteralExpression): Map<string, ts.Expressio
 export function readManifest(file: string): ManifestEntry[] {
   const source = parse(file);
   const out: ManifestEntry[] = [];
+  // The labels of the nav groups being read, innermost last. A group is an object with a
+  // `label` and an `items` array: fut-app's sidebar nests every "Visão geral" leaf in one,
+  // and its command palette names the leaf "Plantel · Visão geral" from exactly that.
+  const groups: (string | null)[] = [];
 
   const visit = (node: ts.Node): void => {
     if (ts.isObjectLiteralExpression(node)) {
@@ -80,8 +84,17 @@ export function readManifest(file: string): ManifestEntry[] {
           labelKey:
             (labelExpression ? stringValue(labelExpression) : null) ??
             (paletteLabel ? stringValue(paletteLabel) : null),
+          groupLabelKey: groups.at(-1) ?? null,
           reason: reasonExpression ? stringValue(reasonExpression) : null,
         });
+      }
+      const items = properties.get('items');
+      if (items && ts.isArrayLiteralExpression(items)) {
+        const label = properties.get('label');
+        groups.push(label ? stringValue(label) : null);
+        ts.forEachChild(node, visit);
+        groups.pop();
+        return;
       }
     }
     ts.forEachChild(node, visit);
@@ -107,10 +120,57 @@ export function readManifests(config: GeneratorConfig): Map<string, ManifestEntr
       out.set(entry.path, {
         path: entry.path,
         labelKey: existing.labelKey ?? entry.labelKey,
+        groupLabelKey: existing.groupLabelKey ?? entry.groupLabelKey ?? null,
         reason: existing.reason ?? entry.reason,
       });
     }
   }
+  return out;
+}
+
+/** Folders that hold no source of the application's own. */
+const NOT_SOURCE = new Set(['node_modules', '.git', 'dist', 'build', 'out', 'coverage', 'public', '.next', '.nuxt', '.svelte-kit']);
+
+/**
+ * Nav-shaped entries written anywhere in the application's source: route -> label key.
+ *
+ * A configured manifest is where an app keeps its navigation, but not always all of it.
+ * fut-app renders its pinned Settings item inline in `Sidebar.tsx` —
+ * `{ label: 'nav.settings', route: '/settings' }` — so `/settings` had no label and was
+ * named after its component: "Settings", in a Portuguese registry. Read with the same
+ * shape-driven reader as a manifest, and used only as a last resort: a title the page or
+ * its configured navigation gives always comes first.
+ */
+export function readSourceLabels(appRoot: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const walk = (dir: string): void => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // a folder we cannot list is not a reason to fail a build
+    }
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!NOT_SOURCE.has(entry.name) && !entry.name.startsWith('__')) walk(path);
+        continue;
+      }
+      if (!/\.[jt]sx?$/.test(entry.name) || /\.(test|spec|stories)\.[jt]sx?$|\.d\.ts$/.test(entry.name)) continue;
+      let text: string;
+      try {
+        text = readFileSync(path, 'utf8');
+      } catch {
+        continue;
+      }
+      // Cheap before parsing: a nav entry names a route and a label.
+      if (!/\b(?:route|path)\s*:\s*['"`]\//.test(text) || !/\blabel\s*:/.test(text)) continue;
+      for (const found of readManifest(path)) {
+        if (found.labelKey && !out.has(found.path)) out.set(found.path, found.labelKey);
+      }
+    }
+  };
+  walk(resolve(appRoot));
   return out;
 }
 
