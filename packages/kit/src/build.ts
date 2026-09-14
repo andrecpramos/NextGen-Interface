@@ -1,5 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
@@ -62,22 +72,42 @@ export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: 
   return { config, appRoot: resolve(dirname(file), config.appRoot) };
 }
 
+/** Newest mtime among a directory's own `.ts` source files (its tests excluded). */
+function newestSourceMtime(dir: string): number {
+  let latest = 0;
+  for (const rel of readdirSync(dir, { recursive: true }) as string[]) {
+    if (!rel.endsWith('.ts') || rel.endsWith('.test.ts')) continue;
+    latest = Math.max(latest, statSync(join(dir, rel)).mtimeMs);
+  }
+  return latest;
+}
+
 /**
  * The script tag, from the installed `@nextgen/embed`.
  *
  * Resolved through the package's own manifest, so it is found the same way in
- * this workspace and in an adopter's node_modules. Building it on demand only
- * makes sense in a checkout, where build.mjs and esbuild exist. A published
- * package ships dist/nextgen.js; if that is missing the install is broken, and
- * saying so beats attempting a build that cannot run there.
+ * this workspace and in an adopter's node_modules. A published package ships
+ * dist/nextgen.js and no source; if that file is missing the install is broken,
+ * and saying so beats attempting a build that cannot run there.
+ *
+ * In a checkout, where build.mjs and src/ exist, the bundle existing is not the
+ * same as it being current. It used to be rebuilt only when missing, so a bundle
+ * built before a later `embed` change was reused byte for byte, and `doctor`
+ * reported nothing wrong — found running the kit against fut-app: `dist` was two
+ * days older than `src` and exported no `start` at all. It is rebuilt whenever
+ * `embed`'s own source is newer than the bundle.
  */
 function scriptTagFile(): string {
   const require = createRequire(import.meta.url);
   const embedDir = dirname(require.resolve('@nextgen/embed/package.json'));
   const bundle = join(embedDir, 'dist', 'nextgen.js');
-  if (existsSync(bundle)) return bundle;
   const builder = join(embedDir, 'build.mjs');
-  if (!existsSync(builder)) {
+  const srcDir = join(embedDir, 'src');
+  const canBuild = existsSync(builder) && existsSync(srcDir);
+
+  const current = existsSync(bundle) && !(canBuild && statSync(bundle).mtimeMs < newestSourceMtime(srcDir));
+  if (current) return bundle;
+  if (!canBuild) {
     throw new Error(`@nextgen/embed is installed without dist/nextgen.js (${embedDir}). Reinstall it.`);
   }
   execFileSync(process.execPath, [builder], { stdio: 'pipe' });
