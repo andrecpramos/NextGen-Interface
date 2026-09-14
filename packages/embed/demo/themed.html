@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NextGen preview — themed host, left nav</title>
+<style>
+  :root { --nextgen-accent: #b23a48; }
+  body { margin: 0; padding-left: 220px; font-family: Georgia, serif; background: #fdf6ec; color: #2b2118; }
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 220px; box-sizing: border-box;
+    background: #2b2118; color: #fdf6ec; padding: 24px;
+  }
+  .sidebar a { color: #fdf6ec; display: block; margin-bottom: 12px; }
+  main { padding: 48px; max-width: 40rem; }
+</style>
+</head>
+<body>
+  <nav class="sidebar">
+    <strong>Acme Club</strong>
+    <a href="/themed.html">Dashboard</a>
+    <a href="/">Preview index</a>
+    <a href="/plain.html">Plain preview</a>
+    <a href="/nav-right.html">Right-nav preview</a>
+  </nav>
+  <main>
+    <h1>A themed host page</h1>
+    <p>This page declares its own <code>--nextgen-accent</code> and keeps a fixed sidebar on the left. The blob should dock to the <strong>right</strong>, in this page's accent colour rather than the default.</p>
+  </main>
+
+  <script src="/nextgen.js"></script>
+  <script>NextGen.start('/nextgen', 'PARENT');</script>
+</body>
+</html>

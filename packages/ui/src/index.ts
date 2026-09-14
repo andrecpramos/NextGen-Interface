@@ -9,6 +9,7 @@
 // and what stops a widget from ever acquiring an opinion about policy.
 
 export { Sphere, SphereStatus, type SphereProps } from './Sphere.tsx';
+export { Blob, type BlobProps } from './Blob.tsx';
 export { Composer, type ComposerProps } from './Composer.tsx';
 export { Answer, type AnswerProps } from './Answer.tsx';
 export { ConfirmationCard, type ConfirmationCardProps } from './ConfirmationCard.tsx';
@@ -27,6 +28,12 @@ export {
   type AnchorResult,
   type ResolvedStep,
 } from './anchor.ts';
+
+// Where the blob docks. Pure logic over a two-method DOM interface, same
+// reasoning as anchor.ts — testable without a browser, and importable by a
+// script tag that must not drag React in (see packages/embed/src/blob.ts,
+// which imports this by path rather than through this index for that reason).
+export { chooseDockSide, type DockContext, type DockNode, type DockSide } from './dock.ts';
 
 export {
   SPHERE_LABELS,

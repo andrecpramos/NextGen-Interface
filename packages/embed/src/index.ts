@@ -3,7 +3,8 @@
 //   <script src="/nextgen/nextgen.js"></script>
 //   <script>NextGen.start('/nextgen', 'PARENT');</script>
 //
-// `start` loads the role's bundle and mounts the chat box (widget.ts, WP-41).
+// `start` loads the role's bundle and mounts the blob launcher (blob.ts),
+// which opens the chat box (widget.ts, WP-41) beside itself when tapped.
 // `load` gives the router alone, for a page that draws its own interface.
 //
 // For an application with no build step — the adopter C2's npm package cannot
@@ -26,7 +27,7 @@ import type { GuidedStep } from '@nextgen/core-capability';
 // highlight a form field.
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
 
-import { mount, type MountOptions, type Mounted } from './widget.ts';
+import { mountBlob, type BlobMountOptions, type MountedBlob } from './blob.ts';
 
 /** What the generator wrote for one role, as the adopter serves it. */
 export interface Bundle {
@@ -100,25 +101,21 @@ export async function load(basePath: string, role: string): Promise<Assistant> {
 
 export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';
 export { mount, type MountOptions, type Mounted, type Routable } from './widget.ts';
+export { mountBlob, type BlobMountOptions, type MountedBlob } from './blob.ts';
 
 /**
  * One line to put the assistant on a page: load this role's bundle, then mount
- * the chat box, in `options.target` if one is given and otherwise fixed to the
- * page's corner. Pass `options.navigate` in a single-page app, so moving does
- * not reload the page.
+ * the blob in `options.target` if one is given and otherwise directly on
+ * `document.body` — the blob positions itself, unlike the bare chat box
+ * `mount()` still exports for a page that wants to draw its own launcher.
+ * Pass `options.navigate` in a single-page app, so moving does not reload the
+ * page.
  */
 export async function start(
   basePath: string,
   role: string,
-  options: MountOptions & { readonly target?: Element } = {},
-): Promise<Mounted> {
+  options: BlobMountOptions & { readonly target?: Element } = {},
+): Promise<MountedBlob> {
   const assistant = await load(basePath, role);
-  let target = options.target;
-  if (!target) {
-    const corner = document.createElement('div');
-    corner.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483000;';
-    document.body.append(corner);
-    target = corner;
-  }
-  return mount(target, assistant, options);
+  return mountBlob(options.target ?? document.body, assistant, options);
 }

@@ -163,6 +163,55 @@ const states = [];
     reachedLimit ? 'a declared boundary, presented as a limit' : 'it came back as something else — that state was not audited');
 }
 
+// ---------------------------------------------------- the blob launcher --
+//
+// `start()` mounts this, not the bare chat box, so it is the surface an
+// adopter's visitor actually meets first. `dockAfterMs: 0` and a forced
+// `dockSide` skip the timing/`elementsFromPoint` heuristic on purpose —
+// jsdom has no layout to measure, and `chooseDockSide` has its own tests
+// (packages/ui/src/dock.test.ts) that do not need a DOM at all.
+
+say('\n  the blob launcher — axe-core, in every state a user can reach\n');
+
+{
+  const dom = page('pt');
+  const { window } = dom;
+  window.eval(`${code}\nwindow.NextGen = NextGen;`);
+  window.eval(axeSource);
+  const assistant = window.NextGen.create(bundle('PARENT'));
+  const mounted = window.NextGen.mountBlob(window.document.getElementById('corner'), assistant, {
+    navigate: () => {},
+    dockAfterMs: 0,
+    dockSide: 'right',
+  });
+  const root = mounted.host.shadowRoot;
+  const button = root.querySelector('button');
+
+  const blobStates = [];
+  blobStates.push(['blob, collapsed', await audit(window, mounted.host)]);
+  button.dispatchEvent(new window.Event('click', { bubbles: true }));
+  blobStates.push(['blob, chat box open', await audit(window, mounted.host)]);
+
+  for (const [label, r] of blobStates) {
+    const bad = r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    const minor = r.violations.filter((v) => v.impact !== 'serious' && v.impact !== 'critical');
+    note(
+      bad.length === 0,
+      `${label}: ${bad.length} serious/critical`,
+      [
+        minor.length ? `${minor.length} minor/moderate` : null,
+        r.incomplete.length ? `incomplete (jsdom cannot judge): ${r.incomplete.join(', ')}` : null,
+        ...bad.map((v) => `${v.impact} ${v.id} on ${v.target}`),
+        ...minor.map((v) => `${v.impact} ${v.id} on ${v.target}`),
+      ].filter(Boolean).join('; '),
+    );
+  }
+
+  note(Boolean(button.getAttribute('aria-label')?.trim()), 'the blob has an accessible name',
+    `aria-label="${button.getAttribute('aria-label')}"`);
+  note(button.getAttribute('aria-expanded') === 'true', 'aria-expanded reflects the chat box after a tap');
+}
+
 // ------------------------------------------------- what axe cannot answer --
 
 say('\n  keyboard, focus, live region, motion\n');
@@ -236,24 +285,40 @@ say('\n  keyboard, focus, live region, motion\n');
 }
 
 // The stylesheet claims 48px targets, a visible focus ring and reduced motion.
-// jsdom paints nothing, so these are read from the CSS the bundle ships.
-{
-  const css = readFileSync(`${ROOT}/packages/embed/src/widget.ts`, 'utf8');
+// jsdom paints nothing, so these are read from the CSS each file ships.
+// blob.ts is checked alongside widget.ts because `start()` now mounts the
+// blob first — the same claims have to hold for both, not just the original.
+for (const file of ['widget.ts', 'blob.ts']) {
+  const css = readFileSync(`${ROOT}/packages/embed/src/${file}`, 'utf8');
   const sheet = css.slice(css.indexOf('const CSS = `') + 13, css.indexOf('`;', css.indexOf('const CSS = `')));
 
-  note(/@media \(prefers-reduced-motion: reduce\)/.test(sheet), 'honours prefers-reduced-motion');
+  note(/@media \(prefers-reduced-motion: reduce\)/.test(sheet), `${file}: honours prefers-reduced-motion`);
 
-  // And has nothing to suppress in the first place — a transition declared
-  // outside that block is one a reduced-motion user would still see if the
-  // media query were ever dropped.
-  const outside = sheet
-    .replace(/@media \(prefers-reduced-motion: reduce\)[^}]*\{[^}]*\}[^}]*\}/g, '')
-    .match(/\b(transition|animation)\s*:/g) ?? [];
-  note(outside.length === 0, 'no motion declared outside that block', outside.length ? outside.join(', ') : 'nothing to suppress');
+  // Every rule that animates outside the reduced-motion block must be one the
+  // block actually cancels — not "no motion at all" (widget.ts has none; the
+  // blob genuinely animates by default), but "nothing is left unguarded".
+  // Matched by the element each rule targets (a compound selector's last
+  // token — `.core` out of `button.blob[data-state="thinking"] .core` — since
+  // `!important` inside the block beats a non-important rule regardless of
+  // the outside rule's specificity).
+  // Just the selector list the reduce block targets — e.g. "button.blob, .core"
+  // out of "@media (...) { button.blob, .core { transition: none !important; ... } }".
+  const reduceSelectorMatch = /@media \(prefers-reduced-motion: reduce\)[^{]*\{\s*([^{}]+)\{/.exec(sheet);
+  const guarded = reduceSelectorMatch?.[1] ?? '';
+  const lastToken = (selector) => selector.trim().split(/\s+/).pop();
+  const guardedTokens = new Set(guarded.split(',').map(lastToken));
 
-  const targets = (sheet.match(/min-height:\s*48px/g) ?? []).length;
-  note(targets >= 3, 'inputs, buttons and links declare 48px targets', `${targets} rule(s) at 48px`);
-  note(/:focus-visible\s*\{[^}]*outline:/.test(sheet), 'a visible focus ring is declared', 'outline on :focus-visible');
+  const outsideSheet = sheet.replace(/@media \(prefers-reduced-motion: reduce\)[^}]*\{[^}]*\}[^}]*\}/g, '');
+  const motionRules = outsideSheet.match(/[^{}]+\{[^{}]*\b(?:transition|animation)\s*:[^{}]*\}/g) ?? [];
+  const unguarded = motionRules.filter(
+    (rule) => !rule.slice(0, rule.indexOf('{')).trim().split(',').some((part) => guardedTokens.has(lastToken(part))),
+  );
+  note(unguarded.length === 0, `${file}: every declared motion is cancelled under reduced motion`,
+    unguarded.length ? unguarded.join(' | ') : motionRules.length ? `${motionRules.length} animated rule(s), all guarded` : 'nothing to suppress');
+
+  const targets = (sheet.match(/min-(?:height|width):\s*48px/g) ?? []).length;
+  note(targets >= (file === 'widget.ts' ? 3 : 2), `${file}: declares 48px targets`, `${targets} rule(s) at 48px`);
+  note(/:focus-visible\s*\{[^}]*outline:/.test(sheet), `${file}: a visible focus ring is declared`, 'outline on :focus-visible');
 }
 
 // ------------------------------------------------------------------ verdict --

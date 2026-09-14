@@ -154,6 +154,55 @@
 [data-state="speaking"] .ngx-sphere__bar--c { animation-delay: 0.30s; }
 [data-state="speaking"] .ngx-sphere__bar--d { animation-delay: 0.45s; }
 
+/* ==========================================================================
+ * Blob — the floating launcher (Sphere given a place to stand)
+ *
+ * Centered on mount, then docked to an edge — see `dock.ts` and `Blob.tsx`
+ * for why. `top`/`left`/`right`/`transform` are the only properties that
+ * animate, so the reduced-motion rule below can kill exactly those without
+ * touching the sphere it contains.
+ * ========================================================================== */
+
+.ngx-blob {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2147483000;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline-firm);
+  padding: 0;
+  background: var(--material);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--edge-light);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: top var(--d-slow) var(--ease), left var(--d-slow) var(--ease),
+              right var(--d-slow) var(--ease), transform var(--d-slow) var(--ease);
+}
+
+.ngx-blob[data-docked="true"][data-side="right"] {
+  top: 50%;
+  left: auto;
+  right: calc(var(--u) * 2);
+  transform: translateY(-50%);
+}
+
+.ngx-blob[data-docked="true"][data-side="left"] {
+  top: 50%;
+  left: calc(var(--u) * 2);
+  transform: translateY(-50%);
+}
+
+.ngx-blob:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* -- confirming / error: no animation at all. Stillness is the signal. --- */
 
 @keyframes ngx-breathe {
@@ -546,7 +595,7 @@
  * form (bracket, break, bars) plus the always-present text label.
  * ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  .ngx-sphere, .ngx-sphere *, .ngx-turn, .ngx-btn, .ngx-panel, .ngx-drawer__panel {
+  .ngx-sphere, .ngx-sphere *, .ngx-turn, .ngx-btn, .ngx-panel, .ngx-drawer__panel, .ngx-blob {
     animation: none !important;
     transition: none !important;
   }
