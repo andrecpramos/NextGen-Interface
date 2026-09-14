@@ -63,13 +63,26 @@ export interface ProseModel {
   complete(system: string, user: string): Promise<unknown | null>;
 }
 
-export const EXAMPLES_PER_CAPABILITY = 4;
+/**
+ * Eight, most of them in the application's first language.
+ *
+ * Four, spread evenly over two languages, left a Portuguese screen two Portuguese
+ * phrasings. On fut-app (2026-09-14) that model prose routed *worse* than the flat
+ * derived examples — "abre anúncios", "leva-me para anúncios" — which at least repeat
+ * the screen's own words in the language users type.
+ */
+export const EXAMPLES_PER_CAPABILITY = 8;
 
 /**
  * Bumped when the *routing* prompt changes — description and examples. Bumping
  * it re-rolls text whose accuracy has been measured, so do it deliberately.
  */
-const ROUTING_SCHEMA_VERSION = 4;
+const ROUTING_SCHEMA_VERSION = 5;
+
+/** How many of the examples are written in the application's first language. */
+function primaryShare(languages: readonly string[]): number {
+  return languages.length <= 1 ? EXAMPLES_PER_CAPABILITY : Math.ceil((EXAMPLES_PER_CAPABILITY * 3) / 4);
+}
 
 /** Bumped when the *explanation* prompt changes. Cheap: routing prose is untouched. */
 const EXPLANATION_SCHEMA_VERSION = 3;
@@ -160,7 +173,7 @@ function routingPrompt(languages: readonly string[]): string {
     'Return ONLY a JSON object:',
     '{',
     `  "description": string  — one sentence, under 25 words, saying what a person does on this screen, written in ${names[0] ?? 'English'}. No component names, no the word "page".`,
-    `  "examples": string[]   — exactly ${EXAMPLES_PER_CAPABILITY} short things a real user would type to ask to be taken here, in their own words, never the developer's. Spread them evenly across these languages, using each one exactly as written: ${names.join('; ')}.`,
+    `  "examples": string[]   — exactly ${EXAMPLES_PER_CAPABILITY} short things a real user would type or say to be taken to this screen, or to ask what it is for: requests and questions only, never statements about the screen. Use the words the screen itself shows (its title, headings and labels) and the everyday words a user would say instead of them. Write ${primaryShare(languages)} in ${names[0] ?? 'English'}${names.length > 1 ? ` and the other ${EXAMPLES_PER_CAPABILITY - primaryShare(languages)} across ${names.slice(1).join('; ')}` : ''}, each language exactly as written.`,
     '}',
   ].join('\n');
 }
