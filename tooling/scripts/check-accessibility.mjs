@@ -163,15 +163,15 @@ const states = [];
     reachedLimit ? 'a declared boundary, presented as a limit' : 'it came back as something else — that state was not audited');
 }
 
-// ---------------------------------------------------- the blob launcher --
+// ---------------------------------------------------- the assistant layer --
 //
-// `start()` mounts this, not the bare chat box, so it is the surface an
-// adopter's visitor actually meets first. `dockAfterMs: 0` and a forced
-// `dockSide` skip the timing/`elementsFromPoint` heuristic on purpose —
-// jsdom has no layout to measure, and `chooseDockSide` has its own tests
-// (packages/ui/src/dock.test.ts) that do not need a DOM at all.
+// `start()` mounts this, so it is what an adopter's visitor meets first: an orb
+// at the edge, and a full-screen dialog behind it. jsdom has no layout and no
+// canvas, so the liquid draws nothing here and where the orb sits is not judged —
+// `chooseDockSide` and the liquid's shape have their own tests. What is judged is
+// everything a keyboard or screen-reader user reaches.
 
-say('\n  the blob launcher — axe-core, in every state a user can reach\n');
+say('\n  the assistant layer — orb, screen, answer\n');
 
 {
   const dom = page('pt');
@@ -179,20 +179,49 @@ say('\n  the blob launcher — axe-core, in every state a user can reach\n');
   window.eval(`${code}\nwindow.NextGen = NextGen;`);
   window.eval(axeSource);
   const assistant = window.NextGen.create(bundle('PARENT'));
-  const mounted = window.NextGen.mountBlob(window.document.getElementById('corner'), assistant, {
+  const mounted = window.NextGen.mountAssistant(window.document.body, assistant, {
     navigate: () => {},
-    dockAfterMs: 0,
     dockSide: 'right',
+    home: [],
+    storage: null,
+    preferences: null,
+    voice: false,
   });
   const root = mounted.host.shadowRoot;
-  const button = root.querySelector('button');
+  const orb = root.querySelector('.orb');
+  const screen = root.querySelector('.screen');
+  const input = root.querySelector('input');
+  const tick = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-  const blobStates = [];
-  blobStates.push(['blob, collapsed', await audit(window, mounted.host)]);
-  button.dispatchEvent(new window.Event('click', { bubbles: true }));
-  blobStates.push(['blob, chat box open', await audit(window, mounted.host)]);
+  const layerStates = [['orb, screen shut', await audit(window, mounted.host)]];
 
-  for (const [label, r] of blobStates) {
+  orb.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(80);
+  const opened = screen.getAttribute('data-open') === 'true' && !screen.hasAttribute('inert');
+  const focusMovedIn = root.activeElement === input;
+  layerStates.push(['screen open', await audit(window, mounted.host)]);
+
+  const noSuggestions = root.querySelectorAll('.places, .place, .more').length === 0;
+
+  // The menu: the adopter's navigation, or the registry's places where the page has none.
+  const menuButton = root.querySelector('.menu');
+  const drawer = root.querySelector('.drawer');
+  menuButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const menuOpened = drawer.getAttribute('data-open') === 'true' && !drawer.hasAttribute('inert')
+    && menuButton.getAttribute('aria-expanded') === 'true';
+  const focusInMenu = drawer.contains(root.activeElement);
+  const expandedWhileOpen = menuButton.getAttribute('aria-expanded');
+  const menuLinks = root.querySelectorAll('.drawer-link').length;
+  layerStates.push([`screen, menu open (${menuLinks} links)`, await audit(window, mounted.host)]);
+  screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  const menuClosedFirst = drawer.getAttribute('data-open') === 'false' && screen.getAttribute('data-open') === 'true'
+    && root.activeElement === menuButton;
+
+  // The same clarifying question the chat box is audited with above.
+  const answered = await mounted.ask('onde vejo as lesões do meu filho');
+  layerStates.push([`screen answered (${answered.choices.length} links)`, await audit(window, mounted.host)]);
+
+  for (const [label, r] of layerStates) {
     const bad = r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     const minor = r.violations.filter((v) => v.impact !== 'serious' && v.impact !== 'critical');
     note(
@@ -207,9 +236,36 @@ say('\n  the blob launcher — axe-core, in every state a user can reach\n');
     );
   }
 
-  note(Boolean(button.getAttribute('aria-label')?.trim()), 'the blob has an accessible name',
-    `aria-label="${button.getAttribute('aria-label')}"`);
-  note(button.getAttribute('aria-expanded') === 'true', 'aria-expanded reflects the chat box after a tap');
+  const greeting = root.getElementById(screen.getAttribute('aria-labelledby'));
+  note(
+    screen.getAttribute('role') === 'dialog' && screen.getAttribute('aria-modal') === 'true' && Boolean(greeting?.textContent.trim()),
+    'the screen is a named modal dialog', `aria-labelledby → "${greeting?.textContent}"`,
+  );
+  note(Boolean(orb.getAttribute('aria-label')?.trim()), 'the orb has an accessible name',
+    `aria-label="${orb.getAttribute('aria-label')}"`);
+  note(opened && focusMovedIn, 'opening moves focus into the screen',
+    focusMovedIn ? 'focus is on the composer' : `focus is on ${root.activeElement?.tagName ?? 'nothing inside the screen'}`);
+  const composerLabel = root.querySelector(`label[for="${input.id}"]`);
+  note(Boolean(input.id && composerLabel?.textContent.trim()), 'the composer has a real <label for>',
+    `for="${composerLabel?.getAttribute('for')}" id="${input.id}"`);
+
+  note(noSuggestions, 'the screen offers no pre-written questions or places',
+    noSuggestions ? 'greeting and composer only' : 'a suggestion list is rendered');
+  note(menuOpened && focusInMenu && menuLinks > 0, 'the menu is a real disclosure, and focus moves into it',
+    `aria-expanded=${expandedWhileOpen} while open · ${menuLinks} link(s)`);
+  note(menuClosedFirst, 'Escape closes the menu first, and focus returns to its button');
+  const why = root.querySelector('.why summary');
+  const weighed = root.querySelectorAll('.why-list li').length;
+  note(Boolean(why?.textContent.trim()) && weighed > 0,
+    'an answer explains itself from its own record — a native "Why?" disclosure',
+    `"${why?.textContent}" · ${weighed} candidate(s)`);
+
+  screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  note(
+    screen.getAttribute('data-open') === 'false' && root.activeElement === orb && orb.getAttribute('aria-expanded') === 'false',
+    'Escape closes the screen and returns focus to the orb',
+  );
+  mounted.destroy();
 }
 
 // ------------------------------------------------- what axe cannot answer --
@@ -286,9 +342,9 @@ say('\n  keyboard, focus, live region, motion\n');
 
 // The stylesheet claims 48px targets, a visible focus ring and reduced motion.
 // jsdom paints nothing, so these are read from the CSS each file ships.
-// blob.ts is checked alongside widget.ts because `start()` now mounts the
-// blob first — the same claims have to hold for both, not just the original.
-for (const file of ['widget.ts', 'blob.ts']) {
+// assistant.ts is checked alongside widget.ts because `start()` mounts the
+// assistant layer — the same claims have to hold for both, not just the original.
+for (const file of ['widget.ts', 'assistant.ts']) {
   const css = readFileSync(`${ROOT}/packages/embed/src/${file}`, 'utf8');
   const sheet = css.slice(css.indexOf('const CSS = `') + 13, css.indexOf('`;', css.indexOf('const CSS = `')));
 
@@ -307,10 +363,12 @@ for (const file of ['widget.ts', 'blob.ts']) {
   const guarded = reduceSelectorMatch?.[1] ?? '';
   const lastToken = (selector) => selector.trim().split(/\s+/).pop();
   const guardedTokens = new Set(guarded.split(',').map(lastToken));
+  // A bare `*` in the list is a blanket kill-switch; `.stage > *` is not.
+  const guardsEverything = guarded.split(',').some((part) => part.trim() === '*');
 
   const outsideSheet = sheet.replace(/@media \(prefers-reduced-motion: reduce\)[^}]*\{[^}]*\}[^}]*\}/g, '');
   const motionRules = outsideSheet.match(/[^{}]+\{[^{}]*\b(?:transition|animation)\s*:[^{}]*\}/g) ?? [];
-  const unguarded = motionRules.filter(
+  const unguarded = guardsEverything ? [] : motionRules.filter(
     (rule) => !rule.slice(0, rule.indexOf('{')).trim().split(',').some((part) => guardedTokens.has(lastToken(part))),
   );
   note(unguarded.length === 0, `${file}: every declared motion is cancelled under reduced motion`,

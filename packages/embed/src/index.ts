@@ -3,8 +3,9 @@
 //   <script src="/nextgen/nextgen.js"></script>
 //   <script>NextGen.start('/nextgen', 'PARENT');</script>
 //
-// `start` loads the role's bundle and mounts the blob launcher (blob.ts),
-// which opens the chat box (widget.ts, WP-41) beside itself when tapped.
+// `start` loads the role's bundle and mounts the assistant layer (assistant.ts):
+// a liquid orb at the edge of the page that opens into a full-screen assistant.
+// `mount` is the plain chat box (widget.ts, WP-41) for a page that wants it inline.
 // `load` gives the router alone, for a page that draws its own interface.
 //
 // For an application with no build step — the adopter C2's npm package cannot
@@ -27,7 +28,7 @@ import type { GuidedStep } from '@nextgen/core-capability';
 // highlight a form field.
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
 
-import { mountBlob, type BlobMountOptions, type MountedBlob } from './blob.ts';
+import { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
 
 /** What the generator wrote for one role, as the adopter serves it. */
 export interface Bundle {
@@ -101,21 +102,19 @@ export async function load(basePath: string, role: string): Promise<Assistant> {
 
 export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';
 export { mount, type MountOptions, type Mounted, type Routable } from './widget.ts';
-export { mountBlob, type BlobMountOptions, type MountedBlob } from './blob.ts';
+export { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
 
 /**
  * One line to put the assistant on a page: load this role's bundle, then mount
- * the blob in `options.target` if one is given and otherwise directly on
- * `document.body` — the blob positions itself, unlike the bare chat box
- * `mount()` still exports for a page that wants to draw its own launcher.
- * Pass `options.navigate` in a single-page app, so moving does not reload the
- * page.
+ * the assistant layer on `options.target`, or on `document.body`. It positions
+ * itself. Pass `options.navigate` in a single-page app, so moving does not
+ * reload the page.
  */
 export async function start(
   basePath: string,
   role: string,
-  options: BlobMountOptions & { readonly target?: Element } = {},
-): Promise<MountedBlob> {
+  options: AssistantOptions & { readonly target?: Element } = {},
+): Promise<MountedAssistant> {
   const assistant = await load(basePath, role);
-  return mountBlob(options.target ?? document.body, assistant, options);
+  return mountAssistant(options.target ?? document.body, assistant, options);
 }

@@ -4,7 +4,7 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js, ~34KB raw, ~13KB gzipped
+node packages/embed/build.mjs   # → dist/nextgen.js, ~76KB raw, ~28KB gzipped
 ```
 
 ```html
@@ -12,40 +12,88 @@ node packages/embed/build.mjs   # → dist/nextgen.js, ~34KB raw, ~13KB gzipped
 <script>NextGen.start('/nextgen', 'COACH');</script>
 ```
 
-That second line loads the role's bundle and mounts **the blob** (`blob.ts`), which opens
-the chat box beside itself when tapped. In a single-page app, pass the router so that
-moving does not reload the page:
+That second line loads the role's bundle and mounts **the assistant layer**
+(`assistant.ts`): a liquid orb at the edge of the page that opens into a full-screen
+assistant. In a single-page app, pass the router so that moving does not reload the page:
 `NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
 
 ## See it before an adopter does
 
 There is no adopter app required to look at this. `pnpm embed:preview` (or
-`pnpm --filter @nextgen/embed preview`) builds the bundle and serves three
-host pages against a real generated `fut-app` registry:
+`pnpm --filter @nextgen/embed preview`) builds the bundle and serves a mock club app at
+`http://localhost:4173/my`, wired to the real generated `fut-app` PARENT registry. Every
+route in that registry is a page the server renders, so asking to go somewhere really
+goes there, and the orb is waiting on the next page. Three bare host pages (no CSS, left
+nav, right nav) are linked from `http://localhost:4173/`, and `/phone.html` shows the app
+in a 390 × 844 frame. On the preview app only, `?open` opens the screen and `?ask=…` asks
+a question on load, so a state can be linked to.
 
-- **plain** — no host CSS at all, the widget's own default theme.
-- **themed, left nav** — the host declares its own `--nextgen-accent` and a
-  fixed left sidebar; the blob should dock right, in the host's colour.
-- **themed, right nav** — the mirror image; the blob should dock left.
+## The assistant layer
 
-## The blob
+- **The landing page.** On the adopter's home route (`home`, default `['/']`) the assistant
+  screen *is* the landing page: open on arrival, and closing it shows the original landing
+  page underneath (Rule 7). Every other page is left exactly as it was, with the small orb
+  at the emptier edge. A single-page app that reaches its landing route on its own router
+  can call `open()`.
+- **The orb** (`liquid.ts`) is a canvas: four translucent masses of one liquid, each a
+  closed curve built from a few sine waves, drifting off-centre and blended with `screen`.
+  It speaks the sphere's grammar (`packages/ui/src/Sphere.tsx`): idle breathes, listening
+  follows the microphone, thinking has one droplet in orbit, speaking pulses, error
+  contracts. The state is always written in text too. Under `prefers-reduced-motion` the
+  loop never starts.
+- **The screen** (`assistant.ts`) is a modal dialog: a greeting and a composer, and no
+  pre-written questions. Focus moves in, Tab stays in, Escape closes it and focus returns
+  to the orb.
+- **The adopter's look** (`theme.ts`). The screen, its buttons and the orb take the look of
+  the page they sit on, read from what it renders: its background and text colour, its
+  typeface, its brand colour (`--nextgen-accent`, a design system's `--primary`, the
+  current navigation item, a primary button, a link), and the corner shape of its real
+  buttons and fields. A light app gets a light screen. Colours are read as computed
+  values, `oklch()` included, and readability is enforced: secondary text is pushed to
+  4.5:1 and an accent too faint to see is not used. A page with no stylesheet of its own
+  gets the Graphite HUD default.
+- **The menu** (`nav.ts`). The top-left button opens the adopter's own navigation — their
+  links, in their order, with the current page marked — rather than a second one of ours
+  (ADR-013). Where the page has none, it lists the registry's places (`suggestionsFor`).
+  Following a link travels there with the orb; choosing the page the user is already on
+  just closes the screen.
+- **Why?** Every answer carries a native disclosure rendered from its own turn record: how
+  it was decided, how long it took, whether a model was called, and the candidates it
+  weighed with their scores. Rung A1's "explain its own decisions" — never model prose
+  (Rule 9).
+- **Guide.** When the registry declares steps for the screen the user lands on (WP-27),
+  the orb walks them through it one step at a time, highlighting the field. The text is
+  always shown, including when an anchor cannot be trusted (`anchor.ts` refuses rather
+  than mispoints). ⚠️ The generated `fut-app` registries declare no steps yet, so the
+  preview does not show it.
+- **Travelling.** When a turn resolves to a destination, the screen dissolves, the same
+  orb flies to the emptier edge (`chooseDockSide`, `packages/ui/src/dock.ts`, imported by
+  path so React stays out) and the browser moves. A short note in `sessionStorage` lets
+  the next page's orb say where the user landed. Closing the screen first cancels the trip.
+- **Isolation.** Shadow DOM, as the chat box: the host's stylesheet cannot reach in and
+  this one cannot leak out. The look is read from the page, never inherited from its
+  cascade.
 
-- **`blob.ts`** is the thing an adopter's visitor actually meets first —
-  centred on the page when it mounts, then docked to whichever edge
-  `chooseDockSide` (`packages/ui/src/dock.ts`) finds emptier, once, on the
-  first `navigate()` call or a short timeout, whichever comes first. Tapping
-  it mounts the chat box beside it; tapping again closes it. Shadow DOM, like
-  the chat box, for the same two reasons — the host's stylesheet cannot
-  reach in, and this cannot leak out.
-- **Colour** reads the host's own `--nextgen-accent` custom property when one
-  is declared on `:root` (custom properties inherit through a shadow
-  boundary like any other inherited property, so no cascade dependency is
-  needed either way) and falls back to this package's own default otherwise
-  — "adapt to what is there, or fall back," the same isolation guarantee the
-  chat box already relies on, extended from a rule to a value.
-- `chooseDockSide` itself lives in `packages/ui` and is imported by path
-  (`../../ui/src/dock.ts`), the same way the guided-step resolver already is
-  — a script tag must not drag React in to decide which edge is emptier.
+## Voice: on the device, or not at all (Rule 8)
+
+`voice.ts` uses three browser capabilities, each only in its local form:
+
+- **Microphone level** through an `AnalyserNode`: numbers, never audio. This is what the
+  orb listens to.
+- **Speech to text** only with `SpeechRecognition.processLocally = true`. Chrome's
+  default recogniser streams audio to a Google server, so a browser that cannot
+  recognise on the device gets the level meter and a request to type — never the cloud
+  path. A recogniser that does not keep the setting is not started.
+- **Speech out** only through a voice whose `localService` is true. Every answer is read
+  aloud unless the visitor turns it off with the speaker button (remembered in
+  `localStorage`).
+
+**Hands-free.** The microphone button turns listening on for as long as the screen is open,
+and the choice is remembered, so a returning visitor's landing page listens straight away.
+`converse()` keeps one microphone stream, detects speech from its level (`voiceActivity`,
+with hysteresis so a cough is not a question), starts the on-device recogniser again after
+each utterance, and pauses while the assistant thinks and speaks so it never hears itself.
+Closing the screen closes the microphone; the original pages never listen.
 
 ## The chat box
 
@@ -90,13 +138,14 @@ highlight anything than point at the wrong field.
 - routes real `fut-app` turns from the generator's own output;
 - makes the same decision as the direct `route()` call;
 - stays under 60KB gzipped;
-- exposes `start`, `mount`, `mountBlob` and `present`.
+- exposes `start`, `mount`, `mountAssistant` and `present`.
 
 `src/present.test.ts` covers the presenter's rules, one test per case where moving or
-acting would be wrong. `src/widget.test.ts` and `src/blob.test.ts` drive the chat box and
-the blob through a small fake DOM each, because the repository has no DOM library.
-`tooling/scripts/check-accessibility.mjs` audits both the chat box's and the blob's states
-and stylesheets, since `start()` mounts the blob first.
+acting would be wrong. `src/widget.test.ts` drives the chat box and `src/assistant.test.ts`
+the assistant layer, each through a small fake DOM, because the repository has no DOM
+library. `src/voice.test.ts` holds the on-device-only rules against fake browser APIs,
+and `src/liquid.test.ts` the orb's shape. `tooling/scripts/check-accessibility.mjs` audits
+the launcher, the open screen and an answered screen, as well as the chat box.
 
 **That test found two defects in the package's browser entry**, and neither could load in a
 page: a `node:*` import reached through `core-inference`, and `process.env` read at module

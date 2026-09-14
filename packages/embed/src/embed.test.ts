@@ -53,7 +53,7 @@ describe('the script-tag artefact (WP-29)', () => {
     // WP-41: the chat box ships in the same file, and still loads without a DOM.
     expect(typeof api.start).toBe('function');
     expect(typeof api.mount).toBe('function');
-    expect(typeof api.mountBlob).toBe('function');
+    expect(typeof api.mountAssistant).toBe('function');
     expect(typeof api.present).toBe('function');
   });
 

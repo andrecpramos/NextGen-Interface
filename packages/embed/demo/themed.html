@@ -24,10 +24,15 @@
   </nav>
   <main>
     <h1>A themed host page</h1>
-    <p>This page declares its own <code>--nextgen-accent</code> and keeps a fixed sidebar on the left. The blob should dock to the <strong>right</strong>, in this page's accent colour rather than the default.</p>
+    <p>This page declares its own <code>--nextgen-accent</code> and keeps a fixed sidebar on the left. The orb should wait on the <strong>right</strong>, glowing in this page's accent colour rather than the default.</p>
   </main>
 
   <script src="/nextgen.js"></script>
-  <script>NextGen.start('/nextgen', 'PARENT');</script>
+  <script>
+    // Preview only: ?open opens the screen, to see it wear this page's look.
+    NextGen.start('/nextgen', 'PARENT').then((assistant) => {
+      if (new URLSearchParams(location.search).has('open')) assistant.open();
+    });
+  </script>
 </body>
 </html>
