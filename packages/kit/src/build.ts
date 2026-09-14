@@ -1,5 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
@@ -62,11 +72,44 @@ export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: 
   return { config, appRoot: resolve(dirname(file), config.appRoot) };
 }
 
+/** Newest mtime among a directory's own `.ts` source files (its tests excluded). */
+function newestSourceMtime(dir: string): number {
+  let latest = 0;
+  for (const rel of readdirSync(dir, { recursive: true }) as string[]) {
+    if (!rel.endsWith('.ts') || rel.endsWith('.test.ts')) continue;
+    latest = Math.max(latest, statSync(join(dir, rel)).mtimeMs);
+  }
+  return latest;
+}
+
+/**
+ * The shipped bundle existing is not the same as it being current. It used to be
+ * rebuilt only when missing, so a bundle built before a later `embed` source
+ * change was reused byte-for-byte — shipping stale, sometimes broken, code with
+ * `doctor` reporting nothing wrong (found running the kit against fut-app: `dist`
+ * was 2 days older than `src`, and exported no `start` at all).
+ *
+ * Rebuild whenever `embed`'s own source is newer than what was last built, not
+ * only when nothing was built yet. When there is no source to rebuild from — a
+ * published `@nextgen/kit` that only ships `embed`'s compiled `dist/` — fall back
+ * to the shipped file rather than failing, since staleness cannot be assessed
+ * without a source to compare against.
+ */
 function scriptTagFile(): string {
   const require = createRequire(import.meta.url);
   const embedDir = dirname(require.resolve('@nextgen/embed/package.json'));
   const bundle = join(embedDir, 'dist', 'nextgen.js');
-  if (!existsSync(bundle)) execFileSync(process.execPath, [join(embedDir, 'build.mjs')], { stdio: 'pipe' });
+  const buildScript = join(embedDir, 'build.mjs');
+  const srcDir = join(embedDir, 'src');
+
+  const canBuild = existsSync(buildScript) && existsSync(srcDir);
+  const stale = canBuild && existsSync(bundle) && statSync(bundle).mtimeMs < newestSourceMtime(srcDir);
+
+  if (canBuild && (!existsSync(bundle) || stale)) {
+    execFileSync(process.execPath, [buildScript], { stdio: 'pipe' });
+  } else if (!existsSync(bundle)) {
+    throw new Error(`No prebuilt ${bundle}, and no build.mjs/src in ${embedDir} to build one from.`);
+  }
   return bundle;
 }
 
