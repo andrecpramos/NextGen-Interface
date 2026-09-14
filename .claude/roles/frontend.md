@@ -17,7 +17,7 @@ its mistakes correctable.
 - Trace ("why?") viewer
 - Domain screens and their route registrations
 - Accessibility conformance
-- React state and data flow in `apps/web`; the design system in `packages/ui`
+- The shipped widget in `packages/embed`: its chat box, presenter and guided-step resolver
 
 ## Standing rules
 

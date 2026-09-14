@@ -148,7 +148,7 @@ export interface Capability {
  * a human step in their codebase, which the product promises not to ask for.
  *
  * An anchor that no longer matches degrades to the step's text. It never points
- * at the wrong element — see `packages/ui/src/anchor.ts`.
+ * at the wrong element — see `packages/embed/src/anchor.ts`.
  */
 export interface StepAnchor {
   /** The control's accessible name as the page shows it. The primary signal. */

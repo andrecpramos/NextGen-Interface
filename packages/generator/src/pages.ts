@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 
+import { readAngularComponent, readMarkupPage } from './markup.ts';
 import type { FormField, PageFacts } from './types.ts';
 
 /**
@@ -114,26 +115,207 @@ function redirectTargets(source: ts.SourceFile): string[] {
   return [...new Set(out)];
 }
 
-/** The i18n keys a page renders — the app's own vocabulary for this screen. */
-function i18nKeys(source: ts.SourceFile): { namespace: string | null; keys: string[] } {
+/** A translation function bound by `const { t } = useTranslation('ns')`, and the block that binds it. */
+interface TranslationBinding {
+  readonly scope: ts.Node;
+  readonly local: string;
+  readonly namespace: string | null;
+}
+
+/** `'squad'`, or the first of `['squad', 'common']`. */
+function namespaceArgument(argument: ts.Expression | undefined): string | null {
+  if (!argument) return null;
+  if (ts.isStringLiteralLike(argument)) return argument.text;
+  if (ts.isArrayLiteralExpression(argument)) {
+    const [first] = argument.elements;
+    return first && ts.isStringLiteralLike(first) ? first.text : null;
+  }
+  return null;
+}
+
+/** A call's namespaced i18n key, or null when it is not a translation. `keyOnly` refuses a call that interpolates. */
+type KeyOf = (node: ts.Node, keyOnly?: boolean) => string | null;
+
+/**
+ * How this page calls its translations: a function from a call to its namespaced key.
+ *
+ * `const { t } = useTranslation('squad')` binds `t` to one namespace, and a page that
+ * reads a second binds it under another name: `const { t: tp } = useTranslation('player')`.
+ * fut-app's announcements screen takes its title from `tp('announcements.title')`, and
+ * reading only calls to `t` lost it — the screen was named after its component, "My
+ * Announcements", in English, in a Portuguese application.
+ *
+ * A name is resolved in the block that binds it, so two components in one file that each
+ * bind their own `t` keep their own namespaces. A bare `t` bound nowhere in the file (a
+ * prop, an import) takes the page's first namespace, as it always did.
+ */
+function translationCalls(
+  source: ts.SourceFile,
+  props: ReadonlyMap<string, string> = new Map(),
+): { namespace: string | null; keyOf: KeyOf; fromProps: ReadonlySet<string> } {
+  const bindings: TranslationBinding[] = [];
   let namespace: string | null = null;
-  const keys: string[] = [];
   const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node)) {
-      const callee = node.expression;
-      const name = ts.isIdentifier(callee) ? callee.text : null;
-      const [first] = node.arguments;
-      if (name === 'useTranslation' && first && ts.isStringLiteralLike(first) && namespace === null) {
-        namespace = first.text;
-      }
-      if (name === 't' && first && ts.isStringLiteralLike(first)) {
-        keys.push(first.text);
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'useTranslation') {
+      const bound = namespaceArgument(node.arguments[0]);
+      namespace ??= bound;
+      const declaration = node.parent;
+      if (declaration && ts.isVariableDeclaration(declaration) && ts.isObjectBindingPattern(declaration.name)) {
+        let scope: ts.Node = declaration;
+        while (scope.parent && !ts.isBlock(scope) && !ts.isSourceFile(scope)) scope = scope.parent;
+        for (const element of declaration.name.elements) {
+          const imported = element.propertyName ?? element.name;
+          if (ts.isIdentifier(imported) && imported.text === 't' && ts.isIdentifier(element.name)) {
+            bindings.push({ scope, local: element.name.text, namespace: bound });
+          }
+        }
       }
     }
     ts.forEachChild(node, visit);
   };
   visit(source);
-  return { namespace, keys: [...new Set(keys)] };
+
+  const bindingOf = (identifier: ts.Identifier): TranslationBinding | null => {
+    for (let scope: ts.Node | undefined = identifier.parent; scope; scope = scope.parent) {
+      const found = bindings.find((binding) => binding.scope === scope && binding.local === identifier.text);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const fromProps = new Set<string>();
+  const keyOf: KeyOf = (node, keyOnly = false) => {
+    if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return null;
+    const [first] = node.arguments;
+    const written = first ? keyText(first, props) : null;
+    if (!written || (keyOnly && node.arguments.length > 1)) return null;
+    const binding = bindingOf(node.expression);
+    if (!binding && node.expression.text !== 't') return null;
+    const scoped = binding ? binding.namespace : namespace;
+    const key = written.text.includes(':') || !scoped ? written.text : `${scoped}:${written.text}`;
+    if (written.fromProps) fromProps.add(key);
+    return key;
+  };
+
+  return { namespace, keyOf, fromProps };
+}
+
+/**
+ * A key as written: a string, or a template whose every placeholder is a prop the component
+ * was rendered with. A layout's `t(`sections.${active}`)`, rendered as `<Layout active="notif">`,
+ * is `sections.notif`. Any other template is computed at run time, and is not guessed.
+ */
+function keyText(node: ts.Expression, props: ReadonlyMap<string, string>): { text: string; fromProps: boolean } | null {
+  if (ts.isStringLiteralLike(node)) return { text: node.text, fromProps: false };
+  if (!ts.isTemplateExpression(node) || props.size === 0) return null;
+  let text = node.head.text;
+  for (const span of node.templateSpans) {
+    const expression = span.expression;
+    const name = ts.isIdentifier(expression)
+      ? expression.text
+      : ts.isPropertyAccessExpression(expression)
+        ? expression.name.text
+        : null;
+    const value = name === null ? undefined : props.get(name);
+    if (value === undefined) return null;
+    text += value + span.literal.text;
+  }
+  return { text, fromProps: true };
+}
+
+/** The i18n keys a page renders — the app's own vocabulary for this screen — namespaced. */
+function i18nKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
+  const keys: string[] = [];
+  const visit = (node: ts.Node): void => {
+    const key = keyOf(node);
+    if (key) keys.push(key);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...new Set(keys)];
+}
+
+/** A page's own header: `<h1>`, or a component named as a header, heading, title or hero. */
+const PAGE_HEADER = /^h1$|(?:Header|Heading|Title|Hero)$/;
+
+/** …that belongs to something other than the page, whose title sits on the same attribute. */
+const NOT_THE_PAGE = /Dialog|Modal|Card|Empty|Toast|Confirm|Drawer|Sheet|Section|Table|Column|Tooltip|Popover|Panel|Widget|Menu/;
+
+/** Whether a node sits inside an `if` of the function that renders it: an early return, in a component. */
+function insideIf(node: ts.Node): boolean {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isIfStatement(parent)) return true;
+    if (ts.isFunctionLike(parent)) return false;
+  }
+  return false;
+}
+
+/** The `const` an identifier names, looked up through the blocks around it. */
+function localDeclaration(identifier: ts.Identifier): ts.VariableDeclaration | null {
+  for (let scope: ts.Node | undefined = identifier.parent; scope; scope = scope.parent) {
+    if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue;
+    for (const statement of scope.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.name.text === identifier.text) return declaration;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The i18n keys a page renders as its own heading, in source order.
+ *
+ * What a user reads at the top of a screen is its name, and a page usually says it in one
+ * place: its header's `title`, or its `<h1>`. That is told apart from the dozens of other
+ * `*.title` keys a page renders — a dialog's, a card's, an empty state's — by where it is
+ * rendered, rather than guessed from the shape of the key as `PAGE_TITLE_KEY` has to.
+ *
+ * fut-app's child medical page names itself through a variable,
+ * `const title = childName ? tg('medical.titleFor', { name }) : tg('medical.title')`. The
+ * variable is followed, and a call that interpolates a value is not a name: it is a
+ * sentence with a child's name in it.
+ *
+ * A header rendered from inside an `if` is not read at all. That is an early return —
+ * `if (isPending) return <PageHeader title={t('hub.loading')} />` — and it names a moment
+ * rather than the screen: fut-app's match hub came out as "Jogo não encontrado" from its
+ * not-found branch, and a team's page as "A carregar…".
+ */
+function titleKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
+  const out: string[] = [];
+  const collect = (node: ts.Node): void => {
+    const key = keyOf(node, true);
+    if (key) out.push(key);
+    else ts.forEachChild(node, collect);
+  };
+  const fromExpression = (expression: ts.Expression): void => {
+    if (ts.isIdentifier(expression)) {
+      const declaration = localDeclaration(expression);
+      if (declaration?.initializer) collect(declaration.initializer);
+      return;
+    }
+    collect(expression);
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxAttribute(node) && FALLBACK_ATTRIBUTES.test(node.name.getText())) return; // a failure state
+    const tag = tagNameOf(node);
+    if (tag && PAGE_HEADER.test(tag) && !NOT_THE_PAGE.test(tag) && !insideIf(node)) {
+      if (tag === 'h1' && ts.isJsxElement(node)) {
+        for (const child of node.children) {
+          if (ts.isJsxExpression(child) && child.expression) fromExpression(child.expression);
+        }
+      }
+      for (const attribute of attributesOf(node)?.properties ?? []) {
+        if (!ts.isJsxAttribute(attribute) || !/^(title|heading)$/.test(attribute.name.getText())) continue;
+        const value = attribute.initializer;
+        if (value && ts.isJsxExpression(value) && value.expression) fromExpression(value.expression);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...new Set(out)];
 }
 
 /**
@@ -237,7 +419,7 @@ function childText(node: ts.Node): { text: string | null; key: string | null } {
  * A control's name comes from, in order: its own `aria-label`, a `<label
  * htmlFor>` pointing at its `id`, its `placeholder`, and — for a button — its own
  * text. That is the accessible-name order a screen reader uses, which is also
- * the order `packages/ui`'s runtime resolver matches in; the two have to agree or
+ * the order `packages/embed`'s runtime resolver matches in; the two have to agree or
  * a generated anchor would name a field the page does not.
  *
  * Hidden inputs are skipped, and so is any control nothing names: a step that
@@ -290,6 +472,57 @@ function formFields(source: ts.SourceFile): FormField[] {
   return out;
 }
 
+/**
+ * The title a page declares for itself, when it spells it out.
+ *
+ *   export const metadata = { title: 'Pricing' }          Next.js app router
+ *   export const meta = () => [{ title: 'Sign Up' }]      Remix
+ *
+ * A string literal only. `generateMetadata`, a `{ default, template }` object, or a
+ * title built from data is code, and evaluating it would be guessing — the same
+ * rule discover.ts keeps for a route path it cannot evaluate.
+ */
+function declaredTitle(source: ts.SourceFile): string | null {
+  const nameOf = (property: ts.ObjectLiteralElementLike): string | null =>
+    ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name))
+      ? property.name.text
+      : null;
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    if (!statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      let initializer: ts.Expression = declaration.initializer;
+      while (ts.isSatisfiesExpression(initializer) || ts.isAsExpression(initializer) || ts.isParenthesizedExpression(initializer)) {
+        initializer = initializer.expression;
+      }
+      if (declaration.name.text === 'metadata' && ts.isObjectLiteralExpression(initializer)) {
+        const title = initializer.properties.find((p) => nameOf(p) === 'title');
+        if (title && ts.isPropertyAssignment(title) && ts.isStringLiteralLike(title.initializer)) {
+          return title.initializer.text.trim() || null;
+        }
+      }
+      if (declaration.name.text === 'meta') {
+        let found: string | null = null;
+        const visit = (node: ts.Node): void => {
+          if (found !== null) return;
+          if (ts.isObjectLiteralExpression(node)) {
+            const title = node.properties.find((p) => nameOf(p) === 'title');
+            if (title && ts.isPropertyAssignment(title) && ts.isStringLiteralLike(title.initializer) && title.initializer.text.trim()) {
+              found = title.initializer.text.trim();
+              return;
+            }
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(initializer);
+        if (found !== null) return found;
+      }
+    }
+  }
+  return null;
+}
+
 /** The block comment above the component — usually why the page exists. */
 function componentDoc(source: ts.SourceFile): string | null {
   const text = source.getFullText();
@@ -324,6 +557,23 @@ function componentDoc(source: ts.SourceFile): string | null {
  * destination, not replacing one.
  */
 export function readPage(file: string): PageFacts {
+  return readComponent(file, new Map()).facts;
+}
+
+/** A component's facts, and the title keys it builds from the props it was rendered with. */
+interface ComponentReading {
+  readonly facts: PageFacts;
+  readonly titleKeysFromProps: readonly string[];
+}
+
+function readComponent(file: string, props: ReadonlyMap<string, string>): ComponentReading {
+  // A Svelte or Vue component, or an HTML template, is markup rather than TSX.
+  if (/\.(vue|svelte|html)$/.test(file)) return { facts: readMarkupPage(file), titleKeysFromProps: [] };
+  // An Angular component is a class whose page is its template.
+  if (/\.ts$/.test(file)) {
+    const angular = readAngularComponent(file);
+    if (angular) return { facts: angular, titleKeysFromProps: [] };
+  }
   const source = parse(file);
 
   const roots: string[] = [];
@@ -336,18 +586,154 @@ export function readPage(file: string): PageFacts {
 
   const rendered = roots.filter((tag) => !TRANSPARENT_COMPONENTS.has(tag));
   const redirects = rendered.filter((tag) => REDIRECT_COMPONENTS.has(tag));
-  const { namespace, keys } = i18nKeys(source);
+  const { namespace, keyOf, fromProps } = translationCalls(source, props);
 
-  return {
+  const facts: PageFacts = {
     isPureRedirect: redirects.length > 0 && redirects.length === rendered.length,
     redirectTargets: redirectTargets(source),
-    i18nKeys: namespace ? keys.map((k) => (k.includes(':') ? k : `${namespace}:${k}`)) : keys,
+    i18nKeys: i18nKeys(source, keyOf),
+    titleKeys: titleKeys(source, keyOf),
     headings: headings(source),
     doc: componentDoc(source),
+    title: declaredTitle(source),
     // Same namespace rule as `i18nKeys`, so a label written as t('x.y') resolves
     // against the page's own namespace exactly as its other copy does.
     fields: formFields(source).map((f) =>
       f.labelKey && namespace && !f.labelKey.includes(':') ? { ...f, labelKey: `${namespace}:${f.labelKey}` } : f,
     ),
   };
+  return { facts, titleKeysFromProps: titleKeysFromProps(source, keyOf, fromProps) };
+}
+
+/**
+ * Keys a component titles something with, built from its props: the one part of a shared
+ * layout that belongs to the page rendering it. A card's title counts here, unlike in
+ * `titleKeys` — a layout's card titled from the active tab names that tab and nothing else.
+ */
+function titleKeysFromProps(source: ts.SourceFile, keyOf: KeyOf, fromProps: ReadonlySet<string>): string[] {
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxAttribute(node) && /^(title|heading)$/.test(node.name.getText())) {
+      const value = node.initializer;
+      const key = value && ts.isJsxExpression(value) && value.expression ? keyOf(value.expression, true) : null;
+      if (key && fromProps.has(key)) out.push(key);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return [...new Set(out)];
+}
+
+/** Resolves an import, from the file that wrote it, to a source file of the application — or null. */
+export type ImportResolver = (specifier: string, fromFile: string) => string | null;
+
+/** A design system or shared UI kit: a wrapper page's words are never in its buttons. */
+const SHARED_UI = /[\\/](?:ui|design-system|primitives)[\\/]/i;
+
+/**
+ * A screen, read through the components it renders when its own file says nothing.
+ *
+ * 19 of fut-app's 141 declared screens are wrappers. `/settings/notifications` is
+ * `<PersonalSettingsLayout active="notif"><PersonalNotificationsSection /></PersonalSettingsLayout>`
+ * and nothing more. Read alone, such a page has no heading, no copy and no form: it was
+ * named after its component, "Personal Notifications", and described from nothing. Its
+ * words are one step away, in the components it renders — and a layout that titles the
+ * active tab from a prop, `t(`sections.${active}`)`, names this page exactly, once the
+ * page's own `active="notif"` is put into the key.
+ *
+ * One level, and only the application's own components: a design system's button knows
+ * nothing about the screen it sits on. A page that says anything about itself is read as
+ * it always was, so its facts — and the prose cached against them — do not move.
+ */
+export function readScreen(file: string, resolveImport: ImportResolver): PageFacts {
+  const own = readPage(file);
+  const saysNothing = own.titleKeys.length === 0 && own.i18nKeys.length === 0 && own.headings.length === 0;
+  if (!saysNothing || !/\.(tsx|jsx)$/.test(file)) return own;
+
+  const source = parse(file);
+  const imports = importedComponents(source);
+  const children: ComponentReading[] = [];
+  const seen = new Set<string>();
+  const visit = (node: ts.Node): void => {
+    const tag = tagNameOf(node);
+    const imported = tag ? imports.get(tag) : undefined;
+    if (imported) {
+      const child = componentFile(resolveImport(imported.specifier, file), imported.name, resolveImport);
+      if (child && !SHARED_UI.test(child)) {
+        const props = literalProps(node);
+        const key = `${child}?${[...props].map(([name, value]) => `${name}=${value}`).join('&')}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          children.push(readComponent(child, props));
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  if (children.length === 0) return own;
+
+  const flat = (pick: (reading: ComponentReading) => readonly string[]): string[] => [...new Set(children.flatMap(pick))];
+  const specific = flat((reading) => reading.titleKeysFromProps);
+  const headers = flat((reading) => reading.facts.titleKeys).filter((key) => !specific.includes(key));
+  return {
+    ...own,
+    titleKeys: specific.length > 0 ? specific : headers,
+    ...(specific.length > 0 && headers.length > 0 ? { sectionTitleKeys: headers } : {}),
+    i18nKeys: flat((reading) => reading.facts.i18nKeys),
+    headings: flat((reading) => reading.facts.headings).slice(0, 12),
+    fields: own.fields.length > 0 ? own.fields : children.flatMap((reading) => reading.facts.fields),
+    doc: own.doc ?? children.find((reading) => reading.facts.doc)?.facts.doc ?? null,
+  };
+}
+
+/** The components a file imports: local name -> the module, and the name it is exported under there. */
+function importedComponents(source: ts.SourceFile): Map<string, { specifier: string; name: string }> {
+  const out = new Map<string, { specifier: string; name: string }>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
+    const clause = statement.importClause;
+    if (!clause || clause.isTypeOnly) continue;
+    const specifier = statement.moduleSpecifier.text;
+    if (clause.name) out.set(clause.name.text, { specifier, name: 'default' });
+    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) {
+        out.set(element.name.text, { specifier, name: (element.propertyName ?? element.name).text });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The file that defines an imported component, through one barrel when the import names one:
+ * `import { TutorialsSettingsPanel } from '@/features/tutorial'` is an `index.ts` re-exporting it.
+ */
+function componentFile(resolved: string | null, name: string, resolveImport: ImportResolver): string | null {
+  if (!resolved || !/[\\/]index\.[jt]sx?$/.test(resolved)) return resolved;
+  const barrel = parse(resolved);
+  for (const statement of barrel.statements) {
+    if (!ts.isExportDeclaration(statement) || !statement.moduleSpecifier || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
+    const clause = statement.exportClause;
+    if (clause && ts.isNamedExports(clause) && clause.elements.some((element) => element.name.text === name)) {
+      return resolveImport(statement.moduleSpecifier.text, resolved);
+    }
+  }
+  // An index file with a component of its own in it, rather than only re-exports.
+  return barrel.statements.some((statement) => !ts.isExportDeclaration(statement) && !ts.isImportDeclaration(statement))
+    ? resolved
+    : null;
+}
+
+/** The string props a component is rendered with: `active="notif"`, `mode={'page'}`. */
+function literalProps(node: ts.Node): Map<string, string> {
+  const out = new Map<string, string>();
+  const attributes = attributesOf(node);
+  for (const attribute of attributes?.properties ?? []) {
+    if (!ts.isJsxAttribute(attribute)) continue;
+    const name = attribute.name.getText();
+    const value = literalAttr(attributes!, name);
+    if (value !== null) out.set(name, value);
+  }
+  return out;
 }

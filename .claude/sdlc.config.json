@@ -64,6 +64,32 @@
       "fix": "An entry point in main/types/exports either does not exist, is not covered by `files`, or is TypeScript source. Run `pnpm build` first — the gate reads built output. A .ts entry point cannot work at all: Node refuses to strip types inside node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), which is what made every package in this repo uninstallable until 2026-09-11. If a package is not meant to be installed, mark it private."
     },
     {
+      "id": "release",
+      "title": "Releasable — one version, a CHANGELOG section and the LICENSE in every package",
+      "command": "node tooling/scripts/check-release.mjs",
+      "blocking": true,
+      "when": [
+        "packages/*/package.json",
+        "packages/*/LICENSE",
+        "LICENSE",
+        "CHANGELOG.md",
+        "package.json"
+      ],
+      "fix": "Every publishable package must carry the same version, the root package.json's license and a byte-identical copy of the root LICENSE, and CHANGELOG.md must have a non-empty section for that version. After editing LICENSE, copy it into each publishable package. The release workflow also runs this with --tag, which requires the tag to be v<version> and the section to carry a date instead of 'unreleased'."
+    },
+    {
+      "id": "install",
+      "title": "The packed tarballs install into a project outside this repository and run on Node 20",
+      "command": "pnpm build && node tooling/scripts/check-install.mjs",
+      "blocking": true,
+      "when": [
+        "packages/**",
+        "tooling/scripts/check-install.mjs",
+        "tooling/scripts/pack-release.mjs"
+      ],
+      "fix": "Read which step failed and on which Node. A dependency that only resolves inside the workspace, a file reached by a checkout-only path, a Node API newer than 20, or a bin that is TypeScript source all install cleanly and fail on the adopter's first command. The scratch project is kept for inspection."
+    },
+    {
       "id": "prompt-fencing",
       "title": "Rule 15 — a prompt never interpolates unfenced input",
       "command": "node tooling/scripts/check-prompt-fencing.mjs",
@@ -136,10 +162,21 @@
       "command": "node tooling/scripts/check-accessibility.mjs",
       "blocking": true,
       "when": [
-        "packages/embed/src/**",
-        "packages/ui/src/**"
+        "packages/embed/src/**"
       ],
       "fix": "Run node tooling/scripts/check-accessibility.mjs and read eval/a11y/axe.json. This is the automated half only: colour contrast, announcement order and anything as-rendered are eval/a11y/NVDA-CHECKLIST.md, which a person runs."
+    },
+    {
+      "id": "csp",
+      "title": "The documented one-line script tag starts, styles and routes under a strict Content-Security-Policy, in a real browser",
+      "command": "node tooling/scripts/check-csp.mjs",
+      "blocking": true,
+      "when": [
+        "packages/embed/**",
+        "packages/kit/src/doctor.ts",
+        "tooling/scripts/check-csp.mjs"
+      ],
+      "fix": "Read which check failed. A policy violation names the directive: no inline <style> or <script>, no style=\"\" attribute (set styles through the CSSOM, as widget.ts and start() do). \"Unstyled\" means the constructed stylesheet did not apply. Skips on a machine with no Chrome, Chromium or Edge; set NEXTGEN_BROWSER. Fails under CI instead of skipping."
     },
     {
       "id": "kit-sync",
@@ -226,9 +263,9 @@
   ],
   "docs": {
     "root": ".claude",
-    "rules": "PLAN.md",
+    "rules": ".MDFiles/PLAN.md",
     "decisions": ".claude/decisions",
-    "plan": "PLAN.md"
+    "plan": ".MDFiles/PLAN.md"
   },
   "guard": {
     "denyBroadStaging": true,

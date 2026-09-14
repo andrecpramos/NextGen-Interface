@@ -83,33 +83,34 @@ function newestSourceMtime(dir: string): number {
 }
 
 /**
- * The shipped bundle existing is not the same as it being current. It used to be
- * rebuilt only when missing, so a bundle built before a later `embed` source
- * change was reused byte-for-byte — shipping stale, sometimes broken, code with
- * `doctor` reporting nothing wrong (found running the kit against fut-app: `dist`
- * was 2 days older than `src`, and exported no `start` at all).
+ * The script tag, from the installed `@nextgen/embed`.
  *
- * Rebuild whenever `embed`'s own source is newer than what was last built, not
- * only when nothing was built yet. When there is no source to rebuild from — a
- * published `@nextgen/kit` that only ships `embed`'s compiled `dist/` — fall back
- * to the shipped file rather than failing, since staleness cannot be assessed
- * without a source to compare against.
+ * Resolved through the package's own manifest, so it is found the same way in
+ * this workspace and in an adopter's node_modules. A published package ships
+ * dist/nextgen.js and no source; if that file is missing the install is broken,
+ * and saying so beats attempting a build that cannot run there.
+ *
+ * In a checkout, where build.mjs and src/ exist, the bundle existing is not the
+ * same as it being current. It used to be rebuilt only when missing, so a bundle
+ * built before a later `embed` change was reused byte for byte, and `doctor`
+ * reported nothing wrong — found running the kit against fut-app: `dist` was two
+ * days older than `src` and exported no `start` at all. It is rebuilt whenever
+ * `embed`'s own source is newer than the bundle.
  */
 function scriptTagFile(): string {
   const require = createRequire(import.meta.url);
   const embedDir = dirname(require.resolve('@nextgen/embed/package.json'));
   const bundle = join(embedDir, 'dist', 'nextgen.js');
-  const buildScript = join(embedDir, 'build.mjs');
+  const builder = join(embedDir, 'build.mjs');
   const srcDir = join(embedDir, 'src');
+  const canBuild = existsSync(builder) && existsSync(srcDir);
 
-  const canBuild = existsSync(buildScript) && existsSync(srcDir);
-  const stale = canBuild && existsSync(bundle) && statSync(bundle).mtimeMs < newestSourceMtime(srcDir);
-
-  if (canBuild && (!existsSync(bundle) || stale)) {
-    execFileSync(process.execPath, [buildScript], { stdio: 'pipe' });
-  } else if (!existsSync(bundle)) {
-    throw new Error(`No prebuilt ${bundle}, and no build.mjs/src in ${embedDir} to build one from.`);
+  const current = existsSync(bundle) && !(canBuild && statSync(bundle).mtimeMs < newestSourceMtime(srcDir));
+  if (current) return bundle;
+  if (!canBuild) {
+    throw new Error(`@nextgen/embed is installed without dist/nextgen.js (${embedDir}). Reinstall it.`);
   }
+  execFileSync(process.execPath, [builder], { stdio: 'pipe' });
   return bundle;
 }
 

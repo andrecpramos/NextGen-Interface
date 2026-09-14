@@ -1,16 +1,20 @@
 #!/usr/bin/env node
+import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { build } from './build.ts';
 import { calibrate } from './calibrate.ts';
 import { init } from './detect.ts';
 import { doctor } from './doctor.ts';
+import { preview } from './preview.ts';
+import { report } from './report.ts';
 
 /**
  *   nextgen init <app folder> [--out <kit folder>] [--force]
  *   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
  *   nextgen calibrate [kit folder] --golden <file.jsonl>
- *   nextgen doctor [kit folder]
+ *   nextgen doctor [kit folder] [--report <file.md>]
+ *   nextgen preview [kit folder] [--port <n>] [--app-url <url>]
  *
  * The kit folder defaults to ./nextgen. Nothing is ever written outside it
  * (Rule 16). `build` without --model needs no model server: descriptions are
@@ -25,7 +29,8 @@ const USAGE = `usage:
   nextgen init <app folder> [--out <kit folder>] [--force]
   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
   nextgen calibrate [kit folder] --golden <file.jsonl>
-  nextgen doctor [kit folder]`;
+  nextgen doctor [kit folder] [--report <file.md>]
+  nextgen preview [kit folder] [--port <n>] [--app-url <url>]`;
 
 function flag(name: string): string | null {
   const index = process.argv.indexOf(`--${name}`);
@@ -102,9 +107,30 @@ async function main(): Promise<number> {
   }
 
   if (command === 'doctor') {
-    const report = doctor(resolve(positional() ?? 'nextgen'));
-    console.log(report.text);
-    return report.ok ? 0 : 1;
+    const kit = resolve(positional() ?? 'nextgen');
+    const checked = doctor(kit);
+    console.log(checked.text);
+    const reportFile = flag('report');
+    if (reportFile) {
+      writeFileSync(resolve(reportFile), report(kit), 'utf8');
+      console.log(`  Wrote ${resolve(reportFile)}. It lists every screen with its roles: share it only with people who may know that.\n`);
+    }
+    return checked.ok ? 0 : 1;
+  }
+
+  if (command === 'preview') {
+    const kit = resolve(positional() ?? 'nextgen');
+    const port = flag('port');
+    if (port !== null && !/^\d+$/.test(port)) {
+      console.error(`\n  --port must be a number, not ${port}\n`);
+      return 2;
+    }
+    const appUrl = flag('app-url');
+    const server = await preview(kit, { ...(port !== null ? { port: Number(port) } : {}), ...(appUrl ? { appUrl } : {}) });
+    console.log(`\n  Preview: ${server.url}   roles: ${server.roles.join(', ')}`);
+    console.log('  Local only: every role\'s files are served here, which production must never do. Ctrl+C to stop.\n');
+    await new Promise(() => {}); // serve until interrupted
+    return 0;
   }
 
   console.error(USAGE);

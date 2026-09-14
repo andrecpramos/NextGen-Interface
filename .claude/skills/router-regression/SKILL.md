@@ -147,8 +147,8 @@ re-run `pnpm router:floor`, and commit the scorecard with the fix.
 
 ## Related
 
-- [ADR-003](../../../.claude/decisions/ADR-003.md) — why the cascade is three stages
-- [ADR-009](../../../.claude/decisions/ADR-009.md) — out-of-scope as retrieval, not judgement
-- [ADR-011](../../../.claude/decisions/ADR-011.md) — why CI gates on tolerances, never on model accuracy
+- [ADR-003](../../decisions/ADR-003.md) — why the cascade is three stages
+- [ADR-009](../../decisions/ADR-009.md) — out-of-scope as retrieval, not judgement
+- [ADR-011](../../decisions/ADR-011.md) — why CI gates on tolerances, never on model accuracy
 - `packages/core-intent/eval/FINDINGS.md` — Findings 1 and 11, the threshold lessons
-- [.claude/roles/qa.md](../../../.claude/roles/qa.md) — bucket composition and field signals
+- [.claude/roles/qa.md](../../roles/qa.md) — bucket composition and field signals

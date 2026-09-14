@@ -53,7 +53,7 @@ describe('synthesise — what the model is allowed to produce', () => {
       const prose = out.get('squad.players')!;
       // The derived description names the route; a model-written one never does.
       expect(prose.description).toContain('/squad/players');
-      expect(prose.examples.every((e) => /open|take me|abre|leva-me/.test(e))).toBe(true);
+      expect(prose.examples.every((e) => /open|take me|go to|abre|leva-me|ir para/.test(e))).toBe(true);
     }
   });
 

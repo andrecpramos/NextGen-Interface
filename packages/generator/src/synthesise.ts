@@ -63,13 +63,26 @@ export interface ProseModel {
   complete(system: string, user: string): Promise<unknown | null>;
 }
 
-export const EXAMPLES_PER_CAPABILITY = 4;
+/**
+ * Eight, most of them in the application's first language.
+ *
+ * Four, spread evenly over two languages, left a Portuguese screen two Portuguese
+ * phrasings. On fut-app (2026-09-14) that model prose routed *worse* than the flat
+ * derived examples — "abre anúncios", "leva-me para anúncios" — which at least repeat
+ * the screen's own words in the language users type.
+ */
+export const EXAMPLES_PER_CAPABILITY = 8;
 
 /**
  * Bumped when the *routing* prompt changes — description and examples. Bumping
  * it re-rolls text whose accuracy has been measured, so do it deliberately.
  */
-const ROUTING_SCHEMA_VERSION = 4;
+const ROUTING_SCHEMA_VERSION = 5;
+
+/** How many of the examples are written in the application's first language. */
+function primaryShare(languages: readonly string[]): number {
+  return languages.length <= 1 ? EXAMPLES_PER_CAPABILITY : Math.ceil((EXAMPLES_PER_CAPABILITY * 3) / 4);
+}
 
 /** Bumped when the *explanation* prompt changes. Cheap: routing prose is untouched. */
 const EXPLANATION_SCHEMA_VERSION = 3;
@@ -160,7 +173,7 @@ function routingPrompt(languages: readonly string[]): string {
     'Return ONLY a JSON object:',
     '{',
     `  "description": string  — one sentence, under 25 words, saying what a person does on this screen, written in ${names[0] ?? 'English'}. No component names, no the word "page".`,
-    `  "examples": string[]   — exactly ${EXAMPLES_PER_CAPABILITY} short things a real user would type to ask to be taken here, in their own words, never the developer's. Spread them evenly across these languages, using each one exactly as written: ${names.join('; ')}.`,
+    `  "examples": string[]   — exactly ${EXAMPLES_PER_CAPABILITY} short things a real user would type or say to be taken to this screen, or to ask what it is for: requests and questions only, never statements about the screen. Use the words the screen itself shows (its title, headings and labels) and the everyday words a user would say instead of them. Write ${primaryShare(languages)} in ${names[0] ?? 'English'}${names.length > 1 ? ` and the other ${EXAMPLES_PER_CAPABILITY - primaryShare(languages)} across ${names.slice(1).join('; ')}` : ''}, each language exactly as written.`,
     '}',
   ].join('\n');
 }
@@ -273,14 +286,25 @@ export function deriveProse(request: ProseRequest): Prose {
   const explanation =
     `${primary} is a screen in the ${request.feature} area of this application, at ${request.route}.` +
     (request.copy.length > 0 ? ` It shows: ${request.copy.slice(0, 4).join(', ')}.` : '');
-  const examples = [
-    `open ${primary.toLowerCase()}`,
-    `take me to ${primary.toLowerCase()}`,
-    `abre ${(titles[1] ?? primary).toLowerCase()}`,
-    `leva-me para ${(titles[1] ?? primary).toLowerCase()}`,
-  ];
+  // Each title with its own language's words for "take me there". The first version put
+  // "open" before the first title and "abre" before the second, whatever their languages
+  // were: a Portuguese application was given "open finanças", and an English one
+  // "abre settings" — phrasings nobody types, pulling stage 2 towards neither.
+  const examples: string[] = [];
+  for (const [language, title] of Object.entries(request.titles)) {
+    if (!title) continue;
+    const verbs = ASK_TO_GO[language.split('-')[0]!.toLowerCase()] ?? ASK_TO_GO.en!;
+    for (const verb of verbs) examples.push(`${verb} ${title.toLowerCase()}`);
+  }
+  if (examples.length === 0) for (const verb of ASK_TO_GO.en!) examples.push(`${verb} ${primary.toLowerCase()}`);
   return { description, explanation, examples: [...new Set(examples)], source: 'derived' };
 }
+
+/** How a user asks to be taken to a screen. Three each, so a derived capability still meets Rule 10's minimum. */
+const ASK_TO_GO: Readonly<Record<string, readonly string[]>> = {
+  en: ['open', 'take me to', 'go to'],
+  pt: ['abre', 'leva-me para', 'ir para'],
+};
 
 // ---------------------------------------------------------------------- cache --
 

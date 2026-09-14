@@ -19,17 +19,19 @@ detail.
 
 ## Goals, and what each one has actually measured
 
-Updated 2026-09-10 against [MEASUREMENT.md](../../eval/fut-app/MEASUREMENT.md). A goal
+Updated 2026-09-13 against [MEASUREMENT.md](../../eval/fut-app/MEASUREMENT.md). A goal
 with no verdict beside it is a goal nobody has tested.
 
 1. **Prove AI navigation works** with a local model on consumer hardware, offline.
-   ⚠️ **Half met, and the offline half failed.** On a real 146-page application the
-   assistant reaches the right screen for **52.3%** of real questions against the app's
-   own command palette at 45.5% — so navigation by asking works, and beats the
-   incumbent where it was aimed. But only **2.4%** of turns settle without a model call,
-   because the browser-capable encoder scores 4.0% recall@1 at 145 capabilities against
-   a real encoder's 48.9%. *Offline* is currently unsupported by evidence at adopter
-   scale. See PLAN.md §13, D-4 — it is an open decision, not a solved problem.
+   ⚠️ **Navigation met, offline included; deciding alone did not.** On a real 146-page
+   application the script tag — in the browser, with no model — shows the right
+   screen for **69.9%** of real questions (first for **53.4%**) against the app's own
+   command palette at 45.5% (42.6%), and sends nobody to a wrong screen
+   ([like-for-like.json](../../eval/fut-app/like-for-like.json)). But it settles a turn on
+   its own, without offering choices, for only **1.7%**; a model-backed server reaches
+   11.0%, against a 60% target. *An earlier version of this line blamed the browser encoder
+   at 4.0% recall@1. That was a harness bug, retracted in WRITEUP.md §6: fitted correctly it
+   matches a real encoder at 50.0%.* PLAN.md §13, D-4 is answered: reposition, not stop.
 2. **Prove it generalises** — the same engine drives a second domain with
    configuration, not a rewrite. ✅ **Met.** Swapping the registered application changes
    zero lines in any `core-*` package, exercised by a test that runs the real router
@@ -39,10 +41,11 @@ with no verdict beside it is a goal nobody has tested.
    a real answer built from a recorded trace, not a generated rationalisation.
    ✅ **Met**, and unchanged by any of the above: no model is involved in `why`.
 4. **Keep it private** — no user data leaves the device by default.
-   ⚠️ **At risk from goal 1's failure.** The privacy story rested on most turns never
-   reaching a model. At 2.4% model-free, 205 of 210 turns reach one. Whether that model
-   is local or an adopter's endpoint is now a deployment question with real consequences,
-   not a footnote.
+   ⚠️ **Met by the script tag, at risk beyond it.** The script tag calls no model; its only
+   request loads registry files from the adopter's own origin, so no question leaves the
+   device. Adding a model — the configuration that decides more turns alone — sends most
+   turns to one, and whether that model is local or an adopter's endpoint is a deployment
+   question with real consequences, not a footnote.
 
 ## Non-goals
 

@@ -90,13 +90,83 @@ to their source root. A wrong answer in their assistant is one path away from th
 page that produced it.
 
 Runs without a model at all (`--no-model`), deriving prose from the
-application's own labels. The output is flatter and says so.
+application's own labels. The output is flatter and says so. Derived examples use each
+title's own language: "abre anúncios", "open announcements".
+
+## How a screen is named
+
+A title is the first thing stage 2 embeds and the first thing a user reads. It comes from
+the application's own words, in each language the app ships (`resolveTitles` in
+`generate.ts`), in this order:
+
+1. the label its navigation gives it, from a configured manifest;
+2. the heading the page renders — its page header's `title`, or its `<h1>` (`titleKeys` in
+   `pages.ts`). Translation functions bound under another name count
+   (`const { t: tp } = useTranslation('player')`), and so does a local `const title = …`. A
+   header from an early return does not: it names a loading or failed moment;
+3. a page-level `*.title` key, or a title the page declares as a literal;
+4. a nav-shaped `{ label, route }` written anywhere else in the source (`readSourceLabels`).
+
+A component's name is used only when the application names the screen in no language at all.
+
+- **A wrapper page is read through what it renders** (`readScreen`). When a page's own file
+  says nothing — `<PersonalSettingsLayout active="notif">…` — the app's own components one
+  level down are read instead, with the page's string props put into template keys:
+  `t(`sections.${active}`)` becomes `sections.notif`. The page is then named the way the
+  layout shows it: "As Minhas Preferências · Notificações". A shared UI kit is never read.
+- **A duplicate is judged inside a registry.** Two screens only compete when some role
+  reaches both (ADR-014). A duplicate is qualified in the title's own language, with:
+  - its nav group's label, the way the app's command palette writes it
+    ("Plantel · Visão geral"), or
+  - its area's name.
+
+  An English folder name never qualifies a Portuguese title. Trigger ambiguity is judged
+  the same way.
+- **One screen at two addresses is declared once.** Two cases:
+  - A static route that renders a redirect into a detail route with one parameter in the
+    middle (`/my/children/medical` → `/my/children/:childId/medical`) is that page's entry
+    point. The detail is skipped as `reached-through-resolver`, and the resolver takes the
+    detail's facts.
+  - A route-table `<Navigate>` to a screen declared at its own address is an old name for
+    that screen, and is skipped as `redirect-alias`. One that lands a section on its own
+    first page is kept.
+
+Measured on fut-app: [eval/fut-app/TITLES.md](../../eval/fut-app/TITLES.md).
 
 ## Adapters
 
-React Router in both dialects (a route-config array, and nested `<Route>` elements), in
-TypeScript or JavaScript sources. An application with no roles at all gets one registry
-for a single `PUBLIC` audience.
+Set by `router` in the config (`init` detects it from `package.json` and the folder layout):
+
+| `router` | Reads | Since |
+|---|---|---|
+| `react-router` (default) | a route table: a route-config array or nested `<Route>` elements, TypeScript or JavaScript | WP-25 |
+| `next` | the `app` router (route groups, `[param]`, optional catch-alls at their base URL; private folders, `@slots`, interceptions, `route.*` handlers and special files are not pages) and the `pages` router beside it (`index`, `[param]`; `api/`, `_app`, `_document`, `404` are not) | readiness 3a |
+| `remix` | flat routes in `app/routes`: `_index`, pathless `_layout.`, `name_`, `$param`, `(optional)`, `[.]` escapes, folder `route.tsx`. A module with no default export is a resource route, not a page; a layout and its `_index` are one destination | readiness 3a |
+| `sveltekit` | `src/routes`: a folder with `+page.svelte` is a page; groups `(name)`, `[param]`, `[param=matcher]`, optional `[[param]]` (declared without it), a literal prefix such as `@[user]`; `+layout`, `+error` and a server-only route are not pages | readiness 3b |
+| `nuxt` | `app/pages` (Nuxt 4) or `pages` (Nuxt 3): `index`, `[param]`, optional `[[param]]`, groups `(name)`, nested parent pages (a parent and its own `index` are one destination) | readiness 3b |
+| `vue-router` | the route table in code, as `react-router`: `component` eager or `() => import(...)` lazy, through a Vite alias to a `.vue` file with or without its extension; `children`; a `redirect` entry is not a page; roles from `meta.roles` | readiness 3c |
+| `angular` | the `Routes` array in code: `component`, `loadComponent` (default or named export), `loadChildren` into another file's routes, paths without a leading slash; a `redirectTo` entry is not a page; roles from `data.roles`; the page's text is its `templateUrl` or inline `template` | readiness 3c |
+
+A **catch-all** (`[...slug]`, a Remix `$`) serves pages that come from content, not code, so it
+is reported as a `catch-all` skip rather than declared. A page's own title is used when it is a
+string literal: Next.js `metadata.title`, a Remix `meta` title, a Svelte `<title>`, or Nuxt's
+`useHead` / `useSeoMeta` / `definePageMeta`. `generateMetadata`, a conditional or data is code, and
+is not evaluated. A site name every title shares after its separator (`Settings • Conduit`) is
+removed. `.vue` and `.svelte` pages are read as markup (`markup.ts`): literal headings and text, a
+form's fields, and translation keys — never a heading built from data, and never a block shown only on
+failure. Locales may be one flat file per language (`locales/pt-PT.json`), keyed by the text itself.
+
+A folder layout declares no roles, so every route of a `next` or `remix` app goes to the app's
+whole audience. **`routeRoles`** declares roles an app enforces in code, by path prefix:
+`{ "/admin": ["ADMIN"] }`. The longest prefix matching at a segment boundary wins, and it
+applies to every router. An application with no roles at all gets one registry for a single
+`PUBLIC` audience. **A role named on a route** — by `routeRoles`, Angular `data.roles` or Vue
+Router `meta.roles` — joins that audience: it gets its own registry, holding the screens open to
+everyone and the ones narrowed to it, and no other registry holds a screen narrowed away from it.
+A `canActivate` or `beforeEnter` guard is code, and authentication is not a role: neither is read.
+
+Measured on six public apps not written for it, against ground truth recorded first:
+[eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md).
 
 **The data-router shape** (WP-28, 2026-09-11) is also read:
 - `lazy: () => import(...)`;
@@ -119,7 +189,7 @@ plus one for the submit button, in the app's first language. Each step carries a
 - a build-time CSS selector, as the fallback.
 
 `steps.ts` writes them, and `pages.ts` reads the form fields. The runtime resolver in
-`packages/ui` refuses rather than guesses. If a label matches twice, or a selector finds
+`packages/embed` refuses rather than guesses. If a label matches twice, or a selector finds
 an element whose name contradicts the label, the step renders as text with nothing
 highlighted. It never points at the wrong field.
 

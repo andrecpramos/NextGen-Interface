@@ -32,6 +32,12 @@ import { normalize } from '@nextgen/core-intent';
  *
  * So ambiguity is resolved by refusing to guess, which is the same move
  * ADR-009 makes for out-of-scope and Rule 13 makes for declared limits.
+ *
+ * **Ambiguity is judged inside a registry.** Stage 1 looks a phrase up in one role's
+ * registry (ADR-014), so two capabilities that no role reaches together never share a
+ * trigger index. Judged across the whole application, fut-app's `/my` — "Dashboard", for
+ * players and guardians — lost its only trigger to the coaches' `/dashboard`, which no
+ * player's or guardian's registry contains.
  */
 
 /**
@@ -55,10 +61,20 @@ export interface TriggerAssignment {
  * practice its nav label in each configured language, both as written and as
  * feature-qualified. Order within a capability is preserved so the most natural
  * spelling stays first.
+ *
+ * `roles` maps capability id to the roles that reach it. With it, a phrase is dropped
+ * only when another capability sharing a role claims it; without it, when any other does.
  */
 export function assignTriggers(
   candidates: ReadonlyMap<string, readonly string[]>,
+  roles?: ReadonlyMap<string, readonly string[]>,
 ): TriggerAssignment {
+  const meet = (a: string, b: string): boolean => {
+    if (!roles) return true;
+    const theirs = new Set(roles.get(b) ?? []);
+    return (roles.get(a) ?? []).some((role) => theirs.has(role));
+  };
+
   // normalised phrase -> the capability ids claiming it
   const claims = new Map<string, Set<string>>();
   for (const [id, phrases] of candidates) {
@@ -81,7 +97,7 @@ export function assignTriggers(
       const key = normalize(phrase);
       if (key.length < MIN_TRIGGER_LENGTH || seen.has(key)) continue;
       const owners = claims.get(key)!;
-      if (owners.size > 1) {
+      if ([...owners].some((owner) => owner !== id && meet(id, owner))) {
         if (!ambiguous.has(key)) ambiguous.set(key, [...owners].sort());
         continue;
       }

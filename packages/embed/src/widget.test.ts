@@ -281,3 +281,115 @@ describe('the chat box — a turn', () => {
     expect(target.children).toHaveLength(0);
   });
 });
+
+describe('the chat box under a strict Content-Security-Policy', () => {
+  // The policy itself is enforced only by a real browser: tooling/scripts/check-csp.mjs.
+  // These pin the choices that make the widget survive one.
+
+  /** A page whose window these tests can script: the fake document has none by default. */
+  function withWindow(view: Record<string, unknown>, lang = 'pt-PT'): FakeDocument {
+    const doc = new FakeDocument(lang);
+    (doc as unknown as { defaultView: unknown }).defaultView = view;
+    return doc;
+  }
+
+  it('styles itself with a constructed stylesheet where the browser has one, and adds no <style>', () => {
+    class FakeSheet {
+      text = '';
+      replaceSync(css: string): void {
+        this.text = css;
+      }
+    }
+    const doc = withWindow({ CSSStyleSheet: FakeSheet, location: { pathname: '/home', assign: () => {} } });
+    const create = doc.createElement.bind(doc);
+    doc.createElement = (tag: string) => {
+      const element = create(tag);
+      if (tag === 'div') {
+        const attach = element.attachShadow.bind(element);
+        element.attachShadow = () => Object.assign(attach(), { adoptedStyleSheets: [] as FakeSheet[] });
+      }
+      return element;
+    };
+    const target = create('body');
+    mount(target as unknown as Element, assistantReturning({}), { currentPath: () => '/home' });
+
+    const root = target.children[0]!.shadowRoot!;
+    const sheets = root.adoptedStyleSheets as FakeSheet[];
+    expect(sheets).toHaveLength(1);
+    expect(sheets[0]!.text).toContain('min-height: 48px');
+    expect(root.find((el) => el.tagName === 'style')).toBeUndefined();
+  });
+
+  it('falls back to a <style> element only where it cannot construct a stylesheet', () => {
+    const { host } = setup(assistantReturning({}));
+    expect(host.find((el) => el.tagName === 'style')?.textContent).toContain('min-height: 48px');
+  });
+
+  it('without a router, offers each move to the page first, and reloads only if nothing takes it', async () => {
+    const offered: string[] = [];
+    const assigned: string[] = [];
+    let pageTakesIt = true;
+    class FakeCustomEvent {
+      defaultPrevented = false;
+      readonly type: string;
+      readonly init: { detail: { route: string }; cancelable: boolean };
+      constructor(type: string, init: { detail: { route: string }; cancelable: boolean }) {
+        this.type = type;
+        this.init = init;
+      }
+      get detail(): { route: string } {
+        return this.init.detail;
+      }
+      preventDefault(): void {
+        if (this.init.cancelable) this.defaultPrevented = true;
+      }
+    }
+    const doc = withWindow({
+      CustomEvent: FakeCustomEvent,
+      location: { pathname: '/home', assign: (route: string) => void assigned.push(route) },
+      dispatchEvent(event: FakeCustomEvent) {
+        offered.push(`${event.type} ${event.detail.route}`);
+        if (pageTakesIt) event.preventDefault();
+        return !event.defaultPrevented;
+      },
+    });
+    const target = doc.createElement('body');
+    const mounted = mount(target as unknown as Element, assistantReturning({ capabilityId: 'calendar.overview' }, { capabilityId: 'squad.list' }), {
+      currentPath: () => '/home',
+    });
+
+    await mounted.ask('calendário');
+    expect(offered).toEqual(['nextgen:navigate /calendar']);
+    expect(assigned).toEqual([]); // the page's router took it: no reload
+
+    pageTakesIt = false;
+    await mounted.ask('plantel');
+    expect(offered).toEqual(['nextgen:navigate /calendar', 'nextgen:navigate /squad']);
+    expect(assigned).toEqual(['/squad']); // nothing took it: an ordinary navigation
+  });
+
+  it('leaves a modified click to the browser: a new tab is not the router\'s job', async () => {
+    const { mounted, host, moves } = setup(
+      assistantReturning({ outcome: 'clarify', candidates: [{ capabilityId: 'calendar.overview', score: 0.5 }] }),
+    );
+    await mounted.ask('jogos');
+    const link = host.find((el) => el.tagName === 'a')!;
+    expect(link.fire('click', { ctrlKey: true } as { key?: string }).prevented).toBe(false);
+    expect(moves).toEqual([]);
+    expect(link.fire('click').prevented).toBe(true);
+    expect(moves).toEqual(['/calendar']);
+  });
+
+  it('with neither a router nor a page that takes the move, a link is just a link', async () => {
+    const doc = new FakeDocument('pt-PT');
+    const target = doc.createElement('body');
+    const mounted = mount(
+      target as unknown as Element,
+      assistantReturning({ outcome: 'clarify', candidates: [{ capabilityId: 'squad.list', score: 0.5 }] }),
+      { currentPath: () => '/home' },
+    );
+    await mounted.ask('plantel');
+    const link = target.find((el) => el.tagName === 'a')!;
+    expect(link.fire('click').prevented).toBe(false);
+  });
+});

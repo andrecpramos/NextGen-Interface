@@ -27,7 +27,7 @@ which lives outside this repository. Both are real gates for `/gates` on a
 developer machine and no protection at all on a pull request. Rows below that
 depend on them say so.
 
-Rule numbers are [PLAN.md](../../PLAN.md) section 2. The ADRs in
+Rule numbers are [PLAN.md](../../.MDFiles/PLAN.md) section 2. The ADRs in
 [decisions/](../decisions/) are the constitution; this file is a map of how they are
 held up.
 
@@ -147,7 +147,7 @@ taps through.
 |---|---|---|
 | Rule 14 — thresholds calibrated per encoder, never hand-set | `tooling/scripts/check-thresholds.mjs`, in CI | **enforced (added 2026-09-08)** |
 | Rule 11 — deterministic slot values beat model-extracted ones | `slots.test.ts` | **enforced by test** |
-| Rule 2 — the model never computes a number the user sees | comments at `core-intent/src/types.ts`, `ui/src/types.ts`, `apps/web/lib/render.ts` | **convention — no test** |
+| Rule 2 — the model never computes a number the user sees | a comment at `core-intent/src/types.ts`, and `check-model-numerics.mjs` on the model's output schema (below) | **convention — no test** |
 | Derived artefacts follow their inputs: a change to `normalize()`, the encoder or a registry regenerates the thresholds, indexes and scorecards built from it | `tooling/scripts/check-derived-artefacts.mjs`, in CI since WP-46. It runs `rebuild-indexes.mjs --check` (each shipped index equals a fresh rebuild by the generator's own `writeIndexes`), `calibrate-registries.mjs --check` (the per-registry thresholds equal a fresh sweep) and `verify-browser-parity.mjs` (the browser makes the server's decision on all 210 turns). `check-thresholds.mjs` still covers the reference registry | **gate (2026-09-11, WP-46).** It went stale once before this existed: ten shipped indexes, with CI green |
 
 > **The gap Rule 14's gate closes.** `pnpm router:calibrate` writes its
@@ -306,6 +306,8 @@ it has not earned. (Section 1 has this pass's example.)
 | Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced — but only from 2026-09-10; see below** |
 | A prompt never interpolates unfenced input | CI + `tooling/scripts/check-prompt-fencing.mjs` | **enforced (added 2026-09-10)**, §8 for its limits |
 | High and critical CVEs block | CI `audit` job (`pnpm audit --audit-level high`) | **enforced** |
+| A release is one version, a CHANGELOG section and the LICENSE in every package | `tooling/scripts/check-release.mjs`, in CI's `verify` job; with `--tag`, also a dated section and a tag equal to `v<version>` in `release.yml` | **gate (2026-09-13)** |
+| Release tarballs are built from `main` only, after the install check passes | `release.yml`: `git merge-base --is-ancestor` against `origin/main`, then typecheck, tests, packaging and `check-install.mjs` before `gh release create` | **in the workflow — not yet exercised: no tag has been pushed** |
 
 > ### ⚠️ This row was false for a day, and the way it was false is the point
 >
@@ -374,6 +376,10 @@ turned out to credit the gate with a catch only the test could have made.
 
 | Gate | Last seen failing correctly | How it was made to fail |
 |---|---|---|
+| `release` | **2026-09-13** | **Three ways, the first one real.** Run against the tree before it was licensed, it exited 1 with 9 problems: no `license` in the root `package.json`, and no LICENSE file in any of the eight packages, each of which would have shipped without one. Then, once licensed: `--tag v0.1.0` against the `## 0.1.0 — unreleased` heading exited 1, asking for a release date; and `core-trace` set to 0.1.1 exited 1, listing all eight versions. Restored, and it passed |
+| `csp` | **2026-09-13** | Put the widget back to the `<style>` element it shipped with until that day (the constructed-stylesheet branch disabled). Edge 153 exited 1 on two checks: *"no policy violations: style-src-elem inline"* and *"the widget is styled (input min-height 0px, expected 48px)"* — the widget still started, answered and routed, completely unstyled, which is exactly how it would have looked on a strict site. Restored, and it passed. Before the gate existed, a hand probe under the same policy also showed the `<script>NextGen.start(...)</script>` snippet `doctor` printed being blocked (`script-src-elem`) |
+| `install` | **2026-09-13** | **Its first run, on a real defect.** Every `nextgen` command — `init` included, because the CLI imports the build module up front — threw `ERR_MODULE_NOT_FOUND: Cannot find package 'typescript'` from `@nextgen/generator/dist/discover.js`, on Node 25 and on Node 20 alike. The generator parses source with `typescript` at run time and declared it a devDependency. Inside this workspace it resolved, so all 647 tests and `check-packaging` were green; installed from a tarball, the product could not start. Moved to `dependencies`; the gate then passed on both runtimes. **Then made to fail on Node 20 only**, because that first failure hit both runtimes and so proved nothing about the Node 20 half: `Object.groupBy` (Node 21+) added to the CLI. Node 25 passed every step; Node 20 failed `init`, `build`, `doctor` and the ES-module probe, while the TypeScript-adopter step still passed. Reverted, rebuilt, and green |
+| `packaging` (dependency check) | **2026-09-13** | Moved `typescript` back to the generator's devDependencies after the fix. Exited 1: *"@nextgen/generator: imports "typescript" at run time (dist/discover.js) but does not declare it in dependencies. It is a devDependency, which an install does not bring."* Restored, and it passed. **The same gate also produced a false positive that day**: it flagged the `./package.json` export as outside `files`, but npm always publishes `package.json`. Corrected in the gate, not worked around in the manifest |
 | `guard-git` (broad staging) | 2026-09-09 | Piped `git add -A`; got a deny naming explicit staging |
 | `guard-git` (production write) | 2026-09-09 | Piped `git push origin main`; got a deny naming `develop` |
 | `guard-git` (branch from production) | 2026-09-09 | Piped `git checkout -b feature/x main`; deny + correct command |
@@ -419,13 +425,15 @@ turned out to credit the gate with a catch only the test could have made.
 | 14 | Thresholds calibrated per encoder | `check-thresholds.mjs`, CI | **gate (new)** |
 | 15 | Domain content untrusted in a prompt | `fence()` / `redactTag()` in `core-inference`, at all four prompt sites; `untrusted.test.ts`, `cascade.test.ts`, golden `gs-0181..0183` | **test (2026-09-10)** — structural only; the model's *obedience* is not enforced, §8 |
 | 16 | The installer never modifies the adopter's source | `emit.test.ts` (`writeOutput` refuses an output dir inside `appRoot`) + `generate.test.ts` fingerprints the whole fixture tree before and after a run | **test (2026-09-10, WP-25)** |
-| 17 | An unreachable capability is absent from the user's registry | `emit.test.ts` diffs two role registries; `score-generated.mjs` re-checks all 10 generated registries against the master on every scoring run | **test (2026-09-10, WP-25)** |
+| 17 | An unreachable capability is absent from the user's registry | `emit.test.ts` diffs two role registries; `score-generated.mjs` re-checks all 10 generated registries against the master on every scoring run; `discover-vue-angular.test.ts` asserts a role written on a route (`data.roles`, `meta.roles`, `routeRoles`) builds its own registry and that the admin screen is in no other | **test (2026-09-10, WP-25; route-level roles 2026-09-13)** — until readiness 3c such a role never joined the audience, so its screen reached nobody rather than the wrong people |
 | — | Every capability can say what it is (WP-36) | `explanation-required` in `validate.ts`, gated by `pnpm registry:check` | **gate (2026-09-10)** |
 | — | Top-1 accuracy does not regress across a prompt change | `evaluate-golden.mjs --check`, CI — the model-free floor on the **generated** registries against the committed scorecard, every rate and every per-turn decision, timing excluded | **gate (2026-09-12)** — the model-free floor only; anything involving stage 3 needs a model server CI does not have, so a regression that only appears with a model is still ungated |
 | — | The browser entry loads with no Node globals ([L11](lessons.md)) | `packages/embed/src/embed.test.ts` runs the built bundle in a bare `vm` context holding only `window`, `console` and `performance` | **test (2026-09-11, WP-29)** |
-| — | The published package view is importable | `check-packaging.mjs` reads each manifest with `publishConfig` applied, after `pnpm build` in CI | **gate (WP-26)** |
+| — | The published package view is importable | `check-packaging.mjs` reads each manifest with `publishConfig` applied, after `pnpm build` in CI: every `main`, `types`, `exports` and `bin` target exists, is covered by `files` and is not TypeScript source, **and every bare import in the published JavaScript is a declared dependency** | **gate (WP-26; bin and dependency checks 2026-09-13)** |
+| — | An adopter can install the packages and use them | `check-install.mjs`, CI — packs the kit's six packages, `npm install`s the tarballs into a scratch project **outside this repository**, runs `nextgen init` / `build` / `doctor` through the installed bin on the runner's Node **and on Node 20**, imports `@nextgen/embed` as an ES module and routes a turn, hashes the copied app before and after (Rule 16), and type-checks a TypeScript adopter under `bundler` and `nodenext` | **gate (2026-09-13)** — needs network for npm. The packages are ESM-only, so a CommonJS adopter importing them statically is unsupported, documented and not tested |
 | — | Shipped indexes and per-registry thresholds match their inputs | `check-derived-artefacts.mjs`, CI (WP-46) | **gate (2026-09-11)** — covers `eval/fut-app/generated`; an adopter's own kit build is checked by its `doctor`, not here |
 | — | The shipped widget has no serious or critical accessibility violation | `check-accessibility.mjs`, CI (WP-45) — axe-core over the **built** `packages/embed/dist/nextgen.js` in a real DOM, in every state a user can reach, plus keyboard, focus, live-region and reduced-motion checks the stylesheet is read for | **gate (2026-09-12)** — blind to colour contrast (jsdom computes no layout, and the widget paints in the user's own system colours), to announcement order, and to anything as rendered. Those are [the NVDA pass](../../eval/a11y/NVDA-CHECKLIST.md), which a person runs and nobody has |
+| — | The widget works on a site with a strict Content-Security-Policy | `check-csp.mjs`, CI — headless Chrome loads a page served with `default-src 'self'; script-src 'self'; style-src 'self'` whose only integration is the documented `<script src=… data-nextgen-role=… defer>`, asks a question through the widget's own form and clicks a choice; fails on any violation, on the widget not starting or unstyled, on no answer, or on `nextgen:navigate` not reaching the page | **gate (2026-09-13)** — one policy and one browser engine per run (Chromium). A policy stricter than `'self'`, such as nonce- or hash-only `script-src`, needs the adopter to add their nonce to the tag and is not tested |
 | — | Two domains cannot overwrite each other's generated registry | per-domain output paths (ADR-016, WP-47) + the `registry-stale` gate, CI — it builds **both** domains and fails on `git status --porcelain`, so an artefact that was never committed counts as stale | **gate (2026-09-12)** — this replaced a convention (a documented build order) with a structure; `checkRegistryOwnership` is kept as a backstop against a misconfigured output path |
 
 ---
@@ -465,8 +473,8 @@ been sitting in the matrix as `none` without ever appearing on this list.
    **This entry used to say "a test asserting arithmetic origin on the render
    path would close it". That test cannot be written.** Checked against the tree
    2026-09-10: no user-visible number is rendered anywhere. `apps/web/lib/render.ts`
-   is the only `AnswerView` producer and its single `rows` construction sets
-   `value: ''`; `formatMoney` has no consumer outside `data` and its own tests;
+   was the only `AnswerView` producer (removed 2026-09-13) and its single `rows`
+   construction set `value: ''`; `formatMoney` has no consumer outside `data` and its own tests;
    `AnswerRow.bar` is never produced. The test would have asserted over an empty
    set and passed — the third vacuous gate this document would have recommended
    into existence. What remains open is arithmetic *our own code* does on model
@@ -539,7 +547,7 @@ been sitting in the matrix as `none` without ever appearing on this list.
 
 ## Related
 
-- [PLAN.md](../../PLAN.md) section 2 — the seventeen rules as stated
+- [PLAN.md](../../.MDFiles/PLAN.md) section 2 — the seventeen rules as stated
 - [decisions/](../decisions/) — the ADRs the rules come from
 - [.claude/README.md](../README.md) — the hooks, skills and agents that apply them
 - [sdlc/ci-cd.md](../sdlc/ci-cd.md) — what each CI job gates and why

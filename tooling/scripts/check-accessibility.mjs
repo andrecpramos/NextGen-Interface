@@ -163,6 +163,111 @@ const states = [];
     reachedLimit ? 'a declared boundary, presented as a limit' : 'it came back as something else — that state was not audited');
 }
 
+// ---------------------------------------------------- the assistant layer --
+//
+// `start()` mounts this, so it is what an adopter's visitor meets first: an orb
+// at the edge, and a full-screen dialog behind it. jsdom has no layout and no
+// canvas, so the liquid draws nothing here and where the orb sits is not judged —
+// `chooseDockSide` and the liquid's shape have their own tests. What is judged is
+// everything a keyboard or screen-reader user reaches.
+
+say('\n  the assistant layer — orb, screen, answer\n');
+
+{
+  const dom = page('pt');
+  const { window } = dom;
+  window.eval(`${code}\nwindow.NextGen = NextGen;`);
+  window.eval(axeSource);
+  const assistant = window.NextGen.create(bundle('PARENT'));
+  const mounted = window.NextGen.mountAssistant(window.document.body, assistant, {
+    navigate: () => {},
+    dockSide: 'right',
+    home: [],
+    storage: null,
+    preferences: null,
+    voice: false,
+  });
+  const root = mounted.host.shadowRoot;
+  const orb = root.querySelector('.orb');
+  const screen = root.querySelector('.screen');
+  const input = root.querySelector('input');
+  const tick = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  const layerStates = [['orb, screen shut', await audit(window, mounted.host)]];
+
+  orb.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await tick(80);
+  const opened = screen.getAttribute('data-open') === 'true' && !screen.hasAttribute('inert');
+  const focusMovedIn = root.activeElement === input;
+  layerStates.push(['screen open', await audit(window, mounted.host)]);
+
+  const noSuggestions = root.querySelectorAll('.places, .place, .more').length === 0;
+
+  // The menu: the adopter's navigation, or the registry's places where the page has none.
+  const menuButton = root.querySelector('.menu');
+  const drawer = root.querySelector('.drawer');
+  menuButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const menuOpened = drawer.getAttribute('data-open') === 'true' && !drawer.hasAttribute('inert')
+    && menuButton.getAttribute('aria-expanded') === 'true';
+  const focusInMenu = drawer.contains(root.activeElement);
+  const expandedWhileOpen = menuButton.getAttribute('aria-expanded');
+  const menuLinks = root.querySelectorAll('.drawer-link').length;
+  layerStates.push([`screen, menu open (${menuLinks} links)`, await audit(window, mounted.host)]);
+  screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  const menuClosedFirst = drawer.getAttribute('data-open') === 'false' && screen.getAttribute('data-open') === 'true'
+    && root.activeElement === menuButton;
+
+  // The same clarifying question the chat box is audited with above.
+  const answered = await mounted.ask('onde vejo as lesões do meu filho');
+  layerStates.push([`screen answered (${answered.choices.length} links)`, await audit(window, mounted.host)]);
+
+  for (const [label, r] of layerStates) {
+    const bad = r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    const minor = r.violations.filter((v) => v.impact !== 'serious' && v.impact !== 'critical');
+    note(
+      bad.length === 0,
+      `${label}: ${bad.length} serious/critical`,
+      [
+        minor.length ? `${minor.length} minor/moderate` : null,
+        r.incomplete.length ? `incomplete (jsdom cannot judge): ${r.incomplete.join(', ')}` : null,
+        ...bad.map((v) => `${v.impact} ${v.id} on ${v.target}`),
+        ...minor.map((v) => `${v.impact} ${v.id} on ${v.target}`),
+      ].filter(Boolean).join('; '),
+    );
+  }
+
+  const greeting = root.getElementById(screen.getAttribute('aria-labelledby'));
+  note(
+    screen.getAttribute('role') === 'dialog' && screen.getAttribute('aria-modal') === 'true' && Boolean(greeting?.textContent.trim()),
+    'the screen is a named modal dialog', `aria-labelledby → "${greeting?.textContent}"`,
+  );
+  note(Boolean(orb.getAttribute('aria-label')?.trim()), 'the orb has an accessible name',
+    `aria-label="${orb.getAttribute('aria-label')}"`);
+  note(opened && focusMovedIn, 'opening moves focus into the screen',
+    focusMovedIn ? 'focus is on the composer' : `focus is on ${root.activeElement?.tagName ?? 'nothing inside the screen'}`);
+  const composerLabel = root.querySelector(`label[for="${input.id}"]`);
+  note(Boolean(input.id && composerLabel?.textContent.trim()), 'the composer has a real <label for>',
+    `for="${composerLabel?.getAttribute('for')}" id="${input.id}"`);
+
+  note(noSuggestions, 'the screen offers no pre-written questions or places',
+    noSuggestions ? 'greeting and composer only' : 'a suggestion list is rendered');
+  note(menuOpened && focusInMenu && menuLinks > 0, 'the menu is a real disclosure, and focus moves into it',
+    `aria-expanded=${expandedWhileOpen} while open · ${menuLinks} link(s)`);
+  note(menuClosedFirst, 'Escape closes the menu first, and focus returns to its button');
+  const why = root.querySelector('.why summary');
+  const weighed = root.querySelectorAll('.why-list li').length;
+  note(Boolean(why?.textContent.trim()) && weighed > 0,
+    'an answer explains itself from its own record — a native "Why?" disclosure',
+    `"${why?.textContent}" · ${weighed} candidate(s)`);
+
+  screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  note(
+    screen.getAttribute('data-open') === 'false' && root.activeElement === orb && orb.getAttribute('aria-expanded') === 'false',
+    'Escape closes the screen and returns focus to the orb',
+  );
+  mounted.destroy();
+}
+
 // ------------------------------------------------- what axe cannot answer --
 
 say('\n  keyboard, focus, live region, motion\n');
@@ -236,24 +341,42 @@ say('\n  keyboard, focus, live region, motion\n');
 }
 
 // The stylesheet claims 48px targets, a visible focus ring and reduced motion.
-// jsdom paints nothing, so these are read from the CSS the bundle ships.
-{
-  const css = readFileSync(`${ROOT}/packages/embed/src/widget.ts`, 'utf8');
+// jsdom paints nothing, so these are read from the CSS each file ships.
+// assistant.ts is checked alongside widget.ts because `start()` mounts the
+// assistant layer — the same claims have to hold for both, not just the original.
+for (const file of ['widget.ts', 'assistant.ts']) {
+  const css = readFileSync(`${ROOT}/packages/embed/src/${file}`, 'utf8');
   const sheet = css.slice(css.indexOf('const CSS = `') + 13, css.indexOf('`;', css.indexOf('const CSS = `')));
 
-  note(/@media \(prefers-reduced-motion: reduce\)/.test(sheet), 'honours prefers-reduced-motion');
+  note(/@media \(prefers-reduced-motion: reduce\)/.test(sheet), `${file}: honours prefers-reduced-motion`);
 
-  // And has nothing to suppress in the first place — a transition declared
-  // outside that block is one a reduced-motion user would still see if the
-  // media query were ever dropped.
-  const outside = sheet
-    .replace(/@media \(prefers-reduced-motion: reduce\)[^}]*\{[^}]*\}[^}]*\}/g, '')
-    .match(/\b(transition|animation)\s*:/g) ?? [];
-  note(outside.length === 0, 'no motion declared outside that block', outside.length ? outside.join(', ') : 'nothing to suppress');
+  // Every rule that animates outside the reduced-motion block must be one the
+  // block actually cancels — not "no motion at all" (widget.ts has none; the
+  // blob genuinely animates by default), but "nothing is left unguarded".
+  // Matched by the element each rule targets (a compound selector's last
+  // token — `.core` out of `button.blob[data-state="thinking"] .core` — since
+  // `!important` inside the block beats a non-important rule regardless of
+  // the outside rule's specificity).
+  // Just the selector list the reduce block targets — e.g. "button.blob, .core"
+  // out of "@media (...) { button.blob, .core { transition: none !important; ... } }".
+  const reduceSelectorMatch = /@media \(prefers-reduced-motion: reduce\)[^{]*\{\s*([^{}]+)\{/.exec(sheet);
+  const guarded = reduceSelectorMatch?.[1] ?? '';
+  const lastToken = (selector) => selector.trim().split(/\s+/).pop();
+  const guardedTokens = new Set(guarded.split(',').map(lastToken));
+  // A bare `*` in the list is a blanket kill-switch; `.stage > *` is not.
+  const guardsEverything = guarded.split(',').some((part) => part.trim() === '*');
 
-  const targets = (sheet.match(/min-height:\s*48px/g) ?? []).length;
-  note(targets >= 3, 'inputs, buttons and links declare 48px targets', `${targets} rule(s) at 48px`);
-  note(/:focus-visible\s*\{[^}]*outline:/.test(sheet), 'a visible focus ring is declared', 'outline on :focus-visible');
+  const outsideSheet = sheet.replace(/@media \(prefers-reduced-motion: reduce\)[^}]*\{[^}]*\}[^}]*\}/g, '');
+  const motionRules = outsideSheet.match(/[^{}]+\{[^{}]*\b(?:transition|animation)\s*:[^{}]*\}/g) ?? [];
+  const unguarded = guardsEverything ? [] : motionRules.filter(
+    (rule) => !rule.slice(0, rule.indexOf('{')).trim().split(',').some((part) => guardedTokens.has(lastToken(part))),
+  );
+  note(unguarded.length === 0, `${file}: every declared motion is cancelled under reduced motion`,
+    unguarded.length ? unguarded.join(' | ') : motionRules.length ? `${motionRules.length} animated rule(s), all guarded` : 'nothing to suppress');
+
+  const targets = (sheet.match(/min-(?:height|width):\s*48px/g) ?? []).length;
+  note(targets >= (file === 'widget.ts' ? 3 : 2), `${file}: declares 48px targets`, `${targets} rule(s) at 48px`);
+  note(/:focus-visible\s*\{[^}]*outline:/.test(sheet), `${file}: a visible focus ring is declared`, 'outline on :focus-visible');
 }
 
 // ------------------------------------------------------------------ verdict --

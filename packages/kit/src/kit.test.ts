@@ -164,7 +164,7 @@ describe('init → build → doctor, end to end', () => {
     init(DATA_ROUTER, kit);
     const record = await build(kit);
     expect(record.roles).toEqual(['PUBLIC']);
-    expect(doctor(kit).text).toMatch(/'PUBLIC'/);
+    expect(doctor(kit).text).toMatch(/data-nextgen-role="PUBLIC"/);
   }, 60_000);
 
   it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {

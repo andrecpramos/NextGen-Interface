@@ -14,7 +14,7 @@
 8. Squash-merge on green
 
 The agent-facing version of this loop, with the exact commands, is the
-`add-capability` skill in [`.claude/skills/`](../../.claude/skills/).
+`add-capability` skill in [`.claude/skills/`](../skills/).
 
 ## Adding a capability — the standard path
 
@@ -95,7 +95,7 @@ trusted. Pull `gemma3:1b` or `qwen2.5:1.5b` for that comparison.
 *(Historical: an earlier version of this section described working around a
 missing Flutter install. That predates [ADR-006](../decisions/ADR-006.md), which
 replaced Flutter with the TypeScript monorepo. The router work it anticipated was
-done as WP-01 — see [PLAN.md](../../PLAN.md) section 7 and
+done as WP-01 — see [PLAN.md](../../.MDFiles/PLAN.md) section 7 and
 [eval/FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).)*
 
 ## Code review

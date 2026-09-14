@@ -76,7 +76,7 @@ examples, and both carry a comment at the declaration saying so. Do the same for
 yours, at the type, where the next reader will see it.
 
 Anything that surfaces such a field into a prompt fences and labels it. See
-[.claude/docs/security.md](../../../.claude/docs/security.md).
+[.claude/docs/security.md](../../docs/security.md).
 
 ### 3. Use cases
 
@@ -125,7 +125,7 @@ pnpm registry:check      # validate; the CI gate
 
 ### 6. Wire it at the composition root — and only there
 
-Add the workspace dependency to `apps/cli` and `apps/web`, and register through
+Add the workspace dependency to `apps/cli`, and register through
 the domain's `index.ts`. That import is the only place the app knows the domain's
 name. Nothing in `packages/core-*` changes.
 
@@ -150,5 +150,5 @@ worth an ADR, or a leak worth fixing before it sets.
 
 - `add-capability` skill — the declaration and its gates in detail
 - `write-adr` skill — a new domain that required a `core-*` change owes one
-- [.claude/docs/architecture.md](../../../.claude/docs/architecture.md) — the layers and how they talk
-- [ADR-004](../../../.claude/decisions/ADR-004.md) · [ADR-009](../../../.claude/decisions/ADR-009.md) · [ADR-010](../../../.claude/decisions/ADR-010.md)
+- [.claude/docs/architecture.md](../../docs/architecture.md) — the layers and how they talk
+- [ADR-004](../../decisions/ADR-004.md) · [ADR-009](../../decisions/ADR-009.md) · [ADR-010](../../decisions/ADR-010.md)
