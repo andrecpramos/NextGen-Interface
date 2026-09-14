@@ -273,14 +273,25 @@ export function deriveProse(request: ProseRequest): Prose {
   const explanation =
     `${primary} is a screen in the ${request.feature} area of this application, at ${request.route}.` +
     (request.copy.length > 0 ? ` It shows: ${request.copy.slice(0, 4).join(', ')}.` : '');
-  const examples = [
-    `open ${primary.toLowerCase()}`,
-    `take me to ${primary.toLowerCase()}`,
-    `abre ${(titles[1] ?? primary).toLowerCase()}`,
-    `leva-me para ${(titles[1] ?? primary).toLowerCase()}`,
-  ];
+  // Each title with its own language's words for "take me there". The first version put
+  // "open" before the first title and "abre" before the second, whatever their languages
+  // were: a Portuguese application was given "open finanças", and an English one
+  // "abre settings" — phrasings nobody types, pulling stage 2 towards neither.
+  const examples: string[] = [];
+  for (const [language, title] of Object.entries(request.titles)) {
+    if (!title) continue;
+    const verbs = ASK_TO_GO[language.split('-')[0]!.toLowerCase()] ?? ASK_TO_GO.en!;
+    for (const verb of verbs) examples.push(`${verb} ${title.toLowerCase()}`);
+  }
+  if (examples.length === 0) for (const verb of ASK_TO_GO.en!) examples.push(`${verb} ${primary.toLowerCase()}`);
   return { description, explanation, examples: [...new Set(examples)], source: 'derived' };
 }
+
+/** How a user asks to be taken to a screen. Three each, so a derived capability still meets Rule 10's minimum. */
+const ASK_TO_GO: Readonly<Record<string, readonly string[]>> = {
+  en: ['open', 'take me to', 'go to'],
+  pt: ['abre', 'leva-me para', 'ir para'],
+};
 
 // ---------------------------------------------------------------------- cache --
 

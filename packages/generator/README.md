@@ -90,7 +90,48 @@ to their source root. A wrong answer in their assistant is one path away from th
 page that produced it.
 
 Runs without a model at all (`--no-model`), deriving prose from the
-application's own labels. The output is flatter and says so.
+application's own labels. The output is flatter and says so. Derived examples use each
+title's own language: "abre anúncios", "open announcements".
+
+## How a screen is named
+
+A title is the first thing stage 2 embeds and the first thing a user reads. It comes from
+the application's own words, in each language the app ships (`resolveTitles` in
+`generate.ts`), in this order:
+
+1. the label its navigation gives it, from a configured manifest;
+2. the heading the page renders — its page header's `title`, or its `<h1>` (`titleKeys` in
+   `pages.ts`). Translation functions bound under another name count
+   (`const { t: tp } = useTranslation('player')`), and so does a local `const title = …`. A
+   header from an early return does not: it names a loading or failed moment;
+3. a page-level `*.title` key, or a title the page declares as a literal;
+4. a nav-shaped `{ label, route }` written anywhere else in the source (`readSourceLabels`).
+
+A component's name is used only when the application names the screen in no language at all.
+
+- **A wrapper page is read through what it renders** (`readScreen`). When a page's own file
+  says nothing — `<PersonalSettingsLayout active="notif">…` — the app's own components one
+  level down are read instead, with the page's string props put into template keys:
+  `t(`sections.${active}`)` becomes `sections.notif`. The page is then named the way the
+  layout shows it: "As Minhas Preferências · Notificações". A shared UI kit is never read.
+- **A duplicate is judged inside a registry.** Two screens only compete when some role
+  reaches both (ADR-014). A duplicate is qualified in the title's own language, with:
+  - its nav group's label, the way the app's command palette writes it
+    ("Plantel · Visão geral"), or
+  - its area's name.
+
+  An English folder name never qualifies a Portuguese title. Trigger ambiguity is judged
+  the same way.
+- **One screen at two addresses is declared once.** Two cases:
+  - A static route that renders a redirect into a detail route with one parameter in the
+    middle (`/my/children/medical` → `/my/children/:childId/medical`) is that page's entry
+    point. The detail is skipped as `reached-through-resolver`, and the resolver takes the
+    detail's facts.
+  - A route-table `<Navigate>` to a screen declared at its own address is an old name for
+    that screen, and is skipped as `redirect-alias`. One that lands a section on its own
+    first page is kept.
+
+Measured on fut-app: [eval/fut-app/TITLES.md](../../eval/fut-app/TITLES.md).
 
 ## Adapters
 

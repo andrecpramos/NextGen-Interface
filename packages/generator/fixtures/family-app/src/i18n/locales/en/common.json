@@ -1,0 +1,13 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "overview": "Overview",
+    "squad": "Squad",
+    "training": "Training",
+    "medicalStatus": "Medical Status",
+    "myChildren": "My Children",
+    "settings": "Settings",
+    "sections": { "family": "Children" }
+  },
+  "actions": { "back": "Back" }
+}

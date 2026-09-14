@@ -1,0 +1,5 @@
+{
+  "personalPageTitle": "My Preferences",
+  "sections": { "notif": "Notifications", "tutorials": "Tutorials" },
+  "notifications": { "email": "Email address" }
+}
