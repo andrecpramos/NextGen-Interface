@@ -15,26 +15,43 @@ The old site keeps working exactly as it does. **Every screen the assistant can 
 stays reachable without it** — that one is not negotiable
 ([ADR-005](.claude/decisions/ADR-005.md)).
 
+> **Adding this to your app?** Start with **[GETTING-STARTED.md](GETTING-STARTED.md)**: one page,
+> five steps. Everything below is about how it was built and measured.
+
 ## Does it work?
 
 Measured on a real 146-page application it was never designed for, against a registry
-no human wrote:
+no human wrote — and measured on **what an adopter installs**: the script tag, routing in
+the browser with no model, against the app's own command palette, like for like
+([like-for-like.json](eval/fut-app/like-for-like.json)):
 
-| | Assistant | The app's own command palette |
+| 176 real questions | Script tag, no model | The app's own command palette |
 |---|---|---|
-| Right screen, 176 real questions | **56.8%** | 45.5% |
-| Portuguese — the app's own language | **59.5%** | 37.1% |
-| Guardians — infrequent users | **45.8%** | 18.8% |
-| **Settled without a model call** | **11.0%** | — |
+| Right screen shown first | **53.4%** | 42.6% |
+| Right screen among what is shown (at most 3) | **69.9%** | 45.5% |
+| Portuguese — the app's own language | **72.4%** | 37.1% |
+| Guardians — infrequent users | **75.0%** | 18.8% |
+| English | **65.0%** | 61.7% |
+| Sent straight to a wrong screen | **0%** | — |
 
-**It beats the incumbent. It does not beat it for free.** The mechanism meant to make most
-turns cost nothing does not survive 145 capabilities — and that is settled rather than
-open: a fixed budget was spent on every lever anyone had identified
-([WP38.md](eval/fut-app/WP38.md)), and an accepted ADR added a second, non-topical signal
-on top. Together they moved the number from **2.4% to 11.0%** against a 60% target.
-**The product is a better way to navigate, not a cheaper one.**
+**It beats the incumbent by offering, not by deciding.** The script tag navigates on its
+own for only **1.7%** of questions. For almost everything else it shows up to three screens
+and the user picks one — a click more than a perfect guess, and it has sent nobody to a
+wrong place.
 
-**[WRITEUP.md](WRITEUP.md) is the whole story**, negative results first, every claim
+**An earlier headline here, 56.8% vs 45.5%, measured a different configuration:** a server
+running `nomic-embed-text` and `llama3.1:8b` to pick one screen. The script tag calls
+neither. That run is kept, labelled, in [WRITEUP.md](.MDFiles/WRITEUP.md) §5; it is not what an
+adopter gets.
+
+**It does not decide for free.** The mechanism meant to settle most turns on its own does
+not survive 145 capabilities — and that is settled rather than open: a fixed budget was
+spent on every lever anyone had identified ([WP38.md](eval/fut-app/WP38.md)), and an
+accepted ADR added a second, non-topical signal on top. With a model they moved the
+number from **2.4% to 11.0%** against a 60% target. **The product is a better way to
+navigate; a cheaper one is not claimed** until a deployment measures it.
+
+**[WRITEUP.md](.MDFiles/WRITEUP.md) is the whole story**, negative results first, every claim
 linked to the artefact that backs it. Read that before anything else here.
 
 ## The idea
@@ -68,12 +85,10 @@ packages/
   core-inference/  swappable LLM + embedding runtimes
   core-voice/      Whisper STT + Piper TTS adapters
   data/            node:sqlite schema, migrations, repositories
-  ui/              sphere, composer, confirmation cards
   domain-modules/  reference application — the registered one
   domain-finance/  reference application — proof the engine is domain-agnostic
 
 apps/cli           composition root, and the fastest way to see a turn
-apps/web           the assistant surface (Next.js)
 eval/fut-app       the measurement: ground truth, golden set, scorecards
 tooling/scripts    the CI gates that are not tests
 ```
@@ -92,7 +107,6 @@ They are what the generator is measured against.
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
 pnpm app                         # the reference app in a terminal
 pnpm app:offline                 # stages 1-2 only, no model, no Ollama needed
-pnpm web                         # the same stack behind a browser UI
 pnpm check                       # typecheck + 384 tests + registry validation
 ```
 
@@ -146,9 +160,10 @@ figure is meaningless.
 
 | Question | File |
 |---|---|
-| Does this work, and what is the evidence? | **[WRITEUP.md](WRITEUP.md)** |
-| What is the plan, and what is next? | [PLAN.md](PLAN.md) |
-| How do I run it? | [SETUP.md](SETUP.md) |
+| Does this work, and what is the evidence? | **[WRITEUP.md](.MDFiles/WRITEUP.md)** |
+| What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
+| How do I add it to my app? | [GETTING-STARTED.md](GETTING-STARTED.md) |
+| How do I run it? | [SETUP.md](.MDFiles/SETUP.md) |
 | Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 15 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
 | What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
@@ -160,13 +175,19 @@ The engine is built and measured. The generation works. **The cost model is reso
 it resolved against us**: 11.0% of turns settle without a model call, against a 60% target
 that was a pre-committed kill criterion and triggered. A fixed budget was then spent trying
 to fix it, every lever was measured, and the claim was withdrawn rather than restated —
-[PLAN.md](PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
+[PLAN.md](.MDFiles/PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
 [business-case.md](.claude/docs/business-case.md) §5. The numbers are published rather than
 buried, which is the point.
 
-Built since then: the browser runtime, guided steps, the installable package and a script
-tag. Not built: the one-command drop-in kit (WP-41), and a live deployment, which the
-owner runs. Nothing here is production-ready.
+Built since then: the browser runtime, guided steps, the installable package, a script tag
+that runs under a strict Content-Security-Policy, and the drop-in kit —
+`nextgen init / build / doctor / preview / calibrate` ([INSTALL.md](.MDFiles/INSTALL.md)). The kit
+reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps, and on six
+public apps it had never seen it found every route in ground truth written beforehand and
+changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
+
+Not done: a live deployment, and a field test by someone other than its author
+([FIELD-TEST.md](.MDFiles/FIELD-TEST.md)). The owner runs both. Nothing here is production-ready.
 
 **A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do.
 The assistant does not decline all of them. On `fut-app`'s 34 hand-written out-of-scope
@@ -177,3 +198,12 @@ requests:
 
 The target was ~70%. Every mechanism that was tried is measured in PLAN.md §7.2 (WP-39,
 WP-40). The ceiling is accepted and stated here, not hidden.
+
+## Installing it, and the license
+
+Adopters install eight tarballs attached to a GitHub Release. [GETTING-STARTED.md](GETTING-STARTED.md)
+has the steps, [INSTALL.md](.MDFiles/INSTALL.md) the full reference, and [CHANGELOG.md](CHANGELOG.md) what each
+release contains.
+
+**Proprietary — all rights reserved.** Use requires a written agreement with the copyright
+holder; see [LICENSE](LICENSE).

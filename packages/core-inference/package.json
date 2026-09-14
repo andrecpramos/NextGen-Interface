@@ -1,5 +1,11 @@
 {
   "version": "0.1.0",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrecpramos/AI-Interface.git",
+    "directory": "packages/core-inference"
+  },
   "name": "@nextgen/core-inference",
   "main": "./src/index.ts",
   "description": "LLM runtime adapters: Ollama (desktop), llama.rn (mobile), WebGPU (web).",
@@ -18,6 +24,9 @@
     "dist",
     "README.md"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",

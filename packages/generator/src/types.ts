@@ -27,7 +27,13 @@ export type SkipReason =
   | 'duplicate-route'
   | 'no-roles'
   /** WP-28: discovery found the route but could not read its path or component. */
-  | 'unreadable-route';
+  | 'unreadable-route'
+  /** A catch-all (`[...slug]`, a Remix `$` splat) serving pages that come from content, not code. */
+  | 'catch-all'
+  /** The same screen as a route that picks its own parameter and redirects to it: declared once, there. */
+  | 'reached-through-resolver'
+  /** Only redirects to a screen that is declared at its own address: an old name for it, not a place. */
+  | 'redirect-alias';
 
 export interface SkippedRoute {
   readonly path: string;
@@ -54,6 +60,11 @@ export interface DiscoveredRoute {
   readonly roles: readonly RoleName[] | null;
   /** The named role set the route referenced, e.g. `ROUTE_ROLES.squadManage`. */
   readonly roleKey: string | null;
+  /**
+   * Where a `<Navigate to="…" />` written straight into the route table sends the user, as
+   * far as it is known at build time. Absent for a route that renders a page.
+   */
+  readonly redirectTo?: string | null;
   /** Registered only under a development-build guard. */
   readonly devOnly: boolean;
   /** Leading comment on the route entry, verbatim. Untrusted (Rule 15). */
@@ -71,6 +82,16 @@ export interface PageFacts {
   readonly redirectTargets: readonly string[];
   /** i18n keys the page renders, in source order — its own vocabulary. */
   readonly i18nKeys: readonly string[];
+  /**
+   * The i18n keys the page renders as its own heading — its page header's `title`, or
+   * its `<h1>` — in source order. What a user reads at the top of the screen.
+   */
+  readonly titleKeys: readonly string[];
+  /**
+   * For a page that is one tab of a shared layout: the layout's own heading, which names the
+   * section the tab belongs to. Set only when the page is read through that layout (`readScreen`).
+   */
+  readonly sectionTitleKeys?: readonly string[];
   /** Literal heading/title text found in the body. Untrusted (Rule 15). */
   readonly headings: readonly string[];
   /** Leading block comment on the default export — why the page exists. */
@@ -80,6 +101,11 @@ export interface PageFacts {
    * steps are generated from. Labels are untrusted adopter text (Rule 15).
    */
   readonly fields: readonly FormField[];
+  /**
+   * The title the page declares for itself — Next.js `metadata.title`, a Remix
+   * `meta` title — when it is a string literal. Untrusted (Rule 15).
+   */
+  readonly title: string | null;
 }
 
 /** One control a guided step can point at, as read from the page's JSX. */
@@ -99,6 +125,12 @@ export interface FormField {
 export interface ManifestEntry {
   readonly path: string;
   readonly labelKey: string | null;
+  /**
+   * The label of the nav group the entry sits in, when a nav config nests it:
+   * `{ label: 'nav.squad', items: [{ label: 'nav.overview', route: '/squad' }] }`.
+   * What the application's own command palette writes before the item's label.
+   */
+  readonly groupLabelKey?: string | null;
   /** Prose written by a developer about this route. Untrusted (Rule 15). */
   readonly reason: string | null;
 }
@@ -131,8 +163,26 @@ export interface GeneratorOutput {
 export interface GeneratorConfig {
   /** The application's source root, e.g. `<repo>/frontend/src`. */
   readonly appRoot: string;
-  /** The React Router route table. */
+  /**
+   * How the application declares its routes. Default `react-router`, where
+   * `routesFile` is its route table. For a router declared by a folder layout,
+   * `routesFile` is that folder, relative to `appRoot`:
+   *   - `next`: the `app` or `pages` folder (`.` when `appRoot` is it); both are read when both exist
+   *   - `remix`: `routes` — Remix v2, or React Router 7 `flatRoutes()`
+   *   - `sveltekit`: `routes`, with `appRoot` the `src` folder
+   *   - `nuxt`: `pages`, with `appRoot` the `app` folder (Nuxt 4), or `.` with `appRoot` the `pages` folder (Nuxt 3)
+   *   - `vue-router`, `angular`: like `react-router`, the route table in code (`router/index.ts`, `app/app.routes.ts`)
+   */
+  readonly router?: 'react-router' | 'vue-router' | 'angular' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
+  /** The route table (`react-router`), or the routes folder (every other router). */
   readonly routesFile: string;
+  /**
+   * Roles the application enforces in code the generator cannot read — a
+   * middleware, a layout, a loader — declared by path prefix:
+   * `{ "/admin": ["ADMIN"] }`. The longest prefix matching at a segment boundary
+   * wins, and replaces whatever discovery found for that route.
+   */
+  readonly routeRoles?: Readonly<Record<string, readonly RoleName[]>>;
   /**
    * The module declaring the named role sets the route table references.
    * Absent in an application with no roles at all: every visitor then receives

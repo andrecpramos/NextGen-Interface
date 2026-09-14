@@ -61,9 +61,8 @@ export class LlamaRnRuntime implements LlmRuntime {
 /**
  * Browser inference via WebGPU.
  *
- * Lower risk than the mobile case and lower priority: `apps/web` (WP-09) uses
- * Ollama for local development, so this is only needed to make the web app work
- * without a local server.
+ * Lower risk than the mobile case and lower priority: the shipped script tag routes
+ * with stages 1 and 2 and needs no model at all (WP-24).
  */
 export class WebGpuRuntime implements LlmRuntime {
   readonly name = 'webgpu';

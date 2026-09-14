@@ -18,8 +18,7 @@ isolated suite could reach:
   whole `RegistryFile` (enums in source form) when a loaded registry carries them compiled
 - `OllamaOptions` rejected an explicit `undefined` under `exactOptionalPropertyTypes`
 
-`apps/web` (WP-09) wraps this same assembly behind a UI. Nothing here is throwaway — the
-CLI is a surface, not a prototype.
+Nothing here is throwaway — the CLI is a surface, not a prototype.
 
 ## What a turn does
 

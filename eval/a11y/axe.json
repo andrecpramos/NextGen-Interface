@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-12T22:24:37.471Z",
+  "checkedAt": "2026-09-14T12:18:52.036Z",
   "artefact": "packages/embed/dist/nextgen.js",
   "data": "eval/fut-app/generated (PARENT)",
   "tool": "axe-core 4.13.0 in jsdom",
@@ -75,6 +75,69 @@
     },
     {
       "ok": true,
+      "label": "orb, screen shut: 0 serious/critical",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "label": "screen open: 0 serious/critical",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "label": "screen, menu open (19 links): 0 serious/critical",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "label": "screen answered (3 links): 0 serious/critical",
+      "detail": ""
+    },
+    {
+      "ok": true,
+      "label": "the screen is a named modal dialog",
+      "detail": "aria-labelledby → \"Pronto quando quiser.\""
+    },
+    {
+      "ok": true,
+      "label": "the orb has an accessible name",
+      "detail": "aria-label=\"Abrir o assistente\""
+    },
+    {
+      "ok": true,
+      "label": "opening moves focus into the screen",
+      "detail": "focus is on the composer"
+    },
+    {
+      "ok": true,
+      "label": "the composer has a real <label for>",
+      "detail": "for=\"nextgen-ask\" id=\"nextgen-ask\""
+    },
+    {
+      "ok": true,
+      "label": "the screen offers no pre-written questions or places",
+      "detail": "greeting and composer only"
+    },
+    {
+      "ok": true,
+      "label": "the menu is a real disclosure, and focus moves into it",
+      "detail": "aria-expanded=true while open · 19 link(s)"
+    },
+    {
+      "ok": true,
+      "label": "Escape closes the menu first, and focus returns to its button"
+    },
+    {
+      "ok": true,
+      "label": "an answer explains itself from its own record — a native \"Why?\" disclosure",
+      "detail": "\"Porquê?\" · 3 candidate(s)"
+    },
+    {
+      "ok": true,
+      "label": "Escape closes the screen and returns focus to the orb"
+    },
+    {
+      "ok": true,
       "label": "no positive tabindex (the host page keeps its own tab order)",
       "detail": "input and button are natural stops"
     },
@@ -112,21 +175,40 @@
     },
     {
       "ok": true,
-      "label": "honours prefers-reduced-motion"
+      "label": "widget.ts: honours prefers-reduced-motion"
     },
     {
       "ok": true,
-      "label": "no motion declared outside that block",
+      "label": "widget.ts: every declared motion is cancelled under reduced motion",
       "detail": "nothing to suppress"
     },
     {
       "ok": true,
-      "label": "inputs, buttons and links declare 48px targets",
-      "detail": "3 rule(s) at 48px"
+      "label": "widget.ts: declares 48px targets",
+      "detail": "4 rule(s) at 48px"
     },
     {
       "ok": true,
-      "label": "a visible focus ring is declared",
+      "label": "widget.ts: a visible focus ring is declared",
+      "detail": "outline on :focus-visible"
+    },
+    {
+      "ok": true,
+      "label": "assistant.ts: honours prefers-reduced-motion"
+    },
+    {
+      "ok": true,
+      "label": "assistant.ts: every declared motion is cancelled under reduced motion",
+      "detail": "14 animated rule(s), all guarded"
+    },
+    {
+      "ok": true,
+      "label": "assistant.ts: declares 48px targets",
+      "detail": "8 rule(s) at 48px"
+    },
+    {
+      "ok": true,
+      "label": "assistant.ts: a visible focus ring is declared",
       "detail": "outline on :focus-visible"
     }
   ]

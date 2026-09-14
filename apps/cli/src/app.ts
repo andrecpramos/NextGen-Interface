@@ -51,8 +51,7 @@ import {
  * first place they are wired into an actual turn — utterance in, router,
  * dispatcher policy, domain use case, database, trace out.
  *
- * `apps/web` (WP-09) wraps this same assembly behind a UI. Nothing here is
- * throwaway; the CLI is a surface, not a prototype.
+ * Nothing here is throwaway; the CLI is a surface, not a prototype.
  *
  * Renamed from `FinanceApp`: the registered domain is now `domain-modules`,
  * not `domain-finance` — see PLAN.md's WP-14. `domain-finance` is not wired
@@ -622,7 +621,7 @@ export class NextGenApp {
       sourceExcerpt: text || `[${sourceType}]`,
       // Carries the candidate list to the renderer as the field's options —
       // not a value anyone edits directly, so it stays out of the visible
-      // param list (apps/web/lib/render.ts hides it explicitly).
+      // param list.
       candidatesJson: JSON.stringify(value.candidates),
     };
 

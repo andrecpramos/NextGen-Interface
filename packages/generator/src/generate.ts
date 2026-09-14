@@ -1,8 +1,8 @@
 import { relative } from 'node:path';
 
-import { discoverRoutes } from './discover.ts';
-import { readManifests, readTranslations, translate, type Translations } from './labels.ts';
-import { readPage } from './pages.ts';
+import { discoverRoutes, importResolver } from './discover.ts';
+import { readManifests, readSourceLabels, readTranslations, translate, type Translations } from './labels.ts';
+import { readScreen } from './pages.ts';
 import { synthesiseId, routeSegments, featureOf } from './ids.ts';
 import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
@@ -47,13 +47,15 @@ const EMPTY_FACTS: PageFacts = {
   redirectTargets: [],
   i18nKeys: [],
   headings: [],
+  titleKeys: [],
   doc: null,
+  title: null,
 };
 
 /** `/squad/players` and `/squad/players/:id` share a section; `/players/:id` does not. */
 function sameSection(path: string, target: string): boolean {
   const [a] = routeSegments(path);
-  const [b] = routeSegments(target);
+  const [b] = routeSegments(target.split(/[?#]/)[0]!);
   return a !== undefined && a === b;
 }
 
@@ -70,31 +72,258 @@ function isBookmarkRedirect(route: DiscoveredRoute, facts: PageFacts): boolean {
   return !facts.redirectTargets.every((target) => sameSection(route.path, target));
 }
 
-function titleFromComponent(component: string | null): string | null {
-  if (!component) return null;
-  const cleaned = component.replace(/(Page|Redirect|View|Screen)$/g, '');
-  const spaced = cleaned.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
-  return spaced.length > 0 ? spaced : null;
+/**
+ * A redirect to a screen already declared at its own address is that screen's old name, not a place.
+ *
+ * fut-app's route table keeps eleven `<Navigate>` entries for addresses it has moved —
+ * `/my/schedule` to `/my/agenda`, `/medical/rtp` to a tab of the medical centre. Declared,
+ * each was a capability named after the redirect component — "Navigate", "Medical
+ * navigate" — competing with the very screen it points at. A redirect that lands a section
+ * on its own first page (`/settings` to `/settings/notifications`) is that section's landing,
+ * and is kept.
+ */
+function dropRedirectAliases(accepted: Accepted[], skipped: SkippedRoute[]): void {
+  const declared = new Set(accepted.map((entry) => entry.route.path));
+  const kept = accepted.filter((entry) => {
+    const { isPureRedirect, redirectTargets } = entry.facts;
+    if (!isPureRedirect || redirectTargets.length === 0) return true;
+    const own = entry.route.path;
+    const alias = redirectTargets.every((target) => {
+      const path = target.split(/[?#]/)[0]!.replace(/(.)\/+$/, '$1');
+      return path !== own && declared.has(path) && !path.startsWith(`${own}/`);
+    });
+    if (!alias) return true;
+    skipped.push({
+      path: own,
+      reason: 'redirect-alias',
+      detail: `only redirects to ${redirectTargets.join(', ')}, which is declared at its own address`,
+    });
+    return false;
+  });
+  accepted.splice(0, accepted.length, ...kept);
 }
 
-function resolveTitles(
-  route: DiscoveredRoute,
-  labelKey: string | null,
-  facts: PageFacts,
+/** A route that will become a capability, and what its page says about itself. */
+interface Accepted {
+  readonly route: DiscoveredRoute;
+  readonly id: string;
+  readonly facts: PageFacts;
+  readonly labelKey: string | null;
+  readonly groupLabelKey: string | null;
+  /** A label for this route found outside the configured manifests, used only when nothing else names it. */
+  readonly fallbackLabelKey: string | null;
+  /** The component a user sent here sees: its own, or the page a resolver lands on. */
+  readonly pageFile: string | null;
+}
+
+/**
+ * One screen at two addresses is declared once, at the address a user can be sent to.
+ *
+ * fut-app gives a guardian `/my/children/medical`, which picks the child itself — the only
+ * one, or the roster to choose from — and redirects to `/my/children/:childId/medical`.
+ * Declared as two capabilities, they were one page described twice: every question about
+ * a child's medical status scored both, neither won by a margin, and the guardian was
+ * asked which of two identical places they meant. The golden set expects the resolver on
+ * every such question, and the detail on none.
+ *
+ * The evidence is structural, never a name: the static route renders a redirect whose
+ * known prefix is the detail route up to its one parameter, the rest of the two paths
+ * agree, and every role that reaches the detail reaches the resolver. The resolver keeps
+ * its own address and nav label and takes the detail page's facts — heading, copy, doc
+ * comment and form — because that is the page its user lands on. A list and its detail
+ * (`/players`, `/players/:id`) never match: there the parameter is last.
+ */
+function mergeResolvers(accepted: Accepted[], skipped: SkippedRoute[]): void {
+  const byPath = new Map(accepted.map((entry) => [entry.route.path, entry]));
+  const resolved = new Map<string, Accepted>();
+  const dropped = new Set<string>();
+  for (const landing of accepted) {
+    const segments = routeSegments(landing.route.path);
+    const parameters = segments.flatMap((segment, index) => (segment.startsWith(':') ? [index] : []));
+    const at = parameters[0];
+    if (parameters.length !== 1 || at === undefined || at === 0 || at === segments.length - 1) continue;
+    const resolver = byPath.get(`/${[...segments.slice(0, at), ...segments.slice(at + 1)].join('/')}`);
+    if (!resolver || resolved.has(resolver.route.path)) continue;
+    const prefix = `/${segments.slice(0, at).join('/')}/`;
+    if (!resolver.facts.redirectTargets.includes(prefix)) continue;
+    const reaches = new Set(resolver.route.roles ?? []);
+    if (!(landing.route.roles ?? []).every((role) => reaches.has(role))) continue;
+
+    resolved.set(resolver.route.path, {
+      ...resolver,
+      facts: { ...landing.facts, isPureRedirect: false, redirectTargets: resolver.facts.redirectTargets },
+      pageFile: landing.route.componentFile ?? resolver.pageFile,
+    });
+    dropped.add(landing.route.path);
+    skipped.push({
+      path: landing.route.path,
+      reason: 'reached-through-resolver',
+      detail: `the same screen as ${resolver.route.path}, which picks the ${segments[at]!.slice(1)} itself and redirects to ${prefix}…`,
+    });
+  }
+  const kept = accepted
+    .filter((entry) => !dropped.has(entry.route.path))
+    .map((entry) => resolved.get(entry.route.path) ?? entry);
+  accepted.splice(0, accepted.length, ...kept);
+}
+
+/** What a title's duplicates are judged against: who reaches the screen, and where its nav files it. */
+interface TitleContext {
+  readonly feature: string;
+  readonly roles: readonly string[];
+  /** The label of the nav group the screen sits in, per language. */
+  readonly groups: Readonly<Record<string, string>>;
+  /**
+   * The screen's area named in each language: the app's own `nav.<feature>` label, or the
+   * folder name itself for an English title. Absent otherwise — a developer's English folder
+   * name does not qualify a Portuguese title ("Guardian estado Médico").
+   */
+  readonly areas: Readonly<Record<string, string>>;
+}
+
+function areaLabels(
+  feature: string,
   translations: ReadonlyMap<string, Translations>,
   languages: readonly string[],
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const language of languages) {
     const dictionary = translations.get(language);
+    const label =
+      (dictionary ? readable(translate(dictionary, `nav.${feature}`)) : null) ??
+      (dictionary ? readable(translate(dictionary, `nav.sections.${feature}`)) : null) ??
+      (language.split('-')[0]!.toLowerCase() === 'en' ? humanise(feature) : null);
+    if (label) out[language] = label;
+  }
+  return out;
+}
+
+function groupLabels(
+  key: string | null,
+  translations: ReadonlyMap<string, Translations>,
+  languages: readonly string[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!key) return out;
+  for (const language of languages) {
+    const dictionary = translations.get(language);
+    const label = dictionary ? readable(translate(dictionary, key)) : null;
+    if (label) out[language] = label;
+  }
+  return out;
+}
+
+function titleFromComponent(component: string | null): string | null {
+  if (!component) return null;
+  const cleaned = component.replace(/(Page|Redirect|View|Screen|Component)$/g, '');
+  const spaced = cleaned.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
+  return spaced.length > 0 ? spaced : null;
+}
+
+/** `Settings • Conduit`, `Pricing | Acme`: a page title followed by the site's name. */
+const TITLE_SEPARATOR = /\s+(?:[•|·—–:-]|::)\s+/;
+
+/**
+ * The site name most page titles end with, when there is one.
+ *
+ * `<title>Settings • Conduit</title>` names the page, then the site. The site half is the
+ * same on every page, so it tells the router nothing and makes every screen look alike
+ * to stage 2. It is recognised by being the shared tail of at least two titles.
+ */
+function sharedTitleSuffix(titles: readonly (string | null)[]): string | null {
+  const counts = new Map<string, number>();
+  for (const title of titles) {
+    if (!title) continue;
+    const parts = title.split(TITLE_SEPARATOR);
+    if (parts.length < 2) continue;
+    const tail = parts[parts.length - 1]!.trim();
+    counts.set(tail, (counts.get(tail) ?? 0) + 1);
+  }
+  const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] >= 2 ? best[0] : null;
+}
+
+/** A title without the site name. A title that is only the site name says nothing about the page. */
+function withoutSiteName(title: string | null, siteName: string | null): string | null {
+  if (!title || !siteName) return title;
+  if (title.trim() === siteName) return null;
+  const parts = title.split(TITLE_SEPARATOR);
+  if (parts.length > 1 && parts[parts.length - 1]!.trim() === siteName) return parts.slice(0, -1).join(' ').trim() || null;
+  return title;
+}
+
+/** A component name used as a title, except that the root page named for its file is "Home". */
+function componentTitle(route: DiscoveredRoute): string | null {
+  const title = titleFromComponent(route.component);
+  if (route.path === '/' && (title === null || /^(index|root|app|main|page)$/i.test(title))) return 'Home';
+  return title;
+}
+
+/** A translation a user could read as a name: not empty, and no `{{placeholder}}` left in it. */
+function readable(value: string | null): string | null {
+  const text = value?.trim();
+  return text && text.length > 1 && !/\{\{?\s*[\w.]+\s*\}\}?/.test(text) ? text : null;
+}
+
+/** The first of these keys that translates to a readable name. */
+function firstReadable(dictionary: Translations, keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const value = readable(translate(dictionary, key));
+    if (value) return value;
+  }
+  return null;
+}
+
+/**
+ * The heading a page renders, in one language.
+ *
+ * A wrapper page that is one tab of a shared layout is named the way the layout shows it —
+ * "As Minhas Preferências · Notificações" — rather than by the tab alone, which names
+ * fut-app's notifications inbox at `/my/notifications` just as well.
+ */
+function headingOf(dictionary: Translations, facts: PageFacts): string | null {
+  const heading = firstReadable(dictionary, facts.titleKeys);
+  const section = facts.sectionTitleKeys ? firstReadable(dictionary, facts.sectionTitleKeys) : null;
+  return heading && section && section !== heading ? `${section} · ${heading}` : heading;
+}
+
+/**
+ * A screen's title in each language the application ships, in the application's words.
+ *
+ * In order: the label its navigation gives it, the heading the page renders
+ * (`titleKeys`, read through a wrapper's layout when it has one), a page-level `*.title`
+ * key, a title the page declares as a literal, and a nav-shaped label found elsewhere in
+ * the source.
+ *
+ * **A component name is never a title in a language.** It used to fill any language the
+ * app had no words for, so fut-app's Portuguese registry named screens "Personal
+ * Notifications" and "Child Medical" — a developer's English identifier, served to a
+ * Portuguese user as the name of a place. It is now used only when the application names
+ * the screen in no language at all, which is also the only time it is the best name there is.
+ */
+function resolveTitles(
+  route: DiscoveredRoute,
+  labelKey: string | null,
+  facts: PageFacts,
+  translations: ReadonlyMap<string, Translations>,
+  languages: readonly string[],
+  fallbackLabelKey: string | null = null,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const language of languages) {
+    const dictionary = translations.get(language);
     if (!dictionary) continue;
-    const fromLabel = labelKey ? translate(dictionary, labelKey) : null;
-    const fromPage = fromLabel ?? firstResolvable(dictionary, facts.i18nKeys);
-    const title = fromPage ?? titleFromComponent(route.component);
+    const title =
+      (labelKey ? readable(translate(dictionary, labelKey)) : null) ??
+      headingOf(dictionary, facts) ??
+      firstResolvable(dictionary, facts.i18nKeys) ??
+      facts.title ??
+      (fallbackLabelKey ? readable(translate(dictionary, fallbackLabelKey)) : null);
     if (title) out[language] = title;
   }
   if (Object.keys(out).length === 0) {
-    const fallback = titleFromComponent(route.component) ?? route.path;
+    // Named in no language: the title the page declares for itself, then its component's name.
+    const fallback = facts.title ?? componentTitle(route) ?? route.path;
     out[languages[0] ?? 'en'] = fallback;
   }
   return out;
@@ -127,32 +356,61 @@ function humanise(text: string): string {
 }
 
 /**
- * Make every title say which screen it is.
+ * Make every title say which screen it is, among the screens it competes with.
  *
  * 17 of the pilot target's capabilities were called "Overview" and 11 more
  * shared another label, because a nav label is written to sit under a section
  * heading that supplies the missing half. Stage 2 has no section heading: the
  * title is part of the document it embeds (`capabilityDocument`), so seventeen
- * identical ones are seventeen capabilities competing for the same score. This
- * restores the context the sidebar was providing, from the feature the
- * capability already belongs to.
+ * identical ones are seventeen capabilities competing for the same score.
+ *
+ * Two corrections, both found in fut-app's generated registries:
+ *
+ * - **A title only competes inside a registry.** Stage 2 ranks one role's registry
+ *   (ADR-014), so a guardian's "Estado Médico" and a player's are not duplicates: no
+ *   session sees both. Counted across the whole application, the guardian's became
+ *   "Guardian estado Médico".
+ * - **The qualifier is the application's own, in the title's language.** A nav item in a
+ *   group takes the group's label, written the way the app's own command palette writes
+ *   it: "Plantel · Visão geral". The feature folder, humanised, is the fallback — a
+ *   developer's word, and often not in the title's language.
  */
-function qualifyTitles(titles: Map<string, Record<string, string>>, features: ReadonlyMap<string, string>): void {
-  const counts = new Map<string, number>();
-  for (const perLanguage of titles.values()) {
-    for (const title of Object.values(perLanguage)) {
-      counts.set(title, (counts.get(title) ?? 0) + 1);
-    }
-  }
+function qualifyTitles(
+  titles: Map<string, Record<string, string>>,
+  context: ReadonlyMap<string, TitleContext>,
+  unchanged: ReadonlySet<string> = new Set(),
+): void {
+  // Once per screen: the same title in two languages is one screen, not a duplicate.
+  const holders = new Map<string, string[]>();
   for (const [id, perLanguage] of titles) {
-    const feature = features.get(id);
-    if (!feature) continue;
+    for (const title of new Set(Object.values(perLanguage))) holders.set(title, [...(holders.get(title) ?? []), id]);
+  }
+  const meet = (a: string, b: string): boolean => {
+    const theirs = new Set(context.get(b)?.roles ?? []);
+    return (context.get(a)?.roles ?? []).some((role) => theirs.has(role));
+  };
+
+  // Decided against the titles as resolved, then applied, so renaming one screen of a pair
+  // cannot make its twin look unique halfway through.
+  const renamed: [id: string, language: string, title: string][] = [];
+  for (const [id, perLanguage] of titles) {
+    const own = context.get(id);
+    if (!own || unchanged.has(id)) continue;
     for (const [language, title] of Object.entries(perLanguage)) {
-      if ((counts.get(title) ?? 0) < 2) continue;
-      if (title.toLowerCase().startsWith(feature.toLowerCase())) continue;
-      perLanguage[language] = `${humanise(feature)} ${title.charAt(0).toLowerCase()}${title.slice(1)}`;
+      if (!(holders.get(title) ?? []).some((other) => other !== id && meet(id, other))) continue;
+      const group = own.groups[language];
+      if (group && !title.toLowerCase().startsWith(group.toLowerCase())) {
+        renamed.push([id, language, `${group} · ${title}`]);
+        continue;
+      }
+      // `app` is what featureOf answers when nothing names a section: prefixing it says nothing,
+      // and it made the home page of two field apps "App home". The root page keeps its title.
+      const area = own.areas[language];
+      if (own.feature === 'app' || !area || title.toLowerCase().startsWith(area.toLowerCase())) continue;
+      renamed.push([id, language, `${area} ${title.charAt(0).toLowerCase()}${title.slice(1)}`]);
     }
   }
+  for (const [id, language, title] of renamed) titles.get(id)![language] = title;
 }
 
 /** Page copy, resolved to real sentences — the vocabulary a user would use. */
@@ -178,6 +436,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const { config } = options;
   const { routes, roles, unreadable } = discoverRoutes(config);
   const manifests = readManifests(config);
+  const sourceLabels = readSourceLabels(config.appRoot);
+  const resolveImport = importResolver(config.appRoot);
 
   const translations = new Map<string, Translations>();
   for (const language of config.languages) {
@@ -186,14 +446,18 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   const skipped: SkippedRoute[] = [];
   // WP-28: routes discovery found but could not read are reported, not dropped.
-  for (const u of unreadable) skipped.push({ path: u.path, reason: 'unreadable-route', detail: u.detail });
+  for (const u of unreadable) skipped.push({ path: u.path, reason: u.reason ?? 'unreadable-route', detail: u.detail });
   const taken = new Set<string>();
   const seenRoutes = new Set<string>();
-  const accepted: { route: DiscoveredRoute; id: string; facts: PageFacts; labelKey: string | null }[] = [];
+  const accepted: Accepted[] = [];
 
   for (const route of routes) {
     const manifest = manifests.get(route.path) ?? null;
-    const facts = route.componentFile ? readPage(route.componentFile) : EMPTY_FACTS;
+    const facts = route.componentFile
+      ? readScreen(route.componentFile, resolveImport)
+      : route.redirectTo
+        ? { ...EMPTY_FACTS, isPureRedirect: true, redirectTargets: [route.redirectTo] }
+        : EMPTY_FACTS;
 
     if (route.roles === null) {
       skipped.push({
@@ -245,14 +509,34 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     seenRoutes.add(route.path);
     const id = synthesiseId(route, taken);
     taken.add(id);
-    accepted.push({ route, id, facts, labelKey: manifest?.labelKey ?? null });
+    accepted.push({
+      route,
+      id,
+      facts,
+      labelKey: manifest?.labelKey ?? null,
+      groupLabelKey: manifest?.groupLabelKey ?? null,
+      fallbackLabelKey: sourceLabels.get(route.path) ?? null,
+      pageFile: route.componentFile,
+    });
   }
+
+  dropRedirectAliases(accepted, skipped);
+  mergeResolvers(accepted, skipped);
 
   const titles = new Map<string, Record<string, string>>();
   const features = new Map<string, string>();
-  for (const { route, id, facts, labelKey } of accepted) {
-    titles.set(id, resolveTitles(route, labelKey, facts, translations, config.languages));
+  const titleContext = new Map<string, TitleContext>();
+  const siteName = sharedTitleSuffix(accepted.map(({ facts }) => facts.title));
+  for (const { route, id, facts, labelKey, groupLabelKey, fallbackLabelKey } of accepted) {
+    const own = { ...facts, title: withoutSiteName(facts.title, siteName) };
+    titles.set(id, resolveTitles(route, labelKey, own, translations, config.languages, fallbackLabelKey));
     features.set(id, featureOf(route));
+    titleContext.set(id, {
+      feature: featureOf(route),
+      roles: route.roles ?? [],
+      groups: groupLabels(groupLabelKey, translations, config.languages),
+      areas: areaLabels(featureOf(route), translations, config.languages),
+    });
   }
 
   // The label as the sidebar actually shows it, captured BEFORE qualifyTitles
@@ -264,7 +548,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     [...titles].map(([id, perLanguage]) => [id, Object.values(perLanguage)]),
   );
 
-  qualifyTitles(titles, features);
+  qualifyTitles(titles, titleContext, new Set(accepted.filter(({ route }) => route.path === '/').map(({ id }) => id)));
 
   const requests: ProseRequest[] = accepted.map(({ route, id, facts }) => ({
     id,
@@ -292,9 +576,11 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
         [...(rawLabels.get(id) ?? []), ...Object.values(titles.get(id) ?? {})],
       ]),
     ),
+    // Judged per registry: stage 1 looks a phrase up in one role's registry.
+    new Map(accepted.map(({ id, route }) => [id, route.roles ?? []])),
   );
 
-  const master: AnnotatedCapability[] = accepted.map(({ route, id }, index) => {
+  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile }, index) => {
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
     const parameters = routeSegments(route.path)
@@ -311,8 +597,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       // The adopter's own file, relative to their source root — so a wrong
       // answer in their assistant is one path away from the page that produced
       // it (WP-36). Absolute paths would leak our machine into their bundle.
-      ...(route.componentFile
-        ? { explanationSource: relative(config.appRoot, route.componentFile).replace(/\\/g, '/') }
+      ...(pageFile
+        ? { explanationSource: relative(config.appRoot, pageFile).replace(/\\/g, '/') }
         : {}),
       examples: [...written.examples],
       ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),

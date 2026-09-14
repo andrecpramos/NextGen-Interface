@@ -8,7 +8,7 @@
 # install succeeds and then everything fails at run time. See .claude/sdlc/ci-cd.md.
 #
 # Every install passes --ignore-scripts. pnpm 11 EXITS 1 on a fresh clone with
-# ERR_PNPM_IGNORED_BUILDS (better-sqlite3, esbuild), and the onlyBuiltDependencies
+# ERR_PNPM_IGNORED_BUILDS (esbuild), and the onlyBuiltDependencies
 # list in pnpm-workspace.yaml does NOT suppress it -- verified by reproducing a
 # clean clone locally, and again with the list moved to package.json. A working
 # checkout hides this because node_modules is already populated, so there are no
@@ -131,6 +131,20 @@ jobs:
       - name: Packaging is importable (WP-26)
         run: node tooling/scripts/check-packaging.mjs
 
+      # Keeps develop releasable: one version across the packages, a CHANGELOG section
+      # for it, and the LICENSE in each. release.yml runs the same script with --tag.
+      - name: Releasable - version, changelog, license
+        run: node tooling/scripts/check-release.mjs
+
+      # An adopter installs tarballs, not this workspace. Pack the kit's packages,
+      # npm-install them into a scratch project outside the repository, and run
+      # init, build and doctor through the installed bin — on this runner's Node
+      # and on Node 20, the declared minimum — plus an ES-module import that routes
+      # a turn. Rule 16 is re-checked on the copied app. check-packaging reads
+      # manifests; this is the half only running them can see.
+      - name: Installs from tarballs and runs on Node 20
+        run: node tooling/scripts/check-install.mjs
+
       - name: Unit tests
         run: pnpm -r test
 
@@ -195,6 +209,14 @@ jobs:
       # half a person runs, and the accessibility claim waits on it.
       - name: Accessibility - no serious or critical violations (WP-45)
         run: node tooling/scripts/check-accessibility.mjs
+
+      # The widget under a strict Content-Security-Policy, in headless Chrome (the
+      # runner image has it). jsdom and the fake DOM enforce no policy, so until this
+      # gate the widget rendered unstyled under `style-src 'self'` and the snippet
+      # doctor printed never started under `script-src 'self'`, with every other
+      # check green. Fails under CI if no browser is found: a skip protects nothing.
+      - name: Strict Content-Security-Policy, in a real browser
+        run: node tooling/scripts/check-csp.mjs
 
       # The model-free floor on the GENERATED registries. CI's golden-set job below
       # scores the reference app's set; nothing scored fut-app's, so a change to a

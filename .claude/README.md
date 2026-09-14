@@ -30,7 +30,7 @@ bug.
 1. **[`decisions/`](decisions/)** — binding. Superseded ADRs stay with a
    forward-pointing `Status:`. Cited from production source — `cascade.ts`,
    `money.ts`, `core-capability/src/types.ts`.
-2. **[PLAN.md](../PLAN.md) §2** — the seventeen non-negotiable rules. Their
+2. **[PLAN.md](../.MDFiles/PLAN.md) §2** — the seventeen non-negotiable rules. Their
    enforcement is mapped in the register below, not restated here.
 3. **[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md)** — read
    this before assuming a rule is protected. It maps every rule to the gate, hook
@@ -103,5 +103,5 @@ agents, not humans. Detail in
 ## Related
 
 - [../CLAUDE.md](../CLAUDE.md) — the always-loaded contract
-- [../PLAN.md](../PLAN.md) — §2 the rules, §7 the work packages
+- [../PLAN.md](../.MDFiles/PLAN.md) — §2 the rules, §7 the work packages
 - `sdlc-kit` — the portable version of all this, kept outside this repo so it can be reused across projects. Not tracked here.

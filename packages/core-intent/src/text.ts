@@ -45,7 +45,7 @@ const STOP = new Set([
  * Crude suffix stripper. Not linguistically correct and not trying to be —
  * it exists so "spending"/"spend"/"spends" collide in the vocabulary.
  */
-export function stem(word: string): string {
+function stem(word: string): string {
   if (word.length <= 3) return word;
   for (const suffix of ['ing', 'ed', 'es', 's', 'ly']) {
     if (word.endsWith(suffix) && word.length - suffix.length >= 3) {
@@ -122,7 +122,7 @@ export function tokens(text: string): string[] {
 }
 
 /** Character n-grams over the normalised string — catches morphology the stemmer misses. */
-export function charGrams(text: string, n = 4): string[] {
+function charGrams(text: string, n = 4): string[] {
   const s = ` ${normalize(text)} `;
   const out: string[] = [];
   for (let i = 0; i + n <= s.length; i++) out.push(s.slice(i, i + n));

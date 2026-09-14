@@ -28,8 +28,7 @@
       "@nextgen/core-inference": ["./packages/core-inference/src/index.ts"],
       "@nextgen/core-voice": ["./packages/core-voice/src/index.ts"],
       "@nextgen/domain-finance": ["./packages/domain-finance/src/index.ts"],
-      "@nextgen/data": ["./packages/data/src/index.ts"],
-      "@nextgen/ui": ["./packages/ui/src/index.ts"]
+      "@nextgen/data": ["./packages/data/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".next", "build"]

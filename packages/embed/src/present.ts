@@ -2,9 +2,9 @@
 //
 // Pure: a trace in, a view out. The widget only draws what this decides, so every
 // rule that matters is testable without a browser, and the script tag cannot
-// grow a second, drifting copy of the policy apps/web already follows.
+// grow a second, drifting copy of the policy.
 //
-// The rules are `destinationFor()`'s (apps/web/lib/navigation.ts, WP-35), plus two
+// The rules are those of the reference web app's `destinationFor()` (WP-35, since removed), plus two
 // that only a script tag needs:
 //
 // 1. It never acts. There is no dispatcher and no stage 3 here, so a `read`,
@@ -48,6 +48,30 @@ export interface Words {
   readonly unsure: string;
   readonly needsItem: string;
   readonly error: string;
+  readonly greeting: string;
+  readonly composer: string;
+  readonly openAssistant: string;
+  readonly close: string;
+  readonly listen: string;
+  readonly listening: string;
+  readonly preparingVoice: string;
+  readonly setUpVoice: string;
+  readonly voiceTypeInstead: string;
+  readonly micDenied: string;
+  readonly here: (title: string) => string;
+  readonly menu: string;
+  readonly closeMenu: string;
+  readonly readAloud: string;
+  readonly why: string;
+  /** How a turn was decided, from `TurnTrace.decidedAt` and its total latency. */
+  readonly whyHow: (stage: string, ms: number | null) => string;
+  readonly whyConsidered: string;
+  readonly whyChosen: string;
+  readonly guideLabel: string;
+  readonly guideStep: (n: number, total: number) => string;
+  readonly guideBack: string;
+  readonly guideNext: string;
+  readonly guideDone: string;
 }
 
 export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
@@ -65,6 +89,36 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     unsure: 'I did not understand that. Could you say it another way?',
     needsItem: 'This page is about one specific item. Open that item in the application, then ask again.',
     error: 'Something went wrong. Nothing was changed.',
+    greeting: 'Ready when you are.',
+    composer: 'Ask anything about this app',
+    openAssistant: 'Open the assistant',
+    close: 'Close',
+    listen: 'Listen hands-free',
+    listening: 'Listening…',
+    preparingVoice: 'Setting up voice on this device. This happens once…',
+    setUpVoice: 'Tap the microphone to set up voice on this device. It downloads once.',
+    voiceTypeInstead: 'Voice-to-text is not available on this device. Type your question instead.',
+    micDenied: 'The microphone was not allowed.',
+    here: (title) => `You are on ${title}`,
+    menu: 'Menu',
+    closeMenu: 'Close the menu',
+    readAloud: 'Read answers aloud',
+    why: 'Why?',
+    whyHow: (stage, ms) => {
+      const how =
+        stage === 'deterministic' ? 'by an exact match'
+          : stage === 'embedding' ? 'by similarity to what this app declares'
+            : stage === 'llm' ? 'with the help of a model'
+              : 'without reaching a decision';
+      return `Decided ${how}${ms === null ? '' : ` in ${ms} ms`}${stage === 'llm' ? '' : ', with no model call'}.`;
+    },
+    whyConsidered: 'What it considered',
+    whyChosen: 'chosen',
+    guideLabel: 'Guide',
+    guideStep: (n, total) => `Step ${n} of ${total}`,
+    guideBack: 'Back',
+    guideNext: 'Next',
+    guideDone: 'Done',
   },
   pt: {
     label: 'Pergunte para onde quer ir',
@@ -80,6 +134,36 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     unsure: 'Não percebi. Pode dizer de outra forma?',
     needsItem: 'Esta página é sobre um item concreto. Abra-o na aplicação e pergunte de novo.',
     error: 'Algo correu mal. Nada foi alterado.',
+    greeting: 'Pronto quando quiser.',
+    composer: 'Pergunte algo sobre esta aplicação',
+    openAssistant: 'Abrir o assistente',
+    close: 'Fechar',
+    listen: 'Ouvir sem usar as mãos',
+    listening: 'A ouvir…',
+    preparingVoice: 'A ativar a voz neste dispositivo. Só acontece uma vez…',
+    setUpVoice: 'Toque no microfone para ativar a voz neste dispositivo. É descarregada uma vez.',
+    voiceTypeInstead: 'A conversão de voz em texto não está disponível neste dispositivo. Escreva a sua pergunta.',
+    micDenied: 'O microfone não foi autorizado.',
+    here: (title) => `Está em ${title}`,
+    menu: 'Menu',
+    closeMenu: 'Fechar o menu',
+    readAloud: 'Ler as respostas em voz alta',
+    why: 'Porquê?',
+    whyHow: (stage, ms) => {
+      const how =
+        stage === 'deterministic' ? 'por correspondência exata'
+          : stage === 'embedding' ? 'por semelhança com o que esta aplicação declara'
+            : stage === 'llm' ? 'com a ajuda de um modelo'
+              : 'sem chegar a uma decisão';
+      return `Decidido ${how}${ms === null ? '' : ` em ${ms} ms`}${stage === 'llm' ? '' : ', sem chamar nenhum modelo'}.`;
+    },
+    whyConsidered: 'O que considerou',
+    whyChosen: 'escolhido',
+    guideLabel: 'Guia',
+    guideStep: (n, total) => `Passo ${n} de ${total}`,
+    guideBack: 'Anterior',
+    guideNext: 'Seguinte',
+    guideDone: 'Concluir',
   },
 };
 
@@ -90,7 +174,7 @@ export function wordsFor(lang: string | null | undefined): Words {
 
 const strip = (path: string): string => path.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
 
-/** As apps/web's `isSamePlace`: moving to where you already are only breaks the back button. */
+/** Moving to where you already are only breaks the back button. */
 export function isSamePlace(destination: string, currentPath: string): boolean {
   return strip(destination) === strip(currentPath);
 }
@@ -140,6 +224,24 @@ export function fillParams(route: string | null, currentPath: string, patterns: 
     else if (!optional) return null;
   }
   return filled.join('/') || '/';
+}
+
+/**
+ * Places to offer before anything is asked: screens the user can go to from
+ * here, in registry order. The same rules as a clarifying answer — no boundary,
+ * no parameter the current page cannot fill, not the page they are already on.
+ */
+export function suggestionsFor(registry: Registry, currentPath: string, max = 4): Choice[] {
+  const patterns = registry.capabilities.map((c) => c.route).filter((r): r is string => typeof r === 'string');
+  const out: Choice[] = [];
+  for (const c of registry.capabilities) {
+    if (out.length >= max) break;
+    if (c.kind !== 'navigate' || registry.boundaryIds.has(c.id)) continue;
+    const route = fillParams(c.route, currentPath, patterns);
+    if (!route || isSamePlace(route, currentPath) || out.some((o) => isSamePlace(o.route, route))) continue;
+    out.push({ label: c.title, route });
+  }
+  return out;
 }
 
 export function present(trace: TurnTrace, registry: Registry, currentPath: string, words: Words): View {

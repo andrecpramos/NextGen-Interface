@@ -62,11 +62,25 @@ export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: 
   return { config, appRoot: resolve(dirname(file), config.appRoot) };
 }
 
+/**
+ * The script tag, from the installed `@nextgen/embed`.
+ *
+ * Resolved through the package's own manifest, so it is found the same way in
+ * this workspace and in an adopter's node_modules. Building it on demand only
+ * makes sense in a checkout, where build.mjs and esbuild exist. A published
+ * package ships dist/nextgen.js; if that is missing the install is broken, and
+ * saying so beats attempting a build that cannot run there.
+ */
 function scriptTagFile(): string {
   const require = createRequire(import.meta.url);
   const embedDir = dirname(require.resolve('@nextgen/embed/package.json'));
   const bundle = join(embedDir, 'dist', 'nextgen.js');
-  if (!existsSync(bundle)) execFileSync(process.execPath, [join(embedDir, 'build.mjs')], { stdio: 'pipe' });
+  if (existsSync(bundle)) return bundle;
+  const builder = join(embedDir, 'build.mjs');
+  if (!existsSync(builder)) {
+    throw new Error(`@nextgen/embed is installed without dist/nextgen.js (${embedDir}). Reinstall it.`);
+  }
+  execFileSync(process.execPath, [builder], { stdio: 'pipe' });
   return bundle;
 }
 
