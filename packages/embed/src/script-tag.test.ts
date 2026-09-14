@@ -73,6 +73,10 @@ function page(attributes: Record<string, string>, options: { missing?: boolean; 
   return { window, fetched, warnings };
 }
 
+function orbSide(window: Page['window']): string | null {
+  return window.document.querySelector('[data-nextgen]')?.shadowRoot?.querySelector('.orb')?.getAttribute('data-side') ?? null;
+}
+
 async function settle(until: () => boolean): Promise<void> {
   for (let i = 0; i < 200 && !until(); i++) await new Promise((resolve) => setTimeout(resolve, 10));
 }
@@ -82,11 +86,12 @@ describe('the script tag starts itself from its own attributes', () => {
     const { window, fetched } = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen/' });
     await settle(() => window.document.querySelector('[data-nextgen]') !== null);
 
-    expect(window.document.querySelector('[data-nextgen]')).not.toBeNull();
+    const host = window.document.querySelector('[data-nextgen]')!;
+    expect(host).not.toBeNull();
     expect([...fetched].sort()).toEqual([`/nextgen/index.${ROLE}.json`, `/nextgen/registry.${ROLE}.json`, '/nextgen/thresholds.hashing.json']);
-    const corner = window.document.querySelector('[data-nextgen]')!.parentElement as HTMLElement;
-    expect(corner.style.bottom).toBe('16px');
-    expect(corner.style.right).toBe('16px');
+    // The assistant layer, on the page's body: it positions itself.
+    expect(host.hasAttribute('data-nextgen-assistant')).toBe(true);
+    expect(host.parentElement).toBe(window.document.body);
   });
 
   it('does nothing at all without data-nextgen-role', async () => {
@@ -98,25 +103,25 @@ describe('the script tag starts itself from its own attributes', () => {
     expect(typeof (window as unknown as { NextGen: { start: unknown } }).NextGen.start).toBe('function');
   });
 
-  it('mounts inside data-nextgen-target, or in the corner data-nextgen-position names', async () => {
+  it('mounts inside data-nextgen-target, and rests the orb on the side data-nextgen-position names', async () => {
     const inside = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-target': '#slot' }, { body: '<div id="slot"></div>' });
     await settle(() => inside.window.document.querySelector('#slot [data-nextgen]') !== null);
     expect(inside.window.document.querySelector('#slot [data-nextgen]')).not.toBeNull();
 
     const cornered = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-position': 'top-left' });
     await settle(() => cornered.window.document.querySelector('[data-nextgen]') !== null);
-    const corner = cornered.window.document.querySelector('[data-nextgen]')!.parentElement as HTMLElement;
-    expect(corner.style.top).toBe('16px');
-    expect(corner.style.left).toBe('16px');
+    expect(orbSide(cornered.window)).toBe('left');
   });
 
   it('warns and ignores a position that is not one of the four corners — it never becomes CSS', async () => {
     const { window, warnings } = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-position': 'bottom:0;background:red' });
     await settle(() => window.document.querySelector('[data-nextgen]') !== null);
     expect(warnings.join('\n')).toMatch(/ignoring data-nextgen-position/);
-    const corner = window.document.querySelector('[data-nextgen]')!.parentElement as HTMLElement;
-    expect(corner.style.background).toBe('');
-    expect(corner.style.right).toBe('16px');
+    const host = window.document.querySelector('[data-nextgen]') as HTMLElement;
+    // Its only inline style is the theme it read from the page.
+    expect(host.getAttribute('style') ?? '').not.toMatch(/bottom:\s*0|background:\s*red/);
+    // jsdom draws nothing at the edges, so the emptier side is the default one.
+    expect(orbSide(window)).toBe('right');
   });
 
   it('warns, and throws nothing, when a target matches nothing or the bundle cannot be loaded', async () => {

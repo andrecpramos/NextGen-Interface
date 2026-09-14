@@ -106,18 +106,29 @@ a { display: inline-flex; align-items: center; min-height: 48px; color: LinkText
  *
  * The constructor comes from the target document's own window: a sheet built in
  * one realm cannot be adopted by a root in another.
+ *
+ * The assistant layer (assistant.ts) styles its root the same way, with its own sheet.
  */
-function adoptStyles(root: ShadowRoot, doc: Document): void {
+export function adoptStyles(root: ShadowRoot, doc: Document, css: string = CSS): void {
   const Sheet = doc.defaultView?.CSSStyleSheet;
   if (Sheet && 'adoptedStyleSheets' in root && typeof Sheet.prototype.replaceSync === 'function') {
     const sheet = new Sheet();
-    sheet.replaceSync(CSS);
+    sheet.replaceSync(css);
     root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
     return;
   }
   const style = doc.createElement('style');
-  style.textContent = CSS;
+  style.textContent = css;
   root.append(style);
+}
+
+/** Offer a move to the page as a cancelable `nextgen:navigate` event. True when the page took it. */
+export function offerMove(view: Window & typeof globalThis, route: string): boolean {
+  const Event = view.CustomEvent;
+  if (typeof Event !== 'function') return false;
+  const event = new Event<NavigateDetail>(NAVIGATE_EVENT, { detail: { route }, cancelable: true });
+  view.dispatchEvent(event);
+  return event.defaultPrevented;
 }
 
 export function mount(target: Element, assistant: Routable, options: MountOptions = {}): Mounted {
@@ -127,13 +138,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
   const currentPath = options.currentPath ?? (() => view?.location.pathname ?? '/');
 
   /** Offer the move to the page first. True when the page took it. */
-  const offered = (route: string): boolean => {
-    const Event = view?.CustomEvent;
-    if (!view || typeof Event !== 'function') return false;
-    const event = new Event<NavigateDetail>(NAVIGATE_EVENT, { detail: { route }, cancelable: true });
-    view.dispatchEvent(event);
-    return event.defaultPrevented;
-  };
+  const offered = (route: string): boolean => (view ? offerMove(view, route) : false);
   const navigate =
     options.navigate ??
     ((route: string) => {

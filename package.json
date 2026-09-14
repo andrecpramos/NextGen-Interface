@@ -12,6 +12,7 @@
   "scripts": {
     "app": "pnpm --filter @nextgen/cli start",
     "app:offline": "pnpm --filter @nextgen/cli start:offline",
+    "embed:preview": "pnpm --filter @nextgen/embed preview",
     "check": "pnpm typecheck && pnpm test && pnpm registry:check",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

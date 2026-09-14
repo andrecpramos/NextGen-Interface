@@ -129,13 +129,16 @@ writeFileSync(
     report.minHeight = getComputedStyle(input).minHeight;
     input.value = 'onde vejo como o meu filho está a evoluir';
     root.querySelector('form').requestSubmit();
-    waitFor(function () { var r = root.querySelector('.result'); return r && r.hasAttribute('data-tone'); }, function () {
-      var result = root.querySelector('.result');
+    // .answer is the assistant layer (what the one-liner mounts), .result the chat box.
+    waitFor(function () { var r = root.querySelector('.answer, .result'); return r && r.hasAttribute('data-tone'); }, function () {
+      var result = root.querySelector('.answer, .result');
       report.tone = result.getAttribute('data-tone');
       var links = result.querySelectorAll('a');
       report.choices = links.length;
       if (links.length > 0) links[0].click();
-      setTimeout(finish, 200);
+      // The assistant flies the orb to the edge before it moves, so wait for the move itself.
+      if (links.length > 0 || report.tone === 'go') waitFor(function () { return report.navigated !== null; }, finish);
+      else setTimeout(finish, 200);
     });
   });
 })();

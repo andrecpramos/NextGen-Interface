@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NextGen preview — themed host, right nav</title>
+<style>
+  :root { --nextgen-accent: #6a4c93; }
+  body { margin: 0; padding-right: 220px; font-family: Georgia, serif; background: #f3f0fa; color: #241d33; }
+  .sidebar {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 220px; box-sizing: border-box;
+    background: #241d33; color: #f3f0fa; padding: 24px;
+  }
+  .sidebar a { color: #f3f0fa; display: block; margin-bottom: 12px; }
+  main { padding: 48px; max-width: 40rem; }
+</style>
+</head>
+<body>
+  <nav class="sidebar">
+    <strong>Acme Club</strong>
+    <a href="/nav-right.html">Dashboard</a>
+    <a href="/">Preview index</a>
+    <a href="/plain.html">Plain preview</a>
+    <a href="/themed.html">Left-nav preview</a>
+  </nav>
+  <main>
+    <h1>A themed host page, mirrored</h1>
+    <p>The fixed sidebar is on the <strong>right</strong> this time. The orb should wait on the <strong>left</strong> instead, in this page's own accent colour.</p>
+  </main>
+
+  <script src="/nextgen.js"></script>
+  <script>NextGen.start('/nextgen', 'PARENT');</script>
+</body>
+</html>
