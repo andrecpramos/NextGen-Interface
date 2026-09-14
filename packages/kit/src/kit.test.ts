@@ -74,6 +74,43 @@ describe('init — detection', () => {
   });
 });
 
+describe('AGENT.md — the decisions this kit leaves to the developer', () => {
+  it('is written by init, for whichever agent runs the rest of these commands', () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const text = readFileSync(join(kit, 'AGENT.md'), 'utf8');
+    // The point of this file is that these are put to the developer, not
+    // assumed. If a heading goes missing, so does the question.
+    for (const heading of [
+      'ASK 1',
+      'ASK 2',
+      'ASK 3',
+      'ASK 4',
+      'ASK 5',
+      'ASK 6',
+      'ASK 7',
+      'never do without asking',
+    ]) {
+      expect(text).toContain(heading);
+    }
+  });
+
+  it('is not clobbered by --force, which redoes detection, not a developer\'s edits to it', () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    writeFileSync(join(kit, 'AGENT.md'), 'a developer wrote this instead');
+    init(TINY, kit, { force: true });
+    expect(readFileSync(join(kit, 'AGENT.md'), 'utf8')).toBe('a developer wrote this instead');
+  });
+
+  it('doctor points an agent at it, when it exists', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit);
+    expect(doctor(kit).text).toMatch(/AGENT\.md/);
+  }, 60_000);
+});
+
 describe('Rule 16 — the kit only writes into its own folder', () => {
   it('refuses a kit folder inside the application source, before writing anything', () => {
     const inside = join(TINY, 'src', 'nextgen');

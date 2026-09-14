@@ -48,9 +48,23 @@ The step-by-step version, with calibration and a single-page-app router, is
 | Folder | Holds | Served? |
 |---|---|---|
 | `nextgen.config.json` | what `init` found, including anything it had to guess. It is yours to correct | — |
+| `AGENT.md` | instructions for whichever AI agent runs the rest of these commands — see below | — |
 | `bundle/` | `registry.<ROLE>.json`, `index.<ROLE>.json`, `thresholds.hashing.json`, `nextgen.js` | **yes**, each user only their own role's files |
 | `review/` | `master.json` (every screen, with every role that can reach it), `SKIPPED.md`, `build.json`, `detect.json` | **never** |
 | `calibration/` | `thresholds.hashing.json`, if you have calibrated. `build` prefers it | — |
+
+## If an AI agent is running this for you
+
+Realistically, it is. `init` writes `AGENT.md` into the kit folder for exactly
+that reason: the kit stays a non-interactive CLI (WP-25 — "no human step"
+means no *build-time* human step, not no human), but the decisions in
+`build`/`doctor`/mounting that are genuinely the developer's to make — where
+this folder lives relative to whatever a dev server serves, which role and
+auth source to wire, whether to edit `index.html`, whether to gitignore the
+output, whether to wire real navigation, whether to calibrate now or later —
+are not the kit's to decide silently, and are not the agent's either. If you
+are that agent: read `AGENT.md` before running `build`. If you are the
+developer and your agent didn't mention it: ask it to.
 
 **Rule 16:** the kit writes nothing outside its folder. `init` refuses a folder inside your
 source before writing anything. On bulletproof-react, a public app not written for it,
