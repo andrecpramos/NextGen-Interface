@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 
+import { readAngularComponent, readMarkupPage } from './markup.ts';
 import type { FormField, PageFacts } from './types.ts';
 
 /**
@@ -237,7 +238,7 @@ function childText(node: ts.Node): { text: string | null; key: string | null } {
  * A control's name comes from, in order: its own `aria-label`, a `<label
  * htmlFor>` pointing at its `id`, its `placeholder`, and — for a button — its own
  * text. That is the accessible-name order a screen reader uses, which is also
- * the order `packages/ui`'s runtime resolver matches in; the two have to agree or
+ * the order `packages/embed`'s runtime resolver matches in; the two have to agree or
  * a generated anchor would name a field the page does not.
  *
  * Hidden inputs are skipped, and so is any control nothing names: a step that
@@ -290,6 +291,57 @@ function formFields(source: ts.SourceFile): FormField[] {
   return out;
 }
 
+/**
+ * The title a page declares for itself, when it spells it out.
+ *
+ *   export const metadata = { title: 'Pricing' }          Next.js app router
+ *   export const meta = () => [{ title: 'Sign Up' }]      Remix
+ *
+ * A string literal only. `generateMetadata`, a `{ default, template }` object, or a
+ * title built from data is code, and evaluating it would be guessing — the same
+ * rule discover.ts keeps for a route path it cannot evaluate.
+ */
+function declaredTitle(source: ts.SourceFile): string | null {
+  const nameOf = (property: ts.ObjectLiteralElementLike): string | null =>
+    ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name))
+      ? property.name.text
+      : null;
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue;
+    if (!statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      let initializer: ts.Expression = declaration.initializer;
+      while (ts.isSatisfiesExpression(initializer) || ts.isAsExpression(initializer) || ts.isParenthesizedExpression(initializer)) {
+        initializer = initializer.expression;
+      }
+      if (declaration.name.text === 'metadata' && ts.isObjectLiteralExpression(initializer)) {
+        const title = initializer.properties.find((p) => nameOf(p) === 'title');
+        if (title && ts.isPropertyAssignment(title) && ts.isStringLiteralLike(title.initializer)) {
+          return title.initializer.text.trim() || null;
+        }
+      }
+      if (declaration.name.text === 'meta') {
+        let found: string | null = null;
+        const visit = (node: ts.Node): void => {
+          if (found !== null) return;
+          if (ts.isObjectLiteralExpression(node)) {
+            const title = node.properties.find((p) => nameOf(p) === 'title');
+            if (title && ts.isPropertyAssignment(title) && ts.isStringLiteralLike(title.initializer) && title.initializer.text.trim()) {
+              found = title.initializer.text.trim();
+              return;
+            }
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(initializer);
+        if (found !== null) return found;
+      }
+    }
+  }
+  return null;
+}
+
 /** The block comment above the component — usually why the page exists. */
 function componentDoc(source: ts.SourceFile): string | null {
   const text = source.getFullText();
@@ -324,6 +376,13 @@ function componentDoc(source: ts.SourceFile): string | null {
  * destination, not replacing one.
  */
 export function readPage(file: string): PageFacts {
+  // A Svelte or Vue component, or an HTML template, is markup rather than TSX.
+  if (/\.(vue|svelte|html)$/.test(file)) return readMarkupPage(file);
+  // An Angular component is a class whose page is its template.
+  if (/\.ts$/.test(file)) {
+    const angular = readAngularComponent(file);
+    if (angular) return angular;
+  }
   const source = parse(file);
 
   const roots: string[] = [];
@@ -344,6 +403,7 @@ export function readPage(file: string): PageFacts {
     i18nKeys: namespace ? keys.map((k) => (k.includes(':') ? k : `${namespace}:${k}`)) : keys,
     headings: headings(source),
     doc: componentDoc(source),
+    title: declaredTitle(source),
     // Same namespace rule as `i18nKeys`, so a label written as t('x.y') resolves
     // against the page's own namespace exactly as its other copy does.
     fields: formFields(source).map((f) =>

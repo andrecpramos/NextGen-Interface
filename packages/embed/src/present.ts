@@ -2,9 +2,9 @@
 //
 // Pure: a trace in, a view out. The widget only draws what this decides, so every
 // rule that matters is testable without a browser, and the script tag cannot
-// grow a second, drifting copy of the policy apps/web already follows.
+// grow a second, drifting copy of the policy.
 //
-// The rules are `destinationFor()`'s (apps/web/lib/navigation.ts, WP-35), plus two
+// The rules are those of the reference web app's `destinationFor()` (WP-35, since removed), plus two
 // that only a script tag needs:
 //
 // 1. It never acts. There is no dispatcher and no stage 3 here, so a `read`,
@@ -174,7 +174,7 @@ export function wordsFor(lang: string | null | undefined): Words {
 
 const strip = (path: string): string => path.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
 
-/** As apps/web's `isSamePlace`: moving to where you already are only breaks the back button. */
+/** Moving to where you already are only breaks the back button. */
 export function isSamePlace(destination: string, currentPath: string): boolean {
   return strip(destination) === strip(currentPath);
 }

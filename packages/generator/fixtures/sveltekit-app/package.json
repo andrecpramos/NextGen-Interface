@@ -1,0 +1,8 @@
+{
+  "name": "sveltekit-fixture",
+  "private": true,
+  "devDependencies": {
+    "@sveltejs/kit": "2.20.0",
+    "svelte": "5.20.0"
+  }
+}

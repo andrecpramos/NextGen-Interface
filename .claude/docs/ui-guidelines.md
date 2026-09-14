@@ -155,7 +155,7 @@ reduced-motion equivalent.
 > then moved us to TypeScript, where it is an imported opinion rather than a default.
 > The visual language is now a bespoke token system — "graphite HUD", cyberpunk
 > register without neon, Apple design principles — defined in
-> `packages/ui/src/tokens.css`. Everything else on this page stands.
+> `packages/ui/src/tokens.css`, removed on 2026-09-13 with the reference web app. Everything else on this page stands.
 
 - A bespoke design-token system, full light/dark parity — dark is not an afterthought,
   and light is a designed theme rather than an inversion.

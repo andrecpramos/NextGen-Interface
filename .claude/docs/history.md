@@ -10,9 +10,9 @@ paid for.
 
 **This file is history. It is not a schedule and it is not binding.**
 
-- For what to build next: [PLAN.md](../../PLAN.md) §0 and §7.
-- For the rules you must not break: [PLAN.md](../../PLAN.md) §2.
-- For the findings you must not reintroduce: [PLAN.md](../../PLAN.md) §6 — those stayed
+- For what to build next: [PLAN.md](../../.MDFiles/PLAN.md) §0 and §7.
+- For the rules you must not break: [PLAN.md](../../.MDFiles/PLAN.md) §2.
+- For the findings you must not reintroduce: [PLAN.md](../../.MDFiles/PLAN.md) §6 — those stayed
   in PLAN.md deliberately, because they are consulted while writing new code.
 - For the decisions that produced this architecture: [decisions/](../decisions/).
 
@@ -20,7 +20,7 @@ Statements of present-tense fact in these sections were true **when the work pac
 closed**, and some have since been superseded — WP-07's "the first domain, the
 product" most of all. Where a later work package changed something, the section says
 so inline. Do not read a "✅ Built" here as a claim about the tree today; check
-[PLAN.md](../../PLAN.md) §3 and §4 for that.
+[PLAN.md](../../.MDFiles/PLAN.md) §3 and §4 for that.
 
 **Contents**
 

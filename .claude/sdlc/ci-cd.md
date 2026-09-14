@@ -28,6 +28,22 @@ Three jobs on push to `main`, on PRs into `main`, and on manual dispatch.
 architecturally load-bearing, so it should fail in seconds rather than after a
 full install-and-typecheck.
 
+### Releases
+
+[`release.yml`](../../.github/workflows/release.yml) runs on a pushed `v*.*.*` tag, and
+on nothing else.
+
+1. It refuses a tag that is not on `main`.
+2. It runs `check-release.mjs --tag`: one version everywhere, a dated CHANGELOG
+   section, and the LICENSE in each package.
+3. It re-runs what the tarballs depend on: typecheck, tests, build, packaging, and the
+   install check.
+4. It attaches the tarballs and `SHA256SUMS.txt` to a GitHub Release.
+
+It publishes to no package registry. The browser gates (CSP, accessibility) are not
+repeated: they ran on `main`'s own push. The procedure is in
+[branching.md](branching.md), "Releasing".
+
 ---
 
 ## Two things the pipeline deliberately does **not** do
@@ -62,8 +78,8 @@ lint` with no matching script does not no-op, it fails with
 `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT`. A documented command that always fails teaches
 people to ignore a red result, which is the habit this whole file exists to prevent.
 The root `build` script went the same way and for a plainer reason — the workspace
-runs TypeScript directly and no package has ever defined `build`. The only real build
-in the repo is `pnpm web:build` (Next.js, production).
+runs TypeScript directly and no package had defined `build`. (Since WP-26 the installable
+packages do, and the root `pnpm build` runs them.)
 
 A CI job wrapping a no-op is worse than no job: it reports green and certifies
 nothing. Lint is left out until the config actually exists. That is the one item
@@ -113,13 +129,11 @@ and everything then fails at run time. CI pins **Node 24**. The declared range
 should be corrected to match; it is left alone here because it is a published
 constraint, not a CI detail.
 
-**One `package.json` carries a UTF-8 BOM** — `services/api`. It was written by
-PowerShell, whose `Set-Content` defaults to the ANSI/BOM'd encodings. This said
-*five* until WP-37 counted them: two of the named files had already been fixed, and
-two more were the dead `tooling/` packages that WP-37 deleted.
-`JSON.parse` rejects a BOM outright, so any tool that reads a manifest must strip
-`﻿` first. Both scripts here do. pnpm tolerates them, which is why this went
-unnoticed.
+**No `package.json` carries a UTF-8 BOM any more.** The last was `services/api`'s, written
+by PowerShell's `Set-Content`, and it went with that package on 2026-09-13. `JSON.parse`
+rejects a BOM outright while pnpm tolerates one, so a manifest written from PowerShell can
+break a tool with every install still green. The scripts here still strip `﻿` before
+parsing.
 
 **`jq` is not on PATH on this machine**, despite Git Bash being present. The first
 version of the SessionStart hook was written around `jq` and silently emitted
@@ -158,7 +172,7 @@ using it, no matter how many times you reinstall.
 
 ## Deploy
 
-No deploy job yet, deliberately. `apps/web` is under construction (WP-09) and
+No deploy job, deliberately. Adopters install tarballs from a GitHub Release, and
 [ADR-008](../decisions/ADR-008.md) keeps the device as the source of truth, so
 there is no server on the critical path to ship.
 

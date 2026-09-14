@@ -1,7 +1,7 @@
 # Lessons — mistakes this repo has already made
 
 > **Audited against the tree:** 2026-09-11 (L11 and L12 added)
-> Harvested from [PLAN.md](../../PLAN.md) §6 and from session work since.
+> Harvested from [PLAN.md](../../.MDFiles/PLAN.md) §6 and from session work since.
 
 Each entry is a real defect, what it cost, and the durable lesson. They are here
 because **a bug without its lesson recorded gets reintroduced by the next person
@@ -193,6 +193,15 @@ happened twice in one session, the second time after the lesson was already know
 **The lesson.** Use the file-writing tool for documents and for any code
 containing regexes, backslashes, or `$`. Heredocs are for short, literal text.
 
+
+**The same failure, one layer in (2026-09-13).** A Node patch script is the safe
+alternative to a heredoc, and it has its own trap: `String.prototype.replace` reads `$`
+patterns in the *replacement* string. `` $` `` means "the text before the match", so a doc
+comment mentioning a Remix `$` splat followed by a backtick pasted the whole header of
+`types.ts` into the middle of a union. The tests stayed green, because that file is only
+ever imported as types and is erased before they run; `tsc` caught it. Pass a function —
+`text.replace(from, () => to)` — and the replacement is inserted literally.
+
 ---
 
 ## L9 · Output fields compete for attention like instructions do
@@ -329,6 +338,70 @@ completeness claim with a hole where the failures are.
 **Enforcement:** level 1 for these shapes. `discover-data-router.test.ts` asserts both
 the reading and that an unevaluable path lands in `unreadable-route`. Level 4 for any
 new `continue` added to discovery.
+
+---
+
+## L13 · A package that installs in the workspace is not a package that installs
+
+**What happened.** `@nextgen/generator` was published-ready since WP-26: built to
+`dist/`, entry points checked by `check-packaging.mjs`, 103 tests green. It parses
+an application's source with `typescript` **at run time** — and declared `typescript`
+as a devDependency. The first time its tarball was installed into a project outside
+this repository (2026-09-13), every `nextgen` command threw
+`ERR_MODULE_NOT_FOUND: Cannot find package 'typescript'`, on Node 25 and Node 20
+alike. `init` too, because the CLI imports the build module before it reads its
+arguments. The product could not start for anyone who was not us.
+
+**Why it was hard to see.** Inside the workspace every devDependency is installed, so
+the import resolved and nothing failed — not the tests, not the typecheck, not the
+packaging gate, which read manifests and checked that files existed. Each check was
+correct about what it looked at. None of them stood where an adopter stands.
+
+**The lesson.** An artefact is proven from where its user runs it, not from where it
+was built ([L11](#l11--an-entry-point-that-exists-is-not-one-that-loads) is the browser
+version of this). For a package that means: pack it, install the tarball into a
+project that is not the workspace, and run the commands. Reading `package.json` is the
+cheap half and cannot see the expensive failure.
+
+**Enforcement: level 1, twice.** `check-install.mjs` (CI) does the whole path — pack,
+`npm install` outside the repository, `init` / `build` / `doctor` on the runner's
+Node and on Node 20, an ES-module import that routes a turn, and a TypeScript adopter's
+typecheck. `check-packaging.mjs` now also fails any bare import in published
+JavaScript that is not a declared dependency, which catches this cause in a second
+with no network. Both were made to fail on this exact defect.
+
+---
+
+## L14 · A test DOM enforces no security policy
+
+**What happened.** The widget was built, unit-tested through a fake DOM, audited by axe in
+jsdom — 18 checks, 0 serious — and shipped with a `doctor` that told adopters to paste:
+
+```html
+<script src="/nextgen/nextgen.js"></script>
+<script>NextGen.start('/nextgen', ROLE);</script>
+```
+
+Loaded in a real browser under `script-src 'self'; style-src 'self'` (2026-09-13), the
+second line was blocked (`script-src-elem`), so the widget never started; and when it was
+started another way, its `<style>` element was blocked too (`style-src-elem`), so it
+rendered with no styling at all. A strict Content-Security-Policy is what the most
+security-conscious adopters run. The product failed on exactly those sites, silently.
+
+**Why it was hard to see.** Neither jsdom nor a fake DOM implements CSP. Every check that
+existed ran somewhere a policy cannot be expressed, so every one of them was green, and
+correctly so for what it could see. Nobody had loaded the widget anywhere a policy applied.
+
+**The lesson.** Name the environment a check cannot represent, and test that environment
+for real. For anything injected into someone else's page, that means a real browser under
+the policy they might run. The fixes are standard once the problem is visible: no inline
+script (start from the tag's own `data-*` attributes), no inline style (a constructed
+stylesheet adopted by the shadow root, which CSP does not govern), styles set through the
+CSSOM rather than a `style` attribute.
+
+**Enforcement: level 1.** `check-csp.mjs` in CI loads the documented one-liner in headless
+Chrome under a strict policy and fails on any violation or an unstyled widget. Made to fail
+by restoring the `<style>` element: *"style-src-elem inline"*, *"input min-height 0px"*.
 
 ---
 

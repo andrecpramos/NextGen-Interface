@@ -4,18 +4,49 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js, ~76KB raw, ~28KB gzipped
+node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~30KB gzipped)
+                                #   dist/index.js   (the same code as an ES module)
 ```
 
 ```html
-<script src="/nextgen/nextgen.js"></script>
-<script>NextGen.start('/nextgen', 'COACH');</script>
+<script src="/nextgen/nextgen.js" data-nextgen-role="COACH" defer></script>
 ```
 
-That second line loads the role's bundle and mounts **the assistant layer**
-(`assistant.ts`): a liquid orb at the edge of the page that opens into a full-screen
-assistant. In a single-page app, pass the router so that moving does not reload the page:
-`NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
+That one line loads the role's bundle and mounts **the assistant layer** (`assistant.ts`):
+a liquid orb at the edge of the page that opens into a full-screen assistant. It needs no
+inline script and no inline style, so it works on a site with a strict
+Content-Security-Policy — checked in a real browser by `tooling/scripts/check-csp.mjs`.
+
+| Attribute | Does |
+|---|---|
+| `data-nextgen-role` | **required.** The signed-in user's role; write it on the server, HTML-escaped. Without it nothing starts |
+| `data-nextgen-base` | where the role's files are served. Default: the folder `nextgen.js` came from |
+| `data-nextgen-target` | a CSS selector to mount inside, instead of the page's body. The assistant still covers the page |
+| `data-nextgen-position` | which side the orb rests on: `bottom-right` or `top-right` dock it right, `bottom-left` or `top-left` left, at the bottom either way. Default: the emptier side. Anything else is ignored with a warning, and never becomes CSS |
+| `data-nextgen-lang` | the assistant's language. Default: `<html lang>` |
+
+If it cannot start — a missing file, a target that matches nothing — it says so with
+`console.warn` and throws nothing, because a script tag has no caller to catch it.
+
+**In a single-page app**, stop its moves reloading the page. From your own code (so a
+strict policy still allows it):
+
+```js
+window.addEventListener('nextgen:navigate', (event) => {
+  event.preventDefault();
+  router.navigate(event.detail.route);
+});
+```
+
+Modified clicks (a new tab, a new window) are always left to the browser. Or skip the
+script tag and use the module: `import { start } from '@nextgen/embed'`, passing
+`{ navigate }`. The chat box on its own (WP-41) is `mount(target, assistant)`.
+
+**Styling under CSP.** The assistant's and the chat box's stylesheets are constructed and
+adopted by their shadow roots, which a policy does not govern; a `<style>` element is used
+only where the browser cannot construct one. Measured in Edge 153 under `style-src 'self'`:
+the `<style>` element the chat box shipped with until 2026-09-13 was blocked, and it
+rendered unstyled.
 
 ## See it before an adopter does
 
@@ -37,10 +68,9 @@ a question on load, so a state can be linked to.
   can call `open()`.
 - **The orb** (`liquid.ts`) is a canvas: four translucent masses of one liquid, each a
   closed curve built from a few sine waves, drifting off-centre and blended with `screen`.
-  It speaks the sphere's grammar (`packages/ui/src/Sphere.tsx`): idle breathes, listening
-  follows the microphone, thinking has one droplet in orbit, speaking pulses, error
-  contracts. The state is always written in text too. Under `prefers-reduced-motion` the
-  loop never starts.
+  It keeps one state grammar: idle breathes, listening follows the microphone, thinking has
+  one droplet in orbit, speaking pulses, error contracts. The state is always written in
+  text too. Under `prefers-reduced-motion` the loop never starts.
 - **The screen** (`assistant.ts`) is a modal dialog: a greeting and a composer, and no
   pre-written questions. Focus moves in, Tab stays in, Escape closes it and focus returns
   to the orb.
@@ -67,9 +97,9 @@ a question on load, so a state can be linked to.
   than mispoints). ⚠️ The generated `fut-app` registries declare no steps yet, so the
   preview does not show it.
 - **Travelling.** When a turn resolves to a destination, the screen dissolves, the same
-  orb flies to the emptier edge (`chooseDockSide`, `packages/ui/src/dock.ts`, imported by
-  path so React stays out) and the browser moves. A short note in `sessionStorage` lets
-  the next page's orb say where the user landed. Closing the screen first cancels the trip.
+  orb flies to the emptier edge (`chooseDockSide`, `dock.ts`) and the browser moves. A
+  short note in `sessionStorage` lets the next page's orb say where the user landed.
+  Closing the screen first cancels the trip.
 - **Isolation.** Shadow DOM, as the chat box: the host's stylesheet cannot reach in and
   this one cannot leak out. The look is read from the page, never inherited from its
   cascade.
@@ -138,7 +168,7 @@ acted on at once and never routed. Anything longer is a question.
 
 It is stages 1 and 2 of the router only. A script tag has no stage-3 transport, so a turn
 that would need a model degrades to a clarifying question and never to a guess. `steps()`
-uses the guided-step resolver from `packages/ui` (WP-27). That resolver would rather not
+uses the guided-step resolver in `src/anchor.ts` (WP-27). That resolver would rather not
 highlight anything than point at the wrong field.
 
 ## How it is tested
@@ -164,5 +194,15 @@ scope. See [lessons.md L11](../../.claude/docs/lessons.md).
 
 ## Status
 
-Private, and not published. How the drop-in kit ships this file is PLAN.md WP-41.
+Installable from the tarballs `pnpm pack:release` writes; not published to npm. Three ways in:
+
+| Import | Is |
+|---|---|
+| `@nextgen/embed` | an ES module: `create`, `load`, `start`, `mount`, `present`, with types. Self-contained, so a bundler never re-resolves the workspace packages and meets a Node import |
+| `@nextgen/embed/nextgen.js` | the script tag, which `nextgen build` copies into `bundle/` |
+| `@nextgen/embed/package.json` | for tools that locate the package |
+
+ES modules only. `tooling/scripts/check-install.mjs` installs it outside this repository and
+routes a turn through the ES module on every pull request.
+
 **Serve each session only its own role's files**: Rule 17 is a delivery property.

@@ -48,6 +48,7 @@ const EMPTY_FACTS: PageFacts = {
   i18nKeys: [],
   headings: [],
   doc: null,
+  title: null,
 };
 
 /** `/squad/players` and `/squad/players/:id` share a section; `/players/:id` does not. */
@@ -72,9 +73,48 @@ function isBookmarkRedirect(route: DiscoveredRoute, facts: PageFacts): boolean {
 
 function titleFromComponent(component: string | null): string | null {
   if (!component) return null;
-  const cleaned = component.replace(/(Page|Redirect|View|Screen)$/g, '');
+  const cleaned = component.replace(/(Page|Redirect|View|Screen|Component)$/g, '');
   const spaced = cleaned.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
   return spaced.length > 0 ? spaced : null;
+}
+
+/** `Settings • Conduit`, `Pricing | Acme`: a page title followed by the site's name. */
+const TITLE_SEPARATOR = /\s+(?:[•|·—–:-]|::)\s+/;
+
+/**
+ * The site name most page titles end with, when there is one.
+ *
+ * `<title>Settings • Conduit</title>` names the page, then the site. The site half is the
+ * same on every page, so it tells the router nothing and makes every screen look alike
+ * to stage 2. It is recognised by being the shared tail of at least two titles.
+ */
+function sharedTitleSuffix(titles: readonly (string | null)[]): string | null {
+  const counts = new Map<string, number>();
+  for (const title of titles) {
+    if (!title) continue;
+    const parts = title.split(TITLE_SEPARATOR);
+    if (parts.length < 2) continue;
+    const tail = parts[parts.length - 1]!.trim();
+    counts.set(tail, (counts.get(tail) ?? 0) + 1);
+  }
+  const best = [...counts].sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] >= 2 ? best[0] : null;
+}
+
+/** A title without the site name. A title that is only the site name says nothing about the page. */
+function withoutSiteName(title: string | null, siteName: string | null): string | null {
+  if (!title || !siteName) return title;
+  if (title.trim() === siteName) return null;
+  const parts = title.split(TITLE_SEPARATOR);
+  if (parts.length > 1 && parts[parts.length - 1]!.trim() === siteName) return parts.slice(0, -1).join(' ').trim() || null;
+  return title;
+}
+
+/** A component name used as a title, except that the root page named for its file is "Home". */
+function componentTitle(route: DiscoveredRoute): string | null {
+  const title = titleFromComponent(route.component);
+  if (route.path === '/' && (title === null || /^(index|root|app|main|page)$/i.test(title))) return 'Home';
+  return title;
 }
 
 function resolveTitles(
@@ -90,11 +130,12 @@ function resolveTitles(
     if (!dictionary) continue;
     const fromLabel = labelKey ? translate(dictionary, labelKey) : null;
     const fromPage = fromLabel ?? firstResolvable(dictionary, facts.i18nKeys);
-    const title = fromPage ?? titleFromComponent(route.component);
+    const title = fromPage ?? facts.title ?? componentTitle(route);
     if (title) out[language] = title;
   }
   if (Object.keys(out).length === 0) {
-    const fallback = titleFromComponent(route.component) ?? route.path;
+    // No translations: the title the page declares for itself, then its component's name.
+    const fallback = facts.title ?? componentTitle(route) ?? route.path;
     out[languages[0] ?? 'en'] = fallback;
   }
   return out;
@@ -137,16 +178,23 @@ function humanise(text: string): string {
  * restores the context the sidebar was providing, from the feature the
  * capability already belongs to.
  */
-function qualifyTitles(titles: Map<string, Record<string, string>>, features: ReadonlyMap<string, string>): void {
+function qualifyTitles(
+  titles: Map<string, Record<string, string>>,
+  features: ReadonlyMap<string, string>,
+  unchanged: ReadonlySet<string> = new Set(),
+): void {
   const counts = new Map<string, number>();
   for (const perLanguage of titles.values()) {
-    for (const title of Object.values(perLanguage)) {
+    // Once per screen: the same title in two languages is one screen, not a duplicate.
+    for (const title of new Set(Object.values(perLanguage))) {
       counts.set(title, (counts.get(title) ?? 0) + 1);
     }
   }
   for (const [id, perLanguage] of titles) {
     const feature = features.get(id);
-    if (!feature) continue;
+    // `app` is what featureOf answers when nothing names a section: prefixing it says nothing,
+    // and it made the home page of two field apps "App home". The root page keeps its title.
+    if (!feature || feature === 'app' || unchanged.has(id)) continue;
     for (const [language, title] of Object.entries(perLanguage)) {
       if ((counts.get(title) ?? 0) < 2) continue;
       if (title.toLowerCase().startsWith(feature.toLowerCase())) continue;
@@ -186,7 +234,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   const skipped: SkippedRoute[] = [];
   // WP-28: routes discovery found but could not read are reported, not dropped.
-  for (const u of unreadable) skipped.push({ path: u.path, reason: 'unreadable-route', detail: u.detail });
+  for (const u of unreadable) skipped.push({ path: u.path, reason: u.reason ?? 'unreadable-route', detail: u.detail });
   const taken = new Set<string>();
   const seenRoutes = new Set<string>();
   const accepted: { route: DiscoveredRoute; id: string; facts: PageFacts; labelKey: string | null }[] = [];
@@ -250,8 +298,10 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   const titles = new Map<string, Record<string, string>>();
   const features = new Map<string, string>();
+  const siteName = sharedTitleSuffix(accepted.map(({ facts }) => facts.title));
   for (const { route, id, facts, labelKey } of accepted) {
-    titles.set(id, resolveTitles(route, labelKey, facts, translations, config.languages));
+    const own = { ...facts, title: withoutSiteName(facts.title, siteName) };
+    titles.set(id, resolveTitles(route, labelKey, own, translations, config.languages));
     features.set(id, featureOf(route));
   }
 
@@ -264,7 +314,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     [...titles].map(([id, perLanguage]) => [id, Object.values(perLanguage)]),
   );
 
-  qualifyTitles(titles, features);
+  qualifyTitles(titles, features, new Set(accepted.filter(({ route }) => route.path === '/').map(({ id }) => id)));
 
   const requests: ProseRequest[] = accepted.map(({ route, id, facts }) => ({
     id,

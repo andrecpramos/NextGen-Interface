@@ -5,8 +5,8 @@
 // the body sloshes rather than spins. No library, no shader, no image — a script
 // tag has to carry all of it.
 //
-// The states borrow the sphere's grammar (packages/ui/src/Sphere.tsx), so the
-// two surfaces mean the same thing by the same motion:
+// The states keep the grammar of the product's first status sphere, so a state
+// always means the same motion:
 //   idle       slow breathing
 //   listening  ripples driven by the live microphone level
 //   thinking   one droplet in orbit — nothing else orbits

@@ -1,7 +1,10 @@
 // @nextgen/embed — Ladder C3 (WP-29): the navigation layer as one script tag.
 //
-//   <script src="/nextgen/nextgen.js"></script>
-//   <script>NextGen.start('/nextgen', 'PARENT');</script>
+//   <script src="/nextgen/nextgen.js" data-nextgen-role="PARENT" defer></script>
+//
+// The script tag starts itself from its own attributes (script-tag.ts), so a page
+// needs no inline script and it works under a strict Content-Security-Policy.
+// From a module instead: `import { start } from '@nextgen/embed'`.
 //
 // `start` loads the role's bundle and mounts the assistant layer (assistant.ts):
 // a liquid orb at the edge of the page that opens into a full-screen assistant.
@@ -23,10 +26,9 @@ import { registryFromIndex, makeEmbedder, route as routeTurn } from '@nextgen/co
 import type { Registry, RegistryFile, ShippedIndex, Thresholds, TurnTrace } from '@nextgen/core-intent/browser';
 import type { GuidedStep } from '@nextgen/core-capability';
 
-// The resolver is imported by path rather than through `@nextgen/ui`, whose index
-// also exports the React components. A script tag must not drag React in to
-// highlight a form field.
-import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
+// The guided-step resolver (WP-27). It lived in packages/ui, beside React components a
+// script tag must never drag in, and moved here when that package was removed.
+import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 
 import { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
 
@@ -101,20 +103,42 @@ export async function load(basePath: string, role: string): Promise<Assistant> {
 }
 
 export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';
-export { mount, type MountOptions, type Mounted, type Routable } from './widget.ts';
+export { mount, adoptStyles, offerMove, NAVIGATE_EVENT, type MountOptions, type Mounted, type NavigateDetail, type Routable } from './widget.ts';
 export { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
 
+/** A corner named by `data-nextgen-position`. Only its side is used: the orb rests at the bottom. */
+export type Corner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+
+export const CORNERS: readonly Corner[] = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];
+
+export interface StartOptions extends AssistantOptions {
+  /** Mount inside this element instead of the page's body. The assistant still covers the page. */
+  readonly target?: Element;
+  /**
+   * Which side the orb rests on: a left corner docks it left, a right corner right.
+   * Without one it takes the emptier side. An explicit `dockSide` wins.
+   */
+  readonly position?: Corner;
+}
+
 /**
- * One line to put the assistant on a page: load this role's bundle, then mount
- * the assistant layer on `options.target`, or on `document.body`. It positions
- * itself. Pass `options.navigate` in a single-page app, so moving does not
- * reload the page.
+ * One line to put the assistant on a page: load this role's bundle, then mount the
+ * assistant layer, which positions itself over the page. In a single-page app, pass
+ * `options.navigate` — or listen for `nextgen:navigate` — so moving does not reload
+ * the page.
+ *
+ * Rejects when the bundle cannot be loaded. The script tag's own start-up catches
+ * that and warns instead, because it has no caller (script-tag.ts).
  */
-export async function start(
-  basePath: string,
-  role: string,
-  options: AssistantOptions & { readonly target?: Element } = {},
-): Promise<MountedAssistant> {
+export async function start(basePath: string, role: string, options: StartOptions = {}): Promise<MountedAssistant> {
   const assistant = await load(basePath, role);
-  return mountAssistant(options.target ?? document.body, assistant, options);
+  await bodyReady();
+  const cornerSide = options.position ? (options.position.endsWith('left') ? 'left' : 'right') : 'auto';
+  return mountAssistant(options.target ?? document.body, assistant, { ...options, dockSide: options.dockSide ?? cornerSide });
+}
+
+/** A script in <head> without `defer` runs before <body> exists. */
+function bodyReady(): Promise<void> {
+  if (document.body) return Promise.resolve();
+  return new Promise((resolve) => document.addEventListener('DOMContentLoaded', () => resolve(), { once: true }));
 }

@@ -1,18 +1,45 @@
 {
   "name": "@nextgen/embed",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrecpramos/AI-Interface.git",
+    "directory": "packages/embed"
+  },
   "description": "Ladder C3 (WP-29): the navigation layer as one script tag, for an application with no build step.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "./src/index.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "build": "node build.mjs",
+    "build": "node build.mjs && tsc -p tsconfig.build.json",
     "preview": "node build.mjs && node demo/serve.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/types/embed/src/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/types/embed/src/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./nextgen.js": "./dist/nextgen.js",
+      "./package.json": "./package.json"
+    }
+  },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",
     "@nextgen/core-intent": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0"
   }
 }

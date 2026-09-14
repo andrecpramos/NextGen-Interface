@@ -154,7 +154,7 @@ describe('init → build → doctor, end to end', () => {
     init(DATA_ROUTER, kit);
     const record = await build(kit);
     expect(record.roles).toEqual(['PUBLIC']);
-    expect(doctor(kit).text).toMatch(/'PUBLIC'/);
+    expect(doctor(kit).text).toMatch(/data-nextgen-role="PUBLIC"/);
   }, 60_000);
 
   it('before a build, says what to run next instead of failing obscurely', () => {

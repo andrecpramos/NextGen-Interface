@@ -12,7 +12,7 @@ thesis, built solo. That framing decides the whole plan — the first milestone 
 *measured result on a real app*, not a customer and not a platform. Pilot target:
 `fut-app`.
 
-Full statement: [PLAN.md](../../PLAN.md) §1. Commercial reasoning:
+Full statement: [PLAN.md](../../.MDFiles/PLAN.md) §1. Commercial reasoning:
 [business-case.md](./business-case.md). How it got here:
 [history.md](./history.md).
 
@@ -56,8 +56,7 @@ assistant reads the registry.
 | Data layer (`packages/data`) | 🟡 schema, money, query engine, undo, migrations present; not exercised end-to-end |
 | Inference adapters (`core-inference`) | 🟡 Ollama working. In the browser, stages 1+2 need no runtime at all (WP-24); mobile was closed (WP-10) |
 | Voice (`core-voice`) | ✅ acceptance-tested end to end in English: 97.5% agreement between typed and spoken (WP-21). Portuguese is WP-44 |
-| Apps (`apps/web`, `apps/cli`) | ✅ both run. `navigate` moves the browser (WP-35); the CLI has `undo` (WP-18) |
-| Backend (`services/api`) | ⛔ intentionally empty through MVP 2 ([ADR-008](../decisions/ADR-008.md)) |
+| App (`apps/cli`) | ✅ runs, with `undo` (WP-18). The browser surface `apps/web` was removed 2026-09-13; the product's UI is `embed` |
 
 ## Environment facts (verified 2026-09-09)
 
@@ -77,7 +76,7 @@ assistant reads the registry.
 
 The 1B question is **closed**: WP-01 measured `qwen2.5:1.5b` at 84–86% top-1 and
 151ms p95, and it is the selected stage-3 model. `gemma3:1b` was rejected. Full
-register: [PLAN.md](../../PLAN.md) §9.
+register: [PLAN.md](../../.MDFiles/PLAN.md) §9.
 
 The largest *open* risk is now **the first run by someone who did not build it**
 (2026-09-11). The drop-in kit (WP-41) has two jobs that have never been done:
@@ -104,7 +103,7 @@ Measurements: [FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).
 | File | Answers |
 |---|---|
 | [vision.md](./vision.md) | Why this exists, what it refuses to be |
-| [../../PLAN.md](../../PLAN.md) | **The plan.** §0's queue, §7's work packages, §9's risks — replaced `roadmap.md`, deleted 2026-09-10 |
+| [../../PLAN.md](../../.MDFiles/PLAN.md) | **The plan.** §0's queue, §7's work packages, §9's risks — replaced `roadmap.md`, deleted 2026-09-10 |
 | [architecture.md](./architecture.md) | The five layers, and how they talk |
 | [coding-standards.md](./coding-standards.md) | Clean Architecture, SOLID, folder rules |
 | [ui-guidelines.md](./ui-guidelines.md) | The sphere, and the AI-first-not-AI-only rule |
@@ -136,7 +135,7 @@ Measurements: [FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).
 
 ## Non-negotiables
 
-The short version. All seventeen are [PLAN.md](../../PLAN.md) §2; where each is
+The short version. All seventeen are [PLAN.md](../../.MDFiles/PLAN.md) §2; where each is
 actually enforced is [critical-infrastructure.md](./critical-infrastructure.md).
 
 1. The registry is the single source of truth for routes. The router and the app

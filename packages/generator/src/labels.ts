@@ -123,7 +123,19 @@ export function readTranslations(config: GeneratorConfig, language: string): Tra
   const out = new Map<string, Record<string, unknown>>();
   if (!config.localesDir) return out;
   const directory = resolve(config.appRoot, config.localesDir, language);
-  if (!existsSync(directory)) return out;
+  if (!existsSync(directory)) {
+    // One flat file per language — `locales/pt-PT.json` — as @nuxtjs/i18n, vue-i18n and
+    // next-intl lay them out. Loaded as a single, unnamed namespace.
+    const flat = resolve(config.appRoot, config.localesDir, `${language}.json`);
+    if (!existsSync(flat)) return out;
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(flat, 'utf8'));
+      if (parsed && typeof parsed === 'object') out.set('', parsed as Record<string, unknown>);
+    } catch {
+      // a locale file we cannot parse is not a reason to fail a build
+    }
+    return out;
+  }
   for (const file of readdirSync(directory)) {
     if (!file.endsWith('.json')) continue;
     try {
@@ -157,6 +169,12 @@ function lookup(document: Record<string, unknown> | undefined, dotted: string): 
  * in text the end user reads.
  */
 export function translate(translations: Translations, key: string): string | null {
+  // A key written as the text itself — `"Type to search...": "…"` — contains dots that
+  // are not a path. Look for it whole first.
+  for (const document of translations.values()) {
+    const exact = document[key];
+    if (typeof exact === 'string') return exact;
+  }
   const [head, ...rest] = key.includes(':') ? key.split(':') : [null, key];
   if (head !== null) {
     const direct = lookup(translations.get(head), rest.join(':'));

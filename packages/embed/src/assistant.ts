@@ -27,10 +27,9 @@
 import type { GuidedStep } from '@nextgen/core-capability';
 import type { TurnTrace } from '@nextgen/core-intent/browser';
 
-import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
-import { chooseDockSide, type DockSide } from '../../ui/src/dock.ts';
-
+import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 import { commandFor, type Command } from './commands.ts';
+import { chooseDockSide, type DockSide } from './dock.ts';
 import { createLiquid } from './liquid.ts';
 import { adopterNav, type NavLink, type NavRoot } from './nav.ts';
 import { fillParams, isSamePlace, present, suggestionsFor, wordsFor, type Choice, type View, type Words } from './present.ts';
@@ -47,7 +46,7 @@ import {
   type Transcription,
   type VoiceEnv,
 } from './voice.ts';
-import type { MountOptions, Routable } from './widget.ts';
+import { adoptStyles, offerMove, type MountOptions, type Routable } from './widget.ts';
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -339,7 +338,20 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const words: Words = { ...wordsFor(pageLang), ...options.words };
   const lang = speechLang(pageLang);
   const currentPath = options.currentPath ?? (() => view?.location.pathname ?? '/');
-  const navigate = options.navigate ?? ((route: string) => view?.location.assign(route));
+  /**
+   * Move the browser: the adopter's router, else the page if it takes `nextgen:navigate`
+   * (a strict Content-Security-Policy leaves a script-tag page no other way to pass one),
+   * else `location.assign`. True when the move happened without unloading this page.
+   */
+  const go = (route: string): boolean => {
+    if (options.navigate) {
+      options.navigate(route);
+      return true;
+    }
+    if (view && offerMove(view, route)) return true;
+    view?.location.assign(route);
+    return false;
+  };
   const storage = options.storage !== undefined ? options.storage : browserStore(view, 'sessionStorage');
   const preferences = options.preferences !== undefined ? options.preferences : browserStore(view, 'localStorage');
   const homes = options.home ?? ['/'];
@@ -405,10 +417,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   // ------------------------------------------------------------------ build --
 
   const host = make('div');
+  host.setAttribute('data-nextgen', '');
   host.setAttribute('data-nextgen-assistant', '');
   const root = host.attachShadow({ mode: 'open' });
-  const style = make('style');
-  style.textContent = CSS;
 
   const screen = make('div', 'screen');
   screen.setAttribute('role', 'dialog');
@@ -511,7 +522,10 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   ring.setAttribute('aria-hidden', 'true');
   ring.dataset.show = 'false';
 
-  root.append(style, screen, orb, bubble, guidePanel, ring);
+  // A constructed sheet, never a <style> element where the browser can help it: a strict
+  // `style-src` blocks the element and the screen would render unstyled (widget.ts).
+  adoptStyles(root, doc, CSS);
+  root.append(screen, orb, bubble, guidePanel, ring);
   target.append(host);
 
   let theme: Theme = GRAPHITE;
@@ -881,9 +895,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     } catch {
       // storage refused: the next page simply will not greet
     }
-    navigate(route);
     // A single-page app moved without unloading us, so act on the new page now.
-    if (options.navigate) {
+    if (go(route)) {
       later(() => {
         if (onHome()) {
           forget();

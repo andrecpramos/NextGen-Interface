@@ -27,7 +27,9 @@ export type SkipReason =
   | 'duplicate-route'
   | 'no-roles'
   /** WP-28: discovery found the route but could not read its path or component. */
-  | 'unreadable-route';
+  | 'unreadable-route'
+  /** A catch-all (`[...slug]`, a Remix `$` splat) serving pages that come from content, not code. */
+  | 'catch-all';
 
 export interface SkippedRoute {
   readonly path: string;
@@ -80,6 +82,11 @@ export interface PageFacts {
    * steps are generated from. Labels are untrusted adopter text (Rule 15).
    */
   readonly fields: readonly FormField[];
+  /**
+   * The title the page declares for itself — Next.js `metadata.title`, a Remix
+   * `meta` title — when it is a string literal. Untrusted (Rule 15).
+   */
+  readonly title: string | null;
 }
 
 /** One control a guided step can point at, as read from the page's JSX. */
@@ -131,8 +138,26 @@ export interface GeneratorOutput {
 export interface GeneratorConfig {
   /** The application's source root, e.g. `<repo>/frontend/src`. */
   readonly appRoot: string;
-  /** The React Router route table. */
+  /**
+   * How the application declares its routes. Default `react-router`, where
+   * `routesFile` is its route table. For a router declared by a folder layout,
+   * `routesFile` is that folder, relative to `appRoot`:
+   *   - `next`: the `app` or `pages` folder (`.` when `appRoot` is it); both are read when both exist
+   *   - `remix`: `routes` — Remix v2, or React Router 7 `flatRoutes()`
+   *   - `sveltekit`: `routes`, with `appRoot` the `src` folder
+   *   - `nuxt`: `pages`, with `appRoot` the `app` folder (Nuxt 4), or `.` with `appRoot` the `pages` folder (Nuxt 3)
+   *   - `vue-router`, `angular`: like `react-router`, the route table in code (`router/index.ts`, `app/app.routes.ts`)
+   */
+  readonly router?: 'react-router' | 'vue-router' | 'angular' | 'next' | 'remix' | 'sveltekit' | 'nuxt';
+  /** The route table (`react-router`), or the routes folder (every other router). */
   readonly routesFile: string;
+  /**
+   * Roles the application enforces in code the generator cannot read — a
+   * middleware, a layout, a loader — declared by path prefix:
+   * `{ "/admin": ["ADMIN"] }`. The longest prefix matching at a segment boundary
+   * wins, and replaces whatever discovery found for that route.
+   */
+  readonly routeRoles?: Readonly<Record<string, readonly RoleName[]>>;
   /**
    * The module declaring the named role sets the route table references.
    * Absent in an application with no roles at all: every visitor then receives

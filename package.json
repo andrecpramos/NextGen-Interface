@@ -2,6 +2,7 @@
   "name": "nextgen-interface",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "AI-native application platform. Conversation is the interface; screens are what the AI drives.",
   "packageManager": "pnpm@11.1.2",
@@ -9,9 +10,6 @@
     "node": ">=20"
   },
   "scripts": {
-    "web": "pnpm --filter @nextgen/web dev",
-    "web:build": "pnpm --filter @nextgen/web build",
-    "web:start": "pnpm --filter @nextgen/web start",
     "app": "pnpm --filter @nextgen/cli start",
     "app:offline": "pnpm --filter @nextgen/cli start:offline",
     "embed:preview": "pnpm --filter @nextgen/embed preview",
@@ -28,15 +26,12 @@
     "router:inspect": "pnpm --filter @nextgen/core-intent inspect -- --registry=../domain-modules/generated/registry.json",
     "router:compare": "pnpm --filter @nextgen/core-intent compare",
     "clean": "pnpm -r exec rm -rf dist node_modules .turbo .next",
-    "build": "pnpm -r --filter \"./packages/*\" build"
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "pack:release": "node tooling/scripts/pack-release.mjs"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.4.0",
     "axe-core": "^4.13.0",
-    "better-sqlite3": "^13.0.3",
-    "drizzle-kit": "^0.31.10",
-    "drizzle-orm": "^0.45.2",
     "esbuild": "0.25.12",
     "jsdom": "^30.0.1",
     "typescript": "^5.7.2",

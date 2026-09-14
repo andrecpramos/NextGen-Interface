@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-14T12:03:46.987Z",
+  "checkedAt": "2026-09-14T12:18:52.036Z",
   "artefact": "packages/embed/dist/nextgen.js",
   "data": "eval/fut-app/generated (PARENT)",
   "tool": "axe-core 4.13.0 in jsdom",
