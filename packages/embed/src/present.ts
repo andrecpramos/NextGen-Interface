@@ -55,6 +55,7 @@ export interface Words {
   readonly listen: string;
   readonly listening: string;
   readonly preparingVoice: string;
+  readonly setUpVoice: string;
   readonly voiceTypeInstead: string;
   readonly micDenied: string;
   readonly here: (title: string) => string;
@@ -94,7 +95,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     close: 'Close',
     listen: 'Listen hands-free',
     listening: 'Listening…',
-    preparingVoice: 'Preparing on-device voice…',
+    preparingVoice: 'Setting up voice on this device. This happens once…',
+    setUpVoice: 'Tap the microphone to set up voice on this device. It downloads once.',
     voiceTypeInstead: 'Voice-to-text is not available on this device. Type your question instead.',
     micDenied: 'The microphone was not allowed.',
     here: (title) => `You are on ${title}`,
@@ -138,7 +140,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     close: 'Fechar',
     listen: 'Ouvir sem usar as mãos',
     listening: 'A ouvir…',
-    preparingVoice: 'A preparar a voz no dispositivo…',
+    preparingVoice: 'A ativar a voz neste dispositivo. Só acontece uma vez…',
+    setUpVoice: 'Toque no microfone para ativar a voz neste dispositivo. É descarregada uma vez.',
     voiceTypeInstead: 'A conversão de voz em texto não está disponível neste dispositivo. Escreva a sua pergunta.',
     micDenied: 'O microfone não foi autorizado.',
     here: (title) => `Está em ${title}`,

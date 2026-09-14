@@ -26,8 +26,10 @@ interface FakeRecognition extends Recognition {
   aborted: boolean;
 }
 
-function recogniser(o: { status?: string; keepsLocal?: boolean; property?: boolean; checks?: boolean; throws?: boolean } = {}) {
-  const { status = 'available', keepsLocal = true, property = true, checks = true, throws = false } = o;
+function recogniser(
+  o: { status?: string; keepsLocal?: boolean; property?: boolean; checks?: boolean; throws?: boolean; silent?: boolean } = {},
+) {
+  const { status = 'available', keepsLocal = true, property = true, checks = true, throws = false, silent = false } = o;
   const made: FakeRecognition[] = [];
   const asked: unknown[] = [];
 
@@ -38,6 +40,7 @@ function recogniser(o: { status?: string; keepsLocal?: boolean; property?: boole
     onresult: Recognition['onresult'] = null;
     onerror: Recognition['onerror'] = null;
     onend: Recognition['onend'] = null;
+    onstart: Recognition['onstart'] = null;
     started = false;
     aborted = false;
     constructor() {
@@ -45,6 +48,8 @@ function recogniser(o: { status?: string; keepsLocal?: boolean; property?: boole
     }
     start(): void {
       this.started = true;
+      // A silent recogniser is one whose language pack is not on the device: it never says it began.
+      if (!silent) this.onstart?.();
     }
     stop(): void {
       this.onend?.();
@@ -290,6 +295,19 @@ describe('converse — hands-free, on the device', () => {
     vi.advanceTimersByTime(5000);
     expect(made).toHaveLength(1);
     expect(rec.lost()).toBe(1);
+  });
+
+  it('gives up on a recogniser that starts and then says nothing, instead of listening to it forever', async () => {
+    const { R, made } = recogniser({ silent: true });
+    const rec = recorder();
+    await converse(environment({ Recognition: R }).env, rec.options());
+    vi.advanceTimersByTime(3999);
+    expect(rec.lost()).toBe(0);
+    vi.advanceTimersByTime(1);
+    expect(rec.lost()).toBe(1);
+    expect(made[0]!.aborted).toBe(true);
+    vi.advanceTimersByTime(5000);
+    expect(made).toHaveLength(1);
   });
 
   it('stopping closes the microphone once', async () => {

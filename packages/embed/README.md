@@ -95,6 +95,17 @@ with hysteresis so a cough is not a question), starts the on-device recogniser a
 each utterance, and pauses while the assistant thinks and speaks so it never hears itself.
 Closing the screen closes the microphone; the original pages never listen.
 
+**Setting voice up.** Browsers ship on-device speech as a language pack downloaded once, and
+only while handling a tap: Edge reports it as `downloadable`, and installing it without a tap
+is refused. So the landing page never tries on its own; it says to tap the microphone. The
+tap installs the pack, and availability is read again afterwards, so a refused download never
+sticks for the visit. A recogniser that starts but reports nothing for four seconds is given
+up on rather than listened to forever.
+
+**Commands.** A short, closed list of things a visitor says to the assistant itself — close,
+menu, back, home, stop, repeat, stop listening, in Portuguese and English (`commands.ts`) — is
+acted on at once and never routed. Anything longer is a question.
+
 ## The chat box
 
 - **`present.ts`** is pure. It turns a turn into what to say, and whether to move:

@@ -30,6 +30,7 @@ import type { TurnTrace } from '@nextgen/core-intent/browser';
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from '../../ui/src/anchor.ts';
 import { chooseDockSide, type DockSide } from '../../ui/src/dock.ts';
 
+import { commandFor, type Command } from './commands.ts';
 import { createLiquid } from './liquid.ts';
 import { adopterNav, type NavLink, type NavRoot } from './nav.ts';
 import { fillParams, isSamePlace, present, suggestionsFor, wordsFor, type Choice, type View, type Words } from './present.ts';
@@ -544,6 +545,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   let toldToType = false;
   let speaking: Speaking | null = null;
   let transcription: Transcription = 'unavailable';
+  let detection: Promise<Transcription> | null = null;
+  let lastSaid = '';
   let menuOpen = false;
   let menuLinks: HTMLAnchorElement[] = [];
   let answerLinks: HTMLAnchorElement[] = [];
@@ -763,7 +766,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
 
   // ------------------------------------------------------------ open / close --
 
-  function open(): void {
+  /** `fromTap`: opened by the visitor's own tap, which is the only time a browser will fetch a speech pack. */
+  function open(fromTap = false): void {
     if (destroyed || mode === 'stage') return;
     applyTheme();
     bubble.dataset.show = 'false';
@@ -783,7 +787,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       place();
       input.focus();
     }, 30);
-    if (handsFree) void startConversation();
+    if (handsFree) void startConversation(fromTap);
   }
 
   function dock(returnFocus: boolean, toSide?: DockSide): void {
@@ -998,12 +1002,28 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     }
   }
 
-  async function startConversation(): Promise<void> {
+  /** `fromTap`: browsers download a speech pack only while handling the visitor's own tap. */
+  async function startConversation(fromTap = false): Promise<void> {
     if (!handsFree || !env?.getUserMedia || conversation || startingConversation || destroyed || mode !== 'stage') return;
     startingConversation = true;
+    if (detection) transcription = await detection;
     if (transcription === 'downloadable') {
+      if (!fromTap) {
+        // Without a tap the download is refused and the recogniser would listen to nothing. Say what to do.
+        startingConversation = false;
+        setCaption(words.setUpVoice);
+        return;
+      }
       setCaption(words.preparingVoice);
-      transcription = (await installTranscription(env, lang)) ? 'available' : 'unavailable';
+      await installTranscription(env, lang);
+      // Read it again rather than assume: a refused or failed download must not stick for the visit.
+      detection = transcriptionFor(env, lang);
+      transcription = await detection;
+      if (transcription === 'downloadable' || destroyed || mode !== 'stage' || !handsFree) {
+        startingConversation = false;
+        if (transcription === 'downloadable') setCaption(words.setUpVoice);
+        return;
+      }
     }
     const transcribing = transcription === 'available';
     let session: Conversation;
@@ -1062,17 +1082,64 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       liquid.setLevel(0);
       if (!busy) liquid.setState('idle');
     } else if (mode === 'stage') {
-      void startConversation();
+      void startConversation(true);
     } else {
-      open();
+      open(true);
     }
   }
 
   // -------------------------------------------------------------------- turn --
 
+  /** The few things a visitor says to the assistant itself (commands.ts): acted on at once, never routed. */
+  function runCommand(command: Command): boolean {
+    switch (command) {
+      case 'close':
+        if (mode === 'stage') close();
+        return true;
+      case 'menu':
+        open();
+        openMenu();
+        return true;
+      case 'back':
+        if (!view?.history || view.history.length <= 1) return false;
+        dock(false);
+        view.history.back();
+        return true;
+      case 'home': {
+        const home = homes[0];
+        if (!home) return false;
+        if (isSamePlace(home, currentPath())) {
+          open();
+          return true;
+        }
+        const capability = capabilityAt(home);
+        void travel(home, capability?.title ?? home, capability?.id ?? null);
+        return true;
+      }
+      case 'stop':
+        stopSpeaking();
+        return true;
+      case 'repeat':
+        if (!lastSaid) return false;
+        stopSpeaking();
+        void say(lastSaid, readAloud).then(() => {
+          if (mode === 'stage' && !busy) liquid.setState('idle');
+        });
+        return true;
+      case 'mute':
+        if (handsFree) toggleVoice();
+        return true;
+    }
+  }
+
   async function ask(text: string): Promise<View | null> {
     const utterance = text.trim();
     if (!utterance || destroyed) return null;
+    const command = commandFor(utterance, pageLang);
+    if (command && runCommand(command)) {
+      input.value = '';
+      return null;
+    }
     open();
     closeMenu(false);
     stopSpeaking();
@@ -1110,7 +1177,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
         return shown;
       }
 
-      await say([shown.title, shown.body].filter(Boolean).join('. '), readAloud);
+      lastSaid = [shown.title, shown.body].filter(Boolean).join('. ');
+      await say(lastSaid, readAloud);
       if (destroyed || mine !== latest) return shown;
       if (shown.destination) {
         const destination = trace?.capabilityId ? assistant.registry.byId.get(trace.capabilityId) : undefined;
@@ -1127,7 +1195,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   // ------------------------------------------------------------------ events --
 
   orb.addEventListener('click', () => {
-    if (mode === 'docked') open();
+    if (mode === 'docked') open(true);
     else toggleVoice();
   });
   menuButton.addEventListener('click', () => {
@@ -1201,7 +1269,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   view?.addEventListener('scroll', onScroll, true);
 
   if (canListen && env) {
-    void transcriptionFor(env, lang).then((status) => {
+    detection = transcriptionFor(env, lang);
+    void detection.then((status) => {
       transcription = status;
     });
   }

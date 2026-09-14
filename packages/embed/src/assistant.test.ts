@@ -160,8 +160,16 @@ function clubPage(doc: FakeDocument): void {
   doc.body.append(nav, footer);
 }
 
-/** A browser that can recognise speech on the device. */
-function localVoice(extra: Partial<VoiceEnv> = {}) {
+/**
+ * A browser that can recognise speech on the device. `downloadable` is Edge's real starting
+ * state: the language pack must be installed first, and only a tap may install it.
+ */
+function localVoice(
+  extra: Partial<VoiceEnv> = {},
+  { status = 'available', installs = true }: { status?: 'available' | 'downloadable'; installs?: boolean } = {},
+) {
+  let availability: string = status;
+  const installed: unknown[] = [];
   const made: (Recognition & { started: boolean; aborted: boolean })[] = [];
   const tracks = [
     {
@@ -178,6 +186,7 @@ function localVoice(extra: Partial<VoiceEnv> = {}) {
     onresult: Recognition['onresult'] = null;
     onerror: Recognition['onerror'] = null;
     onend: Recognition['onend'] = null;
+    onstart: (() => void) | null = null;
     started = false;
     aborted = false;
     #local = false;
@@ -187,12 +196,18 @@ function localVoice(extra: Partial<VoiceEnv> = {}) {
     set processLocally(value: boolean) {
       this.#local = value;
     }
-    static available = async (): Promise<string> => 'available';
+    static available = async (): Promise<string> => availability;
+    static install = async (options: unknown): Promise<boolean> => {
+      installed.push(options);
+      if (installs) availability = 'available';
+      return installs;
+    };
     constructor() {
       made.push(this);
     }
     start(): void {
       this.started = true;
+      this.onstart?.();
     }
     stop(): void {
       this.onend?.();
@@ -215,7 +230,7 @@ function localVoice(extra: Partial<VoiceEnv> = {}) {
     now: () => Date.now(),
     ...extra,
   };
-  return { env, made, tracks };
+  return { env, made, tracks, installed };
 }
 
 const heard = (text: string) => ({ results: [{ isFinal: true, 0: { transcript: text } }] });
@@ -662,6 +677,92 @@ describe('hands-free voice', () => {
     await settle(100);
     expect(made).toHaveLength(1);
     expect(made[0]!.processLocally).toBe(true);
+  });
+});
+
+describe('setting voice up', () => {
+  it('never downloads a speech pack without a tap; the landing page says what to do instead', async () => {
+    const { env, made, installed } = localVoice({}, { status: 'downloadable' });
+    const preferences = new MemoryStorage();
+    preferences.setItem('nextgen:hands-free', 'on');
+    const { caption } = setup(answering({}), { voiceEnv: env, preferences, home: ['/home'] });
+    await settle(100);
+    expect(installed).toHaveLength(0);
+    expect(made).toHaveLength(0);
+    expect(caption.textContent).toBe('Tap the microphone to set up voice on this device. It downloads once.');
+  });
+
+  it('tapping the microphone installs the pack, then listens', async () => {
+    const { env, made, installed } = localVoice({}, { status: 'downloadable' });
+    const { mic } = setup(answering({}), { voiceEnv: env });
+    await settle(0);
+    mic.fire('click');
+    await settle(50);
+    expect(installed).toEqual([{ langs: ['en-US'], processLocally: true }]);
+    expect(made).toHaveLength(1);
+    expect(made[0]!.started).toBe(true);
+  });
+
+  it('a download that fails does not stick: the next tap tries again', async () => {
+    const { env, made, installed } = localVoice({}, { status: 'downloadable', installs: false });
+    const { mic, caption } = setup(answering({}), { voiceEnv: env });
+    await settle(0);
+    mic.fire('click');
+    await settle(50);
+    expect(installed).toHaveLength(1);
+    expect(made).toHaveLength(0);
+    expect(caption.textContent).toBe('Tap the microphone to set up voice on this device. It downloads once.');
+    mic.fire('click'); // off
+    mic.fire('click'); // on again
+    await settle(50);
+    expect(installed).toHaveLength(2);
+  });
+});
+
+describe('spoken commands', () => {
+  it('act at once instead of being asked: menu opens the menu, fechar closes the screen', async () => {
+    const assistant = answering({});
+    const { mounted, screen, drawer } = setup(assistant, {}, { page: clubPage });
+    await mounted.ask('menu');
+    expect(screen.dataset.open).toBe('true');
+    expect(drawer.dataset.open).toBe('true');
+    await mounted.ask('Fechar, por favor.');
+    expect(screen.dataset.open).toBe('false');
+    expect(assistant.asked).toEqual([]);
+  });
+
+  it('voltar goes back a page', async () => {
+    const assistant = answering({});
+    const { mounted, doc } = setup(assistant);
+    mounted.open();
+    await mounted.ask('voltar');
+    expect(doc.defaultView!.wentBack).toBe(1);
+    expect(assistant.asked).toEqual([]);
+  });
+
+  it('anything longer is still a question for the router', async () => {
+    const assistant = answering(clarifying);
+    const { mounted } = setup(assistant);
+    const done = mounted.ask('fechar a inscrição do meu filho');
+    await settle(2000);
+    await done;
+    expect(assistant.asked).toEqual(['fechar a inscrição do meu filho']);
+  });
+
+  it('a hands-free "fechar" closes the screen, and the microphone with it', async () => {
+    const { env, made, tracks } = localVoice();
+    const preferences = new MemoryStorage();
+    preferences.setItem('nextgen:hands-free', 'on');
+    const assistant = answering({});
+    const { orb, screen } = setup(assistant, { voiceEnv: env, preferences });
+    await settle(0);
+    orb.fire('click');
+    await settle(50);
+    made[0]!.onresult!(heard('fechar'));
+    await settle(0);
+    expect(screen.dataset.open).toBe('false');
+    expect(tracks[0]!.stopped).toBe(1);
+    expect(assistant.asked).toEqual([]);
   });
 });
 

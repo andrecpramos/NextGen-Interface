@@ -171,6 +171,8 @@ export class FakeWindow {
   innerWidth = 1200;
   innerHeight = 800;
   readonly moved: string[] = [];
+  wentBack = 0;
+  history = { length: 2, back: () => void this.wentBack++ };
   readonly listeners = new Map<string, (() => void)[]>();
   // Loopback, deliberately: this file is not a *.test.ts, so check-network-egress.mjs reads it as runtime code.
   location = { pathname: '/home', href: 'http://localhost/home', assign: (route: string) => void this.moved.push(route) };

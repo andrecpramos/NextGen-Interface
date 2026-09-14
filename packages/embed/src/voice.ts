@@ -37,6 +37,7 @@ export interface Recognition {
   onresult: ((event: { readonly results: RecognitionResultList }) => void) | null;
   onerror: ((event: { readonly error: string }) => void) | null;
   onend: (() => void) | null;
+  onstart?: (() => void) | null;
   start(): void;
   stop(): void;
   abort?(): void;
@@ -178,6 +179,8 @@ export interface Conversation {
 
 const FATAL_RECOGNITION_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'language-not-supported', 'audio-capture']);
 const MAX_RECOGNITION_FAILURES = 5;
+/** How long a recogniser may take to say it has started before it is taken to be silent. */
+const SILENT_START_MS = 4000;
 
 /**
  * Listen hands-free: one microphone stream for as long as the conversation lasts,
@@ -194,6 +197,7 @@ export async function converse(env: VoiceEnv, options: ConverseOptions): Promise
   let failures = 0;
   let frame = 0;
   let retry = 0;
+  let watchdog = 0;
   let activity = voiceActivity();
   let context: AudioContext | null = null;
   let recognition: Recognition | null = null;
@@ -256,7 +260,19 @@ export async function converse(env: VoiceEnv, options: ConverseOptions): Promise
       // Listening hands-free means starting the next.
       again(failures > 0 ? 400 * failures : 50);
     };
+    let began = false;
+    rec.onstart = () => {
+      began = true;
+    };
     recognition = rec;
+    // A recogniser whose language pack is not on the device yet starts and then says nothing
+    // at all — no error, no end. Listening to it forever is what "voice does not work" is.
+    env.clearTimer(watchdog);
+    watchdog = env.timer(() => {
+      if (began || recognition !== rec || stopped || paused) return;
+      loseTranscription();
+      endRecognition();
+    }, SILENT_START_MS);
     try {
       rec.start();
     } catch {
@@ -297,6 +313,7 @@ export async function converse(env: VoiceEnv, options: ConverseOptions): Promise
       if (paused || stopped) return;
       paused = true;
       env.clearTimer(retry);
+      env.clearTimer(watchdog);
       endRecognition();
       if (activity.speaking) options.onSpeech(false);
       options.onLevel(0);
@@ -315,6 +332,7 @@ export async function converse(env: VoiceEnv, options: ConverseOptions): Promise
       stopped = true;
       if (frame) env.cancelFrame(frame);
       env.clearTimer(retry);
+      env.clearTimer(watchdog);
       endRecognition();
       for (const track of stream.getTracks()) track.stop();
       void context?.close().catch(() => undefined);
