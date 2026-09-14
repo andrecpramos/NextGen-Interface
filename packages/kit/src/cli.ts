@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { build } from './build.ts';
 import { calibrate } from './calibrate.ts';
@@ -63,7 +63,10 @@ async function main(): Promise<number> {
     for (const w of result.warnings) console.log(`\n  ! ${w}`);
     console.log(`\n  Wrote ${result.configFile}`);
     console.log('  Anything marked GUESSED can be corrected in that file.');
-    console.log(`  Next: nextgen build ${result.kitDir}\n`);
+    console.log(`\n  Wrote ${join(result.kitDir, 'AGENT.md')}`);
+    console.log('  If an AI agent is running these next steps: read that file first.');
+    console.log('  It lists the decisions in here that are the developer\'s to make, not yours.');
+    console.log(`\n  Next: nextgen build ${result.kitDir}\n`);
     return 0;
   }
 

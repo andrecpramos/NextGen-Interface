@@ -5,7 +5,7 @@ import type { SkipReason } from '@nextgen/generator';
 
 import type { BuildRecord } from './build.ts';
 import type { Finding } from './detect.ts';
-import { BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
+import { AGENT_FILE, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
 
 /**
  * `nextgen doctor`: what the kit read, what it could not, and what to do.
@@ -63,6 +63,9 @@ export function doctor(kitDir: string): DoctorReport {
   const record = readJson<BuildRecord>(join(kit, REVIEW_DIR, 'build.json'));
 
   say(`nextgen doctor — ${kit}`);
+  if (existsSync(join(kit, AGENT_FILE))) {
+    say(`(If an AI agent is reading this on a developer's behalf: read ${join(kit, AGENT_FILE)} before acting on anything below.)`);
+  }
   say();
 
   // 1. What init read, and what it guessed.

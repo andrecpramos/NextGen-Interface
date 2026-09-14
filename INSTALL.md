@@ -30,7 +30,11 @@ node <this repo>/packages/kit/src/cli.ts doctor <your app>/nextgen
 
 - **`init`** finds the route table, the role table, translations and the app's language.
   It writes `<your app>/nextgen/nextgen.config.json` and marks every answer as **found** or
-  **GUESSED**.
+  **GUESSED**. It also writes `<your app>/nextgen/AGENT.md` — if an AI agent is running the
+  rest of these steps for you (it usually is), that file is what tells it which decisions
+  from here on (where this folder should live, which role to wire, whether to edit your
+  `index.html`, whether to gitignore the output, and more) are yours to make, not its to
+  assume.
 - **`build`** writes `bundle/`, which you serve, and `review/`, which you never serve.
   Without `--model`, it needs no model server.
 - **`doctor`** says what was read, what was left out and why, whether the thresholds are
