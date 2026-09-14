@@ -1,7 +1,17 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -155,6 +165,35 @@ describe('init → build → doctor, end to end', () => {
     const record = await build(kit);
     expect(record.roles).toEqual(['PUBLIC']);
     expect(doctor(kit).text).toMatch(/data-nextgen-role="PUBLIC"/);
+  }, 60_000);
+
+  it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {
+    // Reproduces the exact failure found running the kit against fut-app:
+    // `dist/nextgen.js` survived a later `embed/src` change untouched because
+    // the old check only asked whether a bundle existed, not whether it was
+    // current. `doctor` reported a clean build while `NextGen.start` did not
+    // exist on the page.
+    const embedDir = dirname(createRequire(import.meta.url).resolve('@nextgen/embed/package.json'));
+    const distFile = join(embedDir, 'dist', 'nextgen.js');
+    const sourceFile = join(embedDir, 'src', 'index.ts');
+
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit); // ensures dist exists at all
+
+    // Simulate a stale, broken artefact: older than the source, and missing
+    // the export a mount depends on.
+    writeFileSync(distFile, 'export {};');
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(distFile, past, past);
+    const future = new Date(Date.now() + 60_000);
+    utimesSync(sourceFile, future, future);
+
+    await build(kit);
+    const rebuilt = readFileSync(distFile, 'utf8');
+    expect(rebuilt).not.toBe('export {};');
+    expect(rebuilt).toMatch(/NextGen/);
+    expect(doctor(kit).text).not.toMatch(/broken/);
   }, 60_000);
 
   it('before a build, says what to run next instead of failing obscurely', () => {

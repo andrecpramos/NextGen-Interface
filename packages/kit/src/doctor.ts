@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import vm from 'node:vm';
 
 import type { SkipReason } from '@nextgen/generator';
 
@@ -61,6 +62,27 @@ const WHY: Readonly<Record<SkipReason, { readonly means: string; readonly fix: s
 
 function readJson<T>(file: string): T | null {
   return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : null;
+}
+
+/**
+ * `build` copying `nextgen.js` into the bundle is not the same as it working —
+ * a stale or truncated copy still copies successfully. Load it exactly as a
+ * `<script src>` would (the same sandbox `embed`'s own tests use: a bare
+ * `window`, no `require`, no `fetch`) and check the one export every mount
+ * depends on. This is what would have caught the kit shipping a two-day-old
+ * `dist/nextgen.js` that exported nothing while reporting a clean build.
+ */
+function scriptTagIsBroken(code: string): string | null {
+  try {
+    const window: Record<string, unknown> = {};
+    const context = vm.createContext({ window, self: window, console, performance });
+    vm.runInContext(`${code}\nwindow.NextGen = NextGen;`, context);
+    const api = window.NextGen as Record<string, unknown> | undefined;
+    if (typeof api?.start !== 'function') return 'it does not define a callable NextGen.start';
+    return null;
+  } catch (error) {
+    return `it threw when loaded like a script tag: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
 
 export function doctor(kitDir: string): DoctorReport {
@@ -152,6 +174,10 @@ export function doctor(kitDir: string): DoctorReport {
     }
   }
   if (!served.includes('thresholds.hashing.json')) problems.push('bundle/thresholds.hashing.json is missing');
+  if (served.includes('nextgen.js')) {
+    const broken = scriptTagIsBroken(readFileSync(join(bundle, 'nextgen.js'), 'utf8'));
+    if (broken) problems.push(`bundle/nextgen.js is broken: ${broken}. Delete packages/embed/dist and run "nextgen build" again`);
+  }
   if (served.includes('master.json')) problems.push('bundle/ contains master.json, which lists every role. Delete it; it must never be served');
   for (const file of served.filter((f) => /^registry\..+\.json$/.test(f))) {
     const registry = readJson<{ capabilities: Array<Record<string, unknown>> }>(join(bundle, file));
