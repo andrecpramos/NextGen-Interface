@@ -51,16 +51,24 @@ const SKIP_NODE20 = process.argv.includes('--skip-node20');
 const WINDOWS = process.platform === 'win32';
 
 /**
- * Every publishable package, leaves first. The kit needs six of them, but a release attaches
- * all eight and INSTALL.md installs them together, so that is what is installed here.
+ * Every publishable package, leaves first.
+ *
+ * Was eight until ADR-018. `core-trace` and `core-dispatch` were attached to every
+ * release and installed by INSTALL.md although nothing on the path to an adopter
+ * imported either — they existed for the deleted terminal app. The list is six now, and
+ * it is exactly the transitive closure of what `kit` needs.
+ *
+ * This whole gate is provisional: ADR-018 makes the unit of distribution `adapter/`, a
+ * folder that is copied rather than installed, at which point the property to prove is
+ * "a copy of adapter/ runs with no node_modules and no network" rather than "these
+ * tarballs install". Until that folder exists, the tarball path is still what an adopter
+ * would use, so this keeps running.
  */
-const PACKAGES = ['core-capability', 'core-trace', 'core-inference', 'core-dispatch', 'core-intent', 'generator', 'embed', 'kit'];
+const PACKAGES = ['core-capability', 'core-inference', 'core-intent', 'generator', 'embed', 'kit'];
 
 /** Built output each package must have before it can be packed. */
 const BUILT = {
   'core-capability': ['dist/index.js'],
-  'core-trace': ['dist/index.js'],
-  'core-dispatch': ['dist/index.js'],
   'core-inference': ['dist/index.js'],
   'core-intent': ['dist/index.js', 'dist/browser.js', 'dist/calibrate.js'],
   generator: ['dist/index.js'],

@@ -148,40 +148,17 @@ jobs:
       - name: Unit tests
         run: pnpm -r test
 
-      # Rule 10 — every capability ships >=3 examples. The builder exits
-      # non-zero on a violation, and --check writes nothing.
+      # Rule 10 — every capability ships >=3 examples, plus every other structural
+      # rule validateRegistry() holds.
+      #
+      # Until ADR-018 this ran `domain-modules registry:build --check`: validation was a
+      # side effect of building a domain package, and it therefore covered exactly one
+      # registry of 7 capabilities. Both domain packages are deleted; the gate now finds
+      # every registry committed to the tree by glob and validates all of them — 12
+      # registries, 369 capabilities, including all ten of fut-app's per-role files,
+      # which nothing validated before.
       - name: Registry validation (Rule 10)
         run: pnpm registry:check
-
-      # The generated artefacts must match what is committed. A registry built
-      # from a changed definition but not regenerated is a silent drift.
-      #
-      # Scoped to the files the builder actually writes. A bare
-      # `git diff --quiet` also trips on pnpm-lock.yaml, which pnpm rewrites
-      # whenever any workspace manifest changed — an unrelated failure.
-      #
-      # Both domains are checked, in one job. Until WP-47 every domain build wrote
-      # the same packages/core-intent/eval/registry.json, so running both here left
-      # whichever ran last as the authoritative registry — which is why finance was
-      # excluded. Each domain now writes its own
-      # packages/domain-<name>/generated/registry.json (ADR-016), so the collision is
-      # gone and this gate covers every domain rather than whichever one happened to
-      # be authoritative.
-      - name: Registry artefacts are current
-        run: |
-          pnpm registry:build
-          pnpm registry:build:finance
-          # --porcelain rather than `git diff --quiet`, deliberately: a domain whose
-          # registry.json has never been committed produces an UNTRACKED file, and
-          # git diff does not see untracked files. domain-finance was in exactly that
-          # state when WP-47 moved the paths, so this gate would have gone vacuous
-          # for the second time, in the same gate, by a different route.
-          STALE=$(git status --porcelain -- packages/domain-modules/generated packages/domain-finance/generated)
-          if [ -n "$STALE" ]; then
-            echo "::error::Registry artefacts are stale or uncommitted. Rebuild both domains and commit the result."
-            echo "$STALE"
-            exit 1
-          fi
 
       # Rule 14 — the shipped thresholds must be the calibrated ones. Nothing
       # reads the calibration output at run time, so without this the one edit

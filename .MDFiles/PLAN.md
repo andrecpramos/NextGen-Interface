@@ -591,7 +591,7 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | ~~`hashing-llama3.1_8b.txt`~~ | 0 bytes, tracked, beside a real `.json`. Its real path was `packages/core-intent/eval/scorecards/`, not the `eval/scorecards/` recorded here | **DELETED 2026-09-10 (WP-37)** — and it was the only 0-byte tracked file left in the repo |
 | ~~`services/api`~~ | 3 files, `src/index.ts` is `export {}`, zero dependents | **DELETED 2026-09-13**, the owner's decision (ADR-013 addendum). Before that, **decided in [ADR-013](../.claude/decisions/ADR-013.md), 2026-09-09** — keep, empty, reserved for Ladder B2's hosted trace store; use for nothing on rungs A1/B1/C1 without a new ADR |
 | ~~**`domain-finance` is orphaned**~~ | **RESOLVED 2026-09-09 (WP-16)** — a `devDependency` of `apps/cli`; `domain-swap.test.ts` runs the real router against it. `NextGenApp` still cannot *register* it (its use cases are module-specific) — a separate, larger question | Closed |
-| `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead, and now verified.** WP-21 measured it on 2026-09-11: 97.5% agreement ([acceptance.mjs](../packages/core-voice/eval/acceptance.mjs)). A browser transport is still unscoped work that nobody has costed |
+| `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead, and now verified.** WP-21 measured it on 2026-09-11: 97.5% agreement (`acceptance.mjs`). A browser transport is still unscoped work that nobody has costed |
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
 | ~~`.claude/docs/roadmap.md`~~ | Planned a **Flutter** build [ADR-006](../.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened | **DELETED 2026-09-10 (WP-11)** — but **not wholly dead, and this row was wrong to say so.** Four live doc links pointed into it, one of them load-bearing: FINDINGS scores WP-01's verdict against its Sprint 0 exit criteria. Those, and the success-metrics table that first set model-free resolution at ≥65%, are preserved in history.md |
 | ~~7 product docs~~ | ✅ **DONE 2026-09-10 (WP-11).** `README.md` rewritten around the navigation layer and its measured numbers; `vision.md` now scores each of its four goals against evidence (goal 1 is half-met and its offline half failed); `project.md` was already current; `apps/web/README.md` named a `FinanceApp` root that no longer exists; `core-voice/README.md` claimed "not yet implemented" for code that ships and is imported. `SETUP.md` named `domain-finance` as the registry source in two places — it has been `domain-modules` since WP-14, so anyone following it edited the wrong file. `roadmap.md` deleted, its two surviving parts moved to `history.md` | **WP-11** ✅ |
@@ -1059,7 +1059,7 @@ registry: destinations, a `kind`, roles, and three example utterances each. Use
 `llama3.1:8b` for the language parts. Do not integrate it, do not generalise it, do not
 clean it up.
 
-**Delivered.** [eval/fut-app/spike/](../eval/fut-app/spike/VERDICT.md) —
+**Delivered.** `eval/fut-app/spike/` —
 `generate-draft.mjs` (parses `routes.tsx` + `permissions.ts` mechanically, resolves
 labels via `deepLinks.ts`/`navConfigs.ts` + the locale files, calls `llama3.1:8b` per
 destination), `draft-registry.json` (131 capabilities from 154 parsed routes), `score.mjs`,
@@ -1143,7 +1143,7 @@ package (10 modules, 49 tests, TypeScript AST rather than the spike's regexes) p
 [eval/fut-app/generated/](../eval/fut-app/generated/SKIPPED.md), a scorer
 ([score-generated.mjs](../eval/fut-app/score-generated.mjs), deliberately the same method as
 WP-30's so the numbers compare), and a model-free refusal proof
-([prove-refusal.mjs](../eval/fut-app/prove-refusal.mjs)). **154 routes → 145 capabilities +
+(`prove-refusal.mjs`). **154 routes → 145 capabilities +
 4 boundaries across 10 role registries, 9 routes deliberately skipped with the app's own
 words as evidence.** Output shape decided in [ADR-014](../.claude/decisions/ADR-014.md).
 
@@ -1680,7 +1680,7 @@ never refused on its own).
 > volunteer a refusal.
 
 **Delivered so far.** [ADR-015](../.claude/decisions/ADR-015.md) (accepted 2026-09-10) and
-[experiment-action-verbs.mjs](../eval/fut-app/experiment-action-verbs.mjs), which measured the
+`experiment-action-verbs.mjs`, which measured the
 mechanism **before** the ADR proposed it.
 
 **The signal works.** Split 40/60 by destination, `nomic-embed-text`, on WP-32's golden set:
@@ -1722,7 +1722,7 @@ the honest product ships with a much smaller declared surface per session — wh
 scope decision, not a routing one.
 ~~Did not trigger, and is not cleared either.~~ **TRIGGERED on 2026-09-11, once
 mechanism (b) was measured.** The experiment is
-[experiment-stage3-intent.mjs](../eval/fut-app/experiment-stage3-intent.mjs), run with
+`experiment-stage3-intent.mjs`, run with
 llama3.1:8b on the same 34 hand-written requests and 176 in-domain turns:
 
 | Mechanism | Out-of-scope detected | In-domain wrongly refused |
@@ -2019,7 +2019,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | ~~**WP-29**~~ ✅ | Script tag (Ladder C3), **done 2026-09-11** | `packages/embed` builds one IIFE exposing `window.NextGen.create()` and `load()`: **9.3KB gzipped**, plus the role's index. It is tested as a script tag, in a V8 context holding only `window`, `console` and `performance`. There it routes real `fut-app` turns and makes the same decision as the direct call. It found two defects in WP-26's browser entry (see WP-26) | Done |
 | ~~**WP-18**~~ ✅ | Undo for `module.delete` and `module.revert` — **done 2026-09-11** | A deleted module comes back exactly as it was (same id and timestamps, so anything referring to it still resolves); undoing a revert restores the body it replaced. Tokens cannot be spent twice, a `null` payload refuses readably, and undoing the revert of a since-deleted module refuses rather than resurrecting it. The CLI gains `undo`, and its confirmation now says "you can undo this" for both — derived from the journal, not asserted | Done |
 | ~~**WP-20**~~ ✖ | Screens for capture/search | **Closed 2026-09-11, not built**, as this row predicted. This was reference-app polish. The product is now the layer installed in someone else's app (ADR-013), so these screens would demo the reference app, not the product | Closed |
-| ~~**WP-21**~~ ✅ | Verify voice acceptance, **done 2026-09-11** | [acceptance.mjs](../packages/core-voice/eval/acceptance.mjs) runs Piper → whisper.cpp → route and compares each result against the same words typed. **97.5%** agreement (39/40), WER 7.1%, 317ms synthesis plus 717ms transcription. The first run was **75%**. Whisper ends every transcript with a full stop, and `normalize()` kept it, so no stage-1 trigger matched; typed input had the same bug. Fixed, with Rule 14's recalibration. **Untested:** Portuguese, accents and real microphones. The installed assets are en_US only | Done (English) |
+| ~~**WP-21**~~ ✅ | Verify voice acceptance, **done 2026-09-11** | `acceptance.mjs` runs Piper → whisper.cpp → route and compares each result against the same words typed. **97.5%** agreement (39/40), WER 7.1%, 317ms synthesis plus 717ms transcription. The first run was **75%**. Whisper ends every transcript with a full stop, and `normalize()` kept it, so no stage-1 trigger matched; typed input had the same bug. Fixed, with Rule 14's recalibration. **Untested:** Portuguese, accents and real microphones. The installed assets are en_US only | Done (English) |
 | ~~**WP-22**~~ ✅ | Contract tests for `apps/web`, 2026-09-10 | **16 tests, the first this app has ever had** — `render.ts` is where every view the surface receives is built, so a mistake there is one the user sees. Three of the properties are safety, not cosmetics: the drawer may offer **only** `navigate` capabilities (a one-tap `destructive` entry would bypass ADR-004's confirmation entirely), a confirmation card must hide the raw uploaded source text it carries internally while showing every value being approved, and a rendered trace must carry the runners-up (Rule 9). Needed a vitest alias — the web layer declares `import 'server-only'`, which Next injects and which resolves nowhere else | Done |
 | ~~**WP-11**~~ ✅ | Documentation — **complete 2026-09-10.** `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`, and SETUP.md's three wrong claims about which file is the registry source; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | `roadmap.md` deleted last. It was **not** blocked by `docs/runbook` — that branch deletes a pre-rename path (§12) — and it was **not** wholly dead: FINDINGS scores WP-01 against its Sprint 0 gate, so that gate and the success-metrics table moved to history.md rather than being lost | Done |
 | ~~**WP-10**~~ ✖ | `apps/mobile` | **Closed 2026-09-11 as a different product.** A native app is not a web layer that an adopter installs (ADR-013). The device-inference gate stands if it ever returns | Closed |
@@ -2056,7 +2056,7 @@ kit has to explain itself well enough to be run by someone who did not write it.
 >   the registries a browser fetches. `build` rebuilds `bundle/` from nothing each time, so
 >   a role that has disappeared cannot leave its registry behind. `doctor` re-checks both.
 > - **The calibration question is answered by measurement**
->   ([experiment-self-calibration.mjs](../eval/fut-app/experiment-self-calibration.mjs)). Its
+>   (`experiment-self-calibration.mjs`). Its
 >   decision rule was written before the run. On the 125 held-out golden turns:
 >
 >   | Arm | Settled | Accepts right | Wrongly refused |
@@ -2235,7 +2235,7 @@ where they conflict.
 > registered users" to "A person views…". An authorization fallback describes the
 > **audience**; an error fallback describes a **moment**. Both are now tests.
 >
-> **The mechanical half, on all 145** ([audit-descriptions.mjs](../eval/fut-app/audit-descriptions.mjs)):
+> **The mechanical half, on all 145** (`audit-descriptions.mjs`):
 > 21 flagged. **9 screens share a description with another screen, word for word** — three
 > medical screens have one sentence between them — and every duplicate sits under a
 > placeholder title. 5 open as one role on a screen many roles reach, which is REPORT.md's
@@ -2316,7 +2316,7 @@ stops until it is provably correct.
 **Do this.**
 - Add a multilingual whisper model and a Piper pt-PT voice through the hash-pinned asset
   manifest (Rule 8).
-- Run [acceptance.mjs](../packages/core-voice/eval/acceptance.mjs) on `fut-app`'s Portuguese
+- Run `acceptance.mjs` on `fut-app`'s Portuguese
   golden turns, synthesised.
 - The owner records 20 real utterances, and the same comparison runs on those.
 
@@ -2601,7 +2601,7 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 | How do the layers fit together? | [.claude/docs/architecture.md](../.claude/docs/architecture.md) |
 | Why is the router three stages? | [ADR-003](../.claude/decisions/ADR-003.md) |
 | How is out-of-scope detected without a model? | [ADR-009](../.claude/decisions/ADR-009.md) — the mechanism the product rests on |
-| Where is policy enforced? | [core-dispatch](../packages/core-dispatch/README.md) · [ADR-004](../.claude/decisions/ADR-004.md) |
+| Where is policy enforced? | `core-dispatch` · [ADR-004](../.claude/decisions/ADR-004.md) |
 | What did the router score? | §5 — re-measured 2026-09-09 (WP-17) |
 | **Does this actually work on a real app?** | **[eval/fut-app/MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) — read this first** |
 | How is a registry generated from an app's source? | [packages/generator](../packages/generator/README.md) · [ADR-014](../.claude/decisions/ADR-014.md) · [REPORT.md](../eval/fut-app/REPORT.md) |

@@ -1,7 +1,11 @@
 packages:
-  - 'apps/*'
   - 'packages/*'
   - 'tooling/*'
+
+allowBuilds:
+  # false, matching CI: nothing here needs a native build. esbuild resolves through
+  # platform-specific optional dependencies, so its postinstall is not required.
+  esbuild: false
 
 # Records which dependencies MAY run build scripts. Nothing here actually needs
 # one: persistence is node:sqlite rather than better-sqlite3, and vitest's esbuild

@@ -184,7 +184,7 @@ and when it refuses real requests it should not.
 
 **There is deliberately no way to calibrate from the generator's own example questions.**
 That was measured on an app where both kinds of data exist
-([experiment-self-calibration.mjs](../../eval/fut-app/experiment-self-calibration.mjs)):
+(`experiment-self-calibration.mjs`):
 it made the engine **wrongly refuse 7 real requests in 105**, against 1 for the untouched
 default. Offering it would be offering a worse outcome than doing nothing, wrapped in
 something that looks like diligence.

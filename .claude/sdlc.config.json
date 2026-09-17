@@ -26,14 +26,14 @@
     "convention": "conventional",
     "scopes": [
       "core-intent",
-      "core-dispatch",
       "core-inference",
       "core-capability",
-      "domain-modules",
-      "domain-finance",
+      "generator",
+      "embed",
+      "kit",
+      "adapter",
+      "preview",
       "ui",
-      "web",
-      "cli",
       "ci",
       "docs",
       "adr",
@@ -112,7 +112,7 @@
       "command": "node tooling/scripts/check-network-egress.mjs",
       "blocking": true,
       "rule": "8",
-      "fix": "A remote host in a runtime string literal falsifies the local-inference claim for every adopter. Loopback is fine. A model asset that must be downloaded belongs in packages/core-voice/src/assets.ts pinned by sha256, so a compromised host cannot substitute a different binary. Two things it cannot see: OLLAMA_HOST can be pointed anywhere by the environment, and a host assembled at run time from parts."
+      "fix": "A remote host in a runtime string literal falsifies the local-inference claim for every adopter. Loopback is fine. Nothing downloads assets any more (ADR-018), so there is no longer an exception for a pinned manifest — widening this gate to clear a failure is the wrong fix. Two things it cannot see: OLLAMA_HOST can be pointed anywhere by the environment, and a host assembled at run time from parts."
     },
     {
       "id": "model-numerics",
@@ -120,7 +120,7 @@
       "command": "node tooling/scripts/check-model-numerics.mjs",
       "blocking": true,
       "rule": "2",
-      "fix": "A number the model returns is a number the model computed. Have code compute it — the query engine sums, money.ts does the arithmetic — and let the model choose the capability and read values out of the utterance. If the number is genuinely never shown to a user, say why in the source with `// rule2-ok: <reason>`. This guards the model's output schema, not arithmetic our own code does on it: no user-visible number is rendered anywhere yet, so the render-path test the register used to propose would assert over an empty set."
+      "fix": "A number the model returns is a number the model computed. Have code compute it — the query engine sums, code does the arithmetic — and let the model choose the capability and read values out of the utterance. If the number is genuinely never shown to a user, say why in the source with `// rule2-ok: <reason>`. This guards the model's output schema, not arithmetic our own code does on it: no user-visible number is rendered anywhere yet, so the render-path test the register used to propose would assert over an empty set."
     },
     {
       "id": "doc-links",
@@ -213,22 +213,29 @@
     },
     {
       "id": "registry-check",
-      "title": "Rule 10 — >=3 examples per capability",
+      "title": "Rule 10 — >=3 examples per capability, across every registry in the tree",
       "command": "pnpm registry:check",
       "blocking": true,
       "rule": "10",
-      "fix": "Usually a capability with fewer than three examples. Add real paraphrases, not variations of one sentence."
+      "when": [
+        "eval/**/registry.*.json",
+        "packages/core-intent/eval/fixture-registry.json",
+        "packages/core-capability/src/validate.ts",
+        "adapter/**"
+      ],
+      "fix": "Usually a capability with fewer than three examples. Add real paraphrases, not variations of one sentence. Since ADR-018 this validates every registry found by glob rather than one domain's, so a failure names the file: fix that registry, or the generator that emitted it."
     },
     {
-      "id": "registry-stale",
-      "title": "Generated artefacts match the committed ones",
-      "command": "pnpm registry:build && pnpm registry:build:finance && test -z \"$(git status --porcelain -- packages/domain-modules/generated packages/domain-finance/generated)\"",
-      "blocking": true,
+      "id": "ground-truth",
+      "title": "WP-31's hand-written answer key still validates",
+      "command": "pnpm ground-truth:verify",
+      "blocking": false,
+      "expectNonZero": true,
       "when": [
-        "packages/domain-*/src/capabilities.ts",
-        "packages/domain-*/scripts/**"
+        "eval/fut-app/ground-truth.registry.json",
+        "packages/core-capability/src/validate.ts"
       ],
-      "fix": "Run pnpm registry:build and pnpm registry:build:finance, then stage the generated files in the same commit as the declaration change. Untracked counts as stale: a domain's first registry.json has never been committed."
+      "fix": "KNOWN FAILING as of 2026-09-17 — 45 explanation-required errors. WP-36 added the `explanation` requirement to validateRegistry after the key was written in WP-31, and nothing re-ran this because it was wired into no gate. Non-blocking on purpose: writing explanations into an answer key by looking at generator output is the contamination WP-31 exists to prevent. The open decision is a documented exemption for answer keys, or 45 explanations written from the app. See eval/fut-app/GROUND_TRUTH.md."
     },
     {
       "id": "router-floor",
@@ -237,7 +244,6 @@
       "blocking": false,
       "expectNonZero": true,
       "when": [
-        "packages/domain-*/src/capabilities.ts",
         "packages/core-intent/**"
       ],
       "fix": "Exits non-zero BY DESIGN — with stage 3 disabled it cannot meet absolute accuracy targets and is not meant to. What gates is the scorecard comparison below."
@@ -248,8 +254,8 @@
       "command": "node tooling/scripts/check-scorecard.mjs --baseline-ref HEAD --current packages/core-intent/eval/scorecards/hashing-nostage3.json --tolerance 0.05",
       "blocking": true,
       "when": [
-        "packages/domain-*/src/capabilities.ts",
-        "packages/core-intent/**"
+        "packages/core-intent/**",
+        "packages/core-intent/eval/fixture-registry.json"
       ],
       "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold. This compares your working tree against the scorecard committed at HEAD, so it only has something to say after `pnpm router:floor` has re-run; CI does the same with a baseline copied aside before the run."
     },
@@ -283,9 +289,10 @@
     },
     {
       "paths": [
-        "packages/domain-*/src/capabilities.ts"
+        "packages/core-intent/eval/fixture-registry.json",
+        "eval/**/registry.*.json"
       ],
-      "remind": "Capability declaration changed. Rule 10 needs >=3 examples, and the generated artefacts are now stale: run `pnpm registry:build` and commit the result in the same commit. Then `pnpm router:floor` to check the new capability did not crowd its neighbours."
+      "remind": "A registry changed. Rule 10 needs >=3 examples — run `pnpm registry:check`. If this was the router's frozen fixture, the committed scorecards were produced from it and `check-scorecard.mjs` compares against them: see packages/core-intent/eval/README.md before changing it at all. Then `pnpm router:floor` to check nothing crowded its neighbours."
     },
     {
       "paths": [
