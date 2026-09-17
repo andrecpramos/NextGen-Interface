@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 import type { SkipReason } from '@nextgen/generator';
@@ -198,8 +199,16 @@ export function doctor(kitDir: string): DoctorReport {
   if (record.roles.length > 1) {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
     say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
-    say('     Recipes for Express, Next.js and nginx: "Serving each role only its own files" in');
-    say('     node_modules/@nextgen/kit/README.md. The role comes from your session, never from the request.');
+    // Both installation paths get a pointer that exists for them. `node_modules` is the
+    // npm one; an adopter who copied the folder has no node_modules at all, and was being
+    // sent to a path that could not be there.
+    // Both installation paths get a pointer that exists for them. `node_modules` is the
+    // npm one; an adopter who copied the folder has no node_modules at all, and was being
+    // sent to a path that could not be there.
+    const copied = existsSync(join(dirname(fileURLToPath(import.meta.url)), 'AGENTS.md'));
+    say('     Ready-made handlers for Express and Next.js, under "Serving it", in');
+    say(`     ${copied ? 'AGENTS.md, beside this tool' : 'node_modules/@nextgen/kit/README.md'}.`);
+    say('     The role comes from your session, never from the request.');
 
     // A bundle under the folder a web app serves as-is hands every role's file to everyone.
     if (projectDir) {

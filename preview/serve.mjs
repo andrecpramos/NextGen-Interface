@@ -183,7 +183,13 @@ const server = createServer(async (req, res) => {
   };
 
   if (pathname === '/' || pathname === '/bench') return html(await benchPage(role));
-  if (pathname === '/hosts') return html(await readFile(fileURLToPath(new URL('index.html', HERE)), 'utf8'));
+  if (pathname === '/hosts') {
+    // The link to the mock app is rendered rather than written in, so it points at a route
+    // this fixture actually has — hard-coding one survives exactly until the fixture changes.
+    const first = (await pagesFor(role))[0]?.route ?? '/';
+    const shell = await readFile(fileURLToPath(new URL('index.html', HERE)), 'utf8');
+    return html(shell.replace('<!--APPLINK-->', `${first}?role=${encodeURIComponent(role)}`));
+  }
   if (!extname(pathname)) return html(await appPage(pathname, role));
 
   res.writeHead(404).end('Not found');

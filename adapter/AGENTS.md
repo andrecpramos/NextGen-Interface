@@ -185,6 +185,50 @@ Two rules, and the first one is a security property rather than a preference.
 `nextgen.js` and `thresholds.hashing.json` go to everyone. The script tag uses no inline
 script or style, so a strict Content-Security-Policy is fine.
 
+**The role must come from the session, never from the request** — a role in a query string
+or a header is a role the visitor chooses.
+
+**Express**, after the app's own session middleware:
+
+```js
+import path from 'node:path';
+
+const BUNDLE = path.resolve('nextgen/bundle');
+const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
+
+app.get('/nextgen/:file', (req, res) => {
+  const role = req.user?.role; // from their session
+  const { file } = req.params;
+  const own = Boolean(role) && (file === `registry.${role}.json` || file === `index.${role}.json`);
+  if (!SHARED.has(file) && !own) return res.sendStatus(404);
+  res.sendFile(file, { root: BUNDLE });
+});
+```
+
+**Next.js** (app router), as `app/nextgen/[file]/route.ts`:
+
+```ts
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import { currentRole } from '@/lib/auth'; // theirs
+
+const BUNDLE = path.join(process.cwd(), 'nextgen', 'bundle');
+const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
+
+export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }) {
+  const { file } = await params;
+  const role = await currentRole();
+  const own = role !== null && (file === `registry.${role}.json` || file === `index.${role}.json`);
+  if (!SHARED.has(file) && !own) return new Response(null, { status: 404 });
+  const type = file.endsWith('.js') ? 'text/javascript' : 'application/json';
+  return new Response(await readFile(path.join(BUNDLE, file)), { headers: { 'content-type': type } });
+}
+```
+
+Note what both do with a file that is not the caller's: **404, not 403.** A 403 confirms
+the screen exists.
+
 ## What you should never do without asking first
 
 - **Edit anything under the application's own source.** This tool never needs to. If a

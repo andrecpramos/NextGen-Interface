@@ -87,7 +87,11 @@ describe('doctor — before you ship', () => {
     expect(report.ok).toBe(true);
     expect(report.text).toMatch(/Prettier runs over your whole project \(script "format:check"\)/);
     expect(report.text).toMatch(/add "nextgen\/" to \.prettierignore/);
-    expect(report.text).toMatch(/Serving each role only its own files/);
+    // The pointer differs by installation path: an adopter who copied adapter/ has no
+    // node_modules, and used to be sent to one. What must always be there is the rule and
+    // somewhere to read the handlers.
+    expect(report.text).toMatch(/Ready-made handlers for Express and Next.js/);
+    expect(report.text).toMatch(/role comes from your session, never from the request/);
   }, 60_000);
 
   it('refuses a multi-role bundle inside public/, which the app serves to everyone', async () => {
