@@ -1,25 +1,32 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-12 · **Branch:** `feature/wp41-kit-calibrate`, based on `develop` · **16 workspace packages · 647 tests,
-all passing** · **Pilot target: `fut-app`** (§3). The owner installs into it; agents do not write to it.
+**Verified against disk:** 2026-09-17 · **Branch:** `feature/drop-in-reset`, based on `develop` · **7 workspace projects · 602 tests,
+all passing** · **No application this repository does not own is measured inside it** (§1.1, ADR-018).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
-exist**. Point a tool at an app's source; it generates a capability registry; the app's
-users get an assistant that takes them where they asked to go and tells them what to do
-when they arrive. §1 is the full statement.
+exist**. A developer copies **one folder** into their codebase and hands the path to
+their coding agent; the agent reads the folder, learns the app, and wires the assistant
+in. The app's users then get an assistant that takes them where they asked to go and
+tells them what to do when they arrive. §1 is the full statement.
 
 **What this project is *to us*, right now:** a **portfolio project with a plausible
 commercial thesis**, built solo. That framing decides the whole plan. The first
-milestone is a *measured result on a real app*, not a customer and not a platform. The
-commercial reasoning lives in .claude/docs/business-case.md and is
-deliberately kept out of this file.
+milestone is a *measured result*, not a customer and not a platform.
 
-> **Repositioned 2026-09-08, and now on the record.** Everything through WP-15 was built
-> as a personal assistant: first finance, then notes. Both apps still exist and still pass
-> their tests. Both are now **reference applications**, the corpus the generator is
-> measured against. [ADR-013](../.claude/decisions/ADR-013.md) records the repositioning, and
-> the owner **accepted it on 2026-09-11**. Two earlier pivots landed with their reasoning
-> only in commit messages. The next one gets an ADR first.
+> **Reset 2026-09-17, recorded in [ADR-018](../.claude/decisions/ADR-018.md).** The
+> repository carried two products: the root `package.json` described an *"AI-native
+> application platform"* and the README a *"drop-in navigation layer"*. The dependency
+> graph decided it — six of twelve packages were reachable only from a terminal demo, and
+> nothing on the path to an adopter imported any of them. They are deleted, with
+> `apps/cli` and ~40 one-shot experiment scripts: **~18,700 lines**, and nothing on the
+> shipping path broke.
+>
+> In the same pass, the measurement moved off the private pilot application and onto
+> fixture applications in `eval/frameworks/`. A tool whose whole claim is *"it works on a
+> web app it has never seen"* cannot rest its evidence on one app it has seen very well.
+>
+> **Two earlier pivots landed with their reasoning only in commit messages.** This one
+> has an ADR, and so did the one before it (ADR-013).
 
 ---
 
@@ -48,9 +55,20 @@ or pick up a WP:
   14). **Since WP-46, CI catches the shipped ones** (`check-derived-artefacts.mjs`). It
   does not fix them, so regenerate by hand, in this order:
   1. `router:calibrate`
-  2. `eval/fut-app/rebuild-indexes.mjs`
-  3. `eval/fut-app/calibrate-registries.mjs --embedder hashing`
+  2. `eval/frameworks/rebuild-indexes.mjs`
+  3. `eval/frameworks/calibrate-registries.mjs --embedder hashing`
   4. `node tooling/scripts/check-derived-artefacts.mjs`
+- **A gate that has no subject left does not fail — it passes, vacuously.** Deleting
+  `core-voice` left `check-network-egress.mjs` reading a file that no longer existed; it
+  reported *"0 hash-pinned assets"* and went green. This is the third time in this
+  repository (`critical-infrastructure.md` has the other two). **When you delete
+  something, grep the gates for it**, and prove the gate still fails by breaking it on
+  purpose. That is how the egress gate was confirmed live: a remote host was injected,
+  the gate caught it, the probe was removed.
+- **Fixtures decide what you can find.** The generator crashed with `TypeError:
+  config.manifests is not iterable` the first time it was pointed at an in-repo fixture,
+  because every config committed here happened to declare every optional field. The gap
+  was in the fixtures, not in the review.
 - **Three lessons that each cost a false claim before they were written down:**
   - Prove an artefact where it will run ([L11](../.claude/docs/lessons.md)).
   - Record every give-up at the moment it happens ([L12](../.claude/docs/lessons.md)).
@@ -63,40 +81,45 @@ or pick up a WP:
 
 ### The queue
 
-**Phase: the drop-in kit (M4).** M0–M2 are closed, and M3's engineering is built. Every
-item an agent could do against `fut-app` without touching it is done. What is left is
-to turn the pieces into **one thing an adopter drops into their own codebase and runs**.
-**The owner's own run of it in `fut-app` is the acceptance test.** The owner decided this
-on 2026-09-11; see §13.
+**Phase: M5 — the two folders (2026-09-17).** M0–M2 are closed, M3's engineering is
+built, and M4 produced a working CLI kit. The reset in ADR-018 changed what "done" means
+for M4: the unit of distribution is no longer eight tarballs from a private release, it
+is **a folder copied into the adopter's repository and handed to their coding agent**.
 
-> ## ⏸️ Nothing in this queue is waiting on an agent — 2026-09-12
+**M5 is two directories, and neither exists yet in full:**
+
+| | What it is | Who reads it | State |
+|---|---|---|---|
+| **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | `FIELD-NOTES.md` written; `AGENTS.md`, `scan.mjs`, `runtime/` not |
+| **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | not started |
+
+> ## ▶️ There is agent work in this queue again — 2026-09-17
 >
-> WP-46, WP-43 and WP-47 are closed. WP-41, WP-42, WP-44 and WP-45 have had their agent
-> half done and are now **half-finished on purpose**: each remaining step needs a person,
-> a device or a repository agents do not write to. Picking one up and "finishing" it in
-> software would mean fabricating the half that exists to be real.
+> The 2026-09-12 pause said nothing here was waiting on an agent. That was true of M4 and
+> is no longer true: WP-49 and WP-50 below are both agent work, and both are sizeable.
 >
-> **The four things waiting on the owner**, cheapest first:
+> **What changed about the owner's items.** Three of the four were defined against the
+> private pilot application and its generated artefacts, which are deleted (ADR-018):
 >
-> | | What | How long | Where |
-> |---|---|---|---|
-> | WP-45 | The NVDA pass — 17 items, hands off the mouse | ~15 min | [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md) |
-> | WP-44 | Record 20 pt-PT utterances and re-run the comparison | ~20 min | `VOICE-PT.md` |
-> | WP-42 | Mark 25 generated descriptions right/vague/wrong | ~30 min | `DESCRIPTION_AUDIT.md` |
-> | WP-35 | Drop the kit into `fut-app`, deploy, measure | the real one | [INSTALL.md](INSTALL.md) |
+> | | Was | Now |
+> |---|---|---|
+> | WP-45 | The NVDA pass, 17 items | **unchanged** — [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md) survives, ~15 min |
+> | WP-44 | Record 20 pt-PT utterances against Whisper/Piper | **void.** `core-voice` is deleted; the voice an adopter's users get is the browser's, on-device (§7.7) |
+> | WP-42 | Mark 25 pilot descriptions right/vague/wrong | **generalised.** The readable-app finding (15 right, 4 vague, 1 wrong of 20) stands and is in FIELD-NOTES §3; the pilot sheet is gone |
+> | WP-35 | Drop the kit into the pilot, deploy, measure | **still the acceptance test, and no longer names an app.** [INSTALL.md](INSTALL.md) §"The owner's acceptance run" is written against any real application |
 >
-> Until each is done, the claim it supports stays at what was actually measured —
-> *"automated accessibility checks pass; no screen reader has confirmed it"*, *"synthetic
-> Portuguese only"*, *"20 of 145 descriptions read against source"*, and no cost-per-session
-> figure at all.
+> **The claims stay where they were measured**: *"automated accessibility checks pass; no
+> screen reader has confirmed it"*, and no cost-per-session figure at all.
 >
-> **The one thing an agent may still pick up is WP-48**, and only when its trigger fires:
-> before any `write` or `destructive` capability ships to an adopter (§7.5, §8). It is
-> deferred, not forgotten, and the trigger has not fired.
+> **WP-48** is still deferred behind its trigger: before any `write` or `destructive`
+> capability ships to an adopter (§7.5, §8). The trigger has not fired.
 
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
-| 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](../eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
+| 1 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
+| 2 | ⬜ **WP-49** · **`adapter/` — the folder an adopter copies.** The product. `AGENTS.md` as the entry point (the six `ASK` sections from `kit/src/agent-playbook.ts`, moved not rewritten), `scan.mjs` as one dependency-free bundle of discover + build + doctor + calibrate, and `runtime/nextgen.js` prebuilt. Committed build output, gated for staleness. **Open inside it:** what happens to the generator's optional Ollama path — in, out, or behind a flag | M5 | L | agent |
+| 3 | ⬜ **WP-50** · **`preview/` — the bench.** Where the owner sees what an adopter would get and can iterate on it: a chat surface over a generated bundle, role switch, browser voice on/off, model on/off, and the trace behind each answer. Seeded from `kit/src/preview.ts`, which already does the local page, strict CSP, role switch and *"where it would have gone"* | M5 | M–L | agent |
+| 4 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](../eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
 | 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
 | 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows (`DESCRIPTION_AUDIT.md`) | M4 | S–M | **owner** |
 | 4 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](../eval/tutor-app/RESULT.md)) | M4 | M | done |
@@ -112,13 +135,16 @@ structurally, but `llama3.1:8b` still obeys an instruction placed inside it (4
 adversarial violations). So the fence narrows WP-48 without replacing it.
 
 **Why this order.**
-- **WP-41 comes first**, because the other items are exercised *through* it.
-- ~~**WP-46 is cheap**~~ ✅ Done. It closed the exact failure that the last session hit by hand.
-- **WP-42 and WP-43 come before the owner's run.** They are the two ways the kit could be
-  wrong on an app nobody has checked, and each is far cheaper to find here than in
-  `fut-app`.
-- **WP-35 is last by design.** A drop-in kit is proven by someone other than its author
+- **WP-49 before WP-50.** The bench exists to show a result; without the folder that
+  produces one, it has nothing to show. `preview/` built first would be a preview of the
+  CLI kit — the thing being replaced.
+- **WP-50 before WP-35.** The owner's acceptance run is expensive and happens once. Going
+  into it without having seen the answers, the UI and the voice on a bench is spending the
+  one real trial on defects a local page would have caught.
+- **WP-35 is last by design.** A drop-in folder is proven by someone other than its author
   dropping it in.
+- ~~WP-41, WP-42, WP-43, WP-46~~ ✅ Done. WP-41's CLI is still how this installs until
+  WP-49 replaces it; it is superseded, not deleted.
 
 **Closed, and where the details are (§7):**
 - **M0:** WP-23, WP-15, WP-16 and WP-17 are all ✅.
@@ -220,6 +246,49 @@ screen the assistant can reach stays reachable without it.
    user's doubts about this app and nothing else.** The "nothing else" is not a prompt
    instruction; it is [ADR-009](../.claude/decisions/ADR-009.md)'s declared boundaries, which
    refuse off-topic input *without a model call*.
+
+**A third requirement, stated by the owner on 2026-09-17, and it reshapes delivery
+([ADR-018](../.claude/decisions/ADR-018.md)):**
+
+3. **The unit of delivery is one folder, copied — and its first reader is an AI coding
+   agent, not a human.** The adopter drops `adapter/` into their repository, pastes its
+   path into whatever agent they use — Copilot, Claude, Gemini, Kimi, Qwen — and that
+   agent reads the folder and performs the integration against *their* codebase. It may
+   ask the developer questions to fit their app; the six `ASK` sections exist precisely so
+   that it does. **No package manager, no private release, no account.**
+
+   This inverts the old order. Today the adopter must obtain a private release, download
+   eight tarballs and run `npm install` **before** `nextgen init` writes the `AGENT.md`
+   that tells their agent what to do — the instructions arrive last. In the new shape the
+   instructions *are* the front door and ship in the folder, before anything has run.
+
+### 1.1a The two directories
+
+Everything in M5 is one of these two, and the boundary between them is the point.
+
+**`adapter/` — what leaves.** Self-contained, committed build output, copyable as it sits:
+
+```
+adapter/
+  AGENTS.md            the entry point: what to do, and the six decisions that are
+                       the developer's to make, not the agent's
+  FIELD-NOTES.md       what real applications taught this tool — read before trusting
+                       any generated output ✅ written 2026-09-17
+  scan.mjs             discover + build + doctor + calibrate, one dependency-free file
+  runtime/nextgen.js   the widget, already compiled, strict-CSP clean
+```
+
+**`preview/` — what stays.** The owner's bench, and it is a *product* tool, not a demo:
+the place to answer "is the model too dumb, too eager, over the top?", "does the voice
+work?", "does this UI read well?" — before an adopter ever sees it. It shows the result of
+our own integration, with the trace behind each answer, so a bad turn is diagnosable
+rather than merely disappointing.
+
+**Why the split is load-bearing.** `preview/` will accumulate everything useful for
+iterating and nothing an adopter should receive — every role's registry at once, the
+review inventory, model toggles, timing. That is exactly the set of things Rule 17 says a
+production bundle must never contain. Keeping them in a directory that is never exported
+makes the mistake structurally impossible rather than a matter of remembering.
 
 **The UI is the chat surface already in `packages/ui`** — sphere, composer, answer
 panel — carried over visually and improved as we go, not redesigned per adopter.
@@ -538,37 +607,43 @@ half, WP-43, WP-47 and the agent halves of WP-45 and WP-44 landed. `services/api
 
 ## 4. The tree, and what is broken in it
 
+**Rewritten 2026-09-17 after WP-51.** Six packages, all on the path to an adopter.
+
 ```
 NextGen_Interface/
-├── .claude/docs/              docs · lessons (L1–L12) · history · business case
-├── .claude/decisions/         16 ADRs
-├── apps/
-│   ├── cli/          ✅ COMPOSITION ROOT — 15 tests · `undo` (WP-18)
-│   ├── web/          ✅ REFERENCE IMPLEMENTATION — 44 tests · navigate moves the browser
-│   └── (no mobile/)  ✖ WP-10 closed: a different product
+├── adapter/          ◐ WP-49 — WHAT AN ADOPTER COPIES
+│   └── FIELD-NOTES.md    ✅ what real applications taught this tool
+│       (AGENTS.md · scan.mjs · runtime/ — not yet)
+├── preview/          ⬜ WP-50 — the bench. Not started
 ├── packages/
-│   ├── core-intent/      ✅ cascade · stages · embedder · slots · action · text · registry(-browser) · 117 tests
-│   ├── core-capability/  ✅ define · validate (incl. guided steps) · codegen · 45 tests
-│   ├── core-dispatch/    ✅ policy · dispatcher · engines · 26 tests
-│   ├── core-trace/       ✅ recorder · store · explain · 28 tests
-│   ├── core-inference/   ✅ runtimes · ModelStore · ./ollama subpath · 18 tests — WebGpuRuntime throws by design
-│   ├── core-voice/       ✅ whisper · piper · assets · 4 tests + eval/acceptance.mjs (WP-21)
-│   ├── generator/        ✅ discover · pages · steps · prose · ids · synthesise · emit · 94 tests
-│   ├── embed/            ✅ WP-29, WP-41 — the script tag and the chat box, 12.0KB gzipped · 25 tests
-│   ├── kit/              ◐ WP-41 — nextgen init · build · doctor · 12 tests
-│   ├── domain-modules/   ◐ REFERENCE APP — 39 tests
-│   ├── domain-finance/   ◐ REFERENCE APP — 34 tests
-│   └── data/             ✅ money · schema · repositories · query-engine · undo · 60 tests
-├── eval/fut-app/     ground truth · golden set · generated registries · measurements
-├── models/           voice/        — gitignored, downloaded assets
-├── tooling/scripts/  check-import-boundaries · check-thresholds · check-scorecard
+│   ├── core-intent/      ✅ cascade · stages · embedder · slots · action · registry(-browser) · 130 tests
+│   ├── core-capability/  ✅ define · validate (incl. guided steps) · codegen · 59 tests
+│   ├── core-inference/   ✅ runtimes · ModelStore · ./ollama subpath · 42 tests
+│   ├── generator/        ✅ discover · pages · steps · prose · ids · config · emit · 164 tests
+│   ├── embed/            ✅ the script tag and the chat box, strict-CSP clean · 160 tests
+│   └── kit/              ◐ WP-41 — nextgen init · build · doctor · preview · calibrate · 47 tests
+├── eval/
+│   ├── frameworks/       the measurement — fixture apps, `--app <name>`, plus the harness
+│   ├── field-apps/       six public apps, ground truth written before the run
+│   ├── tutor-app/        Rule 17 on an app we do not own
+│   ├── bulletproof-react/ calibrate, run on an app nobody here wrote
+│   └── a11y/             axe result + the NVDA checklist the owner still owes
+├── tooling/scripts/  check-import-boundaries · check-thresholds · check-scorecard · check-registries
 │                     check-packaging · check-doc-links · check-kit-sync · check-derived-artefacts
 │                     check-prompt-fencing · check-model-numerics · check-network-egress · check-adversarial
-└── PLAN.md · README.md · WRITEUP.md · INSTALL.md · SETUP.md · CLAUDE.md
+│                     check-accessibility · check-csp · check-install · check-release
+└── .MDFiles/PLAN.md · README.md · INSTALL.md · SETUP.md · CLAUDE.md · .claude/decisions/ (18 ADRs)
 ```
 
+**Deleted 2026-09-17 (ADR-018), recoverable from git history:** `core-dispatch`,
+`core-trace`, `core-voice`, `data`, `domain-modules`, `domain-finance`, `apps/`, and the
+private pilot's `eval/` data. The router's own golden set survives as a **frozen fixture**,
+`packages/core-intent/eval/fixture-registry.json` — repointing to it reproduced the
+committed scorecard byte-for-byte on every accuracy figure, which is how the move was
+shown to be lossless.
+
 **Toolchain:** Node 25.1.0 · pnpm 11.1.2 · Ollama with `qwen2.5:1.5b`, `llama3.1:8b`,
-`qwen2.5vl:7b`, `nomic-embed-text`.
+`qwen2.5vl:7b`, `nomic-embed-text`. Ollama is probed, never required.
 
 ### Live defects
 
@@ -2376,6 +2451,117 @@ substitute for the pass; they only make it shorter.
 
 ---
 
+## 7.7 · M5 — The two folders
+
+Opened 2026-09-17 by [ADR-018](../.claude/decisions/ADR-018.md). M4 built a CLI kit that
+works; M5 changes what an adopter receives, and adds the bench that makes iterating on it
+possible. §1.1a is the shape; the rules in §2 are unchanged.
+
+### ✅ WP-51 · The reset — **done 2026-09-17**
+
+Deleted `core-dispatch`, `core-trace`, `core-voice`, `data`, `domain-modules`,
+`domain-finance`, `apps/cli`, the private pilot's eval data, and ~40 one-shot experiment
+scripts. **~18,700 lines.** Six packages remain, and every one is on the path to an
+adopter.
+
+**What it had to not break, and did not:** 602 tests, typecheck across all six packages,
+and the golden-set gate reporting *"every rate and every decision matches"*.
+
+**Four findings, none of them the point of the work:**
+
+1. **Rule 10 lost its runner.** Validation had been a side effect of
+   `domain-modules registry:build --check`, so deleting the domains deleted the only thing
+   that ran `validateRegistry`. Replaced by `tooling/scripts/check-registries.mjs`, which
+   finds registries by glob — **wider than what it replaced**, since it validates files
+   nothing had ever validated.
+2. **`check-network-egress.mjs` was passing vacuously.** It read
+   `core-voice/src/assets.ts` for its pinned-host exception; with that file deleted it
+   reported *"0 hash-pinned assets"* and went green. The exception is removed entirely —
+   nothing downloads assets now — and the gate was proven live by injecting a remote host.
+3. **`check-csp.mjs` read the pilot's `PARENT` registry** and would have failed only in
+   CI. Repointed with the other four.
+4. **The generator crashed on a config that omitted an optional field.** Every config in
+   the repository declared every field, so the path had never run. Validation now lives in
+   `generator/src/config.ts` with seven tests.
+
+**And one it did not fix, deliberately:** the pilot's hand-written answer key had been
+failing its own verifier since WP-36 added an `explanation` requirement after the key was
+written. Nothing re-ran it because it was wired into no gate. It is gone with the pilot
+data, and the lesson — *a rule with no runner is a written rule* — is in §0.
+
+### ⬜ WP-49 · `adapter/` — the folder an adopter copies · **L · agent**
+
+**Goal.** A developer copies one folder into their repository, pastes its path into their
+coding agent, and the agent performs the integration. No package manager, no private
+release, no network.
+
+**Preconditions.** WP-51 ✅. `packages/embed` already builds a single dependency-free
+browser file; `packages/generator` and `packages/kit` are the code to bundle.
+
+**Do this.**
+1. **`AGENTS.md`, the entry point.** Move the six `ASK` sections from
+   `kit/src/agent-playbook.ts` **verbatim** — they were written after a field test in
+   which an agent ran the whole install unattended and left the developer a bystander in
+   their own project, and that is not a lesson to re-learn. Add a seventh: where the
+   assistant should sit visually, so it fits the adopter's design rather than defaulting
+   to a corner. Point at `FIELD-NOTES.md` for what to distrust in the output.
+2. **`scan.mjs`.** esbuild `generator` + the kit's `detect`/`build`/`doctor`/`calibrate`
+   into one file targeting Node, the way `embed/build.mjs` does for the browser. It must
+   run from a bare copy with no `node_modules`.
+3. **`runtime/nextgen.js`.** The existing script-tag artefact, copied in at build time.
+4. **Gate the staleness.** `adapter/` is committed build output; extend
+   `check-derived-artefacts.mjs` to rebuild and diff it. A committed artefact with no gate
+   is the failure mode this repository has hit three times.
+5. **Repurpose `check-install.mjs`**: the property becomes *"a copy of `adapter/` into a
+   scratch directory runs with no `node_modules` and no network, on Node 20"*.
+
+**Open inside this WP — decide before bundling.** The generator has an optional Ollama
+path for model-written prose. In, out, or behind a flag? In means the folder carries code
+that reaches a local endpoint, which the egress gate must then account for; out means
+`--no-model` prose only, which measured *better* on the default encoder (FIELD-NOTES §4).
+
+**Acceptance.**
+- A copy of `adapter/` in a directory outside this repository generates a registry for a
+  fixture app with no install step and no network.
+- `AGENTS.md` names the six decisions as the developer's, and an agent following it does
+  not edit the app's files without asking.
+- Rule 16 holds: fingerprint the target tree before and after.
+- The staleness gate fails when `packages/` changes and `adapter/` is not rebuilt.
+
+**Stop if.** The bundle cannot be made dependency-free — if `scan.mjs` needs a runtime
+install, the "copy a folder" premise is false and the honest fallback is WP-41's npm path
+with `AGENTS.md` moved to the front (ADR-018 considered and rejected it; reopen the ADR
+rather than shipping a folder that quietly needs a package manager).
+
+### ⬜ WP-50 · `preview/` — the bench · **M–L · agent**
+
+**Goal.** Somewhere the owner can see what an adopter's users would get, and iterate:
+*is the model too dumb, too eager, over the top? is the voice usable? does this read
+well?* Today that question can only be answered by reading a scorecard.
+
+**Preconditions.** WP-49, so there is a real adapter output to preview.
+
+**Do this.** Seed from `kit/src/preview.ts` — it already serves a local page with the real
+script tag under a strict CSP, switches role, and says where it *would* have navigated.
+Add what a bench needs and a CLI subcommand should not have:
+- a chat surface with history, not one question at a time;
+- **the trace behind every answer** — which stage decided, what else was considered, by
+  what margin. It exists (`why`) and is not surfaced here;
+- browser voice on/off, to hear it rather than infer it from a checklist;
+- model on/off, to see the same question answered both ways side by side;
+- the app under test as a parameter, so any fixture in `eval/frameworks/` can be loaded.
+
+**Acceptance.**
+- A turn can be asked, answered, explained and heard without editing a file.
+- Switching role changes what is reachable, visibly.
+- **It is not exported.** `preview/` never appears in `adapter/`, and nothing in
+  `packages/` imports it.
+
+**Stop if.** It starts growing product features that belong in `embed/`. The bench
+observes the widget; it does not become a second one.
+
+---
+
 ## 8. Milestones, sequence, and kill criteria
 
 ```
@@ -2486,71 +2672,60 @@ trustworthy. Full reasoning in .claude/docs/business-case.md §8.
 ```bash
 pnpm install                 # a fresh clone needs: pnpm install --ignore-scripts
 
-# the reference apps
-pnpm app                     # the same stack as a CLI
-pnpm app:offline             # stages 1-2 only, no model, no Ollama needed
-
 # every CI gate, locally — before pushing
 node tooling/scripts/check-import-boundaries.mjs   # Rule 1
 node tooling/scripts/check-thresholds.mjs          # Rule 14
+node tooling/scripts/check-network-egress.mjs      # Rule 8 — no remote host outside loopback, no exception
 node tooling/scripts/check-doc-links.mjs           # every relative link resolves
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
-node tooling/scripts/check-accessibility.mjs      # WP-45: axe over the BUILT widget, every state
-node --experimental-strip-types \
-  eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
+node tooling/scripts/check-accessibility.mjs       # WP-45: axe over the BUILT widget, every state
+node tooling/scripts/check-csp.mjs                 # the widget under a strict CSP, in a real browser
+pnpm eval:apps:check                               # the fixture apps still decide the same way
 pnpm build && node tooling/scripts/check-install.mjs   # the tarballs install outside this repo, and run on Node 20
-node tooling/scripts/check-csp.mjs                     # the widget under a strict CSP, in a real browser
 pnpm -r typecheck
-pnpm -r test                                       # 647 tests, 15 packages
-pnpm registry:check                                # Rule 10
+pnpm -r test                                       # 602 tests, 6 packages
+pnpm registry:check                                # Rule 10, across every registry in the tree
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent
 
-# registry — each domain writes its OWN packages/domain-<name>/generated/ (WP-47)
-pnpm registry:build          # domain-modules
-pnpm registry:build:finance  # domain-finance; safe to run, and CI diffs both
+# the measurement — fixture applications, one per routing framework (ADR-018)
+# Each lives in eval/frameworks/<app>/ with its own generator.config.json and golden set.
+# Every script takes --app <name>, and defaults to the only one when there is only one.
+pnpm eval:apps               # headline numbers for the fixture app
+pnpm eval:calibrate          # Rule 14 — sweep thresholds for it; NEVER hand-tune
+node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs        # after ANY change to the encoder's input
+node --experimental-strip-types eval/frameworks/verify-browser-parity.mjs  # shipped index == server decision
+
+# Adding a fixture application is adding a folder:
+#   eval/frameworks/<name>/generator.config.json   (appRoot -> a fixture in packages/generator/fixtures)
+#   eval/frameworks/<name>/golden-set.jsonl        (>= 20 turns, some with "route": null)
+# then generate, calibrate, evaluate, and commit all three outputs together.
 
 # the generator (WP-25) — reads an app's source, writes NOTHING into it (Rule 16)
-node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/generator.config.json --model llama3.1:8b
-node --experimental-strip-types packages/generator/src/cli.ts eval/fut-app/generator.config.json --no-model
-node eval/fut-app/score-generated.mjs                      # precision/recall vs WP-31
-node --experimental-strip-types eval/fut-app/prove-refusal.mjs COACH   # model-free refusal
-node --experimental-strip-types eval/fut-app/evaluate-golden.mjs       # headline numbers, per-registry thresholds
-node --experimental-strip-types eval/fut-app/calibrate-registries.mjs  # Rule 14 for the generated registries
-node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs       # after ANY change to the encoder's input
-node --experimental-strip-types eval/fut-app/verify-browser-parity.mjs # shipped index == server decision (in CI via check-derived-artefacts)
-node tooling/scripts/check-accessibility.mjs                # WP-45: axe over the BUILT widget, in every state
+node --experimental-strip-types packages/generator/src/cli.ts \
+  eval/frameworks/family/generator.config.json --no-model        # prose derived from the app's own labels
+node --experimental-strip-types packages/generator/src/cli.ts \
+  eval/frameworks/family/generator.config.json --model llama3.1:8b
 
-# the drop-in kit (WP-41): what an adopter runs; it writes only <app>/nextgen
-node packages/kit/src/cli.ts init   <app folder>
-node packages/kit/src/cli.ts build  <app folder>/nextgen [--model llama3.1:8b]
-node packages/kit/src/cli.ts doctor <app folder>/nextgen
-node --experimental-strip-types eval/fut-app/experiment-self-calibration.mjs   # can it calibrate itself? (no)
+# the drop-in kit (WP-41): what an adopter runs today, until adapter/ replaces it (WP-49)
+node packages/kit/src/cli.ts init      <app folder>
+node packages/kit/src/cli.ts build     <app folder>/nextgen [--model llama3.1:8b]
+node packages/kit/src/cli.ts doctor    <app folder>/nextgen
+node packages/kit/src/cli.ts preview   <app folder>/nextgen --app-url http://localhost:3000
+node packages/kit/src/cli.ts calibrate <app folder>/nextgen --golden questions.jsonl
 
 # the shippable artefacts
-pnpm build && node tooling/scripts/check-packaging.mjs                 # what a tarball really exposes
-node packages/embed/build.mjs                                          # the script tag → packages/embed/dist/nextgen.js
-node --experimental-strip-types packages/core-voice/eval/acceptance.mjs \
-  --registry=packages/domain-modules/generated/registry.json           # voice round trip, ENGLISH; needs models/voice
-node --experimental-strip-types eval/fut-app/voice-acceptance.mjs \
-  --n 40 --whisper base,small --repeat 3                               # WP-44: the same round trip in pt-PT
+pnpm build && node tooling/scripts/check-packaging.mjs   # what a tarball really exposes
+node packages/embed/build.mjs                            # the script tag → packages/embed/dist/nextgen.js
 
-# router
+# router, in isolation — the FROZEN 7-capability fixture, not an application
+# Changing packages/core-intent/eval/fixture-registry.json invalidates the committed
+# scorecards that check-scorecard.mjs compares against. Read that directory's README first.
 pnpm router:inspect          # score distributions, recall@k — always look here first
 pnpm router:calibrate        # threshold sweep — NEVER hand-tune thresholds (Rule 14)
-pnpm router:eval             # full cascade, qwen2.5:1.5b --topk=3
-pnpm router:baseline         # llama3.1:8b
 pnpm router:floor            # stages 1+2 only; the ONLY deterministic run
+pnpm router:eval             # full cascade, needs a local model server
 pnpm router:compare          # side-by-side scorecards
-
-# Every router:* script passes --registry=../domain-modules/generated/registry.json.
-# core-intent knows no application (Rule 1), so run directly and you must say which:
-pnpm --filter @nextgen/core-intent inspect -- \
-  --registry=../domain-finance/generated/registry.json "transfer 500 euros to my brother"
-
-cd packages/core-intent
-node eval/evaluate.js --registry=../domain-modules/generated/registry.json --embedder=hashing --no-stage3
-node eval/inspect.js  --registry=../domain-modules/generated/registry.json --embedder=ollama "where do I see membership prices"
 ```
 
 ⚠️ **Warm every model with a throwaway call before any timed run, and run them
@@ -2618,8 +2793,54 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 
 ## 13. Open decisions
 
-**None is open** (2026-09-11). Each decision below states the fork, a recommendation,
-**what it costs to decide wrong**, and what it blocks.
+**One is open** (2026-09-17): D-6 below, inside WP-49. Each decision states the fork, a
+recommendation, **what it costs to decide wrong**, and what it blocks.
+
+---
+
+### The reset review, 2026-09-17
+
+The owner's assessment was that the architecture carried more than it should. Four
+decisions were taken in session, and they are recorded in
+[ADR-018](../.claude/decisions/ADR-018.md):
+
+| | Question | Answer | Where it went |
+|---|---|---|---|
+| ~~**R-1**~~ | The six packages reachable only from the terminal demo | **Delete from `develop`.** Git history keeps them | ✅ WP-51 |
+| ~~**R-2**~~ | The shape of what an adopter receives | **A vendored folder, zero npm, zero network** — not tarballs, not instructions alone | WP-49, §1.1a |
+| ~~**R-3**~~ | What survives in `eval/` | Golden sets and one scorer; the ~40 experiment scripts go | ✅ WP-51 |
+| ~~**R-4**~~ | What happens to the measurement when the pilot's data is removed | **Neither of the options offered.** The owner's answer reframed it: *"I need applying our solution to a codebase to produce a result **regardless of the web app**. I don't want this package to work in one specific case."* | ✅ WP-51 — `eval/frameworks/`, and §1.1a |
+
+**R-4 is worth reading twice**, because the question put to the owner was the wrong one.
+It offered three ways to handle *one application's* numbers. The answer was that the
+evidence itself was pointed at the wrong thing: measuring deeply on one private
+application is evidence for the opposite of what the product claims. The measurement is
+now a directory of fixture applications with `--app <name>`, and the surviving
+public-application results (six frameworks, 55 of 55 destinations, 0 files changed; 48 of
+48 role assignments, 0 leaks) became the README's headline instead of the pilot's.
+
+**What that cost, stated plainly:** the pilot's numbers — 53.4% vs a real command palette's
+42.6% — happened, are archived at `2d500d8`, and **cannot be verified from a fresh clone**.
+The generalisable half was extracted first, into `adapter/FIELD-NOTES.md`.
+
+### ⬜ D-6 · Does the adapter folder carry the model path? · blocks WP-49
+
+The generator can write prose with a local Ollama model (`--model`) or derive it from the
+app's own labels (`--no-model`). `adapter/scan.mjs` must choose.
+
+| | Consequence |
+|---|---|
+| **(a) In** | The copied folder contains code that reaches `localhost:11434`. Rule 8's gate must then account for a shipped artefact naming a host, having just had its last exception removed (WP-51) |
+| **(b) Out** | `--no-model` only. Simpler, no endpoint anywhere, and **it measured better** on the default encoder: derived examples repeat the title's words, which is what a hashing encoder rewards, while model-written ones split across languages and routed worse (FIELD-NOTES §4) |
+| **(c) Behind a flag** | Both, off by default. Keeps the option, and keeps the egress question |
+
+**Recommendation: (b), with (c) reachable later.** The measured case for the model is weak
+on the encoder an adopter actually gets, and "copy a folder, no network" is a cleaner
+promise than "copy a folder, and optionally run a model server".
+
+**Cost of deciding wrong:** low and reversible either way — this is a build-time flag, not
+an architectural boundary. It is listed because it should be decided before bundling
+rather than discovered afterwards.
 
 ---
 

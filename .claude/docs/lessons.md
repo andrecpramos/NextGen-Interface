@@ -1,6 +1,7 @@
 # Lessons — mistakes this repo has already made
 
-> **Audited against the tree:** 2026-09-11 (L11 and L12 added)
+> **Audited against the tree:** 2026-09-17 (L15 added; L6 gained a fourth instance,
+> reached by deleting a gate's subject rather than by misconfiguring it).
 > Harvested from [PLAN.md](../../.MDFiles/PLAN.md) §6 and from session work since.
 
 Each entry is a real defect, what it cost, and the durable lesson. They are here
@@ -163,6 +164,27 @@ is asking about the files that exist rather than only the ones git already track
 the wrong directory, blind to untracked files, or against itself. So when a gate is
 written, the thing to make fail on purpose is not the function; it is **the command line
 as configured**.
+
+**A fourth time, 2026-09-17, and by a new route: deletion.** `check-network-egress.mjs`
+held one exception — `packages/core-voice/src/assets.ts` was allowed to name remote hosts
+where each was pinned by sha256. ADR-018 deleted `core-voice`. The gate kept running,
+found the manifest absent, reported *"Rule 8 OK — 9 URL literals, **0 hash-pinned
+assets**, no unpinned remote host"*, and exited 0. Nothing was wrong with its arguments
+this time; **its subject had been deleted out from under it**, and the count it printed
+said so to anyone reading closely.
+
+Fixed by removing the exception rather than repointing it — nothing downloads assets any
+more, so the gate is now strictly stricter: no file may name a remote host outside
+loopback, with no exception at all. **And it was made to fail on purpose**: a literal
+`https://evil.example.com/binary` was written into a source file, the gate caught it by
+file and line, and the probe was deleted.
+
+In the same session `check-csp.mjs` was found reading the deleted pilot's registry — it
+would have failed, but only in CI, on a push.
+
+**The lesson this adds: when you delete something, grep the gates for it.** Deletion is
+the one change that can make a gate vacuous without touching the gate. And read the
+numbers a passing gate prints — "0 assets checked" is a failure wearing a pass.
 
 **Enforcement:** the "Gates seen failing on purpose" table in
 [critical-infrastructure.md](critical-infrastructure.md). Still mostly empty,
@@ -402,6 +424,49 @@ CSSOM rather than a `style` attribute.
 **Enforcement: level 1.** `check-csp.mjs` in CI loads the documented one-liner in headless
 Chrome under a strict policy and fails on any violation or an unstyled widget. Made to fail
 by restoring the `<style>` element: *"style-src-elem inline"*, *"input min-height 0px"*.
+
+---
+
+## L15 · A code path no committed input exercises is untested, whatever the test count says
+
+**What happened.** 2026-09-17, pointing the generator at an in-repo fixture for the first
+time, to replace a private application as the measurement target. It crashed immediately:
+
+```
+TypeError: config.manifests is not iterable
+    at readManifests (packages/generator/src/labels.ts:110)
+```
+
+`manifests` is **optional** — plenty of applications keep no hand-maintained navigation
+table. The config file is the adopter's, written by hand, and it entered the program as
+`JSON.parse(...) as CliConfig`: a cast, which checks nothing. An omitted field travelled
+as `undefined` until something deep inside dereferenced it, and what the adopter got back
+was a stack trace about our internals in answer to *"your config left out a field that was
+optional anyway"*.
+
+**Why it was hard to see.** The generator had 157 passing tests and had been run against
+six public applications. But **every config committed to this repository declared every
+field** — they had all been written by copying the pilot's, which was complete. The
+omission was not untested by oversight; it was unreachable from any input the repository
+contained. The type said `readonly manifests: readonly string[]`, so nothing in review
+looked wrong either: TypeScript cannot constrain what `JSON.parse` returns.
+
+**The durable lesson.** Coverage is over *inputs*, not over lines. When every fixture is
+descended from one real example, the fixtures inherit that example's completeness and the
+tests inherit its blind spots. **An optional field with no fixture that omits it is not
+optional in practice — it is required and undocumented.** The same reasoning applies to
+any external input: a config file, a registry, an app's source tree.
+
+The second half: **validate at the boundary the untrusted value enters**, and fail there
+with a sentence naming the field. Deep failure turns a user error into a bug report.
+
+**Enforcement: level 2 and level 1.** `normaliseConfig` in
+`packages/generator/src/config.ts` fills what may be omitted and returns the missing
+required fields for the caller to report; `config.test.ts` covers the omission of each
+optional field, an empty `languages` array, a config that is not an object at all, and
+that every missing required field is reported at once rather than the first. The crash is
+pinned by an assertion on iterability rather than on equality, because iterability was the
+property that broke.
 
 ---
 

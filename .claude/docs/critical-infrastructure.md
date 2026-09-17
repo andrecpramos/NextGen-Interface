@@ -1,7 +1,6 @@
 # Critical infrastructure and the rules that bind it
 
-**Audited against the tree:** 2026-09-12 — every file and test the matrix names was
-opened and checked to assert what the row claims. Earlier passes: 2026-09-11 (§1, §4, the
+**Audited against the tree:** 2026-09-17 — §1 and §2 rewritten after ADR-018 deleted their subjects, and two gates found stale by that deletion (see the banner under "Gates seen failing on purpose"). Previous full pass: 2026-09-12, when every file and test the matrix names was opened and checked to assert what the row claims. Earlier passes: 2026-09-11 (§1, §4, the
 matrix, the gaps), 2026-09-10 (§8 and the ranked gaps), 2026-09-09 (the rest).
 Re-audit trigger: any change to `ci.yml`, any new gate, any new rule, or a release.
 *It fired twice before this pass — WP-47 rewrote the staleness step and WP-45 added a
@@ -35,10 +34,17 @@ held up.
 
 ## 1 · The capability registry and its codegen
 
-**What.** `packages/domain-*/src/capabilities.ts` is the only contract between the
-engine and a domain. One declaration generates three artefacts: the registry the
-router matches against, the route table the app navigates by, and the golden-set
-fixtures asserting those two agree.
+> ⚠️ **2026-09-17 — rewritten subject.** ADR-018 deleted both domain packages, so a
+> hand-written `capabilities.ts` is no longer how a registry comes into being. **The
+> generator is**: it reads an application's source and emits one registry per role. Rule
+> 10 lost its runner in that deletion — validation had been a side effect of
+> `domain-modules registry:build --check` — and is now `tooling/scripts/check-registries.mjs`,
+> which finds every registry in the tree by glob. The replacement is **wider** than what it
+> replaced, and it refuses to pass when it finds nothing.
+
+**What.** A registry is the only contract between the engine and an application. It is
+generated from the application's own source, and one declaration yields both the thing the
+router matches against and the route it navigates to, so the two cannot drift.
 
 **Blast radius.** A wrong or stale registry means the router reaches a route that
 does not exist, or a screen the AI cannot see. It is the single point every other
@@ -46,9 +52,10 @@ subsystem reads.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 10 — every capability ships >=3 examples | `MIN_EXAMPLES` in `core-capability/src/validate.ts`, gated by `pnpm registry:check` in CI | **enforced** |
-| Rule 13 — limits declared, not judged | the `unsupported` kind and `defineBoundary`, asserted in both domains' tests | **enforced** |
-| Generated artefacts match the committed ones | CI step "Registry artefacts are current" | **enforced (fixed 2026-09-08)** |
+| Rule 10 — every capability ships >=3 examples | `MIN_EXAMPLES` in `core-capability/src/validate.ts`, run by `tooling/scripts/check-registries.mjs` over **every** registry found by glob, gated as `pnpm registry:check` in CI | **enforced, and wider since 2026-09-17** |
+| Rule 13 — limits declared, not judged | the `unsupported` kind and `defineBoundary`, asserted in `core-capability`'s tests and emitted by the generator for every application it reads | **enforced** |
+| Generated artefacts match the committed ones | `check-derived-artefacts.mjs` — indexes, per-registry thresholds and browser/server parity over `eval/frameworks/<app>/generated` | **enforced** |
+| The fixture registry the router's scorecards were produced from does not move silently | `check-scorecard.mjs` against the scorecard committed at `HEAD`; `packages/core-intent/eval/README.md` says so at the file | **enforced** |
 
 > ✅ **Resolved 2026-09-12 (WP-47, [ADR-016](../decisions/ADR-016.md) option B).**
 > Each domain now writes its own `packages/domain-<name>/generated/registry.json`,
@@ -98,11 +105,25 @@ subsystem reads.
 
 ## 2 · The engine/domain boundary
 
-**What.** `packages/core-*` must never import a domain. Domains register *into*
-the engine; the engine never enumerates them.
+> ⚠️ **2026-09-17 — this rule's subject changed, and the change weakens the
+> enforcement.** ADR-018 deleted both domain packages. `check-import-boundaries.mjs`
+> still runs and still passes, but it now reports *"3 core package(s) clean of domain
+> imports"* **against a tree containing no domains** — there is nothing left for a core
+> package to import wrongly, so the gate cannot currently fail for the reason it exists.
+>
+> The invariant itself is not weaker: the only application the engine ever sees is the
+> adopter's, at run time, as declared data rather than as code. But the *gate* is now in
+> the state §"Gates seen failing on purpose" warns about, and it is recorded here rather
+> than left to be discovered. **Deciding what replaces it is owed.** The honest options
+> are to point it at `adapter/` once that exists, to keep it as a tripwire for the day a
+> domain-shaped package reappears, or to retire it and say so — retiring an enforced rule
+> needs an entry in the ranked gaps below.
+
+**What.** `packages/core-*` must never import an application. Applications register
+*into* the engine; the engine never enumerates them.
 
 **Blast radius.** This is the invariant the entire "how little code does a new
-domain need" thesis rests on. Once broken it is rarely broken back.
+application need" thesis rests on. Once broken it is rarely broken back.
 
 | Rule | Enforcement | Status |
 |---|---|---|
@@ -369,6 +390,19 @@ in this table and cannot be: `adversarial-live` needs a model server and
 a local `/gates` run and absent from CI, which is said again near the top of this
 file because it is the easiest thing here to misread.
 
+> ⚠️ **2026-09-17 — a fourth route to vacuity, and it is not misconfiguration.**
+> Every earlier instance was a gate whose *arguments* were wrong. This one was
+> correct on the day it was written and became vacuous **because what it inspected
+> was deleted**. `network-egress` lost its asset manifest to ADR-018 and went on
+> passing; `csp` lost the registry it drives the widget with and would have gone red,
+> but only in CI.
+>
+> **The habit this adds: when you delete a package or a directory, grep the gates
+> for its path before you commit.** Five gates were repointed in that session and two
+> of them were found this way rather than by running them — `check-csp.mjs` names its
+> data in a `join()` that no search for the deleted package name would have matched if
+> the path had been assembled from parts.
+
 Doing this in one pass was worth more than the rows suggest: two of the four
 attempts found something. The `scorecard` gate could not be made to fail at all
 (it compared a file with itself), and this table's own `import-boundaries` row
@@ -401,6 +435,9 @@ turned out to credit the gate with a catch only the test could have made.
 | `registry-check` | **2026-09-13** | Deleted three of `module.capture`'s four examples; exited 1 with `[examples-min] module.capture: "module.capture" has 1 example(s); at least 3 are required` (Rule 10), and the build refused to write a registry it had judged invalid |
 | `check-thresholds` | **2026-09-13** | Changed `THRESHOLD_PROFILES.hashing.tauHigh` from the calibrated 0.456 to a hand-picked 0.5 — the exact move Rule 14 exists to forbid. Exited 1: *"config.ts has 0.5, the sweep recommends 0.456"*, naming when the calibration was run and telling the reader to re-sweep rather than transcribe a guess |
 | `scorecard` | **2026-09-13** | **It could not be broken, which was the finding.** The configured local command was `--baseline X --current X` — the same path on both sides — so every delta was zero by construction. Setting every rate in that scorecard to 0.01, a total collapse, still printed *"OK — no accuracy regression beyond tolerance"*, and `/gates` reported it green. It now takes `--baseline-ref HEAD`, and the script **refuses** a same-path invocation rather than reporting a pass. Re-run against the same collapse: 5 regressions, exit 1 |
+| `network-egress` | **2026-09-17 — found vacuous by deletion, then re-proved** | **A new route to the same failure: its subject was deleted out from under it.** The gate permitted exactly one file to name a remote host, `packages/core-voice/src/assets.ts`, where each was pinned by sha256. ADR-018 deleted `core-voice`. The gate kept running, found no manifest, printed *"Rule 8 OK — 9 URL literals, **0 hash-pinned assets**, no unpinned remote host"* and exited 0 — the count it printed said it was checking nothing, to anyone reading it. The exception is removed rather than repointed, since nothing downloads assets any more, so the gate is now strictly stricter: **no exception at all**. Made to fail on purpose: a literal `https://evil.example.com/binary` written into `core-intent/src`, caught by file and line, probe deleted |
+| `csp` | **2026-09-17 — would have failed in CI only** | Not deliberate. It read the deleted pilot's `registry.PARENT.json` and threw `ENOENT` from `copyFileSync`. Unlike the egress gate it would have gone **red**, not vacuous — but only on a push, since nothing in the local flow had run it after the deletion. Repointed at `eval/frameworks/family/generated`, where it now starts the widget under a strict policy and navigates to a real fixture route |
+| `check-registries` (replaces `registry-check`) | **2026-09-17, on its first run** | Rule 10 lost its runner when the domain packages were deleted — validation had been a side effect of `domain-modules registry:build --check`. The replacement finds registries by glob, and its first run exited 1 with **45 errors**, all `explanation-required`, against the pilot's hand-written answer key. That was **real pre-existing drift**, not a gate defect: WP-36 added the `explanation` requirement to `validateRegistry` after the key was written in WP-31, and nothing had re-run the check because it was wired into no gate. The gate also **refuses to pass when it finds no registry at all**, which is the specific vacuity this file exists to catch |
 
 ---
 
