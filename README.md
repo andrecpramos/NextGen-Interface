@@ -114,8 +114,15 @@ regulated adopter asks first.
 ## Structure
 
 ```
-adapter/           WHAT AN ADOPTER COPIES — one folder, no package manager
+adapter/           WHAT AN ADOPTER COPIES — one folder, no package manager, no network
+  AGENTS.md        the front door: what to do, and the seven decisions that are
+                   the developer's to make rather than the agent's
   FIELD-NOTES.md   what real applications taught this tool; read before trusting output
+  scan.mjs         init / build / doctor / calibrate, in one file, no dependencies
+  runtime/         the assistant, already compiled
+
+preview/           THE BENCH — never exported. `pnpm preview`
+                   ask and see the whole trace; the real widget on a mock app
 
 packages/          the source that builds the adapter
   generator/       reads an app's source, emits one registry per role   <- the build step
@@ -136,22 +143,28 @@ The only application it ever sees is the adopter's, at run time, as declared dat
 prove that; they were deleted along with the terminal app and everything else that never
 reached an adopter ([ADR-018](.claude/decisions/ADR-018.md)).
 
-**`adapter/` is incomplete.** `FIELD-NOTES.md` is written; the entry-point `AGENTS.md`, the
-bundled scanner and the compiled runtime are not. Until they are, the kit's CLI is still how
-this is installed.
+**Both are built and both are checked by running them.** `pnpm adapter:check` copies
+`adapter/` and a fixture application into a scratch directory outside this repository —
+with no `node_modules` anywhere above it — and runs `init`, `build` and `doctor` for real,
+then fingerprints the application to prove nothing was written into it.
+`pnpm preview:check` loads the bench in a headless browser and asserts two turns from the
+committed golden set.
 
 ## Run it
 
 ```bash
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
+pnpm preview                     # the bench: ask, and see why it decided that
 pnpm check                       # typecheck + 602 tests + registry validation
 pnpm eval:apps                   # generate, calibrate and route over a fixture app
+pnpm adapter:build               # rebuild adapter/ after changing packages/
+pnpm adapter:check               # prove a copy of it runs with nothing installed
 ```
 
-There is no terminal app to run. `pnpm app` and `pnpm app:offline` went with the
-composition root in [ADR-018](.claude/decisions/ADR-018.md); seeing a turn now means
-`pnpm eval:apps`, or the kit's `preview` against your own application. The bench that
-replaces them properly is `preview/`, which is not built yet.
+`pnpm preview` is where to start: it serves the real widget on a mock application built
+from a generated registry, plus a bench showing the full trace behind every answer.
+`pnpm app` and `pnpm app:offline` went with the composition root in
+[ADR-018](.claude/decisions/ADR-018.md); the bench replaces them.
 
 Ollama is probed, not required. Without it the router drops to its deterministic stages
 and says so, rather than guessing.

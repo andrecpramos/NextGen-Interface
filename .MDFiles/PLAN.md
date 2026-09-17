@@ -90,13 +90,26 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 
 | | What it is | Who reads it | State |
 |---|---|---|---|
-| **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | `FIELD-NOTES.md` written; `AGENTS.md`, `scan.mjs`, `runtime/` not |
-| **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | not started |
+| **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | ✅ **built 2026-09-17** — `AGENTS.md`, `FIELD-NOTES.md`, `scan.mjs` (3.6MB, no dependencies), `runtime/nextgen.js`. Two blocking gates |
+| **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | ✅ **built 2026-09-17** — `pnpm preview`. Bench with the full trace, the mock app with the real widget, host-page variants |
 
-> ## ▶️ There is agent work in this queue again — 2026-09-17
+> ## ▶️ M5's agent half is done — 2026-09-18
 >
-> The 2026-09-12 pause said nothing here was waiting on an agent. That was true of M4 and
-> is no longer true: WP-49 and WP-50 below are both agent work, and both are sizeable.
+> The 2026-09-12 pause said nothing was waiting on an agent. That stopped being true when
+> ADR-018 opened M5, and it is true again: **WP-49 and WP-50 are both built**, and what is
+> left is the owner's.
+>
+> **Both folders exist and both are checked by running them**, not by asserting about
+> them — `pnpm adapter:check` copies the adapter into a scratch directory with no
+> `node_modules` above it and runs init, build and doctor for real; `pnpm preview:check`
+> loads the bench in a headless browser and asserts two turns from the committed golden
+> set. Between them they found six defects that 602 unit tests could not see, because
+> every one lived in a built artefact rather than in source.
+>
+> **The next thing is the owner's acceptance run (WP-35), and it is now cheap to start:**
+> copy `adapter/` into any real application, paste its path into a coding agent, and read
+> what `doctor` says. [INSTALL.md](INSTALL.md) has the procedure and it names no
+> application.
 >
 > **What changed about the owner's items.** Three of the four were defined against the
 > private pilot application and its generated artefacts, which are deleted (ADR-018):
@@ -117,8 +130,8 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
 | 1 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
-| 2 | ⬜ **WP-49** · **`adapter/` — the folder an adopter copies.** The product. `AGENTS.md` as the entry point (the six `ASK` sections from `kit/src/agent-playbook.ts`, moved not rewritten), `scan.mjs` as one dependency-free bundle of discover + build + doctor + calibrate, and `runtime/nextgen.js` prebuilt. Committed build output, gated for staleness. **Open inside it:** what happens to the generator's optional Ollama path — in, out, or behind a flag | M5 | L | agent |
-| 3 | ⬜ **WP-50** · **`preview/` — the bench.** Where the owner sees what an adopter would get and can iterate on it: a chat surface over a generated bundle, role switch, browser voice on/off, model on/off, and the trace behind each answer. Seeded from `kit/src/preview.ts`, which already does the local page, strict CSP, role switch and *"where it would have gone"* | M5 | M–L | agent |
+| 2 | ✅ **WP-49** · **`adapter/`, done 2026-09-17.** `AGENTS.md` as the entry point — seven `ASK` sections carried from the field-tested playbook — plus `scan.mjs`, one 3.6MB dependency-free bundle of init/build/doctor/calibrate, and `runtime/nextgen.js` prebuilt. **Proved by running it**, not asserted: `check-adapter.mjs` copies the committed folder and a fixture app into a scratch directory outside this repository and runs the real commands; 12 checks including Rule 17 and Rule 16 (38 files unchanged). **Five defects found, every one invisible to 602 unit tests** because every one was a failure of the bundle in a bare directory — the worst being `build` resolving the widget through `node_modules`, which shipped a bundle with no assistant in it while `doctor` called it a warning | M5 | L | done |
+| 3 | ✅ **WP-50** · **`preview/`, done 2026-09-17.** `pnpm preview`. Three surfaces on one server: `/bench` (ask, and see the whole trace — every candidate stage 2 scored, **with the description it was scored on**), the mock app with the **real widget** mounted, and host-page variants for placement. Seeded by moving `packages/embed/demo` wholesale — which still read the deleted pilot data, making it the last live reference ADR-018's sweep missed. Checked in a real browser by `preview/check-bench.mjs` | M5 | M–L | done |
 | 4 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](../eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
 | 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
 | 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows (`DESCRIPTION_AUDIT.md`) | M4 | S–M | **owner** |
@@ -2489,7 +2502,7 @@ failing its own verifier since WP-36 added an `explanation` requirement after th
 written. Nothing re-ran it because it was wired into no gate. It is gone with the pilot
 data, and the lesson — *a rule with no runner is a written rule* — is in §0.
 
-### ⬜ WP-49 · `adapter/` — the folder an adopter copies · **L · agent**
+### ✅ WP-49 · `adapter/` — the folder an adopter copies — **done 2026-09-17**
 
 **Goal.** A developer copies one folder into their repository, pastes its path into their
 coding agent, and the agent performs the integration. No package manager, no private
@@ -2533,7 +2546,7 @@ install, the "copy a folder" premise is false and the honest fallback is WP-41's
 with `AGENTS.md` moved to the front (ADR-018 considered and rejected it; reopen the ADR
 rather than shipping a folder that quietly needs a package manager).
 
-### ⬜ WP-50 · `preview/` — the bench · **M–L · agent**
+### ✅ WP-50 · `preview/` — the bench — **done 2026-09-17**
 
 **Goal.** Somewhere the owner can see what an adopter's users would get, and iterate:
 *is the model too dumb, too eager, over the top? is the voice usable? does this read
