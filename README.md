@@ -20,36 +20,77 @@ stays reachable without it** — that one is not negotiable
 
 ## Does it work?
 
-Measured on a real 146-page application it was never designed for, against a registry
-no human wrote — and measured on **what an adopter installs**: the script tag, routing in
-the browser with no model, against the app's own command palette, like for like
-([like-for-like.json](eval/fut-app/like-for-like.json)):
+The claim is *"it works on a web app it has never seen"*, so that is what is measured:
+applications this repository did not write, with ground truth recorded **before** the tool
+was run on them.
 
-| 176 real questions | Script tag, no model | The app's own command palette |
-|---|---|---|
-| Right screen shown first | **53.4%** | 42.6% |
-| Right screen among what is shown (at most 3) | **69.9%** | 45.5% |
-| Portuguese — the app's own language | **72.4%** | 37.1% |
-| Guardians — infrequent users | **75.0%** | 18.8% |
-| English | **65.0%** | 61.7% |
-| Sent straight to a wrong screen | **0%** | — |
+### It reads apps it has never seen
 
-**It beats the incumbent by offering, not by deciding.** The script tag navigates on its
-own for only **1.7%** of questions. For almost everything else it shows up to three screens
-and the user picks one — a click more than a perfect guess, and it has sent nobody to a
-wrong place.
+Six public applications, six routing frameworks, ground truth written first
+([RESULT.md](eval/field-apps/RESULT.md)):
 
-**An earlier headline here, 56.8% vs 45.5%, measured a different configuration:** a server
-running `nomic-embed-text` and `llama3.1:8b` to pick one screen. The script tag calls
-neither. That run is kept, labelled, in
-[MEASUREMENT.md](eval/fut-app/MEASUREMENT.md); it is not what an adopter gets.
+| | |
+|---|---|
+| Destinations found | **55 of 55** |
+| Declared that were not destinations | **0** |
+| Files changed in any app | **0** |
 
-**It does not decide for free.** The mechanism meant to settle most turns on its own does
-not survive 145 capabilities — and that is settled rather than open: a fixed budget was
-spent on every lever anyone had identified ([WP38.md](eval/fut-app/WP38.md)), and an
-accepted ADR added a second, non-topical signal on top. With a model they moved the
-number from **2.4% to 11.0%** against a 60% target. **The product is a better way to
-navigate; a cheaper one is not claimed** until a deployment measures it.
+Next.js app router, Remix flat routes, SvelteKit, Nuxt, Vue Router and Angular. It names
+each screen in the app's own words, and reports what it refused to declare and why.
+
+### It does not leak screens between roles — after it did, once
+
+On a seventh public app with three roles, **the first run leaked 15 of 48 role
+assignments** — admin screens delivered to everyone — because the app gated routes in a
+shape the parser could not read, and an unreadable guard defaulted to "public". That was a
+pre-committed kill criterion and it fired ([RESULT.md](eval/tutor-app/RESULT.md)).
+
+The rule it produced: **an unreadable guard drops its route and reports it.** Re-measured
+against the same ground truth: **48 of 48 correct, 0 leaks, 0 screens missing.**
+
+One shape is still unreadable, and it is stated rather than buried: a guard *inside* the
+page component (`<Authorization allowedRoles={…}>`) is invisible to route discovery, and an
+app built that way generates a single audience. [FIELD-NOTES.md](adapter/FIELD-NOTES.md)
+tells the installing agent to ask about exactly this.
+
+### Routing quality, reproducible from this repository
+
+`pnpm eval:apps` runs the whole pipeline — generate, calibrate, route — over the fixture
+applications in [eval/frameworks](eval/frameworks), and is a CI gate. On the reference
+fixture (11 capabilities, 3 roles, 2 languages, 68 questions), with no model:
+
+| | |
+|---|---|
+| Sent straight to a wrong screen | **0%** |
+| In-scope questions wrongly refused | 3.7% |
+| Out-of-scope refused | 50.0% |
+| Settled with no model call | 100% of turns reached a decision without one |
+
+**It offers rather than decides.** For most questions it shows up to three screens and the
+person picks — a click more than a perfect guess, and it has sent nobody to a wrong place.
+
+### The pilot, and why its numbers are no longer here
+
+Until 2026-09-17 the headline was a pilot against a private 146-page application: **53.4%
+right screen first against that app's own command palette at 42.6%**, over 176 real
+questions, and **11.0% of turns settled without a model against a 60% target** — a
+pre-committed kill criterion that triggered, after which the cheap-inference claim was
+withdrawn rather than restated.
+
+**Those measurements happened; their evidence is deliberately no longer in this
+repository.** The generated artefacts were the complete screen inventory of a real
+application, by role, and a tool whose whole claim is generality should not ship one app's
+private structure as its proof. They are in git history at
+[`2d500d8`](https://github.com/andrecpramos/AI-Interface/commit/2d500d8), and cannot be
+verified from a fresh clone.
+
+What survives from that pilot is what generalises: every naming and description failure it
+found is written up in [FIELD-NOTES.md](adapter/FIELD-NOTES.md), and the fixture in
+`eval/frameworks/family` reproduces its hard cases — two addresses for one screen,
+placeholder titles, untranslated duplicates — without being it.
+
+**The product is a better way to navigate; a cheaper one is not claimed** until a
+deployment measures it.
 
 ## The idea
 
@@ -73,30 +114,31 @@ regulated adopter asks first.
 ## Structure
 
 ```
-packages/
+adapter/           WHAT AN ADOPTER COPIES — one folder, no package manager
+  FIELD-NOTES.md   what real applications taught this tool; read before trusting output
+
+packages/          the source that builds the adapter
   generator/       reads an app's source, emits one registry per role   <- the build step
   core-capability/ registry schema, validation, codegen — the contract
   core-intent/     the three-stage router, calibration, eval harness
-  core-dispatch/   policy table, confirmation, undo, navigation
-  core-trace/      TurnTrace records; explainability from a record
   core-inference/  swappable LLM + embedding runtimes
-  core-voice/      Whisper STT + Piper TTS adapters
-  data/            node:sqlite schema, migrations, repositories
-  domain-modules/  reference application — the registered one
-  domain-finance/  reference application — proof the engine is domain-agnostic
+  embed/           the widget, as one script tag under a strict CSP
+  kit/             init / build / doctor / preview / calibrate
 
-apps/cli           composition root, and the fastest way to see a turn
-eval/fut-app       the measurement: ground truth, golden set, scorecards
+eval/frameworks    the measurement: fixture apps, one per routing framework
+eval/field-apps    six public apps, ground truth written before the tool ran
 tooling/scripts    the CI gates that are not tests
 ```
 
-**The boundary that matters:** `packages/core-*` never imports an application package.
-Applications register *into* the engine. This is now the product boundary — an adopter's
-app sits exactly where `domain-modules` sits — and it is gated, not merely intended:
-`node tooling/scripts/check-import-boundaries.mjs`.
+**The boundary that matters:** the engine knows nothing about any particular application.
+The only application it ever sees is the adopter's, at run time, as declared data it reads
+— never as an import. Until 2026-09-17 two reference-application packages lived here to
+prove that; they were deleted along with the terminal app and everything else that never
+reached an adopter ([ADR-018](.claude/decisions/ADR-018.md)).
 
-`domain-modules` and `domain-finance` are **reference applications**, not the product.
-They are what the generator is measured against.
+**`adapter/` is incomplete.** `FIELD-NOTES.md` is written; the entry-point `AGENTS.md`, the
+bundled scanner and the compiled runtime are not. Until they are, the kit's CLI is still how
+this is installed.
 
 ## Run it
 
@@ -156,23 +198,24 @@ figure is meaningless.
 
 | Question | File |
 |---|---|
-| Does this work, and what is the evidence? | **[MEASUREMENT.md](eval/fut-app/MEASUREMENT.md)** |
+| Does this work on an app it has never seen? | **[field-apps/RESULT.md](eval/field-apps/RESULT.md)** · [tutor-app/RESULT.md](eval/tutor-app/RESULT.md) |
+| What goes wrong when it meets a real app? | **[adapter/FIELD-NOTES.md](adapter/FIELD-NOTES.md)** |
 | What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
 | How do I add it to my app? | [GETTING-STARTED.md](GETTING-STARTED.md) |
 | How do I run it? | [SETUP.md](.MDFiles/SETUP.md) |
-| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 15 ADRs |
+| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 18 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
-| What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · [MEASUREMENT.md](eval/fut-app/MEASUREMENT.md) |
+| What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · `pnpm eval:apps` |
 | Working in this repo as an agent? | [CLAUDE.md](CLAUDE.md) |
 
 ## Status
 
 The engine is built and measured. The generation works. **The cost model is resolved, and
-it resolved against us**: 11.0% of turns settle without a model call, against a 60% target
-that was a pre-committed kill criterion and triggered. A fixed budget was then spent trying
-to fix it, every lever was measured, and the claim was withdrawn rather than restated —
-[PLAN.md](.MDFiles/PLAN.md) §13 D-4 and [WP38.md](eval/fut-app/WP38.md). The numbers are
-published rather than buried, which is the point.
+it resolved against us**: on the pilot, turns settling without a model call fell far short
+of the 60% target that was a pre-committed kill criterion, and it triggered. A fixed budget
+was then spent trying to fix it, every lever was measured, and the claim was withdrawn
+rather than restated — [PLAN.md](.MDFiles/PLAN.md) §13 D-4. The numbers were published
+rather than buried, which is the point.
 
 Built since then: the browser runtime, guided steps, the installable package, a script tag
 that runs under a strict Content-Security-Policy, and the drop-in kit —
@@ -184,15 +227,17 @@ changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
 Not done: a live deployment, and a field test by someone other than its author. The owner
 runs both. Nothing here is production-ready.
 
-**A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do.
-The assistant does not decline all of them. On `fut-app`'s 34 hand-written out-of-scope
-requests:
-- The browser path, with no model, declines **47.1%**, executes none of them, and asks a
-  clarifying question for the rest.
-- With a model in the loop, **41.2%** are declined.
+**A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do,
+and the assistant does not decline all of them. It declines roughly **half**, executes none
+of them, and asks a clarifying question for the rest — measured at 50.0% on the reference
+fixture and between 41% and 47% on the pilot, against a ~70% target.
 
-The target was ~70%. Every mechanism that was tried is measured in PLAN.md §7.2 (WP-39,
-WP-40). The ceiling is accepted and stated here, not hidden.
+The cause is known and is a lesson for adopters rather than a bug: a declared limit is
+reached by *similarity*, so generic boundaries — "questions about anything else" — do not
+resemble the questions they are meant to catch. Every mechanism tried against this is
+measured in PLAN.md §7.2 (WP-39, WP-40), and the practical guidance is in
+[FIELD-NOTES.md §5](adapter/FIELD-NOTES.md). The ceiling is accepted and stated here, not
+hidden.
 
 ## Installing it, and the license
 

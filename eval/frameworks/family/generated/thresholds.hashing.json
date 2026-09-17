@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2026-09-17T21:23:39.428Z",
+  "encoder": "hashing",
+  "registry": "eval/fut-app/generated (WP-25, 145 capabilities + 4 boundaries)",
+  "method": "Swept against WP-32’s golden set, split by destination 40/60. boundaryMargin maximises out-of-scope refusal subject to zero in-domain refusals; actionBoundaryMargin (ADR-015) does the same for utterances carrying an action verb, under the identical zero-false-refusal constraint and never above boundaryMargin; tauHigh/delta maximise stage-2 accepts subject to 100% precision. Never hand-set (Rule 14). The sweep is core-intent/src/calibrate.ts, shared with the drop-in kit so there is one implementation.",
+  "thresholds": {
+    "tauHigh": 1,
+    "delta": 0,
+    "tauFloor": 0,
+    "topK": 5,
+    "boundaryMargin": 0.15,
+    "actionBoundaryMargin": 0
+  },
+  "calibration": {
+    "entries": 27,
+    "settled": 0.07407407407407407,
+    "accepted": 0,
+    "precision": null,
+    "outOfScopeRefused": 0.4,
+    "wronglyRefused": 0
+  },
+  "heldOut": {
+    "entries": 41,
+    "settled": 0.12195121951219512,
+    "accepted": 0,
+    "precision": null,
+    "outOfScopeRefused": 0.5555555555555556,
+    "wronglyRefused": 0.0625
+  },
+  "curve": [
+    {
+      "precisionFloor": 1,
+      "feasible": false
+    },
+    {
+      "precisionFloor": 0.95,
+      "feasible": false
+    },
+    {
+      "precisionFloor": 0.9,
+      "feasible": false
+    },
+    {
+      "precisionFloor": 0.8,
+      "feasible": true,
+      "tauHigh": 0.155,
+      "delta": 0,
+      "heldOutAccepted": 0.8125,
+      "heldOutPrecision": 0.8846153846153846
+    },
+    {
+      "precisionFloor": 0.7,
+      "feasible": true,
+      "tauHigh": 0.05,
+      "delta": 0,
+      "heldOutAccepted": 0.875,
+      "heldOutPrecision": 0.8214285714285714
+    }
+  ]
+}

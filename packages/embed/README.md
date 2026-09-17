@@ -52,7 +52,7 @@ rendered unstyled.
 
 There is no adopter app required to look at this. `pnpm embed:preview` (or
 `pnpm --filter @nextgen/embed preview`) builds the bundle and serves a mock club app at
-`http://localhost:4173/my`, wired to the real generated `fut-app` PARENT registry. Every
+`http://localhost:4173/my`, wired to a generated fixture PARENT registry. Every
 route in that registry is a page the server renders, so asking to go somewhere really
 goes there, and the orb is waiting on the next page. Three bare host pages (no CSS, left
 nav, right nav) are linked from `http://localhost:4173/`, and `/phone.html` shows the app
@@ -94,7 +94,7 @@ a question on load, so a state can be linked to.
 - **Guide.** When the registry declares steps for the screen the user lands on (WP-27),
   the orb walks them through it one step at a time, highlighting the field. The text is
   always shown, including when an anchor cannot be trusted (`anchor.ts` refuses rather
-  than mispoints). ⚠️ The generated `fut-app` registries declare no steps yet, so the
+  than mispoints). ⚠️ The generated fixture registries declare no steps yet, so the
   preview does not show it.
 - **Travelling.** When a turn resolves to a destination, the screen dissolves, the same
   orb flies to the emptier edge (`chooseDockSide`, `dock.ts`) and the browser moves. A
@@ -176,7 +176,7 @@ highlight anything than point at the wrong field.
 `src/embed.test.ts` builds the bundle, then runs it in a fresh V8 context holding only
 `window`, `self`, `console` and `performance`. There is no `require`, no `process` and no
 `fetch`. In that context it:
-- routes real `fut-app` turns from the generator's own output;
+- routes real turns from the generator's own output;
 - makes the same decision as the direct `route()` call;
 - stays under 60KB gzipped;
 - exposes `start`, `mount`, `mountAssistant` and `present`.

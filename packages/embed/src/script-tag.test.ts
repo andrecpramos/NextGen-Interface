@@ -16,7 +16,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
  * dist/nextgen.js in parallel and two writers to one file is a flaky test.
  */
 
-const GEN = fileURLToPath(new URL('../../../eval/fut-app/generated/', import.meta.url));
+const GEN = fileURLToPath(new URL('../../../eval/frameworks/family/generated/', import.meta.url));
 const ROLE = 'PARENT';
 let code = '';
 

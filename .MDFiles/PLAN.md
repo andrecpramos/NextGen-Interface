@@ -81,8 +81,8 @@ on 2026-09-11; see §13.
 > | | What | How long | Where |
 > |---|---|---|---|
 > | WP-45 | The NVDA pass — 17 items, hands off the mouse | ~15 min | [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md) |
-> | WP-44 | Record 20 pt-PT utterances and re-run the comparison | ~20 min | [VOICE-PT.md](../eval/fut-app/VOICE-PT.md#the-half-that-is-still-owed) |
-> | WP-42 | Mark 25 generated descriptions right/vague/wrong | ~30 min | [DESCRIPTION_AUDIT.md](../eval/fut-app/DESCRIPTION_AUDIT.md) |
+> | WP-44 | Record 20 pt-PT utterances and re-run the comparison | ~20 min | `VOICE-PT.md` |
+> | WP-42 | Mark 25 generated descriptions right/vague/wrong | ~30 min | `DESCRIPTION_AUDIT.md` |
 > | WP-35 | Drop the kit into `fut-app`, deploy, measure | the real one | [INSTALL.md](INSTALL.md) |
 >
 > Until each is done, the claim it supports stays at what was actually measured —
@@ -98,10 +98,10 @@ on 2026-09-11; see §13.
 |---|---|---|---|---|
 | 1 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](../eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
 | 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
-| 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows ([DESCRIPTION_AUDIT.md](../eval/fut-app/DESCRIPTION_AUDIT.md)) | M4 | S–M | **owner** |
+| 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows (`DESCRIPTION_AUDIT.md`) | M4 | S–M | **owner** |
 | 4 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](../eval/tutor-app/RESULT.md)) | M4 | M | done |
 | 5 | ◐ **WP-45** · Accessibility, **agent half done 2026-09-12**. `check-accessibility.mjs` runs the **built bundle** in a real DOM and audits every state a user can reach: **18 checks, 0 serious or critical**, now a CI gate. **It found a real defect on its first run** — focus fell to the document body when an answer replaced the link the user was standing on; fixed, with both halves of the rule as tests. **Left:** the owner runs [the 17-item NVDA pass](../eval/a11y/NVDA-CHECKLIST.md). Until then the claim is *"automated checks pass; no screen reader has confirmed it"* | M4 | S | **owner** |
-| 6 | ◐ **WP-44** · Portuguese voice, **agent half done 2026-09-12**. A multilingual whisper model and a pt_PT voice are hash-pinned; 40 pt-PT turns across 8 roles, 3 passes, both recognisers on identical audio. **Agreement 93.3% (`base`) and 91.7% (`small`)** — above the 80% bar, but **the split is 26/26 in-domain and 11/14 at the boundary**, and word error is **46–59%** against English's 7.1%. Found that **Piper is not deterministic**, so the first model comparison was measuring different recordings ([VOICE-PT.md](../eval/fut-app/VOICE-PT.md)). **Left:** the owner records 20 real utterances — the Stop-if is defined on real speech | — | S | **owner** |
+| 6 | ◐ **WP-44** · Portuguese voice, **agent half done 2026-09-12**. A multilingual whisper model and a pt_PT voice are hash-pinned; 40 pt-PT turns across 8 roles, 3 passes, both recognisers on identical audio. **Agreement 93.3% (`base`) and 91.7% (`small`)** — above the 80% bar, but **the split is 26/26 in-domain and 11/14 at the boundary**, and word error is **46–59%** against English's 7.1%. Found that **Piper is not deterministic**, so the first model comparison was measuring different recordings (`VOICE-PT.md`). **Left:** the owner records 20 real utterances — the Stop-if is defined on real speech | — | S | **owner** |
 | 7 | **WP-35** · **The owner's run.** Drop the kit into `fut-app`, deploy, measure cost per session on real traffic, check guided steps on a real form, record the side-by-side clip | M3/M4 | M | **owner** |
 | 8 | ✅ **WP-47** · ADR-016 option B, **done 2026-09-12**. Each domain writes its own `generated/registry.json`; the eval scripts require `--registry=`. **Both domains now build back to back without clobbering, and CI diffs both in one job** — the gate got wider. The hook denying `pnpm registry:build:finance` is deleted along with its reason. Ranked gap #1 since 2026-09-08 is closed. Two Rule 1 holes found on the way (below) | M4 | S–M | done |
 
@@ -141,12 +141,12 @@ adversarial violations). So the fence narrows WP-48 without replacing it.
 installs — no model, at most three screens shown — **beats `fut-app`'s own CommandPalette**:
 the right screen is among what it shows for **69.9% vs 45.5%**, shown first for **53.4% vs
 42.6%**, **72.4% vs 37.1%** in Portuguese, and nobody is sent to a wrong screen
-([like-for-like.json](../eval/fut-app/like-for-like.json)). The 56.8% vs 45.5% published before
+(`like-for-like.json`). The 56.8% vs 45.5% published before
 is the server configuration with `llama3.1:8b`, which the script tag does not call. A turn
 settled without asking the user is 11.0% on that server and 1.7% in the script tag, against
 a 60% bar, so the cost claim stays withdrawn (D-4).
 Out-of-scope refusal has a measured ceiling, which is accepted and disclosed (D-5). The
-numbers are in [eval/fut-app/MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md).
+numbers are in `eval/fut-app/MEASUREMENT.md`.
 
 ### Readiness, 2026-09-13
 
@@ -160,7 +160,7 @@ adopter. Each item is a merged PR into `develop`:
 | 3 | Only React Router apps could be read | #23, #24, #25 — Next.js, Remix, SvelteKit, Nuxt, Vue Router, Angular; six public apps, every route found, 0 wrong destinations, 0 files changed ([RESULT.md](../eval/field-apps/RESULT.md)) |
 | 4 | The kit could turn an adopter's own lint or format checks red, or ship every role's screens publicly | #26 — `doctor` warns before the first, refuses the second |
 | 5 | No way to judge the answers before wiring anything in | #27 — `nextgen preview`, `doctor --report`, FIELD-TEST.md |
-| 6 | The headline number described a configuration nobody installs | This PR — [like-for-like.mjs](../eval/fut-app/like-for-like.mjs), and every headline restated |
+| 6 | The headline number described a configuration nobody installs | This PR — `like-for-like.mjs`, and every headline restated |
 
 **What stays open is not an agent's to close:** a field test by someone who did not build it
 (FIELD-TEST.md), the four owner items above — WP-35 among them, the live deployment — and the golden set's
@@ -250,7 +250,7 @@ improved refusal accuracy **in proportion to how badly the model failed** — 0%
 *"book that appointment for me"* was correctly refused in **1.9s with no model call**.
 
 ⚠️ **Best evidence against it, measured 2026-09-10 on a real app
-([WP-33](../eval/fut-app/MEASUREMENT.md)):** at **145** capabilities rather than 7, only
+(`WP-33`):** at **145** capabilities rather than 7, only
 **2.4%** of turns were settled correctly without a model call, and declared boundaries
 caught 38% of out-of-scope input rather than 92%. **Both of the mechanisms quoted above
 were measured on a 7-capability registry, and neither survived the move to an adopter's
@@ -484,7 +484,7 @@ As of 2026-09-11:
 - **A live deployment inside a real app** (WP-35, which is the owner's run).
 - **Calibration for an adopter who has no golden set.** Every calibration so far used
   hand-written questions (§9). For `fut-app` it lives in an eval script
-  ([calibrate-registries.mjs](../eval/fut-app/calibrate-registries.mjs)), not in the
+  (`calibrate-registries.mjs`), not in the
   generator.
 - **Evidence beyond two role-gated apps.** Role extraction is now validated on a second,
   external app (WP-43) — where it leaked first and was fixed — but a guard written *inside*
@@ -501,7 +501,7 @@ Everything this section used to list now exists, and §7 describes each one:
 
 The generator ([packages/generator](../packages/generator/README.md), WP-25) emits 145
 capabilities and 4 boundaries across 10 registries for `fut-app`. It scores 100% recall
-and 100% role exactness on WP-31's ground truth ([REPORT.md](../eval/fut-app/REPORT.md)).
+and 100% role exactness on WP-31's ground truth (`REPORT.md`).
 
 **The asymmetry has moved.** It used to be that the engine was ahead of the packaging and
 the evidence. Now the engine, the generator and the packages are all built and measured.
@@ -666,7 +666,7 @@ nothing captured which, so this is plausible, not proven.
 **This is now the most important table in the file.** Everything below it is the reference
 app: 7 capabilities, English, a registry a person wrote. This is 145 capabilities,
 Portuguese, generated, and scored against 210 questions a person did not write.
-Full account: [eval/fut-app/MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md).
+Full account: `eval/fut-app/MEASUREMENT.md`.
 
 | | Assistant | `fut-app`'s CommandPalette |
 |---|---|---|
@@ -1016,7 +1016,7 @@ something written independently of it.
 Declare ≥2 `unsupported` boundaries. Write examples in the words a **guardian or coach**
 would use, in Portuguese and English — not the developer's vocabulary.
 
-**Delivered.** [eval/fut-app/](../eval/fut-app/GROUND_TRUTH.md) — `ground-truth.registry.json` (47
+**Delivered.** `eval/fut-app/` — `ground-truth.registry.json` (47
 entries: 45 capabilities + 2 boundaries) and `GROUND_TRUTH.md` (methodology, sourcing,
 the corrected 10-role model, four documented omissions from the 36 deep-links, Ladder A2
 notes). Samples: `operations` (simple, 2 pages), `guardian`/`PARENT` (role-gated, 6
@@ -1139,9 +1139,9 @@ the wrong place. The generator emits a **report** of what it skipped and why.
 
 **Delivered.** [packages/generator](../packages/generator/README.md) — a real workspace
 package (10 modules, 49 tests, TypeScript AST rather than the spike's regexes) plus
-[eval/fut-app/REPORT.md](../eval/fut-app/REPORT.md), the generated bundle in
-[eval/fut-app/generated/](../eval/fut-app/generated/SKIPPED.md), a scorer
-([score-generated.mjs](../eval/fut-app/score-generated.mjs), deliberately the same method as
+`eval/fut-app/REPORT.md`, the generated bundle in
+`eval/fut-app/generated/`, a scorer
+(`score-generated.mjs`, deliberately the same method as
 WP-30's so the numbers compare), and a model-free refusal proof
 (`prove-refusal.mjs`). **154 routes → 145 capabilities +
 4 boundaries across 10 role registries, 9 routes deliberately skipped with the app's own
@@ -1181,7 +1181,7 @@ words as evidence.** Output shape decided in [ADR-014](../.claude/decisions/ADR-
 - [x] Deterministic — by construction, not by temperature. Prose is cached against a hash
       of the facts that produced it, so a rerun over unchanged source is byte-identical and
       a diff appears only where the app changed (asserted in `generate.test.ts`)
-- [x] Skipped-capability report exists and is legible — [SKIPPED.md](../eval/fut-app/generated/SKIPPED.md),
+- [x] Skipped-capability report exists and is legible — `SKIPPED.md`,
       grouped by reason, each entry quoting the app's own words
 - [x] **The format accommodates a Ladder A2 data capability** — sketched against
       `fut-app`'s backend in REPORT.md: one new `data` block, `kind: 'read'` already in the
@@ -1257,7 +1257,7 @@ reading is that one clear instruction beat a normalisation — WP-14's finding a
       that cannot be traced to a source
 - [x] Off-topic questions are refused by declared boundaries, not by a model — unchanged
       by this work package, and its real state is measured in
-      [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) (38.2%, and WP-40's open proposal)
+      `MEASUREMENT.md` (38.2%, and WP-40's open proposal)
 - [x] Rule 15: source text is quoted as data, the model writes prose only, and the served
       string is length-capped — asserted in `synthesise.test.ts`, including an injected
       instruction in page copy
@@ -1340,7 +1340,7 @@ a model *from the app's rendered copy* then filtered by hand. Record provenance 
 entry. Then run each one through the **existing CommandPalette** and record whether it
 finds the right destination.
 
-**Delivered.** [eval/fut-app/GOLDEN_SET.md](../eval/fut-app/GOLDEN_SET.md) —
+**Delivered.** `eval/fut-app/GOLDEN_SET.md` —
 `golden-set.jsonl` (**210 entries**), `build-golden-set.mjs` (cached, so the fixture is
 reproducible), `palette.mjs` + `palette-baseline.mjs` (the incumbent, driven through its
 *own* imported command list and its one-line matcher), and `evaluate-golden.mjs`.
@@ -1421,7 +1421,7 @@ against the CommandPalette baseline.
 | 2 | **Generated vs hand-written gap** | The cost of automation — the most interesting number in the project |
 | 3 | **Assistant vs CommandPalette** | Whether this beats the incumbent it replaces |
 
-**Delivered.** [eval/fut-app/MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md), with
+**Delivered.** `eval/fut-app/MEASUREMENT.md`, with
 `scorecard-ollama-llama3_1_8b.json`, `thresholds.{hashing,ollama}.json` and
 `inspect-retrieval.mjs`.
 
@@ -1497,7 +1497,7 @@ in MEASUREMENT.md.** The repositioning decision is D-4 (§13) and it belongs to 
 
 ### WP-38 · The three model-free levers ✅ **COMPLETE — 2026-09-10** · ⚠️ **Stop if triggered**
 
-> **Full account: [eval/fut-app/WP38.md](../eval/fut-app/WP38.md).** Headline: model-free
+> **Full account: `eval/fut-app/WP38.md`.** Headline: model-free
 > **2.4% → 8.1%**, top-1 **52.3% → 58.0%** (palette 45.5%), out-of-scope **32.4% → 26.5%**.
 > Lever 1 paid, lever 2 was killed by a twenty-minute precondition measurement, lever 3
 > cannot affect this number at all. **8.1% against a 60% bar → D-4 option (c).**
@@ -1561,7 +1561,7 @@ appointments"), so a boundary competes against ~20 capabilities instead of 145. 
 `boundaryMargin` per registry afterwards.
 
 **Outcome: the fix was built, measured and reverted.** Full account in
-[MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md), "the obvious fix was tried".
+`MEASUREMENT.md`, "the obvious fix was tried".
 
 One boundary per section, carrying that section's own screen titles, role-scoped so a
 guardian's refusals may only name screens a guardian can already reach. It **raised the
@@ -1658,7 +1658,7 @@ act on* that subject, because the only signal it has is topic overlap.
 executes 61.8% of the things it cannot do is not shippable.
 
 **Do this.** Write the ADR with the [write-adr](../.claude/skills/write-adr/SKILL.md) skill.
-The evidence is already measured — [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md), "the
+The evidence is already measured — `MEASUREMENT.md`, "the
 obvious fix was tried" — so this is a decision, not an investigation. The two candidate
 mechanisms:
 
@@ -2221,7 +2221,7 @@ where they conflict.
       - three of the four vague ones are pages with nothing to read — a redirect, a
         layout shell, and a page whose only action lives inside a child component.
 
-**Done, in [DESCRIPTION_AUDIT.md](../eval/fut-app/DESCRIPTION_AUDIT.md).**
+**Done, in `DESCRIPTION_AUDIT.md`.**
 
 > **Two extraction bugs, fixed with tests.** `readPage` now ignores `fallback`,
 > `errorFallback`, `loadingFallback` and `errorElement` subtrees, and strips the `*/` a
@@ -2321,7 +2321,7 @@ stops until it is provably correct.
 - The owner records 20 real utterances, and the same comparison runs on those.
 
 **Acceptance.**
-- [x] **Synthetic pt-PT reported** — [VOICE-PT.md](../eval/fut-app/VOICE-PT.md),
+- [x] **Synthetic pt-PT reported** — `VOICE-PT.md`,
       `voice-acceptance.json`. Agreement **93.3%** (`base`, 92.5–95.0% over three
       passes) and **91.7%** (`small`, 90.0–92.5%); word error **59.3%** and **46.3%**.
       `small` halves the word error and buys **nothing** in agreement, so there is no
@@ -2334,7 +2334,7 @@ stops until it is provably correct.
       synthesis pass heard by both.
 - [ ] **Real speech, reported separately and never averaged with synthetic** — the owner
       records 20 utterances; the protocol is in
-      [VOICE-PT.md](../eval/fut-app/VOICE-PT.md#the-half-that-is-still-owed), including the
+      `VOICE-PT.md`, including the
       three utterances most worth including. **A synthetic run cannot separate Piper's
       pronunciation from whisper's hearing; a human speaker can, in one run.**
 
@@ -2435,7 +2435,7 @@ trustworthy. Full reasoning in .claude/docs/business-case.md §8.
 |---|---|
 | WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
 | **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
-| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** (business-case.md §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 56.8% vs 45.5%. Published in [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) and [WP38.md](../eval/fut-app/WP38.md) |
+| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** (business-case.md §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 56.8% vs 45.5%. Published in `MEASUREMENT.md` and `WP38.md` |
 | ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 52.3% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
 | WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
 | WP-27 anchors mispoint rather than degrade | Ship navigation only |
@@ -2603,9 +2603,9 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 | How is out-of-scope detected without a model? | [ADR-009](../.claude/decisions/ADR-009.md) — the mechanism the product rests on |
 | Where is policy enforced? | `core-dispatch` · [ADR-004](../.claude/decisions/ADR-004.md) |
 | What did the router score? | §5 — re-measured 2026-09-09 (WP-17) |
-| **Does this actually work on a real app?** | **[eval/fut-app/MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) — read this first** |
-| How is a registry generated from an app's source? | [packages/generator](../packages/generator/README.md) · [ADR-014](../.claude/decisions/ADR-014.md) · [REPORT.md](../eval/fut-app/REPORT.md) |
-| Where do the test questions come from, and how circular are they? | [eval/fut-app/GOLDEN_SET.md](../eval/fut-app/GOLDEN_SET.md) |
+| **Does this actually work on a real app?** | **`eval/fut-app/MEASUREMENT.md` — read this first** |
+| How is a registry generated from an app's source? | [packages/generator](../packages/generator/README.md) · [ADR-014](../.claude/decisions/ADR-014.md) · `REPORT.md` |
+| Where do the test questions come from, and how circular are they? | `eval/fut-app/GOLDEN_SET.md` |
 | How do I add a capability by hand? | [add-capability](../.claude/skills/add-capability/SKILL.md) |
 | How do I add a whole application? | [new-domain](../.claude/skills/new-domain/SKILL.md) |
 | Accuracy dropped — now what? | [router-regression](../.claude/skills/router-regression/SKILL.md) |
@@ -2711,9 +2711,9 @@ breaking change to `RegistryFile`, so both reference apps and the codegen move t
 
 **D-4 · The model-free rate is 2.4%. What is the product now?** — ✅ **ANSWERED
 2026-09-10 by the owner, in session: (b), spend WP-38's fixed budget first.** *Raised the
-same day by [WP-33](../eval/fut-app/MEASUREMENT.md), whose kill criterion triggered.*
+same day by `WP-33`, whose kill criterion triggered.*
 
-> **What (b) bought, and where it landed.** [WP-38](../eval/fut-app/WP38.md) tried all three
+> **What (b) bought, and where it landed.** `WP-38` tried all three
 > levers. Model-free went **2.4% → 8.1%** and top-1 **52.3% → 58.0%**; lever 2 was killed
 > by a twenty-minute precondition measurement (section recall@1 = 25.6%) and lever 3 turned
 > out to be a deployment question that could never have moved this number. 8.1% is still

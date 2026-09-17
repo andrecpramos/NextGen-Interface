@@ -38,7 +38,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const GEN = join(ROOT, 'eval', 'fut-app', 'generated');
+const GEN = join(ROOT, 'eval', 'frameworks', 'family', 'generated');
 const ROLE = 'PARENT';
 const POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'";
 

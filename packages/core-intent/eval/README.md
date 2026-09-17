@@ -1,8 +1,9 @@
 # `core-intent`'s own evaluation
 
 This measures **the router in isolation**, against a fixed application it can never
-change. It is not the product measurement — that is [`eval/fut-app`](../../../eval/fut-app),
-145 capabilities generated from a real 146-page app.
+change. It is not the product measurement — that is
+[eval/frameworks](../../../eval/frameworks), which runs the whole pipeline (generate →
+calibrate → route) over fixture applications, one per routing framework.
 
 ## `fixture-registry.json` — frozen, on purpose
 

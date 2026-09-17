@@ -72,7 +72,7 @@ but see the caveat under "not deterministic" below before gating on it.
 | `src/registry-browser.ts` | Builds a registry from a shipped index, with no file read and no fit. Exported as `@nextgen/core-intent/browser` (WP-24) |
 | `src/*.test.ts` | Unit tests: slots, stages, cascade, action, text, registry-browser |
 | *(no registry here)* | Since WP-47 this package holds no application. Each domain generates `packages/domain-<name>/generated/registry.json`, and every eval script takes `--registry=` (ADR-016). The root `router:*` scripts pass the `domain-modules` one |
-| `eval/golden-set.jsonl` | The reference registry's golden set, across 7 buckets with expected outcomes. `fut-app`'s is in `eval/fut-app/` |
+| `eval/golden-set.jsonl` | The frozen fixture registry's golden set, across 7 buckets with expected outcomes. Whole-application sets live in `eval/frameworks/<app>/` |
 | `eval/calibrate.js` | Threshold sweep under an explicit precision constraint |
 | `eval/evaluate.js` | Golden-set runner, gates, scorecards |
 | `eval/compare.js` | Side-by-side scorecard comparison across models |

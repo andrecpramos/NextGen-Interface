@@ -105,32 +105,35 @@ start('/nextgen', currentUser.role, { navigate: (to) => router.navigate(to) });
 `doctor` also warned, correctly, that the app defines roles but has no route-to-role
 table, so every user would receive every screen.
 
-### The owner's run in `fut-app` — the acceptance test (PLAN.md WP-35)
+### The owner's acceptance run — on any real application
 
-The kit has never been run on `fut-app`; that is the point of this run. Everything it
-needs from this repository is already here.
+The kit has never been run on a production application by anyone but its author. That run
+is the acceptance test, and **which application is the owner's choice**: a procedure
+written against one named app proves nothing about a product whose whole claim is that it
+works on any of them.
 
-1. **`init` on `fut-app/frontend`.** Then compare `frontend/nextgen/nextgen.config.json`
-   with this repository's
-   [`eval/fut-app/generator.config.json`](../eval/fut-app/generator.config.json), which is the
-   config every measurement used. Two things `init` does not do:
-   - add `"manifests": ["lib/deepLinks.ts", "lib/navConfigs.ts"]`;
-   - make sure `"languages"` starts with `"pt-PT"`.
-2. **For a calibrated build, reuse the prose that was measured.**
-   - Copy `<this repo>/eval/fut-app/generated/prose-cache.json` to
-     `frontend/nextgen/review/prose-cache.json`.
-   - Run `build --model llama3.1:8b` with Ollama running. Screens already in the cache do
-     not call the model.
-3. **Check the registries match what was measured, before reusing its calibration.** Run
-   `git diff --no-index --stat <this repo>/eval/fut-app/generated/registry.COACH.json frontend/nextgen/bundle/registry.COACH.json`.
-   No output means they are identical.
-   - **If they match**, copy `<this repo>/eval/fut-app/generated/thresholds.hashing.json`
-     to `frontend/nextgen/calibration/thresholds.hashing.json`, and run `build` again.
-   - **If they do not match, do not copy it.** A calibration belongs to the registry it
-     was measured on (Rule 14). `doctor` will then say *not calibrated*, which is true.
-4. **Run `doctor`.** Every GUESSED line and every warning is a finding. Send them back.
-5. **Run `git status` in `fut-app`.** Expect only `?? frontend/nextgen/`. Anything else
-   breaks Rule 16, and is the most important thing you could find.
+1. **`init` on the application's front end.** Read every line of the config it writes. A
+   value marked GUESSED is the tool saying it had nothing to read, not a well-informed
+   default. Two things `init` does not infer, and which you may have to add by hand:
+   - `"manifests"`, if the app keeps hand-maintained navigation or deep-link tables —
+     they are a far richer signal than JSX, and the single biggest lever on title quality;
+   - the order of `"languages"`, which must start with the app's primary one.
+2. **`build`.** With Ollama running and `--model`, prose is model-written and cached per
+   screen, so a rebuild does not re-call the model for unchanged pages. With `--no-model`
+   it is derived from the app's own labels. Both are reproducible, and neither writes
+   anything into the application.
+3. **`doctor`, and read all of it.** Every GUESSED line and every warning is a finding.
+   Check in particular that the role list matches the application's real roles: if the app
+   gates authorization *inside* its page components, route discovery cannot see it, one
+   audience is generated, and every screen reaches everyone. That failure is silent — see
+   [FIELD-NOTES.md §1](../adapter/FIELD-NOTES.md).
+4. **`git status` in the application.** Expect one new untracked folder and no modified
+   file. Anything else breaks Rule 16, and is the most important thing you could find.
+5. **Calibrate before trusting any accuracy figure.** Write at least twenty questions the
+   way the app's own users would ask them, including some the app cannot answer, then
+   `calibrate` and `build` again. Out of the box the thresholds are general defaults and
+   `doctor` says so. Note what calibration reports on its held-out split, not what it
+   reports on the turns it optimised against.
 6. **Mount it.** This is your edit, like adding a dependency:
    - serve `bundle/` as `/nextgen` — each signed-in user only their own role's registry and index
      (recipes: "Serving each role only its own files" in `packages/kit/README.md`);
@@ -141,9 +144,9 @@ needs from this repository is already here.
    For a local test, copying `bundle/` into `public/nextgen` serves every role's files.
    That is fine on your own machine and wrong in production (Rule 17).
 
-   The two lines put an accessible "ask where to go" box in the page's corner. It speaks
-   Portuguese on a `pt` page. `fut-app` is a single-page app, so pass its router to
-   avoid a full reload:
+   The two lines put an accessible "ask where to go" box in the page's corner, and it
+   speaks the page's own language — `<html lang="pt">` gets Portuguese. In a single-page
+   app, pass the router to avoid a full reload:
    `NextGen.start('/nextgen', role, { navigate: (to) => router.navigate(to) })`.
    Without that, moving reloads the page. That is slower, but still correct.
 7. **Send back:**

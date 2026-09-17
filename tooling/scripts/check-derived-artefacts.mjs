@@ -1,6 +1,6 @@
 // WP-46 — the shipped browser artefacts must follow their inputs.
 //
-// eval/fut-app/generated/ holds what an adopter's browser receives: per
+// eval/frameworks/family/generated/ holds what an adopter's browser receives: per
 // registry, a registry, a precomputed index and a calibrated threshold file. The
 // index and the thresholds are DERIVED. They depend on the registry, the encoder,
 // capabilityDocument() and normalize(). On 2026-09-11, a one-line change to
@@ -26,12 +26,12 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const CHECKS = [
-  { name: 'shipped indexes match a fresh rebuild', args: ['eval/fut-app/rebuild-indexes.mjs', '--check'] },
+  { name: 'shipped indexes match a fresh rebuild', args: ['eval/frameworks/rebuild-indexes.mjs', '--check'] },
   {
     name: 'per-registry thresholds match a fresh calibration (Rule 14)',
-    args: ['eval/fut-app/calibrate-registries.mjs', '--embedder', 'hashing', '--check'],
+    args: ['eval/frameworks/calibrate-registries.mjs', '--embedder', 'hashing', '--check'],
   },
-  { name: 'the shipped index reproduces the server decision on every turn', args: ['eval/fut-app/verify-browser-parity.mjs'] },
+  { name: 'the shipped index reproduces the server decision on every turn', args: ['eval/frameworks/verify-browser-parity.mjs'] },
 ];
 
 let failed = 0;
@@ -50,12 +50,12 @@ if (failed > 0) {
   console.log(`
   Derived artefacts are STALE — ${failed} of ${CHECKS.length} check(s) failed.
 
-  Something upstream of eval/fut-app/generated/ changed: normalize(), the encoder,
+  Something upstream of eval/frameworks/family/generated/ changed: normalize(), the encoder,
   capabilityDocument(), or a registry. Regenerate, in this order, and commit the
   result together with the change that caused it:
 
-    node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs
-    node --experimental-strip-types eval/fut-app/calibrate-registries.mjs --embedder hashing
+    node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
+    node --experimental-strip-types eval/frameworks/calibrate-registries.mjs --embedder hashing
     node tooling/scripts/check-derived-artefacts.mjs
 
   Never edit these files by hand. They are measurements, and a hand-edit makes

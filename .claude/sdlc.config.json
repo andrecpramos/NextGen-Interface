@@ -139,22 +139,22 @@
         "packages/core-intent/src/**",
         "packages/core-capability/src/**",
         "packages/generator/src/**",
-        "eval/fut-app/**"
+        "eval/frameworks/**"
       ],
-      "fix": "Something upstream of eval/fut-app/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements."
+      "fix": "Something upstream of eval/frameworks/family/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements."
     },
     {
       "id": "generated-golden",
-      "title": "The committed fut-app scorecard still describes what the generated registries do",
-      "command": "node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing --check",
+      "title": "The committed scorecard still describes what the fixture apps decide",
+      "command": "node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check",
       "blocking": true,
       "rule": "12",
       "when": [
         "packages/core-intent/src/**",
         "packages/generator/src/**",
-        "eval/fut-app/**"
+        "eval/frameworks/**"
       ],
-      "fix": "Something changed what the router decides on the generated registries — a description, a trigger, normalize(), or a threshold. If it was intended, regenerate with `node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing` and commit the scorecard in the same commit as the cause. Timing is excluded from the comparison, so this is never a slow-machine failure."
+      "fix": "Something changed what the router decides on the generated registries — a description, a trigger, normalize(), or a threshold. If it was intended, regenerate with `node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing` and commit the scorecard in the same commit as the cause. Timing is excluded from the comparison, so this is never a slow-machine failure."
     },
     {
       "id": "accessibility",
@@ -224,18 +224,6 @@
         "adapter/**"
       ],
       "fix": "Usually a capability with fewer than three examples. Add real paraphrases, not variations of one sentence. Since ADR-018 this validates every registry found by glob rather than one domain's, so a failure names the file: fix that registry, or the generator that emitted it."
-    },
-    {
-      "id": "ground-truth",
-      "title": "WP-31's hand-written answer key still validates",
-      "command": "pnpm ground-truth:verify",
-      "blocking": false,
-      "expectNonZero": true,
-      "when": [
-        "eval/fut-app/ground-truth.registry.json",
-        "packages/core-capability/src/validate.ts"
-      ],
-      "fix": "KNOWN FAILING as of 2026-09-17 — 45 explanation-required errors. WP-36 added the `explanation` requirement to validateRegistry after the key was written in WP-31, and nothing re-ran this because it was wired into no gate. Non-blocking on purpose: writing explanations into an answer key by looking at generator output is the contamination WP-31 exists to prevent. The open decision is a documented exemption for answer keys, or 45 explanations written from the app. See eval/fut-app/GROUND_TRUTH.md."
     },
     {
       "id": "router-floor",

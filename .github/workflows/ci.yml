@@ -154,9 +154,9 @@ jobs:
       # Until ADR-018 this ran `domain-modules registry:build --check`: validation was a
       # side effect of building a domain package, and it therefore covered exactly one
       # registry of 7 capabilities. Both domain packages are deleted; the gate now finds
-      # every registry committed to the tree by glob and validates all of them — 12
-      # registries, 369 capabilities, including all ten of fut-app's per-role files,
-      # which nothing validated before.
+      # every registry committed to the tree by glob and validates all of them, so a
+      # registry added under eval/ or adapter/ is covered the day it lands rather than
+      # when someone remembers to add it to a list.
       - name: Registry validation (Rule 10)
         run: pnpm registry:check
 
@@ -168,7 +168,7 @@ jobs:
 
       # WP-46 — the artefacts a browser receives must follow their inputs. The
       # step above checks the reference registry's thresholds against their
-      # calibration file. This one rebuilds what eval/fut-app/generated derives
+      # calibration file. This one rebuilds what eval/frameworks/family/generated derives
       # (the per-role indexes and the per-registry thresholds) and replays the
       # browser's decisions against the server's. On 2026-09-11, a one-line change
       # to normalize() left ten shipped indexes stale while every job here stayed
@@ -195,14 +195,14 @@ jobs:
       - name: Strict Content-Security-Policy, in a real browser
         run: node tooling/scripts/check-csp.mjs
 
-      # The model-free floor on the GENERATED registries. CI's golden-set job below
-      # scores the reference app's set; nothing scored fut-app's, so a change to a
-      # description, a trigger or normalize() could move what the router decides on
-      # the app this is piloted on and no job would notice. That is what L9 cost
+      # The model-free floor on the GENERATED registries. The router job scores the
+      # frozen 7-capability fixture; this scores what the generator actually emits for
+      # a whole application, so a change to a description, a trigger or normalize()
+      # that moves what the router decides cannot pass unseen. That is what L9 cost
       # seven accuracy points. Deterministic (hashing, no stage 3) and ~0.3s, and
       # timing is excluded from the comparison so a busy runner cannot fail it.
       - name: Generated registries still decide the same way
-        run: node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing --check
+        run: node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check
 
   golden-set:
     name: golden-set regression (model-free)

@@ -246,7 +246,7 @@ existed, and the query was embedded in the tenth. The scores were noise.
 
 **What it cost — and this is why it earns an entry.** That harness produced
 *"`hashing` gets **4.0%** recall@1 against `nomic-embed-text`'s 48.9%"*, which
-[MEASUREMENT.md](../../eval/fut-app/MEASUREMENT.md) called **"the most
+`MEASUREMENT.md` called **"the most
 consequential finding in the run"**. It was the evidence that the zero-dependency
 encoder "does not survive scale". It rewrote WP-24, it demoted the offline story,
 and it was cited in the README, the write-up and the business case.

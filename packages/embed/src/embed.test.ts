@@ -12,12 +12,12 @@ import vm from 'node:vm';
  * The built `dist/nextgen.js` is run in a fresh V8 context holding nothing but
  * `window` and `console` — no `require`, no `import`, no `fetch`, no `process`.
  * If the bundle reached for any of them, it would throw here, which is the test.
- * Then it routes real `fut-app` turns from the generator's own output.
+ * Then it routes real turns from the generator's own output.
  */
 
 const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const DIST = fileURLToPath(new URL('../dist/nextgen.js', import.meta.url));
-const GEN = `${ROOT}/eval/fut-app/generated`;
+const GEN = `${ROOT}/eval/frameworks/family/generated`;
 
 let code = '';
 
@@ -57,10 +57,15 @@ describe('the script-tag artefact (WP-29)', () => {
     expect(typeof api.present).toBe('function');
   });
 
-  it('routes a real fut-app turn with no network, no fetch even defined', async () => {
+  it('routes a real turn with no network, no fetch even defined', async () => {
     const { NextGen } = loadLikeAScriptTag() as { NextGen: { create: (b: unknown) => { route: (u: string) => Promise<{ outcome: string; decidedAt: string }>; capabilities: number } } };
     const assistant = NextGen.create(bundle('PARENT'));
-    expect(assistant.capabilities).toBeGreaterThan(10);
+    // A real bundle, not an empty one: the point of the assertion is that the script tag
+    // loaded a whole role's registry, not its exact size. It was `> 10` while this read a
+    // 145-capability pilot registry; the fixture PARENT ships 10, and pinning the number
+    // to whatever the current fixture happens to emit would make it a maintenance tax
+    // rather than a check.
+    expect(assistant.capabilities).toBeGreaterThan(5);
     const trace = await assistant.route('onde vejo as lesões do meu filho');
     // Whatever it decides, it decides without a model — there is no stage-3
     // transport in a script tag, so the only legal outcomes are stages 1 and 2's.

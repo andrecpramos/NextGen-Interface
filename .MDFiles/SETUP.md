@@ -254,7 +254,7 @@ Honest status. The engine is complete; the product surface is not.
 | | Work package | What it blocks |
 |---|---|---|
 | **The drop-in kit** | WP-41 | one command from an app's source to a mounted assistant. [INSTALL.md](INSTALL.md) has today's manual steps |
-| **A live deployment** | WP-35 | the owner's run inside `fut-app` |
+| **A live deployment** | WP-35 | the owner's run inside a real application |
 | **Charts** | WP-08 remainder | `Answer` renders bars; there is no chart component yet |
 | **Voice in the browser** | — | voice runs in the CLI only. The runtimes are desktop binaries, and the web mic button renders disabled |
 | **Lint** | WP-12 | No ESLint dependency anywhere — deliberately left out of CI rather than wrapped in a green no-op. The empty `tooling/eslint-config` stub was deleted in WP-37 |

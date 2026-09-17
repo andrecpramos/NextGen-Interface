@@ -131,7 +131,7 @@ A component's name is used only when the application names the screen in no lang
     that screen, and is skipped as `redirect-alias`. One that lands a section on its own
     first page is kept.
 
-Measured on fut-app: [eval/fut-app/TITLES.md](../../eval/fut-app/TITLES.md).
+How a screen is named was rebuilt against a real pilot; the failures it found, generalised, are in [FIELD-NOTES.md](../../adapter/FIELD-NOTES.md).
 
 ## Adapters
 
@@ -193,5 +193,5 @@ plus one for the submit button, in the app's first language. Each step carries a
 an element whose name contradicts the label, the step renders as text with nothing
 highlighted. It never points at the wrong field.
 
-See [`eval/fut-app/REPORT.md`](../../eval/fut-app/REPORT.md) for what it scored
+See [eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md) for what it scored on apps it had never seen
 against a 146-page application it was not designed for.

@@ -15,7 +15,6 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "registry:check": "node --experimental-strip-types tooling/scripts/check-registries.mjs",
-    "ground-truth:verify": "node --experimental-strip-types eval/fut-app/verify.mjs",
     "router:eval": "pnpm --filter @nextgen/core-intent eval -- --registry=eval/fixture-registry.json",
     "router:baseline": "pnpm --filter @nextgen/core-intent eval:baseline -- --registry=eval/fixture-registry.json",
     "router:floor": "pnpm --filter @nextgen/core-intent eval:floor -- --registry=eval/fixture-registry.json",
@@ -24,7 +23,10 @@
     "router:compare": "pnpm --filter @nextgen/core-intent compare",
     "clean": "pnpm -r exec rm -rf dist node_modules .turbo .next",
     "build": "pnpm -r --filter \"./packages/*\" build",
-    "pack:release": "node tooling/scripts/pack-release.mjs"
+    "pack:release": "node tooling/scripts/pack-release.mjs",
+    "eval:apps": "node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing",
+    "eval:apps:check": "node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check",
+    "eval:calibrate": "node --experimental-strip-types eval/frameworks/calibrate-registries.mjs --embedder hashing"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
