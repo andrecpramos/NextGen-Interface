@@ -17,11 +17,11 @@ import { fileURLToPath } from 'node:url';
 import { THRESHOLD_PROFILES, type Thresholds } from '@nextgen/core-intent/config';
 import {
   generate,
-  ollamaModel,
   writeIndexes,
   writeOutput,
   type GeneratorConfig,
   type ProseCache,
+  type ProseModel,
   type SkippedRoute,
 } from '@nextgen/generator';
 
@@ -39,6 +39,19 @@ export interface BuildOptions {
   /** The model that writes descriptions. `null`/absent: derive prose from the app's own labels. */
   readonly model?: string | null;
   readonly endpoint?: string;
+  /**
+   * How to reach a prose model, supplied by the caller rather than imported here.
+   *
+   * This exists so the entry point decides whether a build *can* reach a model at all,
+   * and so that decision is visible in the artefact rather than in a flag. `cli.ts`
+   * passes Ollama's; `cli-copied.ts` — the entry bundled into `adapter/scan.mjs` — passes
+   * nothing, and because nothing in its import graph then references `ollamaModel`, the
+   * shipped bundle contains no endpoint, no client and no way to acquire one.
+   *
+   * That is the difference between "it does not call out by default" and "it cannot",
+   * and only the second is a sentence an adopter's security review can check.
+   */
+  readonly proseModel?: (model: string, endpoint: string) => ProseModel;
   /** Copy the script tag into the bundle. Default true. */
   readonly scriptTag?: boolean;
   readonly onProgress?: (done: number, total: number) => void;
@@ -143,11 +156,22 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
 
   const cacheFile = join(reviewDir, 'prose-cache.json');
   const cache: ProseCache = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as ProseCache) : {};
-  const endpoint = options.endpoint ?? 'http://localhost:11434';
+  // No default endpoint here: a default is a reachable host compiled into every build,
+  // including one whose entry point supplies no way to reach it. The caller that knows a
+  // model is possible is the caller that names where it lives.
+  const endpoint = options.endpoint ?? '';
+
+  if (options.model && !options.proseModel) {
+    throw new Error(
+      'This build cannot use a model: it was built without one. Descriptions are derived ' +
+        "from the application's own labels, which needs nothing installed and no network. " +
+        'Run without --model.',
+    );
+  }
 
   const output = await generate({
     config: { ...config, appRoot },
-    model: options.model ? ollamaModel(options.model, endpoint) : null,
+    model: options.model && options.proseModel ? options.proseModel(options.model, endpoint) : null,
     cache,
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
   });

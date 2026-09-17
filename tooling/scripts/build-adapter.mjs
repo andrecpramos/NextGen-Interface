@@ -5,7 +5,9 @@
 //
 // Two artefacts, from source that already exists:
 //
-//   scan.mjs            packages/kit/src/cli.ts and everything it imports, in one file
+//   scan.mjs            packages/kit/src/cli-copied.ts and everything it imports, in one
+//                       file. NOT cli.ts: that entry passes Ollama's prose model, and
+//                       this one passes nothing, so the bundle cannot reach a network.
 //   runtime/nextgen.js  packages/embed/dist/nextgen.js, byte for byte
 //
 // The premise of ADR-018 is "copy a folder, run it". That is only true if the folder
@@ -28,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const CHECK = process.argv.includes('--check');
 
-const ENTRY = join(ROOT, 'packages', 'kit', 'src', 'cli.ts');
+const ENTRY = join(ROOT, 'packages', 'kit', 'src', 'cli-copied.ts');
 const WIDGET = join(ROOT, 'packages', 'embed', 'dist', 'nextgen.js');
 const OUT = join(ROOT, 'adapter');
 

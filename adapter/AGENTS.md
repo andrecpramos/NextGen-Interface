@@ -40,6 +40,16 @@ node <here>/scan.mjs doctor nextgen      # what it read, what it guessed, what t
 node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
 ```
 
+### It does not reach the network
+
+Not "by default" — **at all**. There is no `--model` in this folder and no client for one
+in the bundle. If you have seen this tool documented with a `--model` flag, that is the
+npm-installed version; this is the copied one, and they differ deliberately.
+
+You can tell the developer this is checked rather than claimed: the whole pipeline is run
+on every commit with `fetch`, `net`, `tls`, `http`, `https` and DNS all throwing, and it
+completes. Do not offer to "enable the model" — there is nothing to enable.
+
 **`doctor`'s full output goes to the developer — do not summarize it away.** It states
 plainly what was found, what was guessed, whether the assistant is calibrated for this
 app, and lists `PROBLEMS` if anything must be fixed before it is safe to ship.
@@ -141,17 +151,15 @@ widget, a dock, or a floating action button there, the two will stack.
 Ask: *"Does this app already have UI living in a screen corner I should know about? If so,
 I can place the assistant somewhere that won't collide, instead of the default corner."*
 
-## ASK 7 — Description quality, and calibration
+## ASK 7 — Calibration
 
-Two separate questions that both affect how well it works.
+**Descriptions are not a question here.** This folder derives them from the application's
+own labels, and it has no way to call a model — see "It does not reach the network" below.
+That is not a downgrade: measured on a real application, model-written example phrasings
+routed *worse* than derived ones, because the derived ones repeat the screen's own words
+and that is what the shipped encoder rewards (`FIELD-NOTES.md` §4).
 
-**Descriptions.** `--no-model` derives them from the app's own labels: free, and always
-available. `--model <name>`, through a local Ollama, writes richer ones and costs build
-time. Ask which they want rather than choosing for them — and note that richer is not
-automatically better: measured on a real application, model-written example phrasings
-routed *worse* than derived ones (`FIELD-NOTES.md` §4).
-
-**Calibration.** An uncalibrated build uses thresholds tuned on a small reference app.
+**Calibration is.** An uncalibrated build uses thresholds tuned on a small reference app.
 `doctor` states the measured error rate for an app this size in plain words; read that to
 the developer rather than letting silence imply it is fine to ship.
 

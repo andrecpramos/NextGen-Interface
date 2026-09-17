@@ -23,7 +23,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const KEEP = process.argv.includes('--keep');
@@ -67,15 +67,22 @@ cpSync(ADAPTER, tool, { recursive: true });
 writeFileSync(join(project, 'package.json'), '{"name":"pretend-adopter","private":true}\n');
 
 console.log(`\n  adapter check — ${project}`);
-console.log(`  node ${process.version}, no node_modules anywhere above it\n`);
+console.log(`  node ${process.version} · no node_modules above it · network blocked\n`);
 
 const before = fingerprint(join(project, 'src'));
+
+// Every command runs with the network poisoned: `fetch`, `net`, `tls`, `http`, `https`
+// and DNS all throw, naming what was attempted. So "the copied folder does not call out"
+// is held by *running it that way* rather than by grepping the bundle for URLs — which is
+// the wrong instrument, since it vendors `typescript`, whose diagnostic messages quote
+// documentation URLs as ordinary strings. A compiler's help text is not a socket.
+const BLOCKER = fileURLToPath(new URL('./no-network.mjs', import.meta.url));
 
 const run = (args) => {
   try {
     return {
       ok: true,
-      out: execFileSync(process.execPath, [join(tool, 'scan.mjs'), ...args], {
+      out: execFileSync(process.execPath, ['--import', pathToFileURL(BLOCKER).href, join(tool, 'scan.mjs'), ...args], {
         cwd: project,
         encoding: 'utf8',
         stdio: 'pipe',
@@ -136,6 +143,14 @@ if (report.ok) {
     'doctor stops repeating a warning the developer has acted on',
   );
 }
+
+// Rule 8, stated as what it is: three commands completed with every outbound path
+// throwing. The blocker is proved to block — `fetch`, `net.connect` and `dns.lookup` all
+// refuse under it — so a pass here means no socket was opened, not that none was noticed.
+check(
+  init.ok && built.ok && report.ok,
+  'the whole pipeline ran with the network blocked — nothing reached out (Rule 8)',
+);
 
 // Rule 16, the promise the whole product rests on.
 const after = fingerprint(join(project, 'src'));

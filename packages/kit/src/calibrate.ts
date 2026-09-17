@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { makeEmbedder } from '@nextgen/core-intent';
+import { HashingEmbedder } from '@nextgen/core-intent';
 import { loadRegistry } from '@nextgen/core-intent';
 import {
   measure,
@@ -106,7 +106,13 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
   // repository has paid for that once already (lessons.md L10).
   const scorers = new Map<string, Scorer>();
   for (const role of roles) {
-    const embedder = makeEmbedder('hashing');
+    // `HashingEmbedder` directly rather than `makeEmbedder('hashing')`, and the reason is
+    // the artefact rather than the API: `makeEmbedder` branches on a string, so a bundler
+    // cannot prove the Ollama branch unreachable and ships its HTTP client into
+    // `adapter/scan.mjs`. Naming the encoder that is actually wanted keeps the copied
+    // folder free of any client for a remote host (ADR-018 D-6). The sweep has always
+    // been hashing-only: a calibration must be reproducible with nothing installed.
+    const embedder = new HashingEmbedder();
     scorers.set(role, { registry: await loadRegistry(join(bundle, `registry.${role}.json`), embedder), embedder });
   }
 

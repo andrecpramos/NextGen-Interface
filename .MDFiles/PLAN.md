@@ -2806,7 +2806,7 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 
 ## 13. Open decisions
 
-**One is open** (2026-09-17): D-6 below, inside WP-49. Each decision states the fork, a
+**None is open** (2026-09-18). D-6 was answered by building it. Each decision states the fork, a
 recommendation, **what it costs to decide wrong**, and what it blocks.
 
 ---
@@ -2836,7 +2836,7 @@ public-application results (six frameworks, 55 of 55 destinations, 0 files chang
 42.6% — happened, are archived at `2d500d8`, and **cannot be verified from a fresh clone**.
 The generalisable half was extracted first, into `adapter/FIELD-NOTES.md`.
 
-### ⬜ D-6 · Does the adapter folder carry the model path? · blocks WP-49
+### ~~D-6~~ ✅ Does the adapter folder carry the model path? — **(b), out. 2026-09-18**
 
 The generator can write prose with a local Ollama model (`--model`) or derive it from the
 app's own labels (`--no-model`). `adapter/scan.mjs` must choose.
@@ -2847,13 +2847,29 @@ app's own labels (`--no-model`). `adapter/scan.mjs` must choose.
 | **(b) Out** | `--no-model` only. Simpler, no endpoint anywhere, and **it measured better** on the default encoder: derived examples repeat the title's words, which is what a hashing encoder rewards, while model-written ones split across languages and routed worse (FIELD-NOTES §4) |
 | **(c) Behind a flag** | Both, off by default. Keeps the option, and keeps the egress question |
 
-**Recommendation: (b), with (c) reachable later.** The measured case for the model is weak
-on the encoder an adopter actually gets, and "copy a folder, no network" is a cleaner
-promise than "copy a folder, and optionally run a model server".
+**Answered (b), and implemented 2026-09-18.** Not as a flag: `build()` now takes the prose
+model as a **capability from its caller**, and there are two entry points.
+`packages/kit/src/cli.ts` — the installed `nextgen` — passes Ollama's.
+`packages/kit/src/cli-copied.ts`, which is what `adapter/scan.mjs` bundles, passes
+nothing, so `ollamaModel` is unreachable from its import graph and neither it nor the chat
+endpoint is in the artefact.
 
-**Cost of deciding wrong:** low and reversible either way — this is a build-time flag, not
-an architectural boundary. It is listed because it should be decided before bundling
-rather than discovered afterwards.
+**Why a second entry point rather than a flag.** A flag that turns a capability off still
+ships the capability. Whoever reviews 3.6MB of minified JavaScript before letting it near
+their codebase cannot audit a default; they can audit an absence.
+
+**And the claim is held by running it, not by grepping it.** Grepping is the wrong
+instrument and a red herring showed why: the bundle vendors `typescript`, whose
+diagnostics quote `https://aka.ms/…` in error text, so a URL gate would fail on a
+compiler's help text while saying nothing about sockets. `check-adapter.mjs` instead runs
+the whole pipeline with `fetch`, `net`, `tls`, `http`, `https` and DNS all throwing, and
+it completes. The blocker is itself proved to block.
+
+**What is knowingly left in:** `OllamaEmbeddingRuntime` and a loopback default, reachable
+from nothing — the sweep names `HashingEmbedder` directly and the copied entry exposes no
+`--embedder` — but a re-export chain a bundler cannot prove dead. Removing it means
+restructuring how `core-intent` exposes its encoders. Recorded rather than glossed; the
+runtime check covers the property either way.
 
 ---
 
