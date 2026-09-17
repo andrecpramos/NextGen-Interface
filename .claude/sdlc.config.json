@@ -90,6 +90,31 @@
       "fix": "Read which step failed and on which Node. A dependency that only resolves inside the workspace, a file reached by a checkout-only path, a Node API newer than 20, or a bin that is TypeScript source all install cleanly and fail on the adopter's first command. The scratch project is kept for inspection."
     },
     {
+      "id": "adapter-stale",
+      "title": "adapter/ matches what packages/ builds",
+      "command": "node packages/embed/build.mjs && node tooling/scripts/build-adapter.mjs --check",
+      "blocking": true,
+      "when": [
+        "packages/**",
+        "tooling/scripts/build-adapter.mjs"
+      ],
+      "fix": "adapter/ is committed build output — an adopter copies it as it sits and cannot regenerate it on their machine. Rebuild and commit it with the change that caused it: pnpm adapter:build. Committed build output with no staleness gate is a failure mode this repository has hit three times; see critical-infrastructure.md."
+    },
+    {
+      "id": "adapter-runs",
+      "title": "A copy of adapter/ runs with nothing installed, and writes nothing into the app",
+      "command": "node tooling/scripts/check-adapter.mjs",
+      "blocking": true,
+      "rule": "16",
+      "when": [
+        "adapter/**",
+        "packages/kit/**",
+        "packages/generator/**",
+        "packages/embed/**"
+      ],
+      "fix": "The premise of ADR-018 is \"copy the folder and run it\". This copies adapter/ and a fixture application into a scratch directory OUTSIDE the repository — no node_modules anywhere above it — and runs init, build and doctor for real, then fingerprints the application to prove Rule 16. Run it with --keep to inspect the scratch project. Every failure found while building the adapter was a failure of the BUNDLE in a bare directory rather than of the source, which is why no unit test replaces this."
+    },
+    {
       "id": "prompt-fencing",
       "title": "Rule 15 — a prompt never interpolates unfenced input",
       "command": "node tooling/scripts/check-prompt-fencing.mjs",

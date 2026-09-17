@@ -140,10 +140,29 @@ async function main(): Promise<number> {
   return 2;
 }
 
-try {
-  process.exitCode = await main();
-} catch (error) {
-  // A person runs this, not a pipeline: say what went wrong, without a stack.
-  console.error(`\n  ${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 1;
+/**
+ * Wrapped rather than a top-level `await`, and that is load-bearing.
+ *
+ * This file is also the entry point bundled into `adapter/scan.mjs`, which an adopter
+ * copies and runs with no install (ADR-018). That bundle contains `typescript` — the
+ * generator parses their source with it — which is CommonJS and calls `require()`. An ESM
+ * module containing **both** a `require` and a top-level `await` is refused at run time:
+ *
+ *     ReferenceError: Cannot determine intended module format because both require()
+ *     and top-level await are present.
+ *
+ * Removing the `await` from the top level is what resolves it, and it changes nothing
+ * here: Node keeps the process alive for the pending work either way, and `exitCode` is
+ * read when the event loop empties.
+ */
+async function run(): Promise<void> {
+  try {
+    process.exitCode = await main();
+  } catch (error) {
+    // A person runs this, not a pipeline: say what went wrong, without a stack.
+    console.error(`\n  ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  }
 }
+
+void run();

@@ -12,6 +12,8 @@
   "scripts": {
     "preview": "node packages/embed/build.mjs && node preview/serve.mjs",
     "preview:check": "node packages/embed/build.mjs && node preview/check-bench.mjs",
+    "adapter:build": "node packages/embed/build.mjs && node tooling/scripts/build-adapter.mjs",
+    "adapter:check": "node tooling/scripts/build-adapter.mjs --check && node tooling/scripts/check-adapter.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm registry:check",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",

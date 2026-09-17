@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 import type { SkipReason } from '@nextgen/generator';
 
-import type { BuildRecord } from './build.ts';
+import { readConfig, type BuildRecord } from './build.ts';
 import type { Finding } from './detect.ts';
 import { AGENT_FILE, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
 import { describeSweep, sweepingTools } from './tooling.ts';
@@ -234,7 +234,27 @@ export function doctor(kitDir: string): DoctorReport {
   // Checks in the adopter's own project that would trip over this folder (readiness item 4).
   const kitFolder = projectDir ? (relative(projectDir, kit).split(/[\\/]/)[0] ?? 'nextgen') : 'nextgen';
   const sweeps = projectDir ? sweepingTools(projectDir, kit).map((w) => describeSweep(w, kitFolder)) : [];
-  const warnings = [...(detect?.warnings ?? []), ...record.warnings, ...sweeps];
+  // `detect.json`'s warnings are frozen at `init` time, so a developer who *acts* on one
+  // keeps being told about it. A warning that cannot be cleared is a warning people learn
+  // to scroll past, which costs the ones that matter.
+  //
+  // The language guess is the case that bites: `init` warns "put the app's own language
+  // first in languages", the developer edits the config and does exactly that, and the
+  // warning survives every later run unchanged. So it is dropped once the configured
+  // first language is no longer the one that was guessed.
+  const guessedLanguage = detect?.findings.find((f) => f.what === 'app language' && !f.confident)?.value ?? null;
+  let configuredLanguage: string | null = null;
+  try {
+    configuredLanguage = readConfig(kit).config.languages?.[0] ?? null;
+  } catch {
+    // An unreadable config is reported elsewhere; it must not take the warnings with it.
+  }
+  const acted = guessedLanguage !== null && configuredLanguage !== null && configuredLanguage !== guessedLanguage;
+  const detected = (detect?.warnings ?? []).filter(
+    (w) => !(acted && w.startsWith("The app's language is a guess")),
+  );
+
+  const warnings = [...detected, ...record.warnings, ...sweeps];
   if (warnings.length > 0) {
     say('Read these before you ship');
     for (const w of warnings) say(`  ! ${w}`);

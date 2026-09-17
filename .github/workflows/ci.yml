@@ -145,6 +145,23 @@ jobs:
       - name: Installs from tarballs and runs on Node 20
         run: node tooling/scripts/check-install.mjs
 
+      # ADR-018's premise: an adopter copies `adapter/` into their repository and runs it,
+      # with no package manager and no network. It is committed build output, so the first
+      # step is that what is committed is what packages/ currently builds — an adopter
+      # cannot regenerate it, and this repository has shipped stale committed artefacts
+      # three times.
+      - name: adapter/ is current
+        run: node tooling/scripts/build-adapter.mjs --check
+
+      # Then that the copy actually works. Every defect found while building the adapter
+      # was a defect of the BUNDLE in a bare directory and invisible to every unit test:
+      # a shebang on line 2, `Dynamic require is not supported`, a top-level await making
+      # the module format ambiguous, `__filename is not defined` — and the one that
+      # mattered, `build` resolving the widget through node_modules, which an adopter does
+      # not have, so the bundle shipped with no assistant in it.
+      - name: A copy of adapter/ runs with nothing installed (Rule 16)
+        run: node tooling/scripts/check-adapter.mjs
+
       - name: Unit tests
         run: pnpm -r test
 

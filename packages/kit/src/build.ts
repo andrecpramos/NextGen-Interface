@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { THRESHOLD_PROFILES, type Thresholds } from '@nextgen/core-intent/config';
 import {
@@ -98,6 +99,19 @@ function newestSourceMtime(dir: string): number {
  * `embed`'s own source is newer than the bundle.
  */
 function scriptTagFile(): string {
+  // The copied-folder path first (ADR-018). `adapter/` ships `scan.mjs` beside
+  // `runtime/nextgen.js` and the adopter has no node_modules at all, so resolving through
+  // one throws `Cannot find module '@nextgen/embed/package.json'` — which is exactly what
+  // the first end-to-end run of the bundle produced. The widget was then missing from
+  // `bundle/`, and `doctor` reported it as a warning rather than a failure, so the folder
+  // looked installable and served no assistant.
+  //
+  // Prebuilt and never rebuilt here: it was compiled when `adapter/` was built, and
+  // `build-adapter.mjs --check` is what keeps it current. There is no `embed` source next
+  // to it to compare against.
+  const sibling = join(dirname(fileURLToPath(import.meta.url)), 'runtime', 'nextgen.js');
+  if (existsSync(sibling)) return sibling;
+
   const require = createRequire(import.meta.url);
   const embedDir = dirname(require.resolve('@nextgen/embed/package.json'));
   const bundle = join(embedDir, 'dist', 'nextgen.js');
