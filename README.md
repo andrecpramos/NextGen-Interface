@@ -41,8 +41,8 @@ wrong place.
 
 **An earlier headline here, 56.8% vs 45.5%, measured a different configuration:** a server
 running `nomic-embed-text` and `llama3.1:8b` to pick one screen. The script tag calls
-neither. That run is kept, labelled, in [WRITEUP.md](.MDFiles/WRITEUP.md) §5; it is not what an
-adopter gets.
+neither. That run is kept, labelled, in
+[MEASUREMENT.md](eval/fut-app/MEASUREMENT.md); it is not what an adopter gets.
 
 **It does not decide for free.** The mechanism meant to settle most turns on its own does
 not survive 145 capabilities — and that is settled rather than open: a fixed budget was
@@ -50,9 +50,6 @@ spent on every lever anyone had identified ([WP38.md](eval/fut-app/WP38.md)), an
 accepted ADR added a second, non-topical signal on top. With a model they moved the
 number from **2.4% to 11.0%** against a 60% target. **The product is a better way to
 navigate; a cheaper one is not claimed** until a deployment measures it.
-
-**[WRITEUP.md](.MDFiles/WRITEUP.md) is the whole story**, negative results first, every claim
-linked to the artefact that backs it. Read that before anything else here.
 
 ## The idea
 
@@ -147,8 +144,7 @@ figure is meaningless.
    ([ADR-004](.claude/decisions/ADR-004.md))
 4. **The application declares its own limits**, and a request outside them is refused by
    retrieval rather than by a model's judgement.
-   ([ADR-009](.claude/decisions/ADR-009.md)) — *and see WRITEUP.md §6 for where this
-   stops working.*
+   ([ADR-009](.claude/decisions/ADR-009.md)).
 5. **A capability a user cannot reach is absent from the registry they receive**, not
    hidden in it. ([ADR-014](.claude/decisions/ADR-014.md))
 6. **The installer never modifies the adopter's source.** It reads their code and writes
@@ -160,7 +156,7 @@ figure is meaningless.
 
 | Question | File |
 |---|---|
-| Does this work, and what is the evidence? | **[WRITEUP.md](.MDFiles/WRITEUP.md)** |
+| Does this work, and what is the evidence? | **[MEASUREMENT.md](eval/fut-app/MEASUREMENT.md)** |
 | What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
 | How do I add it to my app? | [GETTING-STARTED.md](GETTING-STARTED.md) |
 | How do I run it? | [SETUP.md](.MDFiles/SETUP.md) |
@@ -175,9 +171,8 @@ The engine is built and measured. The generation works. **The cost model is reso
 it resolved against us**: 11.0% of turns settle without a model call, against a 60% target
 that was a pre-committed kill criterion and triggered. A fixed budget was then spent trying
 to fix it, every lever was measured, and the claim was withdrawn rather than restated —
-[PLAN.md](.MDFiles/PLAN.md) §13 D-4, [WP38.md](eval/fut-app/WP38.md), and
-[business-case.md](.claude/docs/business-case.md) §5. The numbers are published rather than
-buried, which is the point.
+[PLAN.md](.MDFiles/PLAN.md) §13 D-4 and [WP38.md](eval/fut-app/WP38.md). The numbers are
+published rather than buried, which is the point.
 
 Built since then: the browser runtime, guided steps, the installable package, a script tag
 that runs under a strict Content-Security-Policy, and the drop-in kit —
@@ -186,8 +181,8 @@ reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps
 public apps it had never seen it found every route in ground truth written beforehand and
 changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
 
-Not done: a live deployment, and a field test by someone other than its author
-([FIELD-TEST.md](.MDFiles/FIELD-TEST.md)). The owner runs both. Nothing here is production-ready.
+Not done: a live deployment, and a field test by someone other than its author. The owner
+runs both. Nothing here is production-ready.
 
 **A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do.
 The assistant does not decline all of them. On `fut-app`'s 34 hand-written out-of-scope

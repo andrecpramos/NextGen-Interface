@@ -47,6 +47,5 @@ that touch a `core-*` package, and the quarterly registry similarity audit
 
 ## Escalate when
 
-A requirement cannot be met without weakening a principle in
-[vision.md](../docs/vision.md). Record the trade-off in an ADR rather than resolving it
-silently in code.
+A requirement cannot be met without weakening an established architectural principle.
+Record the trade-off in an ADR rather than resolving it silently in code.

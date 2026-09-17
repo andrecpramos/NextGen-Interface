@@ -11,7 +11,7 @@ when they arrive. §1 is the full statement.
 **What this project is *to us*, right now:** a **portfolio project with a plausible
 commercial thesis**, built solo. That framing decides the whole plan. The first
 milestone is a *measured result on a real app*, not a customer and not a platform. The
-commercial reasoning lives in [.claude/docs/business-case.md](../.claude/docs/business-case.md) and is
+commercial reasoning lives in .claude/docs/business-case.md and is
 deliberately kept out of this file.
 
 > **Repositioned 2026-09-08, and now on the record.** Everything through WP-15 was built
@@ -127,7 +127,7 @@ adversarial violations). So the fence narrows WP-48 without replacing it.
   - WP-33 triggered its kill criterion, which became D-4.
   - WP-38 and WP-40 each triggered their Stop-if; WP-40's became D-5.
   - WP-39 was reverted.
-- **M2:** WP-34 is ✅; the result is [WRITEUP.md](WRITEUP.md).
+- **M2:** WP-34 is ✅; the result is WRITEUP.md.
 - **M3 (built, not yet in a live app), all ✅:**
   - WP-24: the engine, with 210/210 parity.
   - WP-26: installable.
@@ -159,7 +159,7 @@ adopter. Each item is a merged PR into `develop`:
 | 2 | The widget broke under a strict Content-Security-Policy | #22 — no inline script or style; `check-csp` gates it in a real browser |
 | 3 | Only React Router apps could be read | #23, #24, #25 — Next.js, Remix, SvelteKit, Nuxt, Vue Router, Angular; six public apps, every route found, 0 wrong destinations, 0 files changed ([RESULT.md](../eval/field-apps/RESULT.md)) |
 | 4 | The kit could turn an adopter's own lint or format checks red, or ship every role's screens publicly | #26 — `doctor` warns before the first, refuses the second |
-| 5 | No way to judge the answers before wiring anything in | #27 — `nextgen preview`, `doctor --report`, [FIELD-TEST.md](FIELD-TEST.md) |
+| 5 | No way to judge the answers before wiring anything in | #27 — `nextgen preview`, `doctor --report`, FIELD-TEST.md |
 | 6 | The headline number described a configuration nobody installs | This PR — [like-for-like.mjs](../eval/fut-app/like-for-like.mjs), and every headline restated |
 
 **What stays open is not an agent's to close:** a field test by someone who did not build it
@@ -174,12 +174,12 @@ records each one, with its reasoning.
 
 | | Decision | Result |
 |---|---|---|
-| ~~**D-5**~~ | ✅ **2026-09-11: (a), accept the out-of-scope ceiling and disclose it.** Disclosed in [README.md](../README.md), [WRITEUP.md](WRITEUP.md) §10 and [business-case.md](../.claude/docs/business-case.md) §7 | Re-opens if a rung adds actions |
+| ~~**D-5**~~ | ✅ **2026-09-11: (a), accept the out-of-scope ceiling and disclose it.** Disclosed in [README.md](../README.md), WRITEUP.md §10 and business-case.md §7 | Re-opens if a rung adds actions |
 | ~~**ADRs**~~ | ✅ **2026-09-11: ADR-013 and ADR-014 accepted. ADR-016 accepted, option B** — **implemented 2026-09-12 (WP-47)**, with one divergence recorded in the ADR: no default registry path anywhere, because a default naming `domain-modules` inside `core-intent` broke Rule 1 | — |
 | ~~**fut-app**~~ | ✅ **2026-09-11: agents do not install into `fut-app`.** The owner drops the kit in (WP-41), and that run is WP-35 | — |
 | ~~**Push**~~ | ✅ **2026-09-11: both feature branches pushed, and PRs opened into `develop`.** **Done the same day: #6 merged, and #7 rebased onto it with its scorecards regenerated** | — |
 | ~~**Gaps 5–8**~~ | ✅ **2026-09-11:**<br>• Accessibility → WP-45; the owner does the NVDA pass.<br>• Cost per session → measured live in WP-35 only.<br>• Injection → WP-48, deferred with a hard trigger.<br>• Generalisation → WP-42, WP-43 and WP-44 | — |
-| ~~**D-4**~~ | ✅ **ANSWERED 2026-09-10, in session: option (b) — spend WP-38's budget first.** Spent. Model-free reached **8.1%**, not 60%, so WP-38's own "Stop if" fired and the answer resolves to **(c), reposition the claim** — done in [business-case.md](../.claude/docs/business-case.md) §5. **M3 is unblocked** | ~~all of M3~~ |
+| ~~**D-4**~~ | ✅ **ANSWERED 2026-09-10, in session: option (b) — spend WP-38's budget first.** Spent. Model-free reached **8.1%**, not 60%, so WP-38's own "Stop if" fired and the answer resolves to **(c), reposition the claim** — done in business-case.md §5. **M3 is unblocked** | ~~all of M3~~ |
 | ~~D-3~~ | ✅ **ANSWERED 2026-09-11, in session: (c) semantic matching primary, (a) build-time selector as fallback, (b) never** | ~~WP-27~~ |
 | ~~D-1~~ | ✅ decided — both reference apps survive (ADR-013) | — |
 | ~~D-2~~ | ✅ decided — `registry.domainDescription` (ADR-013) | — |
@@ -353,7 +353,7 @@ met.** That is the whole discipline — without it this becomes a two-year proje
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **A1 · now** | **Navigate · guide · explain, from the app's own source.** Page purposes, i18n labels, headings, form fields, repo docs. Plus `why` — explaining its own decisions from the trace. **Nothing outside the app's topic**, enforced by declared boundaries (ADR-009) | — | WP-25, WP-36, WP-27 |
-| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **The old entry criterion is retired, not met.** It was ≥60% model-free; measured **2.4%** (WP-33) then **8.1%** (WP-38), and D-4 resolved to repositioning rather than chasing it. **The replacement criterion is A2′ in [business-case.md](../.claude/docs/business-case.md) §6: beat the navigation the adopter already ships** — currently 56.8% vs 45.5%, which holds | — |
+| **A2 · next** | **The user's live data**, via the adopter's API. *"Which of my players are injured?"* The support-deflection value, and the reason a buyer pays | ⚠️ **The old entry criterion is retired, not met.** It was ≥60% model-free; measured **2.4%** (WP-33) then **8.1%** (WP-38), and D-4 resolved to repositioning rather than chasing it. **The replacement criterion is A2′ in business-case.md §6: beat the navigation the adopter already ships** — currently 56.8% vs 45.5%, which holds | — |
 | **A3 · later** | **Both, fluidly** — a question answered from data *and* a route to act on it | A2 shipped and its permission model proven | — |
 
 ⚠️ **A1's Q&A stays declared rather than generated — and the reason has changed.** The
@@ -374,7 +374,7 @@ that was always the more durable half of the case.
 | Rung | Scope | Entry criterion | WP |
 |---|---|---|---|
 | **B1 · now** | **Fixed at build time.** Registry and index generated when the adopter builds, shipped as static files, regenerated on each deploy. No server, no storage, no privacy surface, fully reproducible | — | WP-25, WP-24 |
-| **B2 · next** | **Build-time base + a feedback loop.** Traces of what users asked — and what failed — feed the next generation. This is the demand-intelligence asset in [business-case](../.claude/docs/business-case.md) §3.1 and it compounds | B1 shipped; a hosted trace store and a GDPR position exist | — |
+| **B2 · next** | **Build-time base + a feedback loop.** Traces of what users asked — and what failed — feed the next generation. This is the demand-intelligence asset in business-case §3.1 and it compounds | B1 shipped; a hosted trace store and a GDPR position exist | — |
 | **B3 · later** | **Continuous runtime learning** | ⚠️ **Has a cost B2 does not**: it breaks reproducibility and auditability, which are the differentiators. Do not climb here without deciding what replaces "prove why it did that" | — |
 
 #### Ladder C — how it is delivered
@@ -445,7 +445,7 @@ control, in front of users we will never meet.**
 
 **Why this is the right target.** 146 pages across 30 features, multi-role, used
 occasionally by guardians and coaches who do not know the internal vocabulary — that is
-precisely the ICP in [business-case](../.claude/docs/business-case.md) §2. It proves *value* as well
+precisely the ICP in business-case §2. It proves *value* as well
 as mechanism, which WeFitAll's 3 routes never could.
 
 **Two things it gives us for free.** `deepLinks.ts` and `navConfigs` are hand-written by
@@ -593,7 +593,7 @@ Removing the first three is WP-37 (§7.5); the rest need a decision, not a clean
 | ~~**`domain-finance` is orphaned**~~ | **RESOLVED 2026-09-09 (WP-16)** — a `devDependency` of `apps/cli`; `domain-swap.test.ts` runs the real router against it. `NextGenApp` still cannot *register* it (its use cases are module-specific) — a separate, larger question | Closed |
 | `core-voice` (whisper + piper) | Live code, 4 tests, imported by `apps/cli` — but on **no rung of any ladder**, and its runtimes are desktop binaries a browser cannot load | **Parked, not dead, and now verified.** WP-21 measured it on 2026-09-11: 97.5% agreement ([acceptance.mjs](../packages/core-voice/eval/acceptance.mjs)). A browser transport is still unscoped work that nobody has costed |
 | Vision / image capture | Live in `core-inference` and `domain-modules`, on no rung | **Reference-app feature.** Keep, expect no investment |
-| ~~`.claude/docs/roadmap.md`~~ | Planned a **Flutter** build [ADR-006](../.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened | **DELETED 2026-09-10 (WP-11)** — but **not wholly dead, and this row was wrong to say so.** Four live doc links pointed into it, one of them load-bearing: FINDINGS scores WP-01's verdict against its Sprint 0 exit criteria. Those, and the success-metrics table that first set model-free resolution at ≥65%, are preserved in [history.md](../.claude/docs/history.md#sprint-0-and-the-original-success-metrics) |
+| ~~`.claude/docs/roadmap.md`~~ | Planned a **Flutter** build [ADR-006](../.claude/decisions/ADR-006.md) rejected, and a `git init` that already happened | **DELETED 2026-09-10 (WP-11)** — but **not wholly dead, and this row was wrong to say so.** Four live doc links pointed into it, one of them load-bearing: FINDINGS scores WP-01's verdict against its Sprint 0 exit criteria. Those, and the success-metrics table that first set model-free resolution at ≥65%, are preserved in history.md |
 | ~~7 product docs~~ | ✅ **DONE 2026-09-10 (WP-11).** `README.md` rewritten around the navigation layer and its measured numbers; `vision.md` now scores each of its four goals against evidence (goal 1 is half-met and its offline half failed); `project.md` was already current; `apps/web/README.md` named a `FinanceApp` root that no longer exists; `core-voice/README.md` claimed "not yet implemented" for code that ships and is imported. `SETUP.md` named `domain-finance` as the registry source in two places — it has been `domain-modules` since WP-14, so anyone following it edited the wrong file. `roadmap.md` deleted, its two surviving parts moved to `history.md` | **WP-11** ✅ |
 | ~~`golden.generated.jsonl` ×2~~ | **RESOLVED 2026-09-10 (WP-19)** — 24 and 81 entries respectively; the CI diff now has something to be stale about | Closed |
 | ~~`apps/cli` → `@nextgen/core-capability`~~ | **NOT dead — this entry was stale.** WP-16 added `domain-swap.test.ts`, which imports `capabilityDocument` from it. Re-verified 2026-09-10 before WP-37 would have deleted a live dependency | **Keep** |
@@ -717,7 +717,7 @@ shifts the out-of-scope denominator.
 
 **This is the most important table in the file.** WP-24 makes stages 1+2 the entire
 runtime for most turns, and
-[.claude/docs/business-case.md](../.claude/docs/business-case.md) §5 shows the pricing model hinges on this
+.claude/docs/business-case.md §5 shows the pricing model hinges on this
 rate. **30.4% top-1 is not yet a product.** Raising it is what WP-25's example synthesis
 is really for, and WP-33 is the measurement that decides whether the thesis survives.
 
@@ -850,7 +850,7 @@ adversarial violation is new, see above).
 ## 7. Work packages
 
 Completed packages WP-01…WP-09 and WP-12…WP-14 are in
-[.claude/docs/history.md](../.claude/docs/history.md).
+.claude/docs/history.md.
 
 ---
 
@@ -1085,7 +1085,7 @@ and `VERDICT.md`.
 **Stop if.** Precision or recall **below 70%** after one session, **or any role
 mis-assignment at all**. Then "fully automatic" is dead as a promise — fall back to
 *generated draft + developer edit*, record it in
-[.claude/docs/business-case.md](../.claude/docs/business-case.md) §8, and re-scope WP-25 before writing a
+.claude/docs/business-case.md §8, and re-scope WP-25 before writing a
 line of it.
 **Did not trigger.** Both figures clear 70% with margin, and there were zero role
 mis-assignments. **Proceed to WP-25** with three known, scoped fixes (read component
@@ -1199,7 +1199,7 @@ now need ten calibrations because each role sees a different corpus (11 capabili
 **Stop if.** Recall stays below 70% after the L budget, or role extraction is ever
 wrong, or generation is non-deterministic in ways that cannot be explained. Then the
 honest product is *generated draft + developer edit*, and
-[business-case](../.claude/docs/business-case.md) A1 has failed.
+business-case A1 has failed.
 **Did not trigger** — 100% recall on judged territory, 0 role mis-assignments in 45
 judged routes and 0 leaks across 10 registries, and determinism is a property of the
 cache rather than a hope about sampling.
@@ -1363,7 +1363,7 @@ worst: a **`PARENT` finds the right screen 18.8% of the time against a `COACH`'s
 61.7% — in a Portuguese application**, because "treinos" does not substring-match
 "Treino". The role with the least familiarity and the language the app is actually used in
 are the two the palette fails most. That is the ICP argument in
-[business-case](../.claude/docs/business-case.md) §2, measured rather than asserted.
+business-case §2, measured rather than asserted.
 
 **Acceptance.**
 - [x] ≥80 entries — **210**, each with an expected route+capability or outcome, **tagged
@@ -1417,7 +1417,7 @@ against the CommandPalette baseline.
 
 | | Number | Why |
 |---|---|---|
-| 1 | **Model-free resolution rate** | The economics ([business-case](../.claude/docs/business-case.md) §5) |
+| 1 | **Model-free resolution rate** | The economics (business-case §5) |
 | 2 | **Generated vs hand-written gap** | The cost of automation — the most interesting number in the project |
 | 3 | **Assistant vs CommandPalette** | Whether this beats the incumbent it replaces |
 
@@ -1452,7 +1452,7 @@ the substring matcher wants.
 - [x] Failures categorised — see MEASUREMENT.md: the model-free failure is *bad threshold
       **and** bad encoder*, not bad declaration; the out-of-scope failure is *too few
       boundaries for the surface*; descriptions remain the unmeasured suspect
-- [x] §5 updated (below). [business-case](../.claude/docs/business-case.md) §6 is **not yet**
+- [x] §5 updated (below). business-case §6 is **not yet**
       updated — it is owner-facing commercial reasoning and the repositioning question
       below is the owner's to answer first
 - [ ] ⚠️ **Explanation coverage not measured** — WP-36 does not exist, so the 89 "what/why"
@@ -1756,7 +1756,7 @@ model refusal *in proportion to model weakness*; thresholds as an artefact of th
 registry; schema field order changing extraction quality; and WP-33's numbers including
 the automation gap.
 
-**Delivered.** [WRITEUP.md](WRITEUP.md) — the portfolio piece, written for someone who has
+**Delivered.** WRITEUP.md — the portfolio piece, written for someone who has
 never seen this repository. It leads with the split result rather than burying it: *"it
 beats the incumbent, and the mechanism that was supposed to make it cheap does not work"*.
 
@@ -1770,7 +1770,7 @@ beats the incumbent, and the mechanism that was supposed to make it cheap does n
       that nothing here shows the generator transfers to an app we do not own
 - [x] Someone who has not seen the repo can follow it — no rule numbers, no WP numbers, no
       internal vocabulary; the ADRs and findings are linked, never assumed
-- [x] Links to [history.md](../.claude/docs/history.md) and FINDINGS.md for the reasoning
+- [x] Links to history.md and FINDINGS.md for the reasoning
       behind each mechanism
 
 **Stop if.** Writing it reveals a claim that cannot be traced to evidence — remove the
@@ -2021,7 +2021,7 @@ Each is real work with a reason to wait. **Deferred is not cancelled.**
 | ~~**WP-20**~~ ✖ | Screens for capture/search | **Closed 2026-09-11, not built**, as this row predicted. This was reference-app polish. The product is now the layer installed in someone else's app (ADR-013), so these screens would demo the reference app, not the product | Closed |
 | ~~**WP-21**~~ ✅ | Verify voice acceptance, **done 2026-09-11** | [acceptance.mjs](../packages/core-voice/eval/acceptance.mjs) runs Piper → whisper.cpp → route and compares each result against the same words typed. **97.5%** agreement (39/40), WER 7.1%, 317ms synthesis plus 717ms transcription. The first run was **75%**. Whisper ends every transcript with a full stop, and `normalize()` kept it, so no stage-1 trigger matched; typed input had the same bug. Fixed, with Rule 14's recalibration. **Untested:** Portuguese, accents and real microphones. The installed assets are en_US only | Done (English) |
 | ~~**WP-22**~~ ✅ | Contract tests for `apps/web`, 2026-09-10 | **16 tests, the first this app has ever had** — `render.ts` is where every view the surface receives is built, so a mistake there is one the user sees. Three of the properties are safety, not cosmetics: the drawer may offer **only** `navigate` capabilities (a one-tap `destructive` entry would bypass ADR-004's confirmation entirely), a confirmation card must hide the raw uploaded source text it carries internally while showing every value being approved, and a rendered trace must carry the runners-up (Rule 9). Needed a vitest alias — the web layer declares `import 'server-only'`, which Next injects and which resolves nowhere else | Done |
-| ~~**WP-11**~~ ✅ | Documentation — **complete 2026-09-10.** `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`, and SETUP.md's three wrong claims about which file is the registry source; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | `roadmap.md` deleted last. It was **not** blocked by `docs/runbook` — that branch deletes a pre-rename path (§12) — and it was **not** wholly dead: FINDINGS scores WP-01 against its Sprint 0 gate, so that gate and the success-metrics table moved to [history.md](../.claude/docs/history.md#sprint-0-and-the-original-success-metrics) rather than being lost | Done |
+| ~~**WP-11**~~ ✅ | Documentation — **complete 2026-09-10.** `README.md`, `vision.md`, `apps/web/README.md`, `core-voice/README.md`, and SETUP.md's three wrong claims about which file is the registry source; plus `coding-standards.md`, `ci-cd.md`, `development.md`, `history.md`, `CLAUDE.md` and `SETUP.md`'s lint row via WP-37 | `roadmap.md` deleted last. It was **not** blocked by `docs/runbook` — that branch deletes a pre-rename path (§12) — and it was **not** wholly dead: FINDINGS scores WP-01 against its Sprint 0 gate, so that gate and the success-metrics table moved to history.md rather than being lost | Done |
 | ~~**WP-10**~~ ✖ | `apps/mobile` | **Closed 2026-09-11 as a different product.** A native app is not a web layer that an adopter installs (ADR-013). The device-inference gate stands if it ever returns | Closed |
 | ~~**WP-47**~~ ✅ | ADR-016, option B, **done 2026-09-12** | `git mv` of `core-intent/eval/registry.json` into `domain-modules/generated/`; both build scripts, both apps, the voice acceptance script, the four `router:*` scripts, CI's staleness gate and `.claude/sdlc.config.json` follow it. **Proof it worked:** `pnpm registry:build` then `pnpm registry:build:finance` back to back, and `git diff` over *both* generated directories is empty — the sequence that was the documented way to break the router. The scorecard was unchanged by the move (identical apart from `generatedAt` and `latency`), which is what ADR-016 asked step 1 to prove. **The widening nearly went vacuous, exactly as ADR-016 predicted a wide artefact diff might:** `domain-finance/generated/registry.json` had never been committed, so the build produced an *untracked* file and `git diff --quiet` passed while seeing nothing. The gate now uses `git status --porcelain`, and the file is committed. **Two Rule 1 holes, both closed:** a default path naming `domain-modules` inside `core-intent/eval` failed `domain.test.ts` (`check-import-boundaries.mjs` scans `core-*/src` and missed it) → no default anywhere, the root scripts pass the flag; and the test itself collected `.ts`/`.js` only, so `core-voice/eval/acceptance.mjs` named a domain and passed → widened to `.mjs`/`.cjs` and made to fail on purpose. **Newly visible, not fixed here:** `router:inspect --registry=<finance>` runs for the first time, and it applies `THRESHOLD_PROFILES`, which are keyed by encoder and were calibrated against `domain-modules`. Rule 14 says a threshold belongs to the encoder *and* the capability surface, so the second domain has no valid profile — scoring it needs a finance golden set, which is its own work package. 627 tests green | Done |
 | **WP-48** | Injection defence for `gs-0174` | The pilot ships only `read` and `navigate`, and Rule 5 confirms every destructive action. Today's exposure is the reference app's `module.delete`, which sits behind a confirmation. **The owner decided on 2026-09-11 to defer this with a hard trigger** | **Before any `write` or `destructive` capability ships to an adopter.** A kill criterion in §8 enforces it |
@@ -2429,13 +2429,13 @@ is met.
 ### The kill criteria, in one place
 
 Written down *before* the tests, following the WP-01 discipline that made that decision
-trustworthy. Full reasoning in [.claude/docs/business-case.md](../.claude/docs/business-case.md) §8.
+trustworthy. Full reasoning in .claude/docs/business-case.md §8.
 
 | Trigger | Then |
 |---|---|
 | WP-30 spike below 70% precision/recall in one session | "Fully automatic" is dead. Re-scope to *generated draft + developer edit* before writing WP-25 |
 | **Any role mis-assignment by the generator, ever** | Rule 17 is a security property. A single leak of an ADMIN route into a GUARDIAN registry stops automatic role extraction until it is provably correct |
-| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** ([business-case.md](../.claude/docs/business-case.md) §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 56.8% vs 45.5%. Published in [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) and [WP38.md](../eval/fut-app/WP38.md) |
+| ⚠️ WP-33 model-free resolution below 60% | **TRIGGERED 2026-09-10 at 2.4%, and CLOSED the same day.** D-4 chose (b): WP-38 spent a fixed budget on the three untried levers and reached **8.1%** — still under, so it resolves to (c). **The cost advantage is retired as a claim** (business-case.md §5 and A2′); the *beats-the-incumbent* claim replaces it and is measured at 56.8% vs 45.5%. Published in [MEASUREMENT.md](../eval/fut-app/MEASUREMENT.md) and [WP38.md](../eval/fut-app/WP38.md) |
 | ✅ **WP-33: the assistant does not beat `fut-app`'s CommandPalette** | **Did not trigger** — 52.3% vs 45.5%, and +25 to +31 points in Portuguese and for guardians. There *is* a reason to adopt; what is missing is the reason it was going to be cheap |
 | WP-36 declared explanations answer <50% of "what/why" questions | A1's Q&A needs runtime generation. That changes the economics — decide deliberately, do not drift |
 | WP-27 anchors mispoint rather than degrade | Ship navigation only |
@@ -2461,7 +2461,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](../.claude/docs/b
 | ~~**`core-intent` still hardcodes finance**~~ | critical | **RESOLVED 2026-09-09 — WP-16.** `registry.domainDescription` replaces the hardcoded string; misroute fixed and permanently gated (`gs-0197`) |
 | **The generator may be tuned to an app we own** | ~~high~~ medium | **DOWNGRADED 2026-09-11 by WP-28.** On an app we do not own, discovery found 1 of 8 routes and skipped the rest silently. It now finds all 8, and unreadable routes are reported. **Still open:** one external app is one data point. It also had no role guards, so role extraction (Rule 17) has only ever been validated on `fut-app` |
 | **Rung A1 does not deliver the full value proposition** | **high** | **OPEN and deliberate.** "I no longer need to call customer service" needs live data — Ladder A2. A1 navigates, guides and explains. §1.6 schedules the climb rather than hiding the gap |
-| ~~**Model-free rate is the business model**~~ | ~~critical~~ | ✅ **RESOLVED 2026-09-10 — by ceasing to be the business model.** Measured 2.4% (WP-33), then **8.1%** after WP-38 spent D-4's budget on every lever anyone had identified. Three measured causes: stage 1 was never switched on, stage 2 has never accepted a turn on this registry (`tauHigh: 1` at every precision floor), and — as it turned out — a harness fault that made the browser-capable encoder look twelve times worse than it is ([L10](../.claude/docs/lessons.md)). **No longer a risk because the claim it threatened has been withdrawn** ([business-case.md](../.claude/docs/business-case.md) §5). The replacement claim — beats the incumbent — is measured and holds |
+| ~~**Model-free rate is the business model**~~ | ~~critical~~ | ✅ **RESOLVED 2026-09-10 — by ceasing to be the business model.** Measured 2.4% (WP-33), then **8.1%** after WP-38 spent D-4's budget on every lever anyone had identified. Three measured causes: stage 1 was never switched on, stage 2 has never accepted a turn on this registry (`tauHigh: 1` at every precision floor), and — as it turned out — a harness fault that made the browser-capable encoder look twelve times worse than it is ([L10](../.claude/docs/lessons.md)). **No longer a risk because the claim it threatened has been withdrawn** (business-case.md §5). The replacement claim — beats the incumbent — is measured and holds |
 | ~~**The browser-capable encoder does not work at adopter scale**~~ | ~~critical~~ | ⚠️ **WITHDRAWN 2026-09-10 — the risk was an instrument fault.** It read: *`hashing` scores 4.0% recall@1 against `nomic-embed-text`'s 48.9%; WP-24 needs a real sentence encoder in the browser or a different plan.* One embedder was shared across ten role registries and re-fitted by each ([L10](../.claude/docs/lessons.md)). Correctly fitted they **tie at 50.0%**, and the zero-dependency one settles **13.3%** of turns model-free with **41.2%** refusal — better on both than the model-server path. **ADR-008's offline claim and WP-24's design are intact.** What remains is the row below: 50% recall@1 at 145 capabilities, which is a retrieval ceiling and belongs to both encoders equally |
 | **Declared boundaries lose to a large registry** | **high** | **OPEN, and now diagnosed — 2026-09-10 (WP-33, WP-39).** 61.8% of out-of-scope requests wrongly executed (21/34) against 92.3% on the 7-capability reference app; measured on the hand-written third of the golden set, so not circular. **The obvious fix was built and reverted:** section-scoped boundaries raised the boundary's score 0.594 → 0.690 and moved detection **0.0 points**. Cause: cosine similarity ranks by *topic*, and out-of-scope-ness here is carried by the *verb* — "show me my son's medical status" and "book my son an appointment" are the same topic and opposite requests. **Needs an ADR-009 amendment, not a bigger catalogue → WP-40.** WP-40 lifted detection (the verb signal: 58.8% at 0 false refusals), then **hit its own Stop-if**: stage 3 adds nothing. **It became D-5. The owner answered on 2026-09-11: accept the ceiling and disclose it.** On the shipped browser path, 47.1% are declined and none are executed. It re-opens if a rung adds actions |
 | §5's numbers are not reproducible | high | **RESOLVED 2026-09-09** — WP-17. Cold-start artefact; warm numbers match the original claim. See §5 |
@@ -2477,7 +2477,7 @@ trustworthy. Full reasoning in [.claude/docs/business-case.md](../.claude/docs/b
 | Bundle size in a browser | ~~medium~~ low | **MEASURED 2026-09-10/11.** The runtime is **9.3KB gzipped** (WP-29). The index is ~41KB gzipped at 50 capabilities, 47KB at the largest `fut-app` role and ~126KB at 145, all under WP-24's 500KB gate. 200 capabilities has not been measured |
 | Golden-set gates are not run-to-run deterministic | low | MITIGATED — CI gates on tolerances (Finding 10) |
 | ~~Docs describe the wrong product~~ | medium | ✅ **CLOSED.** WP-11 was completed on 2026-09-10, and on 2026-09-11 the D-5 disclosure replaced the stale out-of-scope figure in README, WRITEUP and business-case |
-| Browser-level agents make site-side integration unnecessary | medium | **OPEN, external.** The long-run competitive threat. See [.claude/docs/business-case.md](../.claude/docs/business-case.md) §4 |
+| Browser-level agents make site-side integration unnecessary | medium | **OPEN, external.** The long-run competitive threat. See .claude/docs/business-case.md §4 |
 
 ---
 
@@ -2581,7 +2581,7 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 - [ ] ADR written if an architectural choice was made — **two pivots have landed without one; do not make it three**
 - [ ] **The WP's own Acceptance list in §7 is ticked, and its "Stop if" was evaluated** — a stop condition you did not check is a stop condition you did not have
 - [ ] **This file updated**: §0's queue, §3, §4's defects, and §13 if a decision was answered
-- [ ] If a number changed, [.claude/docs/business-case.md](../.claude/docs/business-case.md) §6 updated too
+- [ ] If a number changed, .claude/docs/business-case.md §6 updated too
 
 ---
 
@@ -2589,14 +2589,14 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 
 | Question | File |
 |---|---|
-| **Explaining this to someone outside the project** | **[WRITEUP.md](WRITEUP.md)** — the whole story, every claim linked to its evidence |
+| **Explaining this to someone outside the project** | **WRITEUP.md** — the whole story, every claim linked to its evidence |
 | What are we building? | §1 above |
 | What should I do next? | §0 above |
 | **Is feature X in scope, and if not, when?** | **§1.6 — the capability ladder.** Check it before proposing scope |
 | Which app are we building against? | §3 — `fut-app` |
-| Who would pay for this, and why might nobody? | [.claude/docs/business-case.md](../.claude/docs/business-case.md) |
-| When do we stop? | §8's kill criteria · [business-case](../.claude/docs/business-case.md) §8 |
-| What was already built, and why is it shaped that way? | [.claude/docs/history.md](../.claude/docs/history.md) |
+| Who would pay for this, and why might nobody? | .claude/docs/business-case.md |
+| When do we stop? | §8's kill criteria · business-case §8 |
+| What was already built, and why is it shaped that way? | .claude/docs/history.md |
 | Which rules are actually enforced, and where? | [.claude/docs/critical-infrastructure.md](../.claude/docs/critical-infrastructure.md) |
 | How do the layers fit together? | [.claude/docs/architecture.md](../.claude/docs/architecture.md) |
 | Why is the router three stages? | [ADR-003](../.claude/decisions/ADR-003.md) |
@@ -2719,7 +2719,7 @@ same day by [WP-33](../eval/fut-app/MEASUREMENT.md), whose kill criterion trigge
 > out to be a deployment question that could never have moved this number. 8.1% is still
 > under 60%, so WP-38's own "Stop if" fired and **(b) resolves into (c): reposition.**
 >
-> **Done.** [business-case.md](../.claude/docs/business-case.md) §5 retires the cheap-to-run
+> **Done.** business-case.md §5 retires the cheap-to-run
 > claim and the free tier that depended on it; claim A2 is replaced by **A2′ — beat the
 > navigation the adopter already ships**, which is measured at 56.8% vs 45.5% on the server
 > configuration and 69.9% vs 45.5% for the shipped script tag (at most three screens shown, no
@@ -2752,7 +2752,7 @@ directly and which does not depend on the model-free rate at all.
 > and lever 3 is a day, and both are measurable against the golden set that now exists —
 > so the cost of finding out is small and the answer changes the product. (a) is the option
 > that should not be taken by drift: it is a different business, and
-> [business-case](../.claude/docs/business-case.md) §5 should be rewritten before it is chosen,
+> business-case §5 should be rewritten before it is chosen,
 > not after.
 >
 > **Cost of choosing wrong:** (a) taken quietly makes every later "it runs offline" claim

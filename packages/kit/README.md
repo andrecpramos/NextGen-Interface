@@ -144,8 +144,7 @@ production must never do; the page says so.
 
 `nextgen doctor --report field-report.md` writes doctor's text plus every screen it declared, with its
 roles, and everything it left out. It lists screens against roles, so share it only with people who
-may know that. Playing the adopter on a project of your own? [FIELD-TEST.md](../../.MDFiles/FIELD-TEST.md) is the
-protocol.
+may know that.
 
 ## Keeping your own checks green
 

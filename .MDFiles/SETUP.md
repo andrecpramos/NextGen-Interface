@@ -3,8 +3,8 @@
 **Last verified:** 2026-09-10 · Node 25.1.0 · pnpm 11.1.2 · Windows 11
 
 ⚠️ **This describes running the *reference* applications.** The product is a navigation
-layer generated for someone else's app — see [README.md](../README.md) and
-[WRITEUP.md](WRITEUP.md). The two are the same engine; only the registry differs.
+layer generated for someone else's app — see [README.md](../README.md). The two are the
+same engine; only the registry differs.
 
 There is one working reference app: **`apps/cli`**, the whole stack as a terminal loop.
 Its browser surface, `apps/web`, was removed on 2026-09-13; the product's browser UI is the

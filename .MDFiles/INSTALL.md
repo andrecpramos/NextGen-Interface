@@ -67,9 +67,6 @@ tarballs from two releases.
 **License.** Proprietary. You may use it only under a written agreement with the copyright
 holder ([LICENSE](../LICENSE)); every tarball carries the same file.
 
-Playing the adopter on a project of your own? **[FIELD-TEST.md](FIELD-TEST.md)** is the protocol: what to
-write down first, what to record at each step, and when to stop.
-
 Nothing is published to a package registry; the tarballs are the package. The kit reads **React Router,
 Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt** applications; on anything else, `init` names
 what it found and writes nothing. **This path is checked on
