@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { generate } from './generate.ts';
 import { formatRoleSummary, writeOutput, writeIndexes } from './emit.ts';
 import { ollamaModel, type ProseCache } from './synthesise.ts';
+import { normaliseConfig, REQUIRED_FIELD_HELP } from './config.ts';
 import type { GeneratorConfig } from './types.ts';
 
 /**
@@ -23,6 +24,20 @@ interface CliConfig extends GeneratorConfig {
   readonly out?: string;
 }
 
+/** Validation lives in config.ts so it can be tested; importing this file runs `main()`. */
+function normalise(raw: CliConfig, configFile: string): CliConfig {
+  const { config, problem } = normaliseConfig(raw);
+  if (problem) {
+    console.error(`  ${configFile}`);
+    console.error(`  missing required field(s): ${problem.missing.join(', ')}`);
+    for (const field of problem.missing) {
+      console.error(`    ${field.padEnd(11)} ${REQUIRED_FIELD_HELP[field] ?? ''}`);
+    }
+    process.exit(2);
+  }
+  return config;
+}
+
 function flag(name: string): string | null {
   const index = process.argv.indexOf(`--${name}`);
   return index > -1 ? (process.argv[index + 1] ?? null) : null;
@@ -40,7 +55,7 @@ async function main(): Promise<void> {
   }
 
   const configFile = resolve(configPath);
-  const config = JSON.parse(stripBom(readFileSync(configFile, 'utf8'))) as CliConfig;
+  const config = normalise(JSON.parse(stripBom(readFileSync(configFile, 'utf8'))) as CliConfig, configFile);
   // Relative paths in a config file are relative to that file, not to wherever
   // the command happened to be run from.
   const appRoot = resolve(dirname(configFile), config.appRoot);
