@@ -18,13 +18,13 @@ outside the workspace that makes it.
 
 ## 0 · With the kit — start here (WP-41)
 
-> **Just want the steps?** [GETTING-STARTED.md](../GETTING-STARTED.md) is the one-page version.
+> **Just want the steps?** [GETTING-STARTED.md](GETTING-STARTED.md) is the one-page version.
 > This page is the full reference.
 
 ### Get the tarballs
 
-**From a GitHub Release — the normal way.** Every release attaches eight `.tgz` files and
-`SHA256SUMS.txt`, and its notes are that version's section of [CHANGELOG.md](../CHANGELOG.md).
+**From a GitHub Release — the normal way.** Every release attaches six `.tgz` files and
+`SHA256SUMS.txt`, and its notes are that version's section of [CHANGELOG.md](CHANGELOG.md).
 The repository is private, so you need access to it. In your project:
 
 ```bash
@@ -61,7 +61,7 @@ npx nextgen preview nextgen          # try the answers on your app before wiring
 `file:vendor/nextgen/…`, so your CI's `npm ci` needs the tarballs in your repository.
 
 **Upgrading:** empty `vendor/nextgen/`, download the new release into it, and run
-`npm install -D vendor/nextgen/*.tgz` again. All eight carry the same version; never mix
+`npm install -D vendor/nextgen/*.tgz` again. All six carry the same version; never mix
 tarballs from two releases.
 
 **License.** Proprietary. You may use it only under a written agreement with the copyright
@@ -318,7 +318,7 @@ Nothing else. The layer never wrote outside `out`, so there is nothing else to f
 
 | | |
 |---|---|
-| Packages to install | 8 tarballs, one `npm install` |
+| Packages to install | 6 tarballs, one `npm install` |
 | Files the adopter writes by hand | **1** — the config in step 2 |
 | Files of theirs we modify | **0** |
 | Time to first routed turn, from an empty directory | under an hour, most of it discovering step 2's answers |

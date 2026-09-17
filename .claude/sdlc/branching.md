@@ -85,7 +85,7 @@ the tag, like `main`, moves only when the user asks for a release.
 
 1. **On `develop`, in the PR before the release:** set the same version in every
    publishable package, and turn `## <version> — unreleased` in
-   [CHANGELOG.md](../../CHANGELOG.md) into `## <version> — YYYY-MM-DD`.
+   [CHANGELOG.md](../../.MDFiles/CHANGELOG.md) into `## <version> — YYYY-MM-DD`.
    `node tooling/scripts/check-release.mjs --tag v<version>` must pass.
 2. **Merge `develop` into `main`**, as above.
 3. **Tag `main` and push the tag:**

@@ -63,7 +63,7 @@ engine underneath.
   (`like-for-like.json`).
 - **Route discovery.** On six public apps it had never seen, it found every route in a
   ground truth written beforehand, and changed none of their files
-  ([RESULT.md](eval/field-apps/RESULT.md)).
+  ([RESULT.md](../eval/field-apps/RESULT.md)).
 
 ### Known limits
 

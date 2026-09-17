@@ -12,7 +12,7 @@ words, and it takes them to the right screen, or offers up to three to choose fr
 - An app built with React Router, Vue Router, Angular, Next.js, Remix, SvelteKit or Nuxt.
 - Access to this repository's releases.
 
-Use is governed by the [LICENSE](LICENSE).
+Use is governed by the [LICENSE](../LICENSE).
 
 ---
 
@@ -77,7 +77,7 @@ each answer would take them. Nothing in your app changes.
 - Never serve `nextgen/review/`: it lists every screen with every role that can open it.
 
 Ready-made handlers for Express and Next.js are in the
-[kit's README](packages/kit/README.md#serving-each-role-only-its-own-files).
+[kit's README](../packages/kit/README.md#serving-each-role-only-its-own-files).
 
 **b. Add one line to your page.** Your server writes in the signed-in user's role:
 
@@ -153,4 +153,4 @@ npx nextgen doctor nextgen --report field-report.md
 The report lists every screen with the roles that can open it, so share it only with
 people allowed to know that.
 
-The full reference is [.MDFiles/INSTALL.md](.MDFiles/INSTALL.md).
+The full reference is [.MDFiles/INSTALL.md](INSTALL.md).

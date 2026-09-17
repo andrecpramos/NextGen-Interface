@@ -41,7 +41,7 @@ Then serve `nextgen/bundle/` at `/nextgen/`, giving each user only their own rol
 ```
 
 The step-by-step version, with calibration and a single-page-app router, is
-[GETTING-STARTED.md](../../GETTING-STARTED.md) in the repository.
+[GETTING-STARTED.md](../../.MDFiles/GETTING-STARTED.md) in the repository.
 
 ## What it writes, and where
 

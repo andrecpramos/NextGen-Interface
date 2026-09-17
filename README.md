@@ -15,7 +15,7 @@ The old site keeps working exactly as it does. **Every screen the assistant can 
 stays reachable without it** — that one is not negotiable
 ([ADR-005](.claude/decisions/ADR-005.md)).
 
-> **Adding this to your app?** Start with **[GETTING-STARTED.md](GETTING-STARTED.md)**: one page,
+> **Adding this to your app?** Start with **[GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md)**: one page,
 > five steps. Everything below is about how it was built and measured.
 
 ## Does it work?
@@ -144,10 +144,14 @@ this is installed.
 
 ```bash
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
-pnpm app                         # the reference app in a terminal
-pnpm app:offline                 # stages 1-2 only, no model, no Ollama needed
-pnpm check                       # typecheck + 384 tests + registry validation
+pnpm check                       # typecheck + 602 tests + registry validation
+pnpm eval:apps                   # generate, calibrate and route over a fixture app
 ```
+
+There is no terminal app to run. `pnpm app` and `pnpm app:offline` went with the
+composition root in [ADR-018](.claude/decisions/ADR-018.md); seeing a turn now means
+`pnpm eval:apps`, or the kit's `preview` against your own application. The bench that
+replaces them properly is `preview/`, which is not built yet.
 
 Ollama is probed, not required. Without it the router drops to its deterministic stages
 and says so, rather than guessing.
@@ -201,7 +205,7 @@ figure is meaningless.
 | Does this work on an app it has never seen? | **[field-apps/RESULT.md](eval/field-apps/RESULT.md)** · [tutor-app/RESULT.md](eval/tutor-app/RESULT.md) |
 | What goes wrong when it meets a real app? | **[adapter/FIELD-NOTES.md](adapter/FIELD-NOTES.md)** |
 | What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
-| How do I add it to my app? | [GETTING-STARTED.md](GETTING-STARTED.md) |
+| How do I add it to my app? | [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) |
 | How do I run it? | [SETUP.md](.MDFiles/SETUP.md) |
 | Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 18 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
@@ -241,9 +245,15 @@ hidden.
 
 ## Installing it, and the license
 
-Adopters install eight tarballs attached to a GitHub Release. [GETTING-STARTED.md](GETTING-STARTED.md)
-has the steps, [INSTALL.md](.MDFiles/INSTALL.md) the full reference, and [CHANGELOG.md](CHANGELOG.md) what each
-release contains.
+Adopters install **six** tarballs attached to a GitHub Release — it was eight until
+[ADR-018](.claude/decisions/ADR-018.md), and two of those eight were on the path to
+nobody. [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) has the steps,
+[INSTALL.md](.MDFiles/INSTALL.md) the full reference, and
+[CHANGELOG.md](.MDFiles/CHANGELOG.md) what each release contains.
+
+**This is the path being replaced.** ADR-018 makes the unit of distribution a folder the
+adopter copies, with no package manager and no private release. Until `adapter/` is
+finished, the tarballs are still how this installs.
 
 **Proprietary — all rights reserved.** Use requires a written agreement with the copyright
 holder; see [LICENSE](LICENSE).
