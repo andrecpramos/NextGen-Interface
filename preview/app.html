@@ -20,6 +20,10 @@
   nav a { padding: 8px 12px; border-radius: 8px; color: #4a5263; text-decoration: none; font-size: 14px; }
   nav a:hover { background: #f0f2f5; }
   nav a[aria-current="page"] { background: #e6f2f4; color: #1f6e7e; font-weight: 600; }
+  /* Bench-only: not part of the mock app's chrome, so it is visibly set apart. */
+  .bench-roles { margin: auto 0 0; padding: 12px 12px 0; border-top: 1px dashed #d7dbe2; font-size: 12px; }
+  .bench-roles a { display: inline-block; padding: 3px 8px; font-size: 12px; }
+  .bench-roles span { display: block; margin-top: 4px; }
   main { padding: 36px 44px; }
   .path { margin: 0; color: #6b7384; font-size: 13px; font-family: ui-monospace, Consolas, monospace; }
   h1 { margin: 4px 0 28px; font-size: 28px; letter-spacing: -.02em; }
@@ -36,10 +40,14 @@
   }
 </style>
 </head>
-<body>
+<body data-role="<!--ROLE-->">
   <nav aria-label="Principal">
     <strong>Clube FC</strong>
       <!--NAV-->
+    <p class="bench-roles">
+      <a href="/bench?role=<!--ROLE-->">← bench</a>
+      <span><!--ROLES--></span>
+    </p>
   </nav>
   <main>
     <p class="path"><!--PATH--></p>
@@ -55,15 +63,6 @@
   </main>
 
   <script src="/nextgen.js"></script>
-  <script>
-    // The club app's landing route is its Dashboard, so there the assistant screen is the page.
-    // Preview only: ?open opens the screen, ?ask=... asks, ?menu opens the menu, so a state can be linked to or screenshotted.
-    NextGen.start('/nextgen', 'PARENT', { home: ['/my'] }).then((assistant) => {
-      const params = new URLSearchParams(location.search);
-      if (params.has('open') || params.has('menu')) assistant.open();
-      if (params.get('ask')) assistant.ask(params.get('ask'));
-      if (params.has('menu')) setTimeout(() => assistant.host.shadowRoot.querySelector('.menu').click(), 150);
-    });
-  </script>
+  <script src="/app.js"></script>
 </body>
 </html>

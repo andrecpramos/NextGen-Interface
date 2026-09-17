@@ -19,7 +19,6 @@
   ],
   "scripts": {
     "build": "node build.mjs && tsc -p tsconfig.build.json",
-    "preview": "node build.mjs && node demo/serve.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },

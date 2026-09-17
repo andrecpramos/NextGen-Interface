@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bench — <!--APP--></title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8; --panel: #fff; --line: #e3e6eb; --ink: #1d2330; --muted: #6b7384;
+    --accent: #1f6e7e; --accent-soft: #e6f2f4; --warn: #8a5a00; --warn-soft: #fff4e0;
+    --mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171c; --panel: #1b1f26; --line: #2b313a; --ink: #e8ebef; --muted: #98a1ad;
+      --accent: #6fd3e6; --accent-soft: #10323a; --warn: #f0c070; --warn-soft: #3a2e14;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+    padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 2;
+  }
+  header h1 { margin: 0; font-size: 16px; letter-spacing: -.01em; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  .roles { display: flex; gap: 4px; }
+  .roles a {
+    padding: 4px 10px; border-radius: 999px; font-size: 13px; text-decoration: none;
+    color: var(--muted); border: 1px solid transparent;
+  }
+  .roles a:hover { background: var(--bg); }
+  .roles a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .grow { flex: 1; }
+  .note {
+    font-size: 12.5px; color: var(--warn); background: var(--warn-soft);
+    padding: 4px 10px; border-radius: 8px;
+  }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px 20px 40px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  h2 { margin: 0 0 4px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .sub { margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+  form { display: flex; gap: 8px; }
+  input[type="text"] {
+    flex: 1; min-height: 44px; padding: 0 14px; font: inherit; color: inherit;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  }
+  button {
+    min-height: 44px; padding: 0 16px; font: inherit; font-weight: 600; cursor: pointer;
+    color: var(--panel); background: var(--accent); border: 0; border-radius: 10px;
+  }
+  button.ghost { color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+  .examples button {
+    min-height: 32px; padding: 0 10px; font-size: 13px; font-weight: 400;
+    color: var(--muted); background: var(--bg); border: 1px solid var(--line);
+  }
+  .turns { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .turn { padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+  .turn[aria-selected="true"] { border-color: var(--accent); }
+  .turn q { display: block; font-style: normal; }
+  .turn q::before, .turn q::after { content: '"'; color: var(--muted); }
+  .turn .meta { margin-top: 6px; font-size: 12.5px; color: var(--muted); font-family: var(--mono); }
+  .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+    background: var(--accent-soft); color: var(--accent); margin-right: 6px;
+  }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13.5px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td.num { text-align: right; font-family: var(--mono); }
+  tr.picked td { color: var(--accent); font-weight: 600; }
+  .empty { color: var(--muted); font-size: 13.5px; }
+  code { font-family: var(--mono); font-size: .92em; }
+</style>
+</head>
+<body data-role="<!--ROLE-->" data-app="<!--APP-->">
+
+<header>
+  <h1>Bench <span>· <!--APP--></span></h1>
+  <nav class="roles" aria-label="Role"><!--ROLES--></nav>
+  <span class="grow"></span>
+  <a href="/hosts">Host pages</a>
+  <span class="note">Every role's bundle is served here. Production serves one (Rule 17).</span>
+</header>
+
+<main>
+  <section>
+    <h2>Ask</h2>
+    <p class="sub">
+      Routed exactly as an adopter's visitor would be — the same
+      <code>nextgen.js</code>, no model, no network.
+      <strong><!--COUNT--></strong> destinations reachable as <!--ROLE-->.
+    </p>
+
+    <form id="ask">
+      <input type="text" id="q" name="q" autocomplete="off"
+             placeholder="Ask the way a user would…" aria-label="Question">
+      <button type="submit">Route</button>
+    </form>
+
+    <ul class="examples" id="examples" aria-label="Example questions"></ul>
+
+    <ul class="turns" id="turns" role="listbox" aria-label="Turns"></ul>
+  </section>
+
+  <section>
+    <h2>Why</h2>
+    <p class="sub">The recorded trace. No model is involved in producing this.</p>
+    <div id="why"><p class="empty">Ask something to see how it decided.</p></div>
+  </section>
+</main>
+
+<script src="/nextgen.js"></script>
+<script src="/bench.js"></script>
+</body>
+</html>

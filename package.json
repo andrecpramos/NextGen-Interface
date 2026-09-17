@@ -10,7 +10,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "embed:preview": "pnpm --filter @nextgen/embed preview",
+    "preview": "node packages/embed/build.mjs && node preview/serve.mjs",
+    "preview:check": "node packages/embed/build.mjs && node preview/check-bench.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm registry:check",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
