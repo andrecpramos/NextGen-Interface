@@ -93,11 +93,25 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | ✅ **built 2026-09-17** — `AGENTS.md`, `FIELD-NOTES.md`, `scan.mjs` (3.6MB, no dependencies), `runtime/nextgen.js`. Two blocking gates |
 | **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | ✅ **built 2026-09-17** — `pnpm preview`. Bench with the full trace, the mock app with the real widget, host-page variants |
 
-> ## ▶️ M5's agent half is done — 2026-09-18
+> ## ▶️ M5 is done; M6 is open — 2026-09-18
 >
-> The 2026-09-12 pause said nothing was waiting on an agent. That stopped being true when
-> ADR-018 opened M5, and it is true again: **WP-49 and WP-50 are both built**, and what is
-> left is the owner's.
+> **M6 makes it an assistant rather than a menu**, and it is the largest change of
+> direction since ADR-013. Three ADRs accepted in one session: a model at run time over the
+> adopter's own origin ([ADR-017](../.claude/decisions/ADR-017.md)), the model writing to
+> visitors with every claim validated ([ADR-019](../.claude/decisions/ADR-019.md)), and
+> rules extracted from the adopter's code with provenance
+> ([ADR-020](../.claude/decisions/ADR-020.md)). Four work packages in §7.8, in an order
+> that is not negotiable.
+>
+> **Two rules were tightened by this, not loosened.** Rule 4 now covers identifiers inside
+> prose, and Rule 16 now enumerates the five edits an agent may make rather than leaving it
+> to judgement. Rule 9 was restated: it was always about explainability, and had been read
+> as "no model text at all".
+>
+> **The number M6 exists to move:** stages 1 and 2 settle **15.7%** of turns; the rest ask
+> the visitor back. That is the whole of *"isto é chato"*.
+>
+> M5 is closed: **WP-49 and WP-50 are both built**, and what is left of it is the owner's.
 >
 > **Both folders exist and both are checked by running them**, not by asserting about
 > them — `pnpm adapter:check` copies the adapter into a scratch directory with no
@@ -129,17 +143,21 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
-| 1 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
-| 2 | ✅ **WP-49** · **`adapter/`, done 2026-09-17.** `AGENTS.md` as the entry point — seven `ASK` sections carried from the field-tested playbook — plus `scan.mjs`, one 3.6MB dependency-free bundle of init/build/doctor/calibrate, and `runtime/nextgen.js` prebuilt. **Proved by running it**, not asserted: `check-adapter.mjs` copies the committed folder and a fixture app into a scratch directory outside this repository and runs the real commands; 12 checks including Rule 17 and Rule 16 (38 files unchanged). **Five defects found, every one invisible to 602 unit tests** because every one was a failure of the bundle in a bare directory — the worst being `build` resolving the widget through `node_modules`, which shipped a bundle with no assistant in it while `doctor` called it a warning | M5 | L | done |
-| 3 | ✅ **WP-50** · **`preview/`, done 2026-09-17.** `pnpm preview`. Three surfaces on one server: `/bench` (ask, and see the whole trace — every candidate stage 2 scored, **with the description it was scored on**), the mock app with the **real widget** mounted, and host-page variants for placement. Seeded by moving `packages/embed/demo` wholesale — which still read the deleted pilot data, making it the last live reference ADR-018's sweep missed. Checked in a real browser by `preview/check-bench.mjs` | M5 | M–L | done |
-| 4 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](../eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
-| 2 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
-| 3 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows (`DESCRIPTION_AUDIT.md`) | M4 | S–M | **owner** |
-| 4 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](../eval/tutor-app/RESULT.md)) | M4 | M | done |
-| 5 | ◐ **WP-45** · Accessibility, **agent half done 2026-09-12**. `check-accessibility.mjs` runs the **built bundle** in a real DOM and audits every state a user can reach: **18 checks, 0 serious or critical**, now a CI gate. **It found a real defect on its first run** — focus fell to the document body when an answer replaced the link the user was standing on; fixed, with both halves of the rule as tests. **Left:** the owner runs [the 17-item NVDA pass](../eval/a11y/NVDA-CHECKLIST.md). Until then the claim is *"automated checks pass; no screen reader has confirmed it"* | M4 | S | **owner** |
-| 6 | ◐ **WP-44** · Portuguese voice, **agent half done 2026-09-12**. A multilingual whisper model and a pt_PT voice are hash-pinned; 40 pt-PT turns across 8 roles, 3 passes, both recognisers on identical audio. **Agreement 93.3% (`base`) and 91.7% (`small`)** — above the 80% bar, but **the split is 26/26 in-domain and 11/14 at the boundary**, and word error is **46–59%** against English's 7.1%. Found that **Piper is not deterministic**, so the first model comparison was measuring different recordings (`VOICE-PT.md`). **Left:** the owner records 20 real utterances — the Stop-if is defined on real speech | — | S | **owner** |
-| 7 | **WP-35** · **The owner's run.** Drop the kit into `fut-app`, deploy, measure cost per session on real traffic, check guided steps on a real form, record the side-by-side clip | M3/M4 | M | **owner** |
-| 8 | ✅ **WP-47** · ADR-016 option B, **done 2026-09-12**. Each domain writes its own `generated/registry.json`; the eval scripts require `--registry=`. **Both domains now build back to back without clobbering, and CI diffs both in one job** — the gate got wider. The hook denying `pnpm registry:build:finance` is deleted along with its reason. Ranked gap #1 since 2026-09-08 is closed. Two Rule 1 holes found on the way (below) | M4 | S–M | done |
+| 1 | ⬜ **WP-52** · **Stage 3 over the adopter's own origin.** The transport ADR-017 describes, never built: a same-origin POST that refuses any other origin and never throws. Off unless the build turns it on. Without it there is no model, and nothing else in M6 is possible | M6 | M | agent |
+| 2 | ⬜ **WP-53** · **The assistant writes, and the validator checks it.** ADR-019. Prose to the visitor, with every screen it names checked against that role own registry and every claim to have acted removed. A turn whose prose is entirely removed degrades to today's offer — the floor does not move | M6 | L | agent |
+| 3 | ⬜ **WP-54** · **Extract what the application states.** ADR-020 read tier: validation schemas, required fields, enums, what a guard requires, navigation as a relation. Every rule carries its file and line | M6 | M–L | agent |
+| 4 | ⬜ **WP-55** · **Infer what the application does.** ADR-020 inferred tier, and the only work package here whose output can be wrong rather than merely absent. Stop-if: 5% wrong on a read sample, the bar WP-42 set for descriptions | M6 | L | agent |
+| 5 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
+| 6 | ✅ **WP-49** · **`adapter/`, done 2026-09-17.** `AGENTS.md` as the entry point — seven `ASK` sections carried from the field-tested playbook — plus `scan.mjs`, one 3.6MB dependency-free bundle of init/build/doctor/calibrate, and `runtime/nextgen.js` prebuilt. **Proved by running it**, not asserted: `check-adapter.mjs` copies the committed folder and a fixture app into a scratch directory outside this repository and runs the real commands; 12 checks including Rule 17 and Rule 16 (38 files unchanged). **Five defects found, every one invisible to 602 unit tests** because every one was a failure of the bundle in a bare directory — the worst being `build` resolving the widget through `node_modules`, which shipped a bundle with no assistant in it while `doctor` called it a warning | M5 | L | done |
+| 7 | ✅ **WP-50** · **`preview/`, done 2026-09-17.** `pnpm preview`. Three surfaces on one server: `/bench` (ask, and see the whole trace — every candidate stage 2 scored, **with the description it was scored on**), the mock app with the **real widget** mounted, and host-page variants for placement. Seeded by moving `packages/embed/demo` wholesale — which still read the deleted pilot data, making it the last live reference ADR-018's sweep missed. Checked in a real browser by `preview/check-bench.mjs` | M5 | M–L | done |
+| 8 | ◐ **WP-41** · The drop-in kit, **built 2026-09-11**, `calibrate` added 2026-09-12. `nextgen init/build/doctor` ran on bulletproof-react and **modified 0 of its files**. Calibrating from the kit's own examples was measured **not usable**, and the uncalibrated default misroutes on a big app, so `doctor` says so. One line mounts an accessible chat box. **`nextgen calibrate` now exists** — it requires a golden set the adopter wrote, refuses below 20 turns, reports held-out numbers and warns when the result is worse than it looks; run end to end on bulletproof-react ([note](../eval/bulletproof-react/RESULT.md)). The sweep moved to `core-intent/src/calibrate.ts`, shared, so Rule 14 has one implementation. **Left: the owner's run** | M4 | M | **owner** |
+| 9 | ✅ **WP-46** · Gate the derived artefacts, **done 2026-09-11**. `check-derived-artefacts.mjs` runs in CI, covering index staleness, per-registry calibration and browser/server parity. Re-breaking the `normalize()` fix turned all three red, and restoring it turned them green. About a second per run | M4 | S | done |
+| 10 | ◐ **WP-42** · Audit the generated descriptions, **agent half done 2026-09-11**. Read against source on 3 apps: **15 right, 4 vague, 1 wrong** of 20. The wrong one described an error boundary's fallback as the screen; **two extraction bugs are fixed with tests**. Mechanically on `fut-app`: **9 of 145 share a description with another screen**. **Left:** the owner marks 25 rows (`DESCRIPTION_AUDIT.md`) | M4 | S–M | **owner** |
+| 11 | ✅ **WP-43** · A second external app with role guards, **done 2026-09-12**. ⚠️ **It leaked on the first run and §8's kill criterion fired**: 16 screens, 4 of them admin-only, all shipped in one `PUBLIC` registry with 0 skips reported. Cause: a third guard shape (roles on a parent route) plus a default that turned an unreadable guard into "everyone". Fixed; re-scored against ground truth written before the run: **48 of 48 role assignments correct, 0 leaks, 100% recall** ([RESULT.md](../eval/tutor-app/RESULT.md)) | M4 | M | done |
+| 12 | ◐ **WP-45** · Accessibility, **agent half done 2026-09-12**. `check-accessibility.mjs` runs the **built bundle** in a real DOM and audits every state a user can reach: **18 checks, 0 serious or critical**, now a CI gate. **It found a real defect on its first run** — focus fell to the document body when an answer replaced the link the user was standing on; fixed, with both halves of the rule as tests. **Left:** the owner runs [the 17-item NVDA pass](../eval/a11y/NVDA-CHECKLIST.md). Until then the claim is *"automated checks pass; no screen reader has confirmed it"* | M4 | S | **owner** |
+| 13 | ◐ **WP-44** · Portuguese voice, **agent half done 2026-09-12**. A multilingual whisper model and a pt_PT voice are hash-pinned; 40 pt-PT turns across 8 roles, 3 passes, both recognisers on identical audio. **Agreement 93.3% (`base`) and 91.7% (`small`)** — above the 80% bar, but **the split is 26/26 in-domain and 11/14 at the boundary**, and word error is **46–59%** against English's 7.1%. Found that **Piper is not deterministic**, so the first model comparison was measuring different recordings (`VOICE-PT.md`). **Left:** the owner records 20 real utterances — the Stop-if is defined on real speech | — | S | **owner** |
+| 14 | **WP-35** · **The owner's run.** Drop the kit into `fut-app`, deploy, measure cost per session on real traffic, check guided steps on a real form, record the side-by-side clip | M3/M4 | M | **owner** |
+| 15 | ✅ **WP-47** · ADR-016 option B, **done 2026-09-12**. Each domain writes its own `generated/registry.json`; the eval scripts require `--registry=`. **Both domains now build back to back without clobbering, and CI diffs both in one job** — the gate got wider. The hook denying `pnpm registry:build:finance` is deleted along with its reason. Ranked gap #1 since 2026-09-08 is closed. Two Rule 1 holes found on the way (below) | M4 | S–M | done |
 
 **Deferred with a hard trigger:** **WP-48**, the injection defence for `gs-0174`. It must
 land before any `write` or `destructive` capability ships to an adopter (§7.5, §8).
@@ -492,19 +510,19 @@ control, in front of users we will never meet.**
 | 1 | `packages/core-*` **never** imports an application package. Applications register into the engine. | [architecture.md](../.claude/docs/architecture.md), enforced by `check-import-boundaries.mjs`. **Now the product boundary** |
 | 2 | The model **never computes a number the user sees.** It phrases; code computes. | [ADR-003](../.claude/decisions/ADR-003.md) — and a real bug caught by it, §6 |
 | 3 | The model **never emits SQL** and never a raw route. It selects an id + typed slots. | [ADR-007](../.claude/decisions/ADR-007.md) |
-| 4 | Every model-produced identifier is **validated against the registry** before use. | [ADR-003](../.claude/decisions/ADR-003.md) |
+| 4 | Every model-produced identifier is **validated against the registry** before use — **including one inside prose a visitor will read.** A sentence naming a screen this role does not have is removed before display, and the removal is recorded. | [ADR-003](../.claude/decisions/ADR-003.md), widened by [ADR-019](../.claude/decisions/ADR-019.md). Until 2026-09-18 the only identifier was the selected id; free text produces them too |
 | 5 | Policy is **code in the dispatcher**, never prompt text. read→execute, write→confirm, destructive→confirm+undo, unclassified→**refuse**. | [ADR-004](../.claude/decisions/ADR-004.md) |
 | 6 | Money is **integer minor units + currency code**. Never float. | [ADR-007](../.claude/decisions/ADR-007.md) · [ADR-010](../.claude/decisions/ADR-010.md). **Scope note:** governs `domain-finance` and `packages/data`, which still ship it. Not a rule of the navigation layer — but it becomes one the moment an adopter declares a capability carrying an amount, so it stays |
 | 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](../.claude/decisions/ADR-005.md). **Now a promise to adopters** — installing this must not make any part of their site AI-only |
-| 8 | **Nothing on the critical path requires network.** | [ADR-008](../.claude/decisions/ADR-008.md), re-read for this product: stages 1–2 always work in the browser; only escalation may need a network (§1.4) |
-| 9 | Every turn produces a **TurnTrace**. Explainability is a record, never model narration. | [architecture.md](../.claude/docs/architecture.md), enforced by `core-trace` |
+| 8 | **Nothing on the critical path requires network.** Stages 1–2 always work in the browser with nothing installed. Escalation may, and only to **the adopter's own origin**, off by default. | [ADR-008](../.claude/decisions/ADR-008.md) · [ADR-017](../.claude/decisions/ADR-017.md), **accepted 2026-09-18**. Also held by running it: `check-adapter.mjs` runs the whole build pipeline with every outbound path throwing |
+| 9 | Every turn produces a **TurnTrace**, and *why it did that* is answered from the record — never from the model narrating its own reasoning. **The model may now write to the visitor; the record then also holds what it wrote and what the validator removed.** | [architecture.md](../.claude/docs/architecture.md) · [ADR-019](../.claude/decisions/ADR-019.md). Restated 2026-09-18 and **not weakened**: this rule was always about explainability, and had been read as "no model text at all" |
 | 10 | Every capability ships with **≥3 examples** and golden-set entries. | [.claude/docs/coding-standards.md](../.claude/docs/coding-standards.md), enforced by `pnpm registry:check`. **WP-25's generator must satisfy this mechanically** |
 | 11 | Deterministic slot values **always win** over model-extracted ones. | §6; enforced by nominal types |
 | 12 | A routing bug is not fixed until it is a **permanent golden-set entry**. | [.claude/sdlc/testing.md](../.claude/sdlc/testing.md) |
-| 13 | The application's **limits are declared in the registry**, not inferred by the model. | [ADR-009](../.claude/decisions/ADR-009.md). The generator **synthesises** these; it never skips them |
+| 13 | The application's **limits are declared in the registry**, not inferred by the model. **Its rules are extracted from its code, and not judged by the model either** — the model phrases a rule, it never decides one. Every extracted rule carries its source file and line, and its tier: **read** from a schema or a control, or **inferred** from a condition. | [ADR-009](../.claude/decisions/ADR-009.md) · [ADR-020](../.claude/decisions/ADR-020.md). The generator **synthesises** limits; it never skips them |
 | 14 | Thresholds are **calibrated per encoder**, never hand-set or copied. | Findings 1 and 11; enforced by `check-thresholds.mjs`. **Now per adopter too** — margins are an artefact of the registry, and every app has a different one |
 | 15 | **An application's content is untrusted the moment it crosses into a prompt.** | [security.md](../.claude/docs/security.md). **Now third-party page and component text we never reviewed** |
-| 16 | **The installer never modifies the adopter's source.** It reads their code and writes only new, additive artefacts — a registry, an index, a bundle. It is an add-on layer, and removing it must leave the app exactly as it was. | Decided 2026-09-09. A tool that edits a repo it does not own cannot be trusted, cannot be cleanly uninstalled, and turns every upgrade into a merge conflict |
+| 16 | **The installer never modifies the adopter's source.** It reads their code and writes only new, additive artefacts. **An agent installing on their behalf may edit, with the developer's answer first, and only these five: the script line in the page; a handler serving `bundle/` per role; a `nextgen:navigate` listener in their router; a `.gitignore` entry; a stage-3 endpoint if they enable one.** Anything else means the agent has misunderstood. | Decided 2026-09-09; the five enumerated by [ADR-020](../.claude/decisions/ADR-020.md) on 2026-09-18 — *"seamless"* must not become *"helpful with someone else's repository"*. The tool half is gated: `check-adapter.mjs` fingerprints the whole source tree before and after a run |
 | 17 | **A capability the current user cannot reach is not in the registry they receive.** Not filtered at render — **absent**, so an unreachable route is never offered and its existence is never revealed. | Decided 2026-09-09, forced by `fut-app`'s role-gated routes. Shipping one registry to every role would leak the shape of the admin surface to a guardian. This is a security property, not a UX filter |
 
 ---
@@ -2572,6 +2590,102 @@ Add what a bench needs and a CLI subcommand should not have:
 
 **Stop if.** It starts growing product features that belong in `embed/`. The bench
 observes the widget; it does not become a second one.
+
+---
+
+## 7.8 · M6 — It knows the app, and it can hold a conversation
+
+Opened 2026-09-18 by the owner:
+
+> *"A nossa integração precisa do máximo de knowledge do nosso adopter's codebase … para
+> servir como um verdadeiro assistente na usage da webapp e para os usuários sentirem
+> 'isto é útil' e não 'isto é chato'."*
+
+Three ADRs carry it: [ADR-017](../.claude/decisions/ADR-017.md) (accepted, the transport),
+[ADR-019](../.claude/decisions/ADR-019.md) (the model may write, and every claim is
+validated), [ADR-020](../.claude/decisions/ADR-020.md) (rules are extracted, with
+provenance). **Design systems are not in M6** — `packages/embed/src/theme.ts` already
+adopts the adopter's look at run time and enforces contrast.
+
+**The order is not negotiable.** WP-53 ships prose to real visitors; it cannot land before
+the validator that checks prose, and neither can land before there is a model to produce
+any. WP-55 is last because it is the only one whose output can be *wrong* rather than
+merely absent.
+
+### ⬜ WP-52 · Stage 3 over the adopter's own origin · **M · agent**
+
+**Goal.** The script tag can escalate a turn it cannot settle, to a path on the page's own
+origin, when the adopter switched it on at build time.
+
+**Do this.** An `LlmRuntime` that POSTs the completion request the cascade already builds;
+it **refuses any address whose origin differs from the page's**, and never throws — a
+timeout, a 404, a non-2xx or an unparseable body degrades to today's clarifying question.
+`nextgen build --stage3 <path>` records it in the bundle and in `build.json`; no HTML
+attribute and no visitor setting can turn it on. Thresholds for a stage-3 bundle are
+calibrated with stage 3 on (Rule 14). Ship a reference proxy **with rate limiting**, or
+none at all: ADR-017 says a proxy without limits is a trap, and it is an unauthenticated
+POST that spends someone's GPU.
+
+**Acceptance.** A bundle built without `--stage3` behaves exactly as today, byte for byte.
+With it on and the endpoint unreachable, every turn still resolves. `check-csp.mjs` passes
+with `connect-src 'self'` unwidened. *Why?* names the model, the candidates and the latency.
+
+**Stop if.** The same-origin refusal cannot be enforced in the browser — then the transport
+is a configuration an adopter can point anywhere, which is the option ADR-017 rejected.
+
+### ⬜ WP-53 · The assistant writes, and the validator checks it · **L · agent**
+
+**Goal.** ADR-019: the model answers in prose, and no claim about the application reaches a
+visitor unchecked.
+
+**Do this.** Stage 3 returns prose alongside the id. `validateClaims` sits between the
+model and the surface: a screen or route not in *this role's* registry has its sentence
+removed; a claim to have done, saved, sent or changed anything is removed (the widget has
+no dispatcher); a number the visitor would act on is removed (Rule 2). What was removed and
+why goes into the `TurnTrace`. A turn whose prose is entirely removed degrades to the offer
+it would have made anyway — **the floor does not move**.
+
+**Acceptance.** A golden-set bucket where prose naming an absent screen is removed. An
+adversarial bucket that tries to make the model claim it performed an action. Removal is
+visible in *Why?*. With stage 3 off, nothing changes.
+
+**Stop if.** The validator removes prose on more than a small minority of ordinary turns.
+That means the model is being asked to work from a registry too thin to answer from, and
+the fix is WP-54, not a looser validator.
+
+### ⬜ WP-54 · Extract what the application states · **M–L · agent**
+
+**Goal.** ADR-020's **read** tier — rules that are written down rather than inferred.
+
+**Do this.** Validation schemas (zod, yup, react-hook-form resolvers), `required`/`min`/
+`max`/`pattern` on real controls, TypeScript enums and unions used as field values, what a
+route guard requires, and the navigation hierarchy as a relation rather than a flat list.
+Every rule records its file and line, and its tier. `doctor` lists what was extracted.
+
+**Acceptance.** On the fixture applications, every rule extracted resolves to the line it
+names. A rule whose source moved is detectable — the derived-artefacts gate grows a check.
+Rule 16 still holds: `check-adapter.mjs`'s fingerprint is unchanged.
+
+**Stop if.** Extraction is framework-specific to the point that each new validation library
+is a work package of its own. Then the honest shape is a small declared file the adopter
+writes, which is the option the owner rejected — reopen ADR-020 rather than absorb it.
+
+### ⬜ WP-55 · Infer what the application does · **L · agent · the risky one**
+
+**Goal.** ADR-020's **inferred** tier: conditions in handlers and effects — an early
+return, a disabled submit, a thrown message.
+
+**Do this.** Only patterns the extractor recognises exactly reach the shipped registry;
+everything else goes to `review/INFERRED.md` and nowhere near a visitor. An inferred rule
+is phrased as an observation — *"the form asks for a receipt before it will submit"* — not
+as a law, and the tier is in the data rather than left to the model's tone.
+
+**Acceptance.** Measured the way WP-42 measured descriptions: read a sample against the
+source and count right / vague / **wrong**. Wrong is the only number that matters.
+
+**Stop if.** More than **5% wrong** on a read sample — WP-42's bar for descriptions, and a
+wrong rule is worse than a wrong description because a visitor acts on it. Demote the tier
+to `review/`-only, which ADR-020 was designed to make a flag rather than a rewrite.
 
 ---
 
