@@ -40,15 +40,22 @@ node <here>/scan.mjs doctor nextgen      # what it read, what it guessed, what t
 node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
 ```
 
-### It does not reach the network
+### This tool does not reach the network — the widget it builds may, if you turn that on
 
-Not "by default" — **at all**. There is no `--model` in this folder and no client for one
-in the bundle. If you have seen this tool documented with a `--model` flag, that is the
-npm-installed version; this is the copied one, and they differ deliberately.
+Two different things, and it matters which one you mean when you talk to the developer:
 
-You can tell the developer this is checked rather than claimed: the whole pipeline is run
-on every commit with `fetch`, `net`, `tls`, `http`, `https` and DNS all throwing, and it
-completes. Do not offer to "enable the model" — there is nothing to enable.
+**`scan.mjs` — what runs on your machine, right now.** Not "by default" — **at all**.
+There is no `--model` in this folder and no client for one in the bundle. If you have seen
+this tool documented with a `--model` flag, that is the npm-installed version; this is the
+copied one, and they differ deliberately. This is checked rather than claimed: the whole
+pipeline is run on every commit with `fetch`, `net`, `tls`, `http`, `https` and DNS all
+throwing, and it completes. Do not offer to "enable the model" for *description writing* —
+there is nothing to enable.
+
+**`runtime/nextgen.js` — what runs in a visitor's browser, later.** This is a separate
+question, ASK 8 below: whether *that* file, once served, may POST a turn it cannot settle
+to a path on the developer's **own** origin. Off unless `build --stage3 <path>` is run.
+Nothing about `scan.mjs`'s own no-network property changes either way.
 
 **`doctor`'s full output goes to the developer — do not summarize it away.** It states
 plainly what was found, what was guessed, whether the assistant is calibrated for this
@@ -154,10 +161,10 @@ I can place the assistant somewhere that won't collide, instead of the default c
 ## ASK 7 — Calibration
 
 **Descriptions are not a question here.** This folder derives them from the application's
-own labels, and it has no way to call a model — see "It does not reach the network" below.
-That is not a downgrade: measured on a real application, model-written example phrasings
-routed *worse* than derived ones, because the derived ones repeat the screen's own words
-and that is what the shipped encoder rewards (`FIELD-NOTES.md` §4).
+own labels — `scan.mjs` has no way to call a model at all, see "This tool does not reach
+the network" above. That is not a downgrade: measured on a real application, model-written
+example phrasings routed *worse* than derived ones, because the derived ones repeat the
+screen's own words and that is what the shipped encoder rewards (`FIELD-NOTES.md` §4).
 
 **Calibration is.** An uncalibrated build uses thresholds tuned on a small reference app.
 `doctor` states the measured error rate for an app this size in plain words; read that to
@@ -169,6 +176,38 @@ uncalibrated for now and revisit once you have some?"*
 
 There is deliberately **no** option to calibrate from the tool's own example questions.
 Measured on a real application, that made routing worse, not better.
+
+## ASK 8 — Turn on model-backed answers?
+
+Today, a question the router cannot settle from the registry alone gets a clarifying
+question back — never a wrong answer, but it can feel like a menu rather than an
+assistant. `build --stage3 <path>` changes that: an unsettled turn instead POSTs to
+`<path>` on the developer's **own origin**, and their server decides which model answers.
+
+This is opt-in, off unless that flag is passed, and it is not a decision to make for them:
+
+- **It sends visitor text to their own server.** Not to us, not to a third party they did
+  not choose — but it is still a new data flow on their site, and their privacy notice may
+  need to say so.
+- **It needs a server they run, secure and rate-limit.** An unauthenticated endpoint that
+  calls a model is something anyone loading the page can spend money or GPU time against.
+  A reference proxy with basic rate limiting is in "Turn on model-backed answers" below —
+  offer to wire it, do not silently assume they want it running unlimited.
+- **It never leaves their origin, structurally, not by promise.** The transport resolves
+  the configured path against the page it is running on and refuses to POST anywhere else
+  — checked on every commit by fetching nothing when the two disagree
+  (`tooling/scripts/check-stage3.mjs`). You do not need to trust this claim; you can point
+  the developer at the gate that holds it.
+
+Ask: *"Right now, a question the assistant can't place sends the visitor a clarifying
+question instead of guessing — which is safe, but can feel more like a menu than an
+assistant. I can wire it to call a model through a small server on your own site instead,
+which answers more of what people actually ask. That means visitor text reaching your
+server and a model you run or pay for — want that, or is the current behaviour fine for
+now? It's a `nextgen build` flag either way, so it's easy to turn on later."*
+
+If they say yes, ASK where the proxy should live and whether they want the reference
+implementation (Express, with rate limiting) or already have their own preference.
 
 ---
 
@@ -229,6 +268,62 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
 Note what both do with a file that is not the caller's: **404, not 403.** A 403 confirms
 the screen exists.
 
+## Turn on model-backed answers
+
+Only if the developer said yes to ASK 8. Two steps: run a proxy, then rebuild pointing at
+it. The order matters — `build` records the path as it starts to serve `bundle/`, but the
+proxy itself can go live anytime before real traffic reaches it.
+
+**1. Run a proxy.** It receives `{ system, prompt, schema, model }` as JSON and must answer
+with JSON matching `schema` — nothing more. It decides which model to call and how; this
+tool never assumes a provider. The reference below is Express, with rate limiting, because
+an unauthenticated endpoint that calls a model is something anyone loading the page can
+spend money or GPU time against — ADR-017's own warning, not a hypothetical:
+
+```js
+import path from 'node:path';
+
+// A token bucket per IP, refilling over a minute. Replace with whatever this app already
+// uses for rate limiting if it has one — the point is that SOME limit exists before this
+// goes live, not that it is this exact one.
+const buckets = new Map();
+const LIMIT = 20;
+const WINDOW_MS = 60_000;
+
+function allowed(ip) {
+  const now = Date.now();
+  const bucket = buckets.get(ip) ?? { count: 0, resetAt: now + WINDOW_MS };
+  if (now > bucket.resetAt) Object.assign(bucket, { count: 0, resetAt: now + WINDOW_MS });
+  bucket.count += 1;
+  buckets.set(ip, bucket);
+  return bucket.count <= LIMIT;
+}
+
+app.post('/nextgen/stage3', express.json({ limit: '32kb' }), async (req, res) => {
+  if (!allowed(req.ip)) return res.status(429).json({ error: 'rate limited' });
+
+  const { system, prompt, schema, model } = req.body ?? {};
+  if (typeof system !== 'string' || typeof prompt !== 'string' || !schema) {
+    return res.status(400).json({ error: 'malformed request' });
+  }
+
+  // Call whatever model this app's developer chose. This is the one line that is theirs
+  // to fill in — the shape of the call depends entirely on the provider.
+  const answer = await callTheirModel({ system, prompt, schema, model });
+
+  res.json(answer); // must match `schema` — nothing wrapping it, no envelope
+});
+```
+
+**2. Rebuild pointing at it:**
+
+```bash
+node <adapter folder>/scan.mjs build nextgen --stage3 /nextgen/stage3
+```
+
+`doctor` will then say plainly that stage 3 is ON and name the path — read that line to the
+developer before they ship, every time this flag is used.
+
 ## What you should never do without asking first
 
 - **Edit anything under the application's own source.** This tool never needs to. If a
@@ -239,12 +334,15 @@ the screen exists.
 - Run `calibrate` on anything other than questions the developer actually wrote and can
   stand behind.
 - Present an uncalibrated build, or one with unresolved `GUESSED` lines, as finished.
+- Run `build --stage3` before the developer has said yes to ASK 8. It sends visitor text
+  to a server they have to run and secure; that is theirs to decide, not yours to default.
 
 ## What to tell them to expect
 
 - **It offers; it rarely decides.** Most of the time it shows up to three screens and the
   person picks. That is a click more than a perfect guess, and it has sent nobody to a
-  wrong place.
+  wrong place. With stage 3 on (ASK 8), fewer of those turns end in a question back — the
+  ones the registry alone could not settle now get an answer instead.
 - **It does not decline everything it should.** Roughly half of out-of-scope requests are
   declined; the rest become clarifying questions. None are executed. `FIELD-NOTES.md` §5
   explains why, and what to do about it.

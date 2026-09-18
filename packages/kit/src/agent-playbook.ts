@@ -137,6 +137,31 @@ some?"* There is deliberately no option to calibrate from the kit's own
 example questions instead — measured, on a real app, that made routing worse,
 not better.
 
+## ASK 8 — Turn on model-backed answers?
+
+A question the router cannot settle from the registry alone gets a clarifying
+question back today — safe, but it can feel like a menu rather than an
+assistant. \`nextgen build --stage3 <path>\` changes that: an unsettled turn
+instead POSTs to \`<path>\` on the developer's **own origin**, and their server
+decides which model answers. Off unless that flag is passed.
+
+This is a bigger decision than ASK 7's model-for-descriptions choice, and it is
+not the same one — that is a build-time-only call this machine makes once;
+this is a standing server the developer has to run, secure and rate-limit,
+because an unauthenticated endpoint that calls a model is something anyone
+loading the page can spend money or GPU time against.
+
+Ask: *"Right now, a question the assistant can't place asks the visitor back
+instead of guessing — safe, but it can read like a menu. I can wire it to call
+a model through a small server on your own site instead, which answers more of
+what people actually ask. That means visitor text reaching your server and a
+model you run or pay for — want that, or is the current behaviour fine for
+now? It's a build flag either way, easy to turn on later."*
+
+If yes: ask where the proxy should live, and whether they want the reference
+Express implementation (with rate limiting — see \`packages/kit/README.md\`
+"Turn on model-backed answers") or already have their own.
+
 ## What you should never do without asking first
 
 - Edit anything under the app's own source (\`src/\`, or wherever the app's own
@@ -146,4 +171,7 @@ not better.
 - Treat a GUESSED line in \`doctor\`'s output as close enough without checking.
 - Run \`nextgen calibrate\` on anything other than questions the developer
   actually wrote and can stand behind.
+- Run \`nextgen build --stage3\` before the developer has said yes to ASK 8. It
+  sends visitor text to a server they have to run and secure; that is theirs
+  to decide, not yours to default.
 `;

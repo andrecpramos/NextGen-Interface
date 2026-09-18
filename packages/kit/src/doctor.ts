@@ -169,7 +169,20 @@ export function doctor(kitDir: string): DoctorReport {
   }
   say();
 
-  // 5. Re-check what is served, rather than trusting the build.
+  // 5. Stage 3 (WP-52, ADR-017). Off is the state doctor should say the LEAST about — a
+  // silent line here would read as "nothing to report" for the common case, so this only
+  // prints when it is ON, and says exactly what that means for a visitor.
+  if (record.stage3) {
+    say('Model-backed answers (stage 3)');
+    say(`  ON — a turn stages 1–2 cannot settle POSTs to "${record.stage3.path}" on YOUR OWN`);
+    say('  origin, instead of asking the visitor a clarifying question. That path is yours to');
+    say('  serve, rate-limit and secure. See "Turn on model-backed answers" in AGENTS.md or');
+    say('  the kit README for a reference proxy with rate limiting.');
+    if (record.stage3.model) say(`  Requests name the model "${record.stage3.model}"; your proxy decides what that means.`);
+    say();
+  }
+
+  // 6. Re-check what is served, rather than trusting the build.
   const bundle = join(kit, BUNDLE_DIR);
   const served = existsSync(bundle) ? readdirSync(bundle) : [];
   for (const role of record.roles) {
@@ -192,7 +205,7 @@ export function doctor(kitDir: string): DoctorReport {
   for (const report of record.invalid) problems.push(`a registry failed validation:\n${report}`);
   if (record.capabilities === 0) problems.push('no screens were found. Check "router" and "routesFile" in nextgen.config.json');
 
-  // 6. How to mount it.
+  // 7. How to mount it.
   const role = record.roles[0] ?? 'PUBLIC';
   say('How to put it in your app');
   say(`  1. Serve ${join(kit, BUNDLE_DIR)} at a path of your choice, for example /nextgen.`);

@@ -49,3 +49,8 @@ export type {
   Vector,
 } from './types.ts';
 export type { Thresholds } from './config.ts';
+// WP-52 (ADR-017): a browser build now needs the shape of the stage-3 transport
+// to implement one. Type-only, same as the `LlmRuntime` import `cascade.ts`
+// already makes directly from `@nextgen/core-inference` — this adds no runtime
+// import, only a name the compiler erases (`verbatimModuleSyntax`).
+export type { CompletionRequest, CompletionResult, JsonSchema, LlmRuntime } from '@nextgen/core-inference';

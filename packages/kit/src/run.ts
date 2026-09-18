@@ -34,6 +34,7 @@ export interface Capabilities {
 /**
  *   nextgen init <app folder> [--out <kit folder>] [--force]
  *   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
+ *                              [--stage3 <path>] [--stage3-model <name>]
  *   nextgen calibrate [kit folder] --golden <file.jsonl>
  *   nextgen doctor [kit folder] [--report <file.md>]
  *   nextgen preview [kit folder] [--port <n>] [--app-url <url>]
@@ -45,11 +46,18 @@ export interface Capabilities {
  * `calibrate` requires a golden set you wrote (Rule 14), and there is
  * deliberately no way to calibrate from the generator's own examples — measured,
  * that makes the engine wrongly refuse real requests. See calibrate.ts.
+ *
+ * `--stage3 <path>` (WP-52, ADR-017): a turn stages 1-2 cannot settle POSTs to
+ * that path on the ADOPTER'S OWN origin instead of asking a clarifying question.
+ * Off unless this is passed — there is no bare `--stage3` with a guessed default,
+ * because the path is a server the developer has to actually run, rate-limit and
+ * secure, and typing it is the smallest possible forcing function for that.
  */
 
 const USAGE = `usage:
   nextgen init <app folder> [--out <kit folder>] [--force]
   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
+                             [--stage3 <path>] [--stage3-model <name>]
   nextgen calibrate [kit folder] --golden <file.jsonl>
   nextgen doctor [kit folder] [--report <file.md>]
   nextgen preview [kit folder] [--port <n>] [--app-url <url>]`;
@@ -99,14 +107,21 @@ export async function run(caps: Capabilities = {}): Promise<number> {
 
   if (command === 'build') {
     const kit = resolve(positional() ?? 'nextgen');
+    const stage3Path = flag('stage3');
     const record = await build(kit, {
       model: flag('model'),
       ...(caps.proseModel ? { proseModel: caps.proseModel, endpoint: flag('endpoint') ?? caps.defaultEndpoint ?? '' } : {}),
+      ...(stage3Path
+        ? { stage3: { path: stage3Path, ...(flag('stage3-model') ? { model: flag('stage3-model')! } : {}) } }
+        : {}),
       onProgress: (done, total) => {
         if (done % 20 === 0 || done === total) console.log(`    ... ${done}/${total} screens described`);
       },
     });
     console.log(`\n  ${record.capabilities} screen(s) across ${record.roles.length} role(s); ${record.skipped.length} left out.`);
+    if (record.stage3) {
+      console.log(`  Stage 3 is ON: unsettled turns will POST to "${record.stage3.path}" on your own origin.`);
+    }
     console.log(`  Next: nextgen doctor ${kit}\n`);
     return record.invalid.length > 0 ? 1 : 0;
   }

@@ -324,3 +324,69 @@ describe('calibrate', () => {
     expect(calibrate.length).toBe(2); // (kitDir, goldenFile) — there is no third way in
   });
 });
+
+describe('stage 3 (WP-52, ADR-017)', () => {
+  it('is off by default: no stage3 field, no doctor mention, thresholds unchanged', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit);
+
+    expect(record.stage3).toBeNull();
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect('stage3' in thresholds).toBe(false);
+    expect(doctor(kit).text).not.toMatch(/Model-backed answers|stage 3/i);
+  }, 60_000);
+
+  it('writes the configured path into the served thresholds file, and only when asked', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit, { stage3: { path: '/api/nextgen-stage3', model: 'house-model' } });
+
+    expect(record.stage3).toEqual({ path: '/api/nextgen-stage3', model: 'house-model' });
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect(thresholds.stage3).toEqual({ path: '/api/nextgen-stage3', model: 'house-model' });
+  }, 60_000);
+
+  it('refuses an empty path rather than shipping an unreachable one', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await expect(build(kit, { stage3: { path: '   ' } })).rejects.toThrow(/needs a path/);
+  }, 60_000);
+
+  it('doctor states it is ON, names the path, and warns before the developer ships it', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3' } });
+
+    const text = doctor(kit).text;
+    expect(text).toMatch(/Model-backed answers \(stage 3\)/);
+    expect(text).toMatch(/ON.*stage3.*YOUR OWN/s);
+  }, 60_000);
+
+  it('rebuilding without --stage3 turns it back off — it is not sticky in the kit folder', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3' } });
+    const record = await build(kit); // no stage3 this time
+
+    expect(record.stage3).toBeNull();
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect('stage3' in thresholds).toBe(false);
+  }, 60_000);
+
+  it('writes exactly {path, model} — the shape @nextgen/embed/src/stage3.ts declares as Stage3Config', async () => {
+    // Not a cross-package import: kit is a Node CLI with no DOM lib in its tsconfig, and
+    // @nextgen/embed's root pulls in theme.ts/widget.ts/voice.ts, which are genuinely
+    // DOM-typed. Real interoperation between what this writes and what embed reads back
+    // is proved at the process level, outside either package's typecheck boundary, by
+    // tooling/scripts/check-stage3.mjs — the same shape this repo already uses for
+    // check-adapter.mjs and preview/check-bench.mjs.
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3', model: 'house-model' } });
+
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect(Object.keys(thresholds.stage3).sort()).toEqual(['model', 'path']);
+    expect(thresholds.stage3).toEqual({ path: 'stage3', model: 'house-model' });
+  }, 60_000);
+});

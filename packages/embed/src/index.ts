@@ -31,12 +31,22 @@ import type { GuidedStep } from '@nextgen/core-capability';
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 
 import { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
+import { SameOriginLlmRuntime, type Stage3Config } from './stage3.ts';
+
+export type { Stage3Config } from './stage3.ts';
 
 /** What the generator wrote for one role, as the adopter serves it. */
 export interface Bundle {
   readonly registry: RegistryFile;
   readonly index: ShippedIndex;
   readonly thresholds: Thresholds;
+  /**
+   * Present only when `nextgen build --stage3 <path>` turned it on (ADR-017, WP-52).
+   * Absent: a turn stages 1–2 cannot settle ends in a clarifying question, exactly as it
+   * always has. `load()` reads this from the bundle's own thresholds file; passing it here
+   * directly is for a caller that already has the bundle in memory.
+   */
+  readonly stage3?: Stage3Config;
 }
 
 export interface Assistant {
@@ -58,6 +68,14 @@ export function create(bundle: Bundle): Assistant {
   const embedder = makeEmbedder('hashing');
   embedder.fit?.(registry.documents);
 
+  // Constructed once, not per turn: `SameOriginLlmRuntime`'s constructor is where the
+  // origin check happens, and it never throws — a bad or off-origin config makes this
+  // permanently unavailable, and every turn then degrades exactly like an absent
+  // transport (WP-24's acceptance item, unchanged since bundle.stage3 is absent by
+  // default). `undefined` here, not merely `useStage3: false`, so a caller poking at
+  // internals sees "there is no runtime" rather than "there is one and it is switched off".
+  const runtime = bundle.stage3 ? new SameOriginLlmRuntime(bundle.stage3) : undefined;
+
   return {
     capabilities: registry.capabilities.length,
     registry,
@@ -68,9 +86,14 @@ export function create(bundle: Bundle): Assistant {
           route: context.route ?? '/',
           today: context.today ?? new Date().toISOString().slice(0, 10),
         },
-        // No stage-3 transport: a turn stages 1 and 2 cannot settle ends in a
-        // clarifying question, never in a guess (WP-24's third acceptance item).
-        { registry, embedder, thresholds: bundle.thresholds, useStage3: false },
+        {
+          registry,
+          embedder,
+          thresholds: bundle.thresholds,
+          useStage3: runtime !== undefined,
+          runtime,
+          ...(bundle.stage3?.model !== undefined ? { model: bundle.stage3.model } : {}),
+        },
       );
     },
     steps(capabilityId, root) {
@@ -83,9 +106,15 @@ export function create(bundle: Bundle): Assistant {
 /**
  * Fetch one role's bundle from the adopter's own origin and build an assistant.
  *
- * Three same-origin static files, the only requests this script ever makes. The
- * adopter decides the path and serves them; nothing is fetched from anywhere
- * else, which is what keeps Rule 8 true for C3 exactly as it is for C2.
+ * Three same-origin static files, the only requests this script ever makes **before a
+ * turn is asked**. The adopter decides the path and serves them; nothing is fetched from
+ * anywhere else, which is what keeps Rule 8 true for C3 exactly as it is for C2.
+ *
+ * A fourth, later request is now possible: if `thresholds.hashing.json` carries a
+ * `stage3` field, a turn stages 1–2 cannot settle POSTs to it — still same-origin, still
+ * only when a turn actually needs it (WP-52, ADR-017). Nothing changes for a bundle
+ * built without `--stage3`: the field is absent, `create()` never constructs a runtime,
+ * and the three fetches above stay the only network this script ever does.
  */
 export async function load(basePath: string, role: string): Promise<Assistant> {
   const base = basePath.replace(/\/+$/, '');
@@ -97,9 +126,14 @@ export async function load(basePath: string, role: string): Promise<Assistant> {
   const [registry, index, thresholds] = await Promise.all([
     get<RegistryFile>(`registry.${role}.json`),
     get<ShippedIndex>(`index.${role}.json`),
-    get<{ thresholds: Thresholds }>('thresholds.hashing.json'),
+    get<{ thresholds: Thresholds; stage3?: Stage3Config }>('thresholds.hashing.json'),
   ]);
-  return create({ registry, index, thresholds: thresholds.thresholds });
+  return create({
+    registry,
+    index,
+    thresholds: thresholds.thresholds,
+    ...(thresholds.stage3 ? { stage3: thresholds.stage3 } : {}),
+  });
 }
 
 export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';

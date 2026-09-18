@@ -115,6 +115,20 @@
       "fix": "The premise of ADR-018 is \"copy the folder and run it\". This copies adapter/ and a fixture application into a scratch directory OUTSIDE the repository — no node_modules anywhere above it — and runs init, build and doctor for real, then fingerprints the application to prove Rule 16. Run it with --keep to inspect the scratch project. Every failure found while building the adapter was a failure of the BUNDLE in a bare directory rather than of the source, which is why no unit test replaces this."
     },
     {
+      "id": "stage3-interop",
+      "title": "A bundle built with --stage3 reaches the transport that reads it back, same-origin only",
+      "command": "node tooling/scripts/check-stage3.mjs",
+      "blocking": true,
+      "rule": "8",
+      "when": [
+        "packages/kit/src/build.ts",
+        "packages/kit/src/run.ts",
+        "packages/embed/src/stage3.ts",
+        "packages/embed/src/index.ts"
+      ],
+      "fix": "kit (Node, no DOM lib) and embed (DOM-typed) deliberately do not share the Stage3Config type across the package boundary — see the header comment in packages/kit/src/build.ts. This script proves they still agree on the wire by actually building a bundle with kit and loading it with embed, across a mocked network boundary: off by default, on reaches the exact same-origin URL, and an off-origin path in the manifest is refused before any fetch happens. Made to fail on purpose by disabling the origin check in stage3.ts — it caught it."
+    },
+    {
       "id": "prompt-fencing",
       "title": "Rule 15 — a prompt never interpolates unfenced input",
       "command": "node tooling/scripts/check-prompt-fencing.mjs",

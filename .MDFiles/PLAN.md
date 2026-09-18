@@ -93,7 +93,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | ✅ **built 2026-09-17** — `AGENTS.md`, `FIELD-NOTES.md`, `scan.mjs` (3.6MB, no dependencies), `runtime/nextgen.js`. Two blocking gates |
 | **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | ✅ **built 2026-09-17** — `pnpm preview`. Bench with the full trace, the mock app with the real widget, host-page variants |
 
-> ## ▶️ M5 is done; M6 is open — 2026-09-18
+> ## ▶️ M5 is done; M6's first step landed — 2026-09-18
 >
 > **M6 makes it an assistant rather than a menu**, and it is the largest change of
 > direction since ADR-013. Three ADRs accepted in one session: a model at run time over the
@@ -101,7 +101,14 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > visitors with every claim validated ([ADR-019](../.claude/decisions/ADR-019.md)), and
 > rules extracted from the adopter's code with provenance
 > ([ADR-020](../.claude/decisions/ADR-020.md)). Four work packages in §7.8, in an order
-> that is not negotiable.
+> that is not negotiable — and **WP-52, the first, is done**: there is now a real
+> transport, same-origin only, off by default, proved by making a real bundle interoperate
+> across a mocked network rather than by asserting about it.
+>
+> **What WP-52 alone does NOT yet move.** The transport exists; nothing sends prose to a
+> visitor yet — that is WP-53, next, and it is the one this order was built around: it
+> cannot land before the validator that checks what the model writes, and there is nothing
+> for that validator to check until WP-52 makes a model reachable at all.
 >
 > **Two rules were tightened by this, not loosened.** Rule 4 now covers identifiers inside
 > prose, and Rule 16 now enumerates the five edits an agent may make rather than leaving it
@@ -109,7 +116,8 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > as "no model text at all".
 >
 > **The number M6 exists to move:** stages 1 and 2 settle **15.7%** of turns; the rest ask
-> the visitor back. That is the whole of *"isto é chato"*.
+> the visitor back. That is the whole of *"isto é chato"*, and WP-52 has not moved it yet —
+> the pipe exists; WP-53 is what will actually put an answer through it.
 >
 > M5 is closed: **WP-49 and WP-50 are both built**, and what is left of it is the owner's.
 >
@@ -143,7 +151,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
-| 1 | ⬜ **WP-52** · **Stage 3 over the adopter's own origin.** The transport ADR-017 describes, never built: a same-origin POST that refuses any other origin and never throws. Off unless the build turns it on. Without it there is no model, and nothing else in M6 is possible | M6 | M | agent |
+| 1 | ✅ **WP-52** · **Stage 3 over the adopter's own origin, done 2026-09-18.** `SameOriginLlmRuntime`: resolves against the page, refuses off-origin, never throws. `--stage3 <path>` off by default. Proved live, not asserted: `check-stage3.mjs` builds a real bundle with kit and loads it with embed across a mocked network, disabling the origin check to confirm the gate catches it. `kit`/`embed` deliberately do not share the config type across their DOM-lib boundary — see the WP note | M6 | M | done |
 | 2 | ⬜ **WP-53** · **The assistant writes, and the validator checks it.** ADR-019. Prose to the visitor, with every screen it names checked against that role own registry and every claim to have acted removed. A turn whose prose is entirely removed degrades to today's offer — the floor does not move | M6 | L | agent |
 | 3 | ⬜ **WP-54** · **Extract what the application states.** ADR-020 read tier: validation schemas, required fields, enums, what a guard requires, navigation as a relation. Every rule carries its file and line | M6 | M–L | agent |
 | 4 | ⬜ **WP-55** · **Infer what the application does.** ADR-020 inferred tier, and the only work package here whose output can be wrong rather than merely absent. Stop-if: 5% wrong on a read sample, the bar WP-42 set for descriptions | M6 | L | agent |
@@ -2612,26 +2620,57 @@ the validator that checks prose, and neither can land before there is a model to
 any. WP-55 is last because it is the only one whose output can be *wrong* rather than
 merely absent.
 
-### ⬜ WP-52 · Stage 3 over the adopter's own origin · **M · agent**
+### ✅ WP-52 · Stage 3 over the adopter's own origin — **done 2026-09-18**
 
 **Goal.** The script tag can escalate a turn it cannot settle, to a path on the page's own
 origin, when the adopter switched it on at build time.
 
-**Do this.** An `LlmRuntime` that POSTs the completion request the cascade already builds;
-it **refuses any address whose origin differs from the page's**, and never throws — a
-timeout, a 404, a non-2xx or an unparseable body degrades to today's clarifying question.
-`nextgen build --stage3 <path>` records it in the bundle and in `build.json`; no HTML
-attribute and no visitor setting can turn it on. Thresholds for a stage-3 bundle are
-calibrated with stage 3 on (Rule 14). Ship a reference proxy **with rate limiting**, or
-none at all: ADR-017 says a proxy without limits is a trap, and it is an unauthenticated
-POST that spends someone's GPU.
+**Shipped.** `packages/embed/src/stage3.ts` — `SameOriginLlmRuntime implements LlmRuntime`.
+Resolves the configured path against `location.href`; if the result is not same-origin the
+runtime is permanently unavailable rather than refusing to construct (an `LlmRuntime` must
+never throw). `nextgen build --stage3 <path> [--stage3-model <name>]` records it in
+`bundle/thresholds.hashing.json` (the one manifest `load()` already fetches
+unconditionally, so turning this on costs nothing until a turn needs it) and in
+`build.json`; `doctor` reports it ON and names the path. No HTML attribute and no visitor
+setting can turn it on. A reference Express proxy with per-IP rate limiting is in
+`AGENTS.md` / `packages/kit/README.md`, "Turn on model-backed answers" — the developer's
+own decision, gated behind a new ASK 8 in both installing-agent documents.
 
-**Acceptance.** A bundle built without `--stage3` behaves exactly as today, byte for byte.
-With it on and the endpoint unreachable, every turn still resolves. `check-csp.mjs` passes
-with `connect-src 'self'` unwidened. *Why?* names the model, the candidates and the latency.
+**A design choice worth recording: `kit` and `embed` do NOT share the `Stage3Config`
+type.** `kit` is a Node CLI with no DOM lib in its tsconfig; `embed`'s root re-exports
+DOM-typed browser code (`theme.ts`, `widget.ts`, `voice.ts`). Importing the type across
+that boundary broke `kit`'s typecheck twice while this was being built. `kit` declares its
+own copy; `tooling/scripts/check-stage3.mjs` proves the two sides still agree **by making
+them interoperate** across a mocked network boundary — a stronger guarantee than a shared
+type would have given, following the same shape as `check-adapter.mjs` and
+`preview/check-bench.mjs`.
 
-**Stop if.** The same-origin refusal cannot be enforced in the browser — then the transport
-is a configuration an adopter can point anywhere, which is the option ADR-017 rejected.
+**Acceptance, checked exactly as written:**
+- A bundle built without `--stage3` behaves exactly as today: `bundle.stage3` is
+  `undefined`, `create()` never constructs a runtime, `load()` makes the same three
+  fetches it always has. Held by `embed.test.ts`'s pre-existing "no network, no fetch even
+  defined" assertion, unmodified and still green.
+- With it on and the endpoint unreachable, every turn still resolves (degrades to a
+  clarify) — `stage3.test.ts`'s degradation suite: unreachable, non-2xx, unparseable body,
+  timeout, all return `unavailable` rather than throwing.
+- `check-csp.mjs` passes unmodified, `connect-src` unwidened.
+- *Why?* names the model and the latency **with no new UI code** — `present.ts`'s
+  `whyHow()` already handled `decidedAt === 'llm'` (built for the CLI/eval harness's
+  Ollama path) and `trace.candidates` is populated by stage 2 before stage 3 ever runs.
+  WP-52 is what makes that pre-existing panel reachable through the script tag for the
+  first time; the embed-level end-to-end test asserts `decidedAt === 'llm'` on a resolved
+  turn and it passed without touching `assistant.ts`.
+
+**Not done, and said so rather than quietly dropped:** "thresholds for a stage-3 bundle
+are calibrated with stage 3 on" from the original "Do this" text. The kit's `calibrate`
+sweep is deliberately hashing-only, no model, no network (ADR-018 D-6) — wiring a live
+model into the calibration sweep itself is materially larger than the transport and is not
+this work package's acceptance criterion as written above. Open for a future WP if the
+gap matters in practice.
+
+**Stop-if did not fire.** The same-origin refusal **is** enforceable in the browser (it is
+plain `URL` origin comparison against `location.origin`) and is checked on every commit —
+proved live by disabling it and confirming `check-stage3.mjs` catches exactly that.
 
 ### ⬜ WP-53 · The assistant writes, and the validator checks it · **L · agent**
 

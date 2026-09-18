@@ -162,6 +162,14 @@ jobs:
       - name: A copy of adapter/ runs with nothing installed (Rule 16)
         run: node tooling/scripts/check-adapter.mjs
 
+      # WP-52 (ADR-017). kit and embed deliberately do not share the stage-3 config type
+      # across the package boundary — kit has no DOM lib, embed's root is DOM-typed — so
+      # this proves they still agree on the wire by making a real bundle interoperate
+      # across a mocked network: off by default, on reaches the exact same-origin URL,
+      # and an off-origin path in the manifest is refused before any fetch happens.
+      - name: Stage-3 bundle reaches the transport that reads it back (Rule 8)
+        run: node tooling/scripts/check-stage3.mjs
+
       - name: Unit tests
         run: pnpm -r test
 

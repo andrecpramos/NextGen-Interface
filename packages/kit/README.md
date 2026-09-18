@@ -192,6 +192,63 @@ something that looks like diligence.
 The sweep itself is `@nextgen/core-intent/calibrate`, shared with this repository's own
 calibration script so that Rule 14 has exactly one implementation.
 
+## Turn on model-backed answers (stage 3, WP-52, ADR-017)
+
+Out of the box, a question the router cannot settle from the registry gets a clarifying
+question back — never wrong, but it can read like a menu. `--stage3 <path>` changes that:
+an unsettled turn POSTs to `<path>` on **your own origin**, and your server decides which
+model answers. Off unless you pass it.
+
+```bash
+nextgen build <kit folder> --stage3 /nextgen/stage3 [--stage3-model <name>]
+```
+
+`doctor` then says plainly that stage 3 is ON and names the path — read it before you ship.
+
+**Your proxy receives** `{ system, prompt, schema, model }` as JSON and must answer with
+JSON matching `schema`, nothing wrapping it. It decides which model to call and how; this
+package assumes no provider. **An unauthenticated endpoint that calls a model is something
+anyone loading your page can spend money or GPU time against** — rate limit it before it
+is live, not after. A minimal reference, Express:
+
+```js
+const buckets = new Map();
+const LIMIT = 20;
+const WINDOW_MS = 60_000;
+
+function allowed(ip) {
+  const now = Date.now();
+  const bucket = buckets.get(ip) ?? { count: 0, resetAt: now + WINDOW_MS };
+  if (now > bucket.resetAt) Object.assign(bucket, { count: 0, resetAt: now + WINDOW_MS });
+  bucket.count += 1;
+  buckets.set(ip, bucket);
+  return bucket.count <= LIMIT;
+}
+
+app.post('/nextgen/stage3', express.json({ limit: '32kb' }), async (req, res) => {
+  if (!allowed(req.ip)) return res.status(429).json({ error: 'rate limited' });
+  const { system, prompt, schema, model } = req.body ?? {};
+  if (typeof system !== 'string' || typeof prompt !== 'string' || !schema) {
+    return res.status(400).json({ error: 'malformed request' });
+  }
+  const answer = await callYourModel({ system, prompt, schema, model }); // yours to fill in
+  res.json(answer);
+});
+```
+
+**What stays true whether or not you turn this on:**
+
+- The visitor's words never leave your own origin from their browser — the transport
+  resolves the configured path against the page it runs on and refuses to POST anywhere
+  else, checked on every commit against a mocked network boundary
+  (`tooling/scripts/check-stage3.mjs`).
+- A timeout, an unreachable path or a malformed response degrades to today's clarifying
+  question. It never crashes the assistant and never guesses.
+- Nothing about this affects `--model` for *description writing* at build time — that is a
+  separate, earlier choice (`nextgen build --model <name>`, needs a local Ollama). Stage 3
+  is about what happens to a visitor's *question*, at *their* browsing time, on *your*
+  server.
+
 ## Which apps it reads
 
 **React Router, Vue Router, Angular, Next.js (app and pages routers), Remix (flat routes), SvelteKit

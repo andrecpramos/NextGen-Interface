@@ -28,6 +28,25 @@ import {
 import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, stripBom } from './paths.ts';
 
 /**
+ * The shape of `bundle/thresholds.hashing.json`'s `stage3` field (WP-52, ADR-017).
+ *
+ * Declared here rather than imported from `@nextgen/embed`, which owns the runtime that
+ * actually reads this back (`SameOriginLlmRuntime` in `embed/src/stage3.ts`). That is a
+ * real package boundary, not a shortcut avoided for its own sake: `embed`'s root pulls in
+ * DOM-typed browser code (`theme.ts`, `widget.ts`, `voice.ts`), and `kit` is a Node CLI
+ * with no DOM lib in its `tsconfig` — importing the type transitively pulled in `Element`,
+ * `Window` and a dozen other browser globals kit has no business knowing about. A small,
+ * stable wire shape is worth duplicating at a package boundary; `kit.test.ts`'s
+ * `--stage3` round trip proves the two sides still agree by actually interoperating,
+ * which is a stronger guarantee than a shared type would have been anyway.
+ */
+export interface Stage3Config {
+  readonly path: string;
+  readonly model?: string;
+  readonly timeoutMs?: number;
+}
+
+/**
  * `nextgen build`: the generator, run the way an adopter needs it run.
  *
  * It writes two folders (see paths.ts) and a record of what it did, which
@@ -55,6 +74,12 @@ export interface BuildOptions {
   /** Copy the script tag into the bundle. Default true. */
   readonly scriptTag?: boolean;
   readonly onProgress?: (done: number, total: number) => void;
+  /**
+   * Turn on stage 3 for the bundle this writes (WP-52, ADR-017). Absent: a turn stages
+   * 1–2 cannot settle ends in a clarifying question, exactly as it always has — off is
+   * the only default, and nothing except this option can turn it on.
+   */
+  readonly stage3?: Stage3Config;
 }
 
 export interface BuildRecord {
@@ -74,6 +99,8 @@ export interface BuildRecord {
   readonly prose: string;
   readonly bundleFiles: readonly string[];
   readonly warnings: readonly string[];
+  /** `null` when this bundle was built without `--stage3` — the default, and what most reviews will see. */
+  readonly stage3: { readonly path: string; readonly model: string | null } | null;
 }
 
 export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: string } {
@@ -200,9 +227,28 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     thresholds = THRESHOLD_PROFILES.hashing;
     thresholdsSource = 'the default hashing profile, calibrated on a 7-screen reference app rather than this one';
   }
+  // WP-52 (ADR-017). `stage3` rides in the same manifest `load()` already fetches
+  // unconditionally, so turning this on costs the visitor's browser nothing extra until a
+  // turn actually needs it — no fourth request, no new file for an adopter to remember to
+  // serve. Absent here is what makes "off by default" true of the artefact rather than of
+  // a flag: `embed`'s `create()` never constructs a runtime unless this key exists.
+  if (options.stage3 && !options.stage3.path.trim()) {
+    throw new Error('--stage3 needs a path — the address on your own origin to POST completion requests to.');
+  }
+  if (options.stage3) {
+    warnings.push(
+      `Stage 3 is ON: a turn stages 1–2 cannot settle will POST to "${options.stage3.path}" on YOUR OWN origin, ` +
+        'instead of asking the visitor a clarifying question. That path is yours to serve, rate-limit and secure — ' +
+        'see "Turn on model-backed answers" in AGENTS.md / the kit README before you ship it.',
+    );
+  }
   writeFileSync(
     join(bundleDir, 'thresholds.hashing.json'),
-    `${JSON.stringify({ calibrated, source: thresholdsSource, thresholds }, null, 2)}\n`,
+    `${JSON.stringify(
+      { calibrated, source: thresholdsSource, thresholds, ...(options.stage3 ? { stage3: options.stage3 } : {}) },
+      null,
+      2,
+    )}\n`,
     'utf8',
   );
 
@@ -231,6 +277,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     invalid: written.invalid,
     calibrated,
     thresholdsSource,
+    stage3: options.stage3 ? { path: options.stage3.path, model: options.stage3.model ?? null } : null,
     prose: options.model ? `${options.model} at ${endpoint}` : 'derived from the app’s own labels (no model)',
     bundleFiles: readdirSync(bundleDir).sort(),
     warnings,
