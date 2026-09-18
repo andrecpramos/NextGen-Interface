@@ -219,7 +219,7 @@ figure is meaningless.
 | What goes wrong when it meets a real app? | **[adapter/FIELD-NOTES.md](adapter/FIELD-NOTES.md)** |
 | What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
 | How do I add it to my app? | [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) |
-| How do I run it? | [SETUP.md](.MDFiles/SETUP.md) |
+| How do I run this repo itself (as a contributor)? | §Run it, above · [PLAN.md](.MDFiles/PLAN.md) §10 |
 | Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 18 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
 | What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · `pnpm eval:apps` |

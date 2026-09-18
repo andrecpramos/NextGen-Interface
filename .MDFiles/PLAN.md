@@ -705,7 +705,7 @@ NextGen_Interface/
 │                     check-packaging · check-doc-links · check-kit-sync · check-derived-artefacts
 │                     check-prompt-fencing · check-model-numerics · check-network-egress · check-adversarial
 │                     check-accessibility · check-csp · check-install · check-release
-└── .MDFiles/PLAN.md · README.md · INSTALL.md · SETUP.md · CLAUDE.md · .claude/decisions/ (18 ADRs)
+└── .MDFiles/PLAN.md · README.md · INSTALL.md · GETTING-STARTED.md · CLAUDE.md · .claude/decisions/ (18 ADRs)
 ```
 
 **Deleted 2026-09-17 (ADR-018), recoverable from git history:** `core-dispatch`,
@@ -778,11 +778,12 @@ is local-only.
 | `feature/modules-knowledge-layer` | 0 ahead | no | nothing; superseded by `feature/plan-execution` |
 | `feature/reconcile-plan-restructure`, `feature/sdlc-kit` | 0 ahead | no | fully merged (PRs #5 and #4). Local leftovers, safe to delete |
 
-⚠️ **`RUNNING.md` does not exist on this branch.** The operations doc here is
-[SETUP.md](SETUP.md) — rewritten 2026-09-10 (WP-11) and now correct about which registry
-the router loads. That makes `docs/runbook` a **merge decision, not a cleanup**: it would
-delete a `SETUP.md` that is now current in favour of a `RUNNING.md` written before the
-repositioning. The owner should read both before merging it.
+⚠️ **`RUNNING.md` does not exist on this branch.** The operations doc at the time was
+`SETUP.md` — rewritten 2026-09-10 (WP-11) and, at the time, correct about which registry
+the router loads. That made `docs/runbook` a **merge decision, not a cleanup**: it would
+have deleted a `SETUP.md` that was then current in favour of a `RUNNING.md` written before
+the repositioning. `SETUP.md` was itself deleted 2026-09-18, superseded by
+[GETTING-STARTED.md](GETTING-STARTED.md); this row is historical.
 
 **A caution this table earned.** Two of its rows were stale in the same way: they
 described what a branch *was for* rather than what its diff *does*. `docs/runbook`'s
@@ -3147,7 +3148,7 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 | How do I add a capability by hand? | [add-capability](../.claude/skills/add-capability/SKILL.md) |
 | How do I add a whole application? | [new-domain](../.claude/skills/new-domain/SKILL.md) |
 | Accuracy dropped — now what? | [router-regression](../.claude/skills/router-regression/SKILL.md) |
-| How do I run this? | §10 · [SETUP.md](SETUP.md) |
+| How do I run this? | §10 · [GETTING-STARTED.md](GETTING-STARTED.md) for an adopter's app |
 | How does an adopter install it? | [INSTALL.md](INSTALL.md): performed step by step, not just described. WP-41 turns it into one command |
 | What mistakes has this repo already made? | [.claude/docs/lessons.md](../.claude/docs/lessons.md), L1 to L12 |
 | Which branch does this land on? | [CLAUDE.md](../CLAUDE.md) · [.claude/sdlc/branching.md](../.claude/sdlc/branching.md) |
