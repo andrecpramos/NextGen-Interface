@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-17 · **Branch:** `feature/drop-in-reset`, based on `develop` · **7 workspace projects · 602 tests,
+**Verified against disk:** 2026-09-18 · **Branch:** `feature/drop-in-reset`, based on `develop` · **7 workspace projects · 726 tests,
 all passing** · **No application this repository does not own is measured inside it** (§1.1, ADR-018).
 
 **What this project is:** a **drop-in AI navigation layer for web apps that already
@@ -327,7 +327,7 @@ screen the assistant can reach stays reachable without it.
    agent, not a human.** The adopter drops `adapter/` into their repository, pastes its
    path into whatever agent they use — Copilot, Claude, Gemini, Kimi, Qwen — and that
    agent reads the folder and performs the integration against *their* codebase. It may
-   ask the developer questions to fit their app; the six `ASK` sections exist precisely so
+   ask the developer questions to fit their app; the eight `ASK` sections exist precisely so
    that it does. **No package manager, no private release, no account.**
 
    This inverts the old order. Today the adopter must obtain a private release, download
@@ -343,7 +343,7 @@ Everything in M5 is one of these two, and the boundary between them is the point
 
 ```
 adapter/
-  AGENTS.md            the entry point: what to do, and the six decisions that are
+  AGENTS.md            the entry point: what to do, and the eight decisions that are
                        the developer's to make, not the agent's
   FIELD-NOTES.md       what real applications taught this tool — read before trusting
                        any generated output ✅ written 2026-09-17
@@ -2747,7 +2747,7 @@ always will be; it is no longer true of the answer, which is exactly what ADR-01
   wiring a fake runtime into that specific harness for this one mechanism is a real,
   separate piece of work, not done here. What exists instead: `validate-claims.test.ts`
   (26 cases, the ADR's own table plus the false-positive class that sent the first version
-  back for revision) and a `cascade.test.ts` describe block (8 cases) proving the property
+  back for revision) and a `cascade.test.ts` describe block (7 cases) proving the property
   the golden-set bucket would have proved — including the exact adversarial shape asked
   for (`"I've already added that transaction for you"` on a `write` capability, stripped,
   `requiresConfirmation` still `true`) — through `FakeLlmRuntime`, deterministic, no
@@ -2820,7 +2820,7 @@ rules carry no role information at all, so this does not apply to what did ship.
   fixtures/tiny-app`, and for every extracted rule opens the exact file and line its
   `source` names. Made to fail on purpose, the same way `check-adapter.mjs` and
   `check-stage3.mjs` prove their own properties: a source pointing past a real file's end is
-  confirmed unresolved before the real ones are trusted. `field-rules.test.ts` (26 cases)
+  confirmed unresolved before the real ones are trusted. `field-rules.test.ts` (20 cases)
   proves the same property at the unit level for every rule kind, zod and yup both, by
   writing a real temp file and reading the named line back off disk — not a hand-built
   `ts.SourceFile`, because "resolves to the line it names" is exactly the property a mock
@@ -3046,7 +3046,7 @@ node tooling/scripts/check-csp.mjs                 # the widget under a strict C
 pnpm eval:apps:check                               # the fixture apps still decide the same way
 pnpm build && node tooling/scripts/check-install.mjs   # the tarballs install outside this repo, and run on Node 20
 pnpm -r typecheck
-pnpm -r test                                       # 602 tests, 6 packages
+pnpm -r test                                       # 726 tests, 6 packages
 pnpm registry:check                                # Rule 10, across every registry in the tree
 pnpm check                                         # typecheck + test + registry:check
 # or: /gates, or delegate to the gate-runner agent

@@ -164,15 +164,12 @@ works on any of them.
 | `@nextgen/kit` | build time | the `nextgen` command: `init`, `build`, `doctor`, `preview`, `calibrate` |
 | `@nextgen/embed` | run time | the widget — `bundle/nextgen.js`, or `import { start }` |
 | `@nextgen/generator` | build time | reads their source, emits one registry per role |
-| `@nextgen/core-intent` | run time | the three-stage router |
+| `@nextgen/core-intent` | run time | the three-stage router, policy dispatch and the turn record that makes `why` answerable |
 | `@nextgen/core-capability` | both | the registry contract |
-| `@nextgen/core-dispatch` | run time | policy: read executes, write confirms, destructive confirms |
-| `@nextgen/core-trace` | run time | the turn record that makes `why` answerable |
 | `@nextgen/core-inference` | run time | the stage-3 transport interface |
 
-**Not installed:** `data`, `domain-modules`, `domain-finance`, `core-voice`. Those are the
-reference application and its desktop-only extras. An adopter's app sits exactly where
-`domain-modules` sits, so shipping it would be shipping our example into their bundle.
+**Not installed:** anything outside these six packages. There is no reference application
+shipped alongside an adopter's own — see [ADR-018](../.claude/decisions/ADR-018.md).
 
 ---
 
@@ -180,7 +177,7 @@ reference application and its desktop-only extras. An adopter's app sits exactly
 
 ```bash
 npm install @nextgen/generator @nextgen/core-intent @nextgen/core-capability \
-            @nextgen/core-dispatch @nextgen/core-trace @nextgen/core-inference
+            @nextgen/core-inference
 ```
 
 This edits the adopter's `package.json`. **That is their edit, not ours**, and it is the
@@ -230,6 +227,7 @@ Writes into `out`:
   largest role on the pilot, against a 500KB budget.
 - `master.json` — every capability, for review.
 - `SKIPPED.md` — every route it refused to declare, and why.
+- `INFERRED.md` — every candidate rule found but not confident enough to ship (ADR-020, WP-55).
 
 `--no-model` derives prose from the application's own labels instead of calling a model.
 Lower quality, no dependency on a model server at build time.
@@ -306,7 +304,7 @@ ships in every release, and `nextgen build` copies its `nextgen.js` into `bundle
 
 ```bash
 npm uninstall @nextgen/kit @nextgen/embed @nextgen/generator @nextgen/core-intent \
-              @nextgen/core-capability @nextgen/core-inference @nextgen/core-dispatch @nextgen/core-trace
+              @nextgen/core-capability @nextgen/core-inference
 rm -rf ./nextgen ./vendor/nextgen     # or ./generated, on the manual path below
 ```
 

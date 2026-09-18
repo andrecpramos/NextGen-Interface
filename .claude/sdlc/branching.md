@@ -99,7 +99,7 @@ the tag, like `main`, moves only when the user asks for a release.
 4. **[`release.yml`](../../.github/workflows/release.yml) does the rest.** It refuses a
    tag that is not on `main`, and re-runs the checks the tarballs depend on: version,
    changelog and license; typecheck; tests; packaging; the install check on Node 20. Then
-   it attaches the eight `.tgz` files and `SHA256SUMS.txt` to a GitHub Release, with the
+   it attaches the six `.tgz` files and `SHA256SUMS.txt` to a GitHub Release, with the
    CHANGELOG section as its notes.
 
 A failed release workflow publishes nothing. Fix the cause on `develop`, release again, and

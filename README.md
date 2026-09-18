@@ -115,7 +115,7 @@ regulated adopter asks first.
 
 ```
 adapter/           WHAT AN ADOPTER COPIES — one folder, no package manager, no network
-  AGENTS.md        the front door: what to do, and the seven decisions that are
+  AGENTS.md        the front door: what to do, and the eight decisions that are
                    the developer's to make rather than the agent's
   FIELD-NOTES.md   what real applications taught this tool; read before trusting output
   scan.mjs         init / build / doctor / calibrate, in one file, no dependencies
@@ -155,7 +155,7 @@ committed golden set.
 ```bash
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
 pnpm preview                     # the bench: ask, and see why it decided that
-pnpm check                       # typecheck + 602 tests + registry validation
+pnpm check                       # typecheck + 726 tests + registry validation
 pnpm eval:apps                   # generate, calibrate and route over a fixture app
 pnpm adapter:build               # rebuild adapter/ after changing packages/
 pnpm adapter:check               # prove a copy of it runs with nothing installed

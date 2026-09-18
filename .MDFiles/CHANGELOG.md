@@ -14,8 +14,8 @@ where to go" box to the page. It never modifies the app's files.
 
 ### What you install
 
-Eight tarballs, attached to the GitHub Release; [GETTING-STARTED.md](GETTING-STARTED.md) has
-the steps. `@nextgen/kit` is the one you use; the other seven are its dependencies and the
+Six tarballs, attached to the GitHub Release; [GETTING-STARTED.md](GETTING-STARTED.md) has
+the steps. `@nextgen/kit` is the one you use; the other five are its dependencies and the
 engine underneath.
 
 | Package | What it is |
@@ -26,8 +26,6 @@ engine underneath.
 | `@nextgen/core-intent` | the router: deterministic match, then embedding similarity, then an optional model |
 | `@nextgen/core-capability` | the registry contract |
 | `@nextgen/core-inference` | the interface to an optional model |
-| `@nextgen/core-dispatch` | policy: read executes, write and destructive confirm |
-| `@nextgen/core-trace` | the turn record that makes "why did you do that?" answerable |
 
 ### What it does
 

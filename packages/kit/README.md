@@ -50,7 +50,7 @@ The step-by-step version, with calibration and a single-page-app router, is
 | `nextgen.config.json` | what `init` found, including anything it had to guess. It is yours to correct | — |
 | `AGENT.md` | instructions for whichever AI agent runs the rest of these commands — see below | — |
 | `bundle/` | `registry.<ROLE>.json`, `index.<ROLE>.json`, `thresholds.hashing.json`, `nextgen.js` | **yes**, each user only their own role's files |
-| `review/` | `master.json` (every screen, with every role that can reach it), `SKIPPED.md`, `build.json`, `detect.json` | **never** |
+| `review/` | `master.json` (every screen, with every role that can reach it), `SKIPPED.md`, `INFERRED.md`, `build.json`, `detect.json` | **never** |
 | `calibration/` | `thresholds.hashing.json`, if you have calibrated. `build` prefers it | — |
 
 ## If an AI agent is running this for you
