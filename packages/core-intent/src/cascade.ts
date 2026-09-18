@@ -2,6 +2,7 @@ import type { LlmRuntime } from '@nextgen/core-inference';
 import { isExplanationRequest } from './action.ts';
 import { stage1, stage2, stage3 } from './stages.ts';
 import { resolveSlots } from './slots.ts';
+import { validateClaims } from './validate-claims.ts';
 import {
   THRESHOLDS,
   REQUIRES_STAGE2_AGREEMENT,
@@ -75,6 +76,8 @@ export async function route(
     explanationRequest: isExplanationRequest(utterance),
     latency: {},
     notes: [],
+    prose: null,
+    proseRemoved: [],
   };
 
   const finish = (outcome: RouterDecision): TurnTrace => {
@@ -209,6 +212,21 @@ export async function route(
 
   trace.latency.stage3 = s3.latencyMs;
   trace.selfReportedConfidence = s3.selfReportedConfidence;
+
+  // ADR-019, WP-53. Runs regardless of which branch below decides the turn — a written
+  // answer can accompany an execute, an explain-via-out-of-scope, or even a degrade to
+  // clarify, and every one of those still deserves the same check before anything from
+  // the model reaches a visitor. `registry` here is the same one `route()` was called
+  // with — the caller's own role's registry — so "not in this role's registry" is Rule
+  // 17's own test, run against prose instead of against a served file.
+  if (s3.rawProse !== undefined) {
+    const validated = validateClaims(s3.rawProse, registry);
+    trace.prose = validated.text;
+    trace.proseRemoved = validated.removed;
+    for (const removal of validated.removed) {
+      trace.notes.push(`prose dropped a sentence (${removal.reason}): "${removal.sentence.slice(0, 80)}"`);
+    }
+  }
 
   if (s3.capabilityId === OUT_OF_SCOPE_ID) {
     trace.decidedAt = STAGE.LLM;

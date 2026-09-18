@@ -182,6 +182,7 @@ const CSS = `
 .why-score { font: .75rem/1.4 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
 .why-bar { grid-column: 1 / -1; position: relative; height: 3px; border-radius: 2px; background: var(--ng-border, rgb(255 255 255 / .08)); overflow: hidden; }
 .why-bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); border-radius: inherit; background: var(--ng-accent, #79c0ce); }
+.why-removed { margin: 10px 16px 12px; font-size: .75rem; color: var(--ng-muted, #7a838f); }
 
 .composer {
   width: min(720px, 100%); display: flex; align-items: center; gap: 2px; margin: 6px 0 0;
@@ -674,7 +675,19 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     });
   }
 
-  /** "Why?" — the turn's own record, rendered. Never prose from a model (Rule 9). */
+  /**
+   * "Why?" — the turn's own record, rendered.
+   *
+   * Rule 9, restated by ADR-019 rather than weakened by it: this panel is still never
+   * model narration. `decidedAt`, the candidates and their scores are mechanics the
+   * cascade recorded, not the model describing its own reasoning — that stays true even
+   * now that the model may write the visitor an answer (WP-53), because that answer
+   * renders as the answer (`present.ts`'s `body`), never in here. What this panel adds
+   * for a prose turn is `whyRemoved` below, and that text is OURS: a count and a reason
+   * code the validator produced, never the removed sentence itself — showing a visitor
+   * the very thing that was judged unsafe to show them would defeat the point of removing
+   * it.
+   */
   function whyFor(trace: TurnTrace): [HTMLDetailsElement, HTMLElement] {
     const details = make('details', 'why');
     const summary = make('summary');
@@ -705,6 +718,13 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       }
       details.append(heading, list);
     }
+
+    if ((trace.proseRemoved ?? []).length > 0) {
+      const removed = make('p', 'why-removed');
+      removed.textContent = words.whyRemoved(trace.proseRemoved.length);
+      details.append(removed);
+    }
+
     return [details, summary];
   }
 

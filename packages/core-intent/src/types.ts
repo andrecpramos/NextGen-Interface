@@ -215,9 +215,42 @@ export interface StageLatency {
 }
 
 /**
+ * One sentence `validateClaims` (ADR-019) would not let through, and why.
+ *
+ * `sentence` is kept here — not shown to a visitor, but useful to whoever is
+ * reading a trace to judge whether the removal was right. Four reasons, and
+ * each is the direct negation of a promise the widget makes elsewhere:
+ *
+ * - `'unknown-reference'` — names a route or screen not in the registry THIS
+ *   role received. Might be a hallucination, or a real screen another role
+ *   can reach; either way, offering it here would be a Rule 17 leak or a lie.
+ * - `'action-claim'` — reads as having done, saved, sent, changed or cancelled
+ *   something. The widget has no dispatcher; it cannot have.
+ * - `'unverifiable-number'` — states a figure. The model has no access to the
+ *   visitor's data (ADR-019 part 2) and Rule 2 forbids it computing one either
+ *   way, so any number in free text is unverifiable by construction.
+ * - `'unparseable'` — stage 3's own output was not well-formed enough to
+ *   split into sentences at all; the whole thing is dropped, conservatively.
+ */
+export interface ProseRemoval {
+  readonly sentence: string;
+  readonly reason: 'unknown-reference' | 'action-claim' | 'unverifiable-number' | 'unparseable';
+}
+
+/**
  * The record of one turn. Rule 9: explainability is this record, never model
- * narration — which is why there is no field here for the model's prose, and
- * why `reasoning` from stage 3 is deliberately not carried through.
+ * narration — the answer to *why did it decide that* comes from `decidedAt`,
+ * `candidates` and `notes`, never from the model describing its own reasoning.
+ * That is still true; `reasoning` from stage 3 is still not carried through.
+ *
+ * What changed (ADR-019, WP-53): the model MAY now write a `prose` answer, and
+ * that answer IS carried through, in its own field, kept separate from the
+ * explainability record on purpose — `prose` is what the visitor reads,
+ * `decidedAt`/`candidates`/`notes` are what *why?* is answered from. Every
+ * claim `prose` makes about the application is checked before this trace is
+ * built (`validateClaims`); `proseRemoved` is that check's own record, so
+ * *why was this sentence missing* is answered from data too, not from asking
+ * the model to explain itself a second time.
  */
 export interface TurnTrace {
   readonly utterance: Utterance;
@@ -257,6 +290,22 @@ export interface TurnTrace {
   explanationRequest: boolean;
   latency: StageLatency;
   notes: string[];
+  /**
+   * The model's own answer, after `validateClaims` (ADR-019, WP-53). `null`
+   * unless stage 3 ran, wrote something, AND at least one sentence survived
+   * validation — `null` is exactly the state a bundle built without stage 3
+   * has always been in, so a surface that ignores this field keeps behaving
+   * as it always has.
+   *
+   * Never the model's raw output: every sentence naming a screen or route not
+   * in *this role's* registry, claiming to have performed an action, or
+   * stating a number, is removed first. What survives is safe to render as
+   * the answer; what did not is in `proseRemoved`, for `why?` — never shown
+   * to the visitor as the removed text itself.
+   */
+  prose: string | null;
+  /** What `validateClaims` took out of `prose`, and why. Empty when nothing was. */
+  proseRemoved: readonly ProseRemoval[];
   margin?: number;
   topScore?: number;
   /**

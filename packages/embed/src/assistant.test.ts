@@ -563,6 +563,49 @@ describe('"Why?"', () => {
     expect(all('why-name').map((el) => el.textContent)).toEqual(['Calendar', 'Squad']);
     expect(all('why-score').map((el) => el.textContent)).toEqual(['0.50', '0.40']);
   });
+
+  /**
+   * ADR-019 (WP-53). A count, never the removed sentence itself — that stayed unsafe or
+   * unverifiable to show, and this panel is not a back door around that.
+   */
+  it('discloses that part of a written answer was left out, without repeating what was removed', async () => {
+    const { mounted, byClass } = setup(
+      answering({
+        ...clarifying,
+        prose: null,
+        proseRemoved: [{ sentence: 'Try /admin/billing for that too.', reason: 'unknown-reference' }],
+      }),
+    );
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(byClass('why-removed').textContent).toBe('Part of the answer was left out because it could not be checked.');
+    expect(byClass('why-removed').textContent).not.toContain('/admin/billing');
+  });
+
+  it('says nothing extra when nothing was removed', async () => {
+    const { mounted, byClass } = setup(answering(clarifying));
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(byClass('why-removed')).toBeUndefined();
+  });
+
+  it('pluralises the count of removed parts', async () => {
+    const { mounted, byClass } = setup(
+      answering({
+        ...clarifying,
+        proseRemoved: [
+          { sentence: 'a', reason: 'unknown-reference' },
+          { sentence: 'b', reason: 'action-claim' },
+        ],
+      }),
+    );
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(byClass('why-removed').textContent).toBe('2 parts of the answer were left out because they could not be checked.');
+  });
 });
 
 describe('reading answers aloud', () => {

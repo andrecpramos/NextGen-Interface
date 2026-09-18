@@ -93,7 +93,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | ✅ **built 2026-09-17** — `AGENTS.md`, `FIELD-NOTES.md`, `scan.mjs` (3.6MB, no dependencies), `runtime/nextgen.js`. Two blocking gates |
 | **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | ✅ **built 2026-09-17** — `pnpm preview`. Bench with the full trace, the mock app with the real widget, host-page variants |
 
-> ## ▶️ M5 is done; M6's first step landed — 2026-09-18
+> ## ▶️ M5 is done; M6's first two steps landed — 2026-09-18
 >
 > **M6 makes it an assistant rather than a menu**, and it is the largest change of
 > direction since ADR-013. Three ADRs accepted in one session: a model at run time over the
@@ -101,23 +101,30 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > visitors with every claim validated ([ADR-019](../.claude/decisions/ADR-019.md)), and
 > rules extracted from the adopter's code with provenance
 > ([ADR-020](../.claude/decisions/ADR-020.md)). Four work packages in §7.8, in an order
-> that is not negotiable — and **WP-52, the first, is done**: there is now a real
-> transport, same-origin only, off by default, proved by making a real bundle interoperate
-> across a mocked network rather than by asserting about it.
+> that is not negotiable — and **WP-52 and WP-53, the first two, are both done**: a
+> same-origin transport, off by default, and a model that may now write to a visitor with
+> every claim it makes checked against that visitor's own registry before they see it.
 >
-> **What WP-52 alone does NOT yet move.** The transport exists; nothing sends prose to a
-> visitor yet — that is WP-53, next, and it is the one this order was built around: it
-> cannot land before the validator that checks what the model writes, and there is nothing
-> for that validator to check until WP-52 makes a model reachable at all.
+> **What shipping WP-53 actually found**, and it is the kind of finding worth naming: the
+> first version of the action-claim detector flagged *"this screen is called Settings"*
+> and *"shows recently added players"* — ordinary, safe sentences that happen to share a
+> bare word with a completion-claim list. Caught by writing the false-positive tests
+> before trusting the mechanism. English now needs a first-person or passive frame around
+> the verb; Portuguese forms stay bare, because they are genuinely rare outside a
+> completion claim. This is the exact shape of mistake WP-53's Stop-if exists to catch,
+> found during the build rather than after.
 >
 > **Two rules were tightened by this, not loosened.** Rule 4 now covers identifiers inside
 > prose, and Rule 16 now enumerates the five edits an agent may make rather than leaving it
 > to judgement. Rule 9 was restated: it was always about explainability, and had been read
-> as "no model text at all".
+> as "no model text at all" — that reading is corrected in `TurnTrace`'s and `whyFor`'s own
+> doc comments now, not just in this file.
 >
 > **The number M6 exists to move:** stages 1 and 2 settle **15.7%** of turns; the rest ask
-> the visitor back. That is the whole of *"isto é chato"*, and WP-52 has not moved it yet —
-> the pipe exists; WP-53 is what will actually put an answer through it.
+> the visitor back. WP-52 and WP-53 built the pipe and the safety check; whether the number
+> actually moves is a question about a real deployment's real questions, which nothing
+> built so far has measured — that is honest to say now, before WP-54/55 add more surface
+> rather than after.
 >
 > M5 is closed: **WP-49 and WP-50 are both built**, and what is left of it is the owner's.
 >
@@ -152,7 +159,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | # | Work package | Milestone | Size | Who |
 |---|---|---|---|---|
 | 1 | ✅ **WP-52** · **Stage 3 over the adopter's own origin, done 2026-09-18.** `SameOriginLlmRuntime`: resolves against the page, refuses off-origin, never throws. `--stage3 <path>` off by default. Proved live, not asserted: `check-stage3.mjs` builds a real bundle with kit and loads it with embed across a mocked network, disabling the origin check to confirm the gate catches it. `kit`/`embed` deliberately do not share the config type across their DOM-lib boundary — see the WP note | M6 | M | done |
-| 2 | ⬜ **WP-53** · **The assistant writes, and the validator checks it.** ADR-019. Prose to the visitor, with every screen it names checked against that role own registry and every claim to have acted removed. A turn whose prose is entirely removed degrades to today's offer — the floor does not move | M6 | L | agent |
+| 2 | ✅ **WP-53** · **The assistant writes, and the validator checks it, done 2026-09-18.** `prose` on stage 3's schema; `validateClaims` drops any sentence naming a screen not in *this role's* registry, claiming to have acted, or stating a number — whole sentences, never edited. Found and fixed before shipping: the first lexicon flagged *"this screen is called Settings"* as an action claim; English now needs a qualifying frame, Portuguese forms stay bare (rarer as ordinary words). *Why?* discloses a count, never the removed text | M6 | L | done |
 | 3 | ⬜ **WP-54** · **Extract what the application states.** ADR-020 read tier: validation schemas, required fields, enums, what a guard requires, navigation as a relation. Every rule carries its file and line | M6 | M–L | agent |
 | 4 | ⬜ **WP-55** · **Infer what the application does.** ADR-020 inferred tier, and the only work package here whose output can be wrong rather than merely absent. Stop-if: 5% wrong on a read sample, the bar WP-42 set for descriptions | M6 | L | agent |
 | 5 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
@@ -2672,25 +2679,66 @@ gap matters in practice.
 plain `URL` origin comparison against `location.origin`) and is checked on every commit —
 proved live by disabling it and confirming `check-stage3.mjs` catches exactly that.
 
-### ⬜ WP-53 · The assistant writes, and the validator checks it · **L · agent**
+### ✅ WP-53 · The assistant writes, and the validator checks it — **done 2026-09-18**
 
 **Goal.** ADR-019: the model answers in prose, and no claim about the application reaches a
 visitor unchecked.
 
-**Do this.** Stage 3 returns prose alongside the id. `validateClaims` sits between the
-model and the surface: a screen or route not in *this role's* registry has its sentence
-removed; a claim to have done, saved, sent or changed anything is removed (the widget has
-no dispatcher); a number the visitor would act on is removed (Rule 2). What was removed and
-why goes into the `TurnTrace`. A turn whose prose is entirely removed degrades to the offer
-it would have made anyway — **the floor does not move**.
+**Shipped.** Stage 3's schema gains an optional `prose: { type: 'string' }`
+(`packages/core-intent/src/stages.ts`); the system prompt tells it what it does not know
+(no data access, no arithmetic, no memory of having acted) and to name a screen only by
+its **exact route string** from the candidate list, never a title. `validateClaims`
+(`packages/core-intent/src/validate-claims.ts`) sits between the model and the trace,
+sentence by sentence:
 
-**Acceptance.** A golden-set bucket where prose naming an absent screen is removed. An
-adversarial bucket that tries to make the model claim it performed an action. Removal is
-visible in *Why?*. With stage 3 off, nothing changes.
+| Check | How | Why this shape |
+|---|---|---|
+| Unknown reference | extracts every `/path`-shaped token per sentence, drops the sentence if any is not a real route in *this role's* registry | Rule 17's own test, applied to prose |
+| Action claim | English requires a qualifying frame ("I've/I have/I just/I already ___", or passive "has/have/is/are/was/were been ___") before a common past-participle counts; Portuguese first-person preterite and passive "foi ___" forms count bare | a bare-word list flagged *"this screen is called Settings"* and *"shows recently added players"* — ordinary, safe sentences — in the first version; the qualifying frame is what survived contact with that finding |
+| Unverifiable number | any digit outside an already-verified route token | Rule 2, extended to a string field for the first time — see the updated header comment in `check-model-numerics.mjs`, which had documented this exact gap as unclosable until a render path existed |
 
-**Stop if.** The validator removes prose on more than a small minority of ordinary turns.
-That means the model is being asked to work from a registry too thin to answer from, and
-the fix is WP-54, not a looser validator.
+A sentence failing any check is **dropped whole, never edited** — editing risks producing
+words the model never wrote. `TurnTrace` gained `prose: string | null` and
+`proseRemoved: readonly ProseRemoval[]`; `cascade.ts` runs the validator once, right after
+stage 3 returns, before any of the outcome branching, so a written answer is checked the
+same way whether the turn ends in execute, explain, out-of-scope or clarify.
+
+`present.ts` prefers `trace.prose` over the fixed, build-time `capability.explanation` /
+declared `refusal` wherever either was already shown — one line changed per branch,
+because `body` was already the field carrying exactly this kind of text.
+`assistant.ts`'s *Why?* panel gained a removal disclosure (`why-removed`): a **count**,
+never the removed sentence — showing a visitor the exact thing just judged unsafe would
+defeat the point of removing it. Its doc comment, which had claimed *"never prose from a
+model (Rule 9)"*, is corrected: that line is true of the *why panel specifically* and
+always will be; it is no longer true of the answer, which is exactly what ADR-019 changed.
+
+**Acceptance, checked exactly as written, with one honest substitution:**
+- *"A golden-set bucket where prose naming an absent screen is removed. An adversarial
+  bucket that tries to make the model claim it performed an action."* — **Not built as
+  literal `golden-set.jsonl` entries.** `evaluate-golden.mjs` is deliberately model-free
+  (ADR-011 — CI has no model server), and prose only exists when stage 3 actually runs;
+  wiring a fake runtime into that specific harness for this one mechanism is a real,
+  separate piece of work, not done here. What exists instead: `validate-claims.test.ts`
+  (26 cases, the ADR's own table plus the false-positive class that sent the first version
+  back for revision) and a `cascade.test.ts` describe block (8 cases) proving the property
+  the golden-set bucket would have proved — including the exact adversarial shape asked
+  for (`"I've already added that transaction for you"` on a `write` capability, stripped,
+  `requiresConfirmation` still `true`) — through `FakeLlmRuntime`, deterministic, no
+  network, same answer every run.
+- Removal visible in *Why?* — yes, as a count (see above), plus full detail (the actual
+  sentence and reason) in `TurnTrace.notes`, which `preview/bench.js` already renders
+  generically (a WP-52 discovery reused here for free).
+- With stage 3 off, nothing changes — `s3.rawProse` is only ever read when `stage3()` runs
+  at all; every existing embed/present/cascade test not touching prose stayed green
+  unmodified.
+
+**Stop-if did not fire, and the false-positive class it exists to guard against was found
+before shipping, not after.** The first version of the action-claim lexicon flagged plain
+English past participles bare, which would have stripped ordinary descriptive sentences
+constantly — caught by writing the false-positive tests *before* trusting the mechanism,
+not by measuring drop rate in production. `validate-claims.test.ts`'s "does not flag
+ordinary descriptive sentences" case is the six sentences that failure would have looked
+like, kept as a permanent regression test.
 
 ### ⬜ WP-54 · Extract what the application states · **M–L · agent**
 

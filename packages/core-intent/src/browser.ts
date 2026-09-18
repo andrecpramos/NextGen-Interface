@@ -39,6 +39,7 @@ export type {
   Capability,
   Embedder,
   EnumIndex,
+  ProseRemoval,
   Registry,
   RegistryFile,
   RouterDecision,

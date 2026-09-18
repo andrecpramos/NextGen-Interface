@@ -120,6 +120,55 @@ describe('present — clarify and refuse', () => {
   });
 });
 
+/**
+ * ADR-019 (WP-53). `trace.prose` is the model's answer, already checked by
+ * `validateClaims` before this trace existed — `present()`'s only job is to prefer it
+ * over the fixed, build-time text when it is there, exactly like every other field on a
+ * trace that overrides a default.
+ */
+describe('present — the model’s validated answer, when there is one', () => {
+  it('prefers trace.prose over the declared explanation on an executed turn', () => {
+    const view = present(
+      trace({ capabilityId: 'calendar.overview', prose: 'Training moved to Tuesday this week.' }),
+      registry,
+      '/',
+      words,
+    );
+    expect(view.body).toBe('Training moved to Tuesday this week.');
+  });
+
+  it('falls back to the declared explanation when prose is null — the pre-WP-53 shape', () => {
+    const view = present(trace({ capabilityId: 'calendar.overview', prose: null }), registry, '/', words);
+    expect(view.body).toBe('Training and matches by day.');
+  });
+
+  it('prefers trace.prose over the declared refusal on a limit', () => {
+    const view = present(
+      trace({ outcome: 'out_of_scope', capabilityId: 'unsupported.payments', prose: 'This app has no way to move money at all.' }),
+      registry,
+      '/',
+      words,
+    );
+    expect(view).toMatchObject({ tone: 'limit', body: 'This app has no way to move money at all.' });
+  });
+
+  it('carries prose into a choose view, alongside the offered links', () => {
+    const view = present(
+      trace({
+        capabilityId: null,
+        prose: 'I found a couple of things close to that.',
+        candidates: [{ capabilityId: 'calendar.overview', score: 0.5 }],
+      }),
+      registry,
+      '/',
+      words,
+    );
+    expect(view.tone).toBe('choose');
+    expect(view.body).toBe('I found a couple of things close to that.');
+    expect(view.choices).toEqual([{ label: 'Calendar', route: '/calendar' }]);
+  });
+});
+
 describe('words', () => {
   it('speaks the page’s language', () => {
     expect(wordsFor('pt-PT')).toBe(WORDS.pt);

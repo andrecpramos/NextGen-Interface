@@ -8,7 +8,7 @@ import { actionVocabularyOf } from './action.ts';
 import { HashingEmbedder } from './embedder.ts';
 import { buildEnumIndex } from './slots.ts';
 import { OUTCOME, STAGE, type Registry, type ScreenContext } from './types.ts';
-import { THRESHOLD_PROFILES } from './config.ts';
+import { OUT_OF_SCOPE_ID, THRESHOLD_PROFILES } from './config.ts';
 
 /**
  * Cascade integration tests.
@@ -386,6 +386,120 @@ describe('stage 3 — Rule 15, the utterance cannot escape its tags', () => {
   it('leaves an ordinary utterance byte-identical', async () => {
     const ordinary = 'how much did I spend on food last month';
     expect(await promptFor(ordinary)).toContain(`<utterance>${ordinary}</utterance>`);
+  });
+});
+
+/**
+ * ADR-019, WP-53. The model may now write a `prose` answer alongside the id it
+ * selects; `validateClaims` checks every claim in it before it reaches the trace.
+ * What matters most here is the thing the ADR calls "the floor does not move":
+ * whatever happens to the prose, the ROUTING decision — capabilityId, outcome,
+ * confirmation — must come out exactly as it would have with no prose at all.
+ */
+describe('cascade — the model may write, and the writing is checked', () => {
+  it('keeps prose that names only routes actually in this registry', async () => {
+    const runtime = new FakeLlmRuntime({
+      fallback: {
+        capabilityId: 'spending.by_category',
+        confidence: 0.9,
+        prose: 'You can see that broken down at /spending.',
+      },
+    });
+    const trace = await route('what did the weekend cost me', ctx, await deps(runtime));
+    expect(trace.capabilityId).toBe('spending.by_category');
+    expect(trace.prose).toBe('You can see that broken down at /spending.');
+    expect(trace.proseRemoved).toEqual([]);
+  });
+
+  it('strips a sentence naming a screen not in this registry, without changing the route decided', async () => {
+    const runtime = new FakeLlmRuntime({
+      fallback: {
+        capabilityId: 'spending.by_category',
+        confidence: 0.9,
+        prose: 'Head to /spending for that. Or check /admin/reports for more detail.',
+      },
+    });
+    const trace = await route('what did the weekend cost me', ctx, await deps(runtime));
+    // The floor does not move: routing is identical to the plain-prose test above — same
+    // capability, same stage, same (missing-slots) clarify — only the prose differs.
+    expect(trace.capabilityId).toBe('spending.by_category');
+    expect(trace.decidedAt).toBe(STAGE.LLM);
+    expect(trace.prose).toBe('Head to /spending for that.');
+    expect(trace.proseRemoved).toEqual([{ sentence: 'Or check /admin/reports for more detail.', reason: 'unknown-reference' }]);
+    expect(trace.notes.join(' ')).toContain('unknown-reference');
+  });
+
+  it('an adversarial claim to have performed an action is stripped entirely, and routing still holds', async () => {
+    const runtime = new FakeLlmRuntime({
+      fallback: {
+        capabilityId: 'spending.by_category',
+        confidence: 0.9,
+        prose: "I've already added that transaction for you.",
+      },
+    });
+    const trace = await route('what did the weekend cost me', ctx, await deps(runtime));
+    // The widget has no dispatcher and never will from this field: the capability still
+    // resolves exactly as it would with no prose at all, whatever the model claimed
+    // about having already done something it cannot do.
+    expect(trace.capabilityId).toBe('spending.by_category');
+    expect(trace.decidedAt).toBe(STAGE.LLM);
+    expect(trace.prose).toBeNull();
+    expect(trace.proseRemoved).toHaveLength(1);
+    expect(trace.proseRemoved[0]!.reason).toBe('action-claim');
+  });
+
+  it('an action-claim on a write capability is stripped without weakening confirmation policy', async () => {
+    // A distinct case from the one above: here the CAPABILITY itself is one that would
+    // require confirmation to execute (ADR-004). The claim in the prose must not be read
+    // as evidence that confirmation already happened, or that anything happened at all.
+    const runtime = new FakeLlmRuntime({
+      fallback: {
+        capabilityId: 'transaction.create',
+        confidence: 1,
+        params: { amount: 4500 },
+        prose: "I've already saved that for you",
+      },
+    });
+    const trace = await route('I need to record something I bought', ctx, await deps(runtime));
+    expect(trace.capabilityId).toBe('transaction.create');
+    expect(trace.requiresConfirmation).toBe(true);
+    expect(trace.prose).toBeNull();
+    expect(trace.proseRemoved[0]!.reason).toBe('action-claim');
+  });
+
+  it('leaves prose null and proseRemoved empty when the model writes none — identical to the pre-WP-53 shape', async () => {
+    const runtime = new FakeLlmRuntime({
+      fallback: { capabilityId: 'spending.by_category', confidence: 0.9 },
+    });
+    const trace = await route('what did the weekend cost me', ctx, await deps(runtime));
+    expect(trace.prose).toBeNull();
+    expect(trace.proseRemoved).toEqual([]);
+  });
+
+  it('never runs the validator, and prose stays null, for a turn stage 3 never reaches', async () => {
+    const runtime = new FakeLlmRuntime({ fallback: { capabilityId: 'budget.view', confidence: 1 } });
+    const trace = await route('my budgets', ctx, await deps(runtime));
+    expect(trace.decidedAt).toBe(STAGE.DETERMINISTIC);
+    expect(runtime.callCount).toBe(0);
+    expect(trace.prose).toBeNull();
+    expect(trace.proseRemoved).toEqual([]);
+  });
+
+  it('validates prose that accompanies an out-of-scope decision too', async () => {
+    const runtime = new FakeLlmRuntime({
+      fallback: {
+        capabilityId: OUT_OF_SCOPE_ID,
+        confidence: 0.9,
+        prose: "I can't move real money for you, but I've already sent a note to your manager about it.",
+      },
+    });
+    const trace = await route('wire the rent to my landlord', ctx, await deps(runtime));
+    expect(trace.outcome).toBe(OUTCOME.OUT_OF_SCOPE);
+    // The whole sentence is one clause sharing a completion claim — stripped whole,
+    // never edited down to the safe half (editing risks writing something the model
+    // never actually said).
+    expect(trace.prose).toBeNull();
+    expect(trace.proseRemoved[0]!.reason).toBe('action-claim');
   });
 });
 
