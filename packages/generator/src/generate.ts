@@ -18,6 +18,7 @@ import {
 import { splitByRole } from './emit.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
+import { rulesEntry } from './field-rules.ts';
 import type {
   AnnotatedCapability,
   DiscoveredRoute,
@@ -605,6 +606,18 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       // WP-27: guided steps from the form this page renders, in the app's primary
       // language. Template-built at build time, never generated per turn (Rule 9).
       ...stepsEntry(accepted[index]!.facts.fields, translations.get(config.languages[0] ?? 'en'), config.languages[0] ?? 'en'),
+      // WP-54, ADR-020's read tier: whatever those same fields' schemas and
+      // attributes constrain, with the file and line it came from — the same
+      // traceability `explanationSource` gives the description above.
+      ...(pageFile
+        ? rulesEntry(
+            accepted[index]!.facts.fields,
+            translations.get(config.languages[0] ?? 'en'),
+            config.languages[0] ?? 'en',
+            config.appRoot,
+            pageFile,
+          )
+        : {}),
       roles: route.roles ?? [],
       ...(parameters.length > 0
         ? {

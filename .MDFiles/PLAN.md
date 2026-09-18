@@ -93,7 +93,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | ✅ **built 2026-09-17** — `AGENTS.md`, `FIELD-NOTES.md`, `scan.mjs` (3.6MB, no dependencies), `runtime/nextgen.js`. Two blocking gates |
 | **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | ✅ **built 2026-09-17** — `pnpm preview`. Bench with the full trace, the mock app with the real widget, host-page variants |
 
-> ## ▶️ M5 is done; M6's first two steps landed — 2026-09-18
+> ## ▶️ M5 is done; M6's first three steps landed — 2026-09-18
 >
 > **M6 makes it an assistant rather than a menu**, and it is the largest change of
 > direction since ADR-013. Three ADRs accepted in one session: a model at run time over the
@@ -101,9 +101,10 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > visitors with every claim validated ([ADR-019](../.claude/decisions/ADR-019.md)), and
 > rules extracted from the adopter's code with provenance
 > ([ADR-020](../.claude/decisions/ADR-020.md)). Four work packages in §7.8, in an order
-> that is not negotiable — and **WP-52 and WP-53, the first two, are both done**: a
-> same-origin transport, off by default, and a model that may now write to a visitor with
-> every claim it makes checked against that visitor's own registry before they see it.
+> that is not negotiable — and **WP-52, WP-53 and WP-54, the first three, are all done**: a
+> same-origin transport, off by default; a model that may now write to a visitor with every
+> claim it makes checked against that visitor's own registry before they see it; and every
+> control's own validation, read with the file and line it came from.
 >
 > **What shipping WP-53 actually found**, and it is the kind of finding worth naming: the
 > first version of the action-claim detector flagged *"this screen is called Settings"*
@@ -114,17 +115,29 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > completion claim. This is the exact shape of mistake WP-53's Stop-if exists to catch,
 > found during the build rather than after.
 >
+> **WP-54 found the same kind of thing from the opposite direction — a reason to stop
+> rather than a bug to fix.** Two of ADR-020's five read-tier sources — a route guard's
+> requirement, the navigation hierarchy — turned out to reproduce a leak `emit.ts` already
+> has a name for: stripping the `roles` annotation from a shipped registry exists precisely
+> because telling one role who else can reach a screen is itself a disclosure. Stating that
+> same fact in prose, or shipping a nav tree with another role's labels in it, is the
+> identical leak in a new shape. Left undone, and said so in §7.8 rather than shipped
+> quietly with the rest.
+>
 > **Two rules were tightened by this, not loosened.** Rule 4 now covers identifiers inside
 > prose, and Rule 16 now enumerates the five edits an agent may make rather than leaving it
 > to judgement. Rule 9 was restated: it was always about explainability, and had been read
 > as "no model text at all" — that reading is corrected in `TurnTrace`'s and `whyFor`'s own
-> doc comments now, not just in this file.
+> doc comments now, not just in this file. Rule 13 gained the sibling ADR-020 named for it:
+> a rule is extracted, never judged by the model, exactly like a limit is declared rather
+> than inferred.
 >
 > **The number M6 exists to move:** stages 1 and 2 settle **15.7%** of turns; the rest ask
-> the visitor back. WP-52 and WP-53 built the pipe and the safety check; whether the number
-> actually moves is a question about a real deployment's real questions, which nothing
-> built so far has measured — that is honest to say now, before WP-54/55 add more surface
-> rather than after.
+> the visitor back. WP-52 through WP-54 built the pipe, the safety check and the app's own
+> knowledge of its forms; whether the number actually moves is a question about a real
+> deployment's real questions, which nothing built so far has measured — that is honest to
+> say now, before WP-55 adds the one kind of surface that can be *wrong* rather than merely
+> absent.
 >
 > M5 is closed: **WP-49 and WP-50 are both built**, and what is left of it is the owner's.
 >
@@ -160,7 +173,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 |---|---|---|---|---|
 | 1 | ✅ **WP-52** · **Stage 3 over the adopter's own origin, done 2026-09-18.** `SameOriginLlmRuntime`: resolves against the page, refuses off-origin, never throws. `--stage3 <path>` off by default. Proved live, not asserted: `check-stage3.mjs` builds a real bundle with kit and loads it with embed across a mocked network, disabling the origin check to confirm the gate catches it. `kit`/`embed` deliberately do not share the config type across their DOM-lib boundary — see the WP note | M6 | M | done |
 | 2 | ✅ **WP-53** · **The assistant writes, and the validator checks it, done 2026-09-18.** `prose` on stage 3's schema; `validateClaims` drops any sentence naming a screen not in *this role's* registry, claiming to have acted, or stating a number — whole sentences, never edited. Found and fixed before shipping: the first lexicon flagged *"this screen is called Settings"* as an action claim; English now needs a qualifying frame, Portuguese forms stay bare (rarer as ordinary words). *Why?* discloses a count, never the removed text | M6 | L | done |
-| 3 | ⬜ **WP-54** · **Extract what the application states.** ADR-020 read tier: validation schemas, required fields, enums, what a guard requires, navigation as a relation. Every rule carries its file and line | M6 | M–L | agent |
+| 3 | ✅ **WP-54** · **Extract what the application states, done 2026-09-18.** ADR-020 read tier: native attributes plus zod/yup schemas bound through react-hook-form, each rule carrying its file and line. What a guard requires and navigation-as-a-relation deliberately not shipped — both would reproduce the exact role leak `emit.ts`'s `withoutRoles` exists to prevent | M6 | M–L | agent |
 | 4 | ⬜ **WP-55** · **Infer what the application does.** ADR-020 inferred tier, and the only work package here whose output can be wrong rather than merely absent. Stop-if: 5% wrong on a read sample, the bar WP-42 set for descriptions | M6 | L | agent |
 | 5 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
 | 6 | ✅ **WP-49** · **`adapter/`, done 2026-09-17.** `AGENTS.md` as the entry point — seven `ASK` sections carried from the field-tested playbook — plus `scan.mjs`, one 3.6MB dependency-free bundle of init/build/doctor/calibrate, and `runtime/nextgen.js` prebuilt. **Proved by running it**, not asserted: `check-adapter.mjs` copies the committed folder and a fixture app into a scratch directory outside this repository and runs the real commands; 12 checks including Rule 17 and Rule 16 (38 files unchanged). **Five defects found, every one invisible to 602 unit tests** because every one was a failure of the bundle in a bare directory — the worst being `build` resolving the widget through `node_modules`, which shipped a bundle with no assistant in it while `doctor` called it a warning | M5 | L | done |
@@ -2740,22 +2753,75 @@ not by measuring drop rate in production. `validate-claims.test.ts`'s "does not 
 ordinary descriptive sentences" case is the six sentences that failure would have looked
 like, kept as a permanent regression test.
 
-### ⬜ WP-54 · Extract what the application states · **M–L · agent**
+### ✅ WP-54 · Extract what the application states — **done 2026-09-18**
 
 **Goal.** ADR-020's **read** tier — rules that are written down rather than inferred.
 
-**Do this.** Validation schemas (zod, yup, react-hook-form resolvers), `required`/`min`/
-`max`/`pattern` on real controls, TypeScript enums and unions used as field values, what a
-route guard requires, and the navigation hierarchy as a relation rather than a flat list.
-Every rule records its file and line, and its tier. `doctor` lists what was extracted.
+**Shipped.** `packages/generator/src/field-rules.ts` reads two sources per control:
 
-**Acceptance.** On the fixture applications, every rule extracted resolves to the line it
-names. A rule whose source moved is detectable — the derived-artefacts gate grows a check.
-Rule 16 still holds: `check-adapter.mjs`'s fingerprint is unchanged.
+- a native HTML attribute (`required`, `min`, `max`, `minLength`, `maxLength`, `pattern`);
+- a zod or yup schema, bound through react-hook-form's own idiom —
+  `useForm({ resolver: zodResolver(schema) })` / `yupResolver(schema)` — resolved from a
+  local `const` when the schema is declared above the component, which it usually is.
+  `{...register('amount')}`'s spread is read for the field's name, because that is how a
+  react-hook-form control is named in practice and a reader that only saw a literal
+  `name="…"` attribute would miss most real forms built this way.
 
-**Stop if.** Extraction is framework-specific to the point that each new validation library
-is a work package of its own. Then the honest shape is a small declared file the adopter
-writes, which is the option the owner rejected — reopen ADR-020 rather than absorb it.
+Zod's implicit default (required unless `.optional()`/`.nullable()` is chained) and yup's
+explicit one (`.required()`) are both read correctly, because they mean opposite things for
+the same absence. `z.enum([...])` and yup's `.oneOf([...])` both become an `enum` rule;
+`.regex(...)`/`.matches(...)` become `pattern`, with the regex's source kept verbatim and
+never shown to a visitor — quoting it would be exactly the "shows the wrong state" failure
+WP-42 found in a different reader. A schema rule and an attribute agreeing collapse into
+one (`dedupeFieldRules`).
+
+`Capability` gains `rules?: readonly ExtractedRule[]` (`packages/core-capability/src/
+types.ts`) — `{ field, statement, tier: 'read', source }`, `source` being `<file>:<line>` in
+the adopter's own tree, the same traceability `explanationSource` already gives the
+description. Phrased once, at build time, from a fixed template per rule kind in the app's
+own language (`rulesFor`/`rulesEntry`, mirroring `stepsFor`/`stepsEntry` exactly) — never
+generated per turn (Rule 9). `validateRegistry` gained the matching checks: a rule needs a
+field, a statement, a source, a recognised tier, and none of that on a declared limit, which
+has no form to constrain. `doctor` reports the total (`nextgen doctor` → "Rules read from
+validation schemas and control attributes: N (ADR-020, WP-54)").
+
+**Not done, on purpose, for a reason found while building this rather than assumed going
+in:** "what a route guard requires" and "the navigation hierarchy as a relation" are both in
+ADR-020's read-tier list, and neither shipped. `emit.ts`'s `withoutRoles` strips the `roles`
+annotation from every capability before it reaches a role's own registry specifically
+because *"telling a COACH's browser that a screen it can reach is also reachable by ADMIN
+and FINANCE is a smaller leak than the capability itself, but it is a leak"* (WP-24's own
+comment, unchanged). A visitor-facing rule stating *"requires role ADMIN"*, or a navigation
+tree exposing a sibling group's labels, reproduces exactly that leak — it is Rule 17's
+problem wearing ADR-020's clothes, not a formatting gap. Building either correctly means
+filtering it per role the way `splitByRole` already filters capabilities, which is a real
+design question `write-adr` should take through the reversibility test on its own, not
+something to fold silently into a work package about reading form controls. Field-level
+rules carry no role information at all, so this does not apply to what did ship.
+
+**Acceptance, checked exactly as written.**
+- "On the fixture applications, every rule extracted resolves to the line it names." —
+  `tooling/scripts/check-rule-provenance.mjs` (new), added as a fourth check inside
+  `check-derived-artefacts.mjs`: runs the real generator against `packages/generator/
+  fixtures/tiny-app`, and for every extracted rule opens the exact file and line its
+  `source` names. Made to fail on purpose, the same way `check-adapter.mjs` and
+  `check-stage3.mjs` prove their own properties: a source pointing past a real file's end is
+  confirmed unresolved before the real ones are trusted. `field-rules.test.ts` (26 cases)
+  proves the same property at the unit level for every rule kind, zod and yup both, by
+  writing a real temp file and reading the named line back off disk — not a hand-built
+  `ts.SourceFile`, because "resolves to the line it names" is exactly the property a mock
+  AST cannot demonstrate.
+- "A rule whose source moved is detectable." — the same gate: it is a real file read, not an
+  index lookup, so a moved line is exactly what it catches.
+- "Rule 16 still holds." — `check-adapter.mjs`'s fingerprint, unmodified, still passes; this
+  work package only reads more of a page already being read, through the same `readPage`
+  entry point.
+
+**Stop-if did not fire.** Extraction stayed to two well-defined shapes (an attribute, a
+`z`/`yup`-namespaced schema) rather than sprawling per-library; the documented scope limit
+— a re-exported schema alias, `.extend()`, `.merge()` — is exactly the shape the Stop-if
+describes, and it is written down in `field-rules.ts`'s own header rather than discovered
+by an adopter's confused bug report.
 
 ### ⬜ WP-55 · Infer what the application does · **L · agent · the risky one**
 

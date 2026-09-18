@@ -98,14 +98,23 @@ describe('fields — the form controls a page renders', () => {
   it('reads every named control in source order, with whatever names it', () => {
     expect(page('settings', 'NotificationsPage').fields).toEqual([
       // A <label htmlFor> whose text is t('…'): kept as a key, namespaced like
-      // the page's other copy, and resolved against the locales later.
-      { tag: 'input', label: null, labelKey: 'settings:notifications.email', id: 'notify-email', name: 'email', type: 'email' },
+      // the page's other copy, and resolved against the locales later. Its
+      // `required` attribute is a WP-54 rule, read rather than guessed.
+      {
+        tag: 'input',
+        label: null,
+        labelKey: 'settings:notifications.email',
+        id: 'notify-email',
+        name: 'email',
+        type: 'email',
+        rules: [{ kind: 'required', line: 14 }],
+      },
       // A literal <label htmlFor>.
-      { tag: 'select', label: 'Digest frequency', labelKey: null, id: 'notify-frequency', name: 'frequency', type: null },
+      { tag: 'select', label: 'Digest frequency', labelKey: null, id: 'notify-frequency', name: 'frequency', type: null, rules: [] },
       // No visible label at all — named only by aria-label.
-      { tag: 'input', label: 'Quiet hours', labelKey: null, id: null, name: 'quietHours', type: 'text' },
+      { tag: 'input', label: 'Quiet hours', labelKey: null, id: null, name: 'quietHours', type: 'text', rules: [] },
       // A submit button, named by its own text.
-      { tag: 'button', label: null, labelKey: 'settings:notifications.save', id: null, name: null, type: 'submit' },
+      { tag: 'button', label: null, labelKey: 'settings:notifications.save', id: null, name: null, type: 'submit', rules: [] },
     ]);
   });
 

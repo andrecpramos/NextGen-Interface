@@ -119,6 +119,26 @@ export interface FormField {
   readonly id: string | null;
   readonly name: string | null;
   readonly type: string | null;
+  /**
+   * What constrains this control — ADR-020's **read** tier (WP-54): a native
+   * HTML attribute, or a validation schema bound through the form. Always an
+   * array, possibly empty; see `field-rules.ts` for what is read and why.
+   */
+  readonly rules: readonly FieldRule[];
+}
+
+/**
+ * One constraint on a form control, read rather than inferred (ADR-020).
+ *
+ * `line` is 1-based, in the same file the control itself was read from — the
+ * page component. `field-rules.ts` is the only place these are produced.
+ */
+export interface FieldRule {
+  readonly kind: 'required' | 'min' | 'max' | 'minLength' | 'maxLength' | 'pattern' | 'email' | 'enum';
+  readonly value?: string | number;
+  /** For `kind: 'enum'` — the values a `z.enum([...])` / `yup.oneOf([...])` declares. */
+  readonly values?: readonly string[];
+  readonly line: number;
 }
 
 /** A label a manifest attached to a route, with the reason it was recorded. */

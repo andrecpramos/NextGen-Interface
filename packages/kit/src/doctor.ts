@@ -125,6 +125,7 @@ export function doctor(kitDir: string): DoctorReport {
   say(`  ${record.capabilities} screen(s) the assistant can take people to, plus ${record.boundaries} declared limit(s)`);
   for (const role of record.roles) say(`    ${role.padEnd(14)} ${record.perRole[role] ?? 0} screen(s)`);
   say(`  Descriptions: ${record.prose}`);
+  say(`  Rules read from validation schemas and control attributes: ${record.rules} (ADR-020, WP-54)`);
   say();
 
   // 3. What it skipped, grouped, most urgent first.

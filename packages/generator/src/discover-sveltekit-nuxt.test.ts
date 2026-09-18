@@ -100,7 +100,7 @@ describe('discoverRoutes — Nuxt', () => {
     expect(search.i18nKeys).toEqual(expect.arrayContaining(['Search the catalogue', 'Type to search...']));
     expect(search.headings).toContain('Search the catalogue');
     expect(search.headings.join(' ')).not.toMatch(/Error occurred/);
-    expect(search.fields).toEqual([{ tag: 'input', label: null, labelKey: 'Type to search...', id: null, name: 'q', type: 'text' }]);
+    expect(search.fields).toEqual([{ tag: 'input', label: null, labelKey: 'Type to search...', id: null, name: 'q', type: 'text', rules: [] }]);
   });
 
   it('loads one flat locale file per language, and finds a key whose dots are not a path', () => {

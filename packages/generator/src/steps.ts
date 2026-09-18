@@ -73,7 +73,7 @@ function selectorFor(field: FormField): string | undefined {
 }
 
 /** The label a user will actually see: the literal, or the translated key. */
-function visibleLabel(field: FormField, dictionary: Translations | undefined): string | null {
+export function visibleLabel(field: FormField, dictionary: Translations | undefined): string | null {
   if (field.label?.trim()) return field.label.trim();
   if (field.labelKey && dictionary) {
     const text = translate(dictionary, field.labelKey);

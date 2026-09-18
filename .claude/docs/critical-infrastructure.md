@@ -53,7 +53,7 @@ subsystem reads.
 | Rule | Enforcement | Status |
 |---|---|---|
 | Rule 10 — every capability ships >=3 examples | `MIN_EXAMPLES` in `core-capability/src/validate.ts`, run by `tooling/scripts/check-registries.mjs` over **every** registry found by glob, gated as `pnpm registry:check` in CI | **enforced, and wider since 2026-09-17** |
-| Rule 13 — limits declared, not judged | the `unsupported` kind and `defineBoundary`, asserted in `core-capability`'s tests and emitted by the generator for every application it reads | **enforced** |
+| Rule 13 — limits declared, not judged; rules extracted, not judged (ADR-020, WP-54) | the `unsupported` kind and `defineBoundary` for limits; for a rule, `validateRegistry`'s `rule-field-required`/`rule-statement-required`/`rule-untraceable`/`rule-tier-invalid`/`rules-on-boundary` checks, and `check-rule-provenance.mjs` (inside `check-derived-artefacts.mjs`) proving every shipped `source` still resolves to the line it names | **enforced** |
 | Generated artefacts match the committed ones | `check-derived-artefacts.mjs` — indexes, per-registry thresholds and browser/server parity over `eval/frameworks/<app>/generated` | **enforced** |
 | The fixture registry the router's scorecards were produced from does not move silently | `check-scorecard.mjs` against the scorecard committed at `HEAD`; `packages/core-intent/eval/README.md` says so at the file | **enforced** |
 

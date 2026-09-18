@@ -180,7 +180,7 @@
         "packages/generator/src/**",
         "eval/frameworks/**"
       ],
-      "fix": "Something upstream of eval/frameworks/family/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements."
+      "fix": "Something upstream of eval/frameworks/family/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements. Its fourth check (ADR-020, WP-54) is different in kind: an extracted rule's source no longer resolving means a page moved — rebuild the registry — or field-rules.ts computed the wrong line."
     },
     {
       "id": "generated-golden",

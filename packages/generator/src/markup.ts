@@ -149,7 +149,10 @@ function fieldsOf(markup: string): FormField[] {
     if (!label.text && !label.key) label = named(attributes, 'placeholder');
     if (!label.text && !label.key && tag === 'button' && match[3]) label = textOrKey(match[3]);
     if (!label.text && !label.key) continue;
-    out.push({ tag, label: label.text, labelKey: label.key, id, name, type });
+    // WP-54's schema/JSX-attribute extraction is TSX-specific (`field-rules.ts`
+    // walks a TypeScript AST); this regex-based reader for Vue/Svelte/HTML
+    // markup does not have rules to attach yet.
+    out.push({ tag, label: label.text, labelKey: label.key, id, name, type, rules: [] });
   }
   return out;
 }

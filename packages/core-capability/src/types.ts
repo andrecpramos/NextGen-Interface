@@ -129,6 +129,14 @@ export interface Capability {
    * `explanation`: served verbatim, auditable, fixable by editing a string.
    */
   readonly steps?: readonly GuidedStep[];
+  /**
+   * Rules the generator read from this page's own source — a validation
+   * schema, a `required`/`min`/`max`/`pattern` attribute (ADR-020, WP-54).
+   * Written at build time, never generated per turn, for the same reason
+   * `explanation` and `steps` are: served verbatim, auditable, fixable by
+   * editing the source it names rather than a prompt.
+   */
+  readonly rules?: readonly ExtractedRule[];
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;
   readonly examples?: readonly (string | CapabilityExample)[];
@@ -163,6 +171,34 @@ export interface GuidedStep {
   /** What to do, in words. Always shown, whatever happens to the anchor. */
   readonly text: string;
   readonly anchor?: StepAnchor;
+}
+
+/**
+ * ADR-020's two confidence tiers for an extracted rule.
+ *
+ * `read` came from something written down — a validation schema, a `required`
+ * attribute, an enum. `inferred` came from a condition in a handler or effect,
+ * where the extractor is reading behaviour rather than a declaration. Nothing
+ * with tier `inferred` ships in a registry yet (WP-55); the type exists now so
+ * the field does not need reshaping when it does.
+ */
+export type RuleTier = 'read' | 'inferred';
+
+/**
+ * A rule the generator read from the application's own source, rather than
+ * guessed — ADR-020. `field` names the control it constrains: a form's
+ * `name`/`id`, resolved the same way a guided step's anchor is.
+ *
+ * `source` is `<file>:<line>` in the adopter's own tree, for the same reason
+ * `explanationSource` exists on the capability itself: a wrong rule is
+ * traceable to the one place that can fix it, and a rule whose line has moved
+ * is detectable rather than silently stale.
+ */
+export interface ExtractedRule {
+  readonly field: string;
+  readonly statement: string;
+  readonly tier: RuleTier;
+  readonly source: string;
 }
 
 export interface EnumDefinition {

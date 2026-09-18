@@ -204,6 +204,16 @@ describe('init → build → doctor, end to end', () => {
     expect(doctor(kit).text).toMatch(/data-nextgen-role="PUBLIC"/);
   }, 60_000);
 
+  it('counts rules read from the app\'s own controls, and doctor says so (ADR-020, WP-54)', async () => {
+    // tiny-app's notifications page declares `required` on its email input —
+    // a real constraint, read rather than guessed.
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit);
+    expect(record.rules).toBeGreaterThan(0);
+    expect(doctor(kit).text).toMatch(/Rules read from validation schemas and control attributes: \d+ \(ADR-020, WP-54\)/);
+  }, 60_000);
+
   it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {
     // Reproduces the exact failure found running the kit against fut-app:
     // `dist/nextgen.js` survived a later `embed/src` change untouched because

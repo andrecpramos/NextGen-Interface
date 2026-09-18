@@ -198,7 +198,10 @@ jobs:
       # browser's decisions against the server's. On 2026-09-11, a one-line change
       # to normalize() left ten shipped indexes stale while every job here stayed
       # green. Only a manual parity run noticed.
-      - name: Derived artefacts are current (WP-46)
+      # A fourth check joined this in WP-54 (ADR-020): an extracted rule's source
+      # ("<file>:<line>") must still resolve against the fixture it names, proved the
+      # same way — made to fail on purpose against a line past a real file's end.
+      - name: Derived artefacts are current (WP-46, ADR-020)
         run: node tooling/scripts/check-derived-artefacts.mjs
 
       # WP-45. Runs the BUILT bundle in a real DOM and audits every state a user

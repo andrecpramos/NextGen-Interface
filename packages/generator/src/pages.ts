@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 
+import { dedupeFieldRules, htmlFieldRules, localDeclaration, registerNameOf, schemaFieldRules } from './field-rules.ts';
 import { readAngularComponent, readMarkupPage } from './markup.ts';
 import type { FormField, PageFacts } from './types.ts';
 
@@ -250,20 +251,6 @@ function insideIf(node: ts.Node): boolean {
   return false;
 }
 
-/** The `const` an identifier names, looked up through the blocks around it. */
-function localDeclaration(identifier: ts.Identifier): ts.VariableDeclaration | null {
-  for (let scope: ts.Node | undefined = identifier.parent; scope; scope = scope.parent) {
-    if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue;
-    for (const statement of scope.statements) {
-      if (!ts.isVariableStatement(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.name.text === identifier.text) return declaration;
-      }
-    }
-  }
-  return null;
-}
-
 /**
  * The i18n keys a page renders as its own heading, in source order.
  *
@@ -445,6 +432,11 @@ function formFields(source: ts.SourceFile): FormField[] {
   };
   visit(source);
 
+  // WP-54: whatever a zod/yup schema constrains, read once for the whole file
+  // and joined to each control below by the same key `register('…')` and a
+  // literal `name="…"` both resolve to.
+  const schemaRules = schemaFieldRules(source);
+
   const out: FormField[] = [];
   for (const node of controls) {
     const attributes = attributesOf(node)!;
@@ -456,7 +448,7 @@ function formFields(source: ts.SourceFile): FormField[] {
     if (tag === 'button' && type !== 'submit') continue;
 
     const id = literalAttr(attributes, 'id');
-    const name = literalAttr(attributes, 'name');
+    const name = literalAttr(attributes, 'name') ?? registerNameOf(attributes);
 
     let named: { text: string | null; key: string | null } = {
       text: literalAttr(attributes, 'aria-label'),
@@ -467,7 +459,9 @@ function formFields(source: ts.SourceFile): FormField[] {
     if (!named.text && !named.key && tag === 'button') named = childText(node);
 
     if (!named.text && !named.key) continue;
-    out.push({ tag, label: named.text, labelKey: named.key, id, name, type });
+    const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
+    const rules = dedupeFieldRules([...(schemaRules.get(name ?? '') ?? []), ...htmlFieldRules(attributes, line + 1)]);
+    out.push({ tag, label: named.text, labelKey: named.key, id, name, type, rules });
   }
   return out;
 }

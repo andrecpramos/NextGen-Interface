@@ -91,6 +91,8 @@ export interface BuildRecord {
   readonly perRole: Readonly<Record<string, number>>;
   readonly capabilities: number;
   readonly boundaries: number;
+  /** Rules read from validation schemas and control attributes (ADR-020, WP-54). */
+  readonly rules: number;
   readonly skipped: readonly SkippedRoute[];
   /** Role registries that failed `validateRegistry()`, with the report. */
   readonly invalid: readonly string[];
@@ -273,6 +275,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     perRole,
     capabilities: output.master.length,
     boundaries: output.boundaries.length,
+    rules: output.master.reduce((n, c) => n + (c.rules?.length ?? 0), 0),
     skipped: output.skipped,
     invalid: written.invalid,
     calibrated,

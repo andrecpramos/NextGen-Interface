@@ -4,7 +4,7 @@ import { defineBoundary, defineCapability, defineRegistry } from './define.ts';
 import { validateRegistry } from './validate.ts';
 import { capabilityDocument, generateGoldenEntries, generateRouteTable } from './codegen.ts';
 import { isCapabilityKind, isExecutableKind } from './types.ts';
-import type { Capability, RegistryFile } from './types.ts';
+import type { Capability, ExtractedRule, RegistryFile } from './types.ts';
 
 const ex = (n: number) => Array.from({ length: n }, (_, i) => `phrasing number ${i + 1}`);
 
@@ -214,6 +214,43 @@ describe('validateRegistry — the declared explanation', () => {
       examples: ex(3), refusal: 'Not something I do.',
     });
     expect(rules(registryOf(ok(), b))).not.toContain('explanation-required');
+  });
+});
+
+describe('validateRegistry — extracted rules (ADR-020, WP-54)', () => {
+  const withRule = (over: Partial<ExtractedRule> = {}) => ({
+    ...ok(),
+    rules: [{ field: 'amount', statement: 'Amount is required.', tier: 'read' as const, source: 'src/Page.tsx:12', ...over }],
+  });
+
+  it('accepts a well-formed rule', () => {
+    expect(validateRegistry(registryOf(withRule())).ok).toBe(true);
+  });
+
+  it('rejects a rule with no field', () => {
+    expect(rules(registryOf(withRule({ field: '' })))).toContain('rule-field-required');
+  });
+
+  it('rejects a rule with no statement', () => {
+    expect(rules(registryOf(withRule({ statement: '' })))).toContain('rule-statement-required');
+  });
+
+  it('rejects a rule with no source — an extracted rule with no provenance cannot be checked', () => {
+    expect(rules(registryOf(withRule({ source: '' })))).toContain('rule-untraceable');
+  });
+
+  it('rejects an unrecognised tier', () => {
+    expect(rules(registryOf(withRule({ tier: 'guessed' as never })))).toContain('rule-tier-invalid');
+  });
+
+  it('rejects a rule on a declared limit — there is no form to constrain', () => {
+    const b = defineBoundary({
+      id: 'unsupported.thing', title: 'Thing',
+      description: 'Something this application deliberately does not do',
+      examples: ex(3), refusal: 'Not something I do.',
+    });
+    const boundaryWithRule = { ...b, rules: [{ field: 'x', statement: 'X is required.', tier: 'read' as const, source: 'a.tsx:1' }] };
+    expect(rules(registryOf(ok(), boundaryWithRule))).toContain('rules-on-boundary');
   });
 });
 
