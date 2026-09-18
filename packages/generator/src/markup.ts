@@ -16,7 +16,17 @@ import type { FormField, PageFacts } from './types.ts';
  * Everything returned is the adopter's own text and untrusted (Rule 15).
  */
 
-const EMPTY: PageFacts = { isPureRedirect: false, redirectTargets: [], i18nKeys: [], headings: [], doc: null, fields: [], title: null, titleKeys: [] };
+const EMPTY: PageFacts = {
+  isPureRedirect: false,
+  redirectTargets: [],
+  i18nKeys: [],
+  headings: [],
+  doc: null,
+  fields: [],
+  title: null,
+  titleKeys: [],
+  inferredCandidates: [],
+};
 
 /** `{x}` (Svelte), `{{ x }}` (Vue, Angular), `${x}`: text that depends on data. */
 const EXPRESSION = /\{\{|\{[^}]*\}|\$\{/;
@@ -198,5 +208,8 @@ function readMarkupText(text: string): PageFacts {
     doc: null,
     fields: fieldsOf(markup),
     title: declaredTitle(text, scriptsOf(text)),
+    // WP-55's extractor walks a TypeScript AST (`inferred-rules.ts`); this
+    // regex-based reader for Vue/Svelte/HTML markup has no candidates to offer.
+    inferredCandidates: [],
   };
 }

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { validateRegistry } from '@nextgen/core-capability';
 
-import { formatSkipReport, splitByRole, writeOutput } from './emit.ts';
+import { formatInferredReport, formatSkipReport, splitByRole, writeOutput } from './emit.ts';
 import type { AnnotatedCapability, GeneratorOutput } from './types.ts';
 
 const capability = (id: string, roles: string[]): AnnotatedCapability => ({
@@ -102,6 +102,7 @@ describe('writeOutput — Rule 16', () => {
     master,
     boundaries: [boundary],
     skipped: [{ path: '/dev/icons', reason: 'dev-only', detail: 'development builds only' }],
+    reviewInferred: [],
     domainDescription: 'A club application.',
     roles: ['ADMIN'],
   };
@@ -118,13 +119,13 @@ describe('writeOutput — Rule 16', () => {
     expect(() => writeOutput(appRoot, appRoot, output)).toThrow(/Rule 16/);
   });
 
-  it('writes one registry per role, a master and a report, outside the app', () => {
+  it('writes one registry per role, a master and both reports, outside the app', () => {
     const appRoot = mkdtempSync(join(tmpdir(), 'nextgen-app-'));
     const out = mkdtempSync(join(tmpdir(), 'nextgen-out-'));
     const result = writeOutput(out, appRoot, output);
 
     expect(result.invalid).toEqual([]);
-    expect(readdirSync(out).sort()).toEqual(['SKIPPED.md', 'master.json', 'registry.ADMIN.json']);
+    expect(readdirSync(out).sort()).toEqual(['INFERRED.md', 'SKIPPED.md', 'master.json', 'registry.ADMIN.json']);
     expect(JSON.parse(readFileSync(join(out, 'master.json'), 'utf8')).capabilities[0]).toHaveProperty('roles');
   });
 });
@@ -138,5 +139,23 @@ describe('formatSkipReport', () => {
     expect(report).toContain('/squad/teams');
     expect(report).toContain('Legacy team list');
     expect(report).toContain('Rule 17');
+  });
+});
+
+describe('formatInferredReport — ADR-020, WP-55', () => {
+  it('says plainly that nothing was found, rather than an empty section', () => {
+    expect(formatInferredReport([])).toContain('Nothing found.');
+  });
+
+  it('quotes the raw source for every candidate that was not shipped', () => {
+    const report = formatInferredReport([
+      { route: '/expenses', pattern: 'disabled-submit', source: 'features/expenses/ExpensePage.tsx:5', detail: 'isSubmitting' },
+      { route: '/members', pattern: 'guard-message', source: 'features/members/MemberPage.tsx:4', detail: 'if (!isLoggedIn) {…}' },
+    ]);
+    expect(report).toContain('/expenses');
+    expect(report).toContain('isSubmitting');
+    expect(report).toContain('features/expenses/ExpensePage.tsx:5');
+    expect(report).toContain('/members');
+    expect(report).toContain('ADR-020');
   });
 });

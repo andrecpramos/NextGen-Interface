@@ -93,7 +93,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | **`adapter/`** | What the adopter copies. Zero npm, zero network. | **their coding agent** | ✅ **built 2026-09-17** — `AGENTS.md`, `FIELD-NOTES.md`, `scan.mjs` (3.6MB, no dependencies), `runtime/nextgen.js`. Two blocking gates |
 | **`preview/`** | The bench: see the result, judge the UI, the model and the voice. | **the owner** | ✅ **built 2026-09-17** — `pnpm preview`. Bench with the full trace, the mock app with the real widget, host-page variants |
 
-> ## ▶️ M5 is done; M6's first three steps landed — 2026-09-18
+> ## ▶️ M5 is done; M6 is done — 2026-09-18
 >
 > **M6 makes it an assistant rather than a menu**, and it is the largest change of
 > direction since ADR-013. Three ADRs accepted in one session: a model at run time over the
@@ -101,10 +101,12 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > visitors with every claim validated ([ADR-019](../.claude/decisions/ADR-019.md)), and
 > rules extracted from the adopter's code with provenance
 > ([ADR-020](../.claude/decisions/ADR-020.md)). Four work packages in §7.8, in an order
-> that is not negotiable — and **WP-52, WP-53 and WP-54, the first three, are all done**: a
-> same-origin transport, off by default; a model that may now write to a visitor with every
-> claim it makes checked against that visitor's own registry before they see it; and every
-> control's own validation, read with the file and line it came from.
+> that was not negotiable — and **all four are done**: a same-origin transport, off by
+> default; a model that may now write to a visitor with every claim it makes checked
+> against that visitor's own registry before they see it; every control's own validation,
+> read with the file and line it came from; and, the riskiest of the four, what a form's
+> own handlers appear to require, shipped only when the pattern is exact and measured at
+> **0% wrong** before it shipped rather than after.
 >
 > **What shipping WP-53 actually found**, and it is the kind of finding worth naming: the
 > first version of the action-claim detector flagged *"this screen is called Settings"*
@@ -124,20 +126,32 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > identical leak in a new shape. Left undone, and said so in §7.8 rather than shipped
 > quietly with the rest.
 >
+> **WP-55 — "the risky one" — is the only work package in M6 whose deliverable was a
+> measurement, not just a mechanism.** ADR-020's inferred tier reads what a submit
+> handler's own code appears to require: a disabled button, a guard that bails out with a
+> message. 19 realistic scenarios, read against the source the way WP-42 read generated
+> descriptions: **14 shipped, 0% wrong, 1 vague.** Both defects the measurement found were
+> fixed before anything shipped — `setFieldError('field', 'message')` was reading the
+> field's own name as if it were the message (fixed: take the *last* string literal, not
+> the first), and a disabled checkbox's sentence-shaped label read as a run-on through the
+> noun-phrase template (fixed: phrased the way `steps.ts` already phrases a checkbox's
+> guided step). The Stop-if — more than 5% wrong — did not fire, and it did not fire
+> because it was actually checked, not assumed safe from the shape of the code.
+>
 > **Two rules were tightened by this, not loosened.** Rule 4 now covers identifiers inside
 > prose, and Rule 16 now enumerates the five edits an agent may make rather than leaving it
 > to judgement. Rule 9 was restated: it was always about explainability, and had been read
 > as "no model text at all" — that reading is corrected in `TurnTrace`'s and `whyFor`'s own
 > doc comments now, not just in this file. Rule 13 gained the sibling ADR-020 named for it:
 > a rule is extracted, never judged by the model, exactly like a limit is declared rather
-> than inferred.
+> than inferred — and that now covers both tiers, not only the one WP-54 shipped first.
 >
 > **The number M6 exists to move:** stages 1 and 2 settle **15.7%** of turns; the rest ask
-> the visitor back. WP-52 through WP-54 built the pipe, the safety check and the app's own
-> knowledge of its forms; whether the number actually moves is a question about a real
-> deployment's real questions, which nothing built so far has measured — that is honest to
-> say now, before WP-55 adds the one kind of surface that can be *wrong* rather than merely
-> absent.
+> the visitor back. All four work packages built the pipe, the safety check and the app's
+> own knowledge of itself — its forms' declared shape and, now, what their handlers appear
+> to require; whether the number actually moves is a question about a real deployment's
+> real questions, which nothing built so far has measured. That is still honest to say now
+> that M6 itself is closed: measuring it is its own, separate piece of work.
 >
 > M5 is closed: **WP-49 and WP-50 are both built**, and what is left of it is the owner's.
 >
@@ -174,7 +188,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 | 1 | ✅ **WP-52** · **Stage 3 over the adopter's own origin, done 2026-09-18.** `SameOriginLlmRuntime`: resolves against the page, refuses off-origin, never throws. `--stage3 <path>` off by default. Proved live, not asserted: `check-stage3.mjs` builds a real bundle with kit and loads it with embed across a mocked network, disabling the origin check to confirm the gate catches it. `kit`/`embed` deliberately do not share the config type across their DOM-lib boundary — see the WP note | M6 | M | done |
 | 2 | ✅ **WP-53** · **The assistant writes, and the validator checks it, done 2026-09-18.** `prose` on stage 3's schema; `validateClaims` drops any sentence naming a screen not in *this role's* registry, claiming to have acted, or stating a number — whole sentences, never edited. Found and fixed before shipping: the first lexicon flagged *"this screen is called Settings"* as an action claim; English now needs a qualifying frame, Portuguese forms stay bare (rarer as ordinary words). *Why?* discloses a count, never the removed text | M6 | L | done |
 | 3 | ✅ **WP-54** · **Extract what the application states, done 2026-09-18.** ADR-020 read tier: native attributes plus zod/yup schemas bound through react-hook-form, each rule carrying its file and line. What a guard requires and navigation-as-a-relation deliberately not shipped — both would reproduce the exact role leak `emit.ts`'s `withoutRoles` exists to prevent | M6 | M–L | agent |
-| 4 | ⬜ **WP-55** · **Infer what the application does.** ADR-020 inferred tier, and the only work package here whose output can be wrong rather than merely absent. Stop-if: 5% wrong on a read sample, the bar WP-42 set for descriptions | M6 | L | agent |
+| 4 | ✅ **WP-55** · **Infer what the application does, done 2026-09-18.** ADR-020 inferred tier: a disabled-submit condition, a submit handler's own early-return guard. 19 candidates on a read sample, 14 shipped, **0% wrong** (1 vague) — well under the 5% bar. Two phrasing/argument-order bugs found and fixed before shipping | M6 | L | agent |
 | 5 | ✅ **WP-51** · **The reset**, done 2026-09-17 ([ADR-018](../.claude/decisions/ADR-018.md)). Deleted the six packages reachable only from the terminal demo, `apps/cli`, the pilot's eval data and ~40 experiment scripts — **~18,700 lines**. Nothing on the shipping path broke: 602 tests, typecheck clean, and the golden-set gate still reports *"every rate and every decision matches"*. Rule 10's runner was rebuilt wider (12→5 registries by glob, validating files nothing had validated before); the egress gate was found **passing vacuously** and made stricter; five gates were repointed at fixtures, none retired. `adapter/FIELD-NOTES.md` carries what the pilot taught, with no trace of the pilot | M5 | L | done |
 | 6 | ✅ **WP-49** · **`adapter/`, done 2026-09-17.** `AGENTS.md` as the entry point — seven `ASK` sections carried from the field-tested playbook — plus `scan.mjs`, one 3.6MB dependency-free bundle of init/build/doctor/calibrate, and `runtime/nextgen.js` prebuilt. **Proved by running it**, not asserted: `check-adapter.mjs` copies the committed folder and a fixture app into a scratch directory outside this repository and runs the real commands; 12 checks including Rule 17 and Rule 16 (38 files unchanged). **Five defects found, every one invisible to 602 unit tests** because every one was a failure of the bundle in a bare directory — the worst being `build` resolving the widget through `node_modules`, which shipped a bundle with no assistant in it while `doctor` called it a warning | M5 | L | done |
 | 7 | ✅ **WP-50** · **`preview/`, done 2026-09-17.** `pnpm preview`. Three surfaces on one server: `/bench` (ask, and see the whole trace — every candidate stage 2 scored, **with the description it was scored on**), the mock app with the **real widget** mounted, and host-page variants for placement. Seeded by moving `packages/embed/demo` wholesale — which still read the deleted pilot data, making it the last live reference ADR-018's sweep missed. Checked in a real browser by `preview/check-bench.mjs` | M5 | M–L | done |
@@ -2823,22 +2837,91 @@ rules carry no role information at all, so this does not apply to what did ship.
 describes, and it is written down in `field-rules.ts`'s own header rather than discovered
 by an adopter's confused bug report.
 
-### ⬜ WP-55 · Infer what the application does · **L · agent · the risky one**
+### ✅ WP-55 · Infer what the application does — **done 2026-09-18, the risky one**
 
 **Goal.** ADR-020's **inferred** tier: conditions in handlers and effects — an early
 return, a disabled submit, a thrown message.
 
-**Do this.** Only patterns the extractor recognises exactly reach the shipped registry;
-everything else goes to `review/INFERRED.md` and nowhere near a visitor. An inferred rule
-is phrased as an observation — *"the form asks for a receipt before it will submit"* — not
-as a law, and the tier is in the data rather than left to the model's tone.
+**Shipped.** `packages/generator/src/inferred-rules.ts` recognises exactly two shapes, both
+from ADR-020's own list, and nothing else:
 
-**Acceptance.** Measured the way WP-42 measured descriptions: read a sample against the
-source and count right / vague / **wrong**. Wrong is the only number that matters.
+- **`disabled-submit`** — a submit control's own `disabled` expression, decomposed only on
+  `||`: a bare `!field`, or an `||`-chain of them. `&&` is never entered — it changes what
+  the condition *means*, not just how it is spelled — so a mixed expression yields whatever
+  `!field` terms it has and leaves the rest opaque, which is safe: an OR'd term the
+  extractor does not understand is never evidence *against* a term it does.
+- **`guard-message`** — the page's own submit action (a `<form onSubmit>`, or a submit
+  control's `onClick`), resolved to its function body, whose *first* real statement
+  (skipping a leading `preventDefault()`/`stopPropagation()`) is exactly `if (<presence
+  check>) { <one message call>; return; }` or `if (<check>) throw new Error('…')`. The
+  presence check is `!field`, or `field === null/undefined/''`, either side. The message
+  call is `setError`/`setFieldError`/`toast.*`/`notify*`/`alert`, with a string literal
+  argument.
 
-**Stop if.** More than **5% wrong** on a read sample — WP-42's bar for descriptions, and a
-wrong rule is worse than a wrong description because a visitor acts on it. Demote the tier
-to `review/`-only, which ADR-020 was designed to make a flag rather than a rewrite.
+Everything that is not exactly one of those two shapes still becomes a candidate — an `if`
+with an `else`, a guard not in first position, one that does not exit early, a message call
+this generator does not recognise — and every one of them is **held back, not guessed**:
+`recognized: false`, and it reaches only `review/INFERRED.md` (new — `formatInferredReport`
+in `emit.ts`, written by `writeOutput` unconditionally, the same way `SKIPPED.md` always is,
+so "nothing found" is a sentence, not a missing file). A recognised candidate becomes an
+`ExtractedRule` with `tier: 'inferred'`, in the *same* `capability.rules` array WP-54's
+`read`-tier rules land in — one array, two tiers, told apart by the field the ADR named for
+exactly this. `doctor` reports both counts, and the `review/INFERRED.md` count when it is
+not zero, with a pointer to the file (ADR-020's own consequence: "`review/` becomes
+something a developer must read").
+
+**The read-sample measurement, done rather than assumed.** 19 realistic scenarios — 10
+disabled-submit shapes, 9 guard-message shapes, deliberately including near-misses
+(`disabled={isSubmitting}`, an `&&` chain, an `if`/`else`, a guard not in first position, a
+multi-statement block, an unrelated `isLoggedIn` guard) — produced **19 candidates: 14
+shipped, 5 correctly held back.** Reading all 14 shipped ones against the line each one
+names: **13 right, 1 vague, 0 wrong.** The vague one — `setError('Please check the
+highlighted fields.')` guarded on `postcode` — is a real, generic UI message that says
+nothing field-specific; recognising *that* a message is too generic to name would need
+judgement this extractor is built specifically not to make, so it is left as a documented,
+accepted vague case rather than a fix that would itself be a guess. **0% wrong, against a
+5% bar. Stop-if did not fire.**
+
+**Two defects the measurement found, fixed before this shipped rather than after:**
+1. `setFieldError('email', 'Email cannot be empty.')` — `messageFromCall` took the *first*
+   string-literal argument, which is the field's own name, not the message. Fixed to take
+   the *last* string literal instead, which is where every call shape actually keeps the
+   message; a regression test (`inferred-rules.test.ts`) keeps this failure mode covered.
+2. A disabled checkbox's own label already reads as a sentence — *"I accept the terms"* —
+   and the noun-phrase template produced *"The form asks for I accept the terms before it
+   will submit,"* a run-on. `steps.ts` already makes exactly this distinction for guided
+   steps (`tick: 'Tick "{label}" if it applies.'`); `phraseDisabledSubmit` now checks the
+   matched field's `type` and phrases a checkbox or radio as *"'{label}' must be checked
+   before this can be submitted."* This is what took the vague count from 2/14 to 1/14.
+
+**Acceptance, checked exactly as written:**
+- "Only patterns the extractor recognises exactly reach the shipped registry" —
+  `inferred-rules.test.ts` (20 cases) proves every abstention deliberately: an `&&` chain,
+  an unmatched identifier, a guard with an `else`, a guard not first, one with no early
+  exit, a message call this generator does not trust, a message with no string literal.
+  `generate.test.ts` proves the same properties through the full pipeline — a capability's
+  `rules` and `output.reviewInferred` are mutually exclusive for the same candidate, always.
+- "The tier is in the data rather than left to the model's tone" — `ExtractedRule.tier`,
+  unchanged from WP-54; nothing about a `guard-message` rule's *text* signals its tier, by
+  design, because the message is the app's own words, quoted, not written by this
+  generator.
+- "Measured the way WP-42 measured descriptions... wrong is the only number that matters."
+  — done above: 0/14, not asserted, counted.
+
+**Not done, on purpose, narrower than ADR-020's own list:** a guard not in the handler's
+first position is never read at all, even as a candidate — walking a whole function for
+anything shaped like an early return would make `review/INFERRED.md` mostly noise from
+ordinary control flow (a loading guard, a permission check) that has nothing to do with a
+form. A schema alias, `.extend()`-composed schema, or a state variable named differently
+from its field (the same exact-identifier convention `field-rules.ts` already accepted) are
+equally out of scope here, for the same reason: ADR-020's own escape valve is to reopen the
+decision, not absorb an unbounded amount of pattern-matching into one work package.
+
+**Stop-if did not fire, and the finding it exists to catch was found by measuring, not by
+assuming the mechanism was safe.** 0% wrong on the read sample, comfortably under the 5%
+bar; both defects the measurement surfaced were phrasing/argument-order bugs caught and
+fixed before anything shipped, exactly the discipline WP-53's false-positive catch and
+WP-54's `setFieldError`-shaped near-miss both already established for this session.
 
 ---
 

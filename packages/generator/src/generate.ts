@@ -19,12 +19,14 @@ import { splitByRole } from './emit.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
 import { rulesEntry } from './field-rules.ts';
+import { inferredRulesEntry, reviewInferredEntries } from './inferred-rules.ts';
 import type {
   AnnotatedCapability,
   DiscoveredRoute,
   GeneratorConfig,
   GeneratorOutput,
   PageFacts,
+  ReviewInferredEntry,
   SkippedRoute,
 } from './types.ts';
 
@@ -51,6 +53,7 @@ const EMPTY_FACTS: PageFacts = {
   titleKeys: [],
   doc: null,
   title: null,
+  inferredCandidates: [],
 };
 
 /** `/squad/players` and `/squad/players/:id` share a section; `/players/:id` does not. */
@@ -581,12 +584,22 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     new Map(accepted.map(({ id, route }) => [id, route.roles ?? []])),
   );
 
-  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile }, index) => {
+  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
     const parameters = routeSegments(route.path)
       .filter((segment) => segment.startsWith(':'))
       .map((segment) => segment.slice(1));
+    const dictionary = translations.get(config.languages[0] ?? 'en');
+    const language = config.languages[0] ?? 'en';
+    // WP-54 (ADR-020 read tier) and WP-55 (inferred tier) both produce rules for
+    // the same capability; one array carries both, told apart by `tier`.
+    const rules = pageFile
+      ? [
+          ...(rulesEntry(facts.fields, dictionary, language, config.appRoot, pageFile).rules ?? []),
+          ...(inferredRulesEntry(facts.inferredCandidates, facts.fields, dictionary, language, config.appRoot, pageFile).rules ?? []),
+        ]
+      : [];
 
     return {
       id,
@@ -605,19 +618,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),
       // WP-27: guided steps from the form this page renders, in the app's primary
       // language. Template-built at build time, never generated per turn (Rule 9).
-      ...stepsEntry(accepted[index]!.facts.fields, translations.get(config.languages[0] ?? 'en'), config.languages[0] ?? 'en'),
-      // WP-54, ADR-020's read tier: whatever those same fields' schemas and
-      // attributes constrain, with the file and line it came from — the same
-      // traceability `explanationSource` gives the description above.
-      ...(pageFile
-        ? rulesEntry(
-            accepted[index]!.facts.fields,
-            translations.get(config.languages[0] ?? 'en'),
-            config.languages[0] ?? 'en',
-            config.appRoot,
-            pageFile,
-          )
-        : {}),
+      ...stepsEntry(facts.fields, dictionary, language),
+      ...(rules.length > 0 ? { rules } : {}),
       roles: route.roles ?? [],
       ...(parameters.length > 0
         ? {
@@ -634,6 +636,12 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   master.sort((a, b) => a.id.localeCompare(b.id));
   skipped.sort((a, b) => a.path.localeCompare(b.path));
+
+  // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
+  // own source, never a registry.
+  const reviewInferred: ReviewInferredEntry[] = accepted.flatMap(({ route, facts, pageFile }) =>
+    pageFile ? reviewInferredEntries(facts.inferredCandidates, route.path, config.appRoot, pageFile) : [],
+  );
 
   const boundaries = synthesiseBoundaries(routes);
   const domainDescription =
@@ -652,6 +660,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     master,
     boundaries,
     skipped,
+    reviewInferred,
     domainDescription,
     roles: roles.allRoles,
   };

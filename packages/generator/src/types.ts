@@ -106,6 +106,38 @@ export interface PageFacts {
    * `meta` title — when it is a string literal. Untrusted (Rule 15).
    */
   readonly title: string | null;
+  /**
+   * ADR-020's **inferred** tier (WP-55): a condition this page's own code
+   * appeared to enforce before its form would submit. Every candidate found is
+   * here, whether or not it was confident enough to ship — see
+   * `InferredCandidate.recognized` and `inferred-rules.ts`'s own header for why
+   * that split exists at all.
+   */
+  readonly inferredCandidates: readonly InferredCandidate[];
+}
+
+/** Which shape of imperative guard an inferred candidate came from. */
+export type InferredPattern = 'disabled-submit' | 'guard-message';
+
+/**
+ * One condition read from a handler or a `disabled` expression, before it is
+ * known whether it is confident enough to ship (ADR-020, WP-55).
+ *
+ * `recognized: false` never reaches a registry — it is only ever written to
+ * `review/INFERRED.md`, for a human to read. `statement` is `null` until it is
+ * known to be needed: `disabled-submit` phrases from a template once a label
+ * is resolvable (`inferredRulesEntry`), so it carries none here; `guard-message`
+ * already found its statement verbatim in the source, so it carries it now.
+ */
+export interface InferredCandidate {
+  readonly pattern: InferredPattern;
+  /** The `FormField` this was matched to (its `name`, or its `id`) — null when nothing matched. */
+  readonly field: string | null;
+  readonly statement: string | null;
+  readonly recognized: boolean;
+  /** The raw source text this came from, quoted for `review/INFERRED.md`. Untrusted (Rule 15). */
+  readonly detail: string;
+  readonly line: number;
 }
 
 /** One control a guided step can point at, as read from the page's JSX. */
@@ -170,8 +202,24 @@ export interface GeneratorOutput {
   readonly master: readonly AnnotatedCapability[];
   readonly boundaries: readonly Capability[];
   readonly skipped: readonly SkippedRoute[];
+  /**
+   * An inferred-tier candidate (ADR-020, WP-55) found but not confident enough
+   * to ship — `review/INFERRED.md`, never a registry. What *did* ship the same
+   * way is indistinguishable from a `read`-tier rule except for its `tier`
+   * field on the capability that carries it; there is no separate list for it.
+   */
+  readonly reviewInferred: readonly ReviewInferredEntry[];
   readonly domainDescription: string;
   readonly roles: readonly RoleName[];
+}
+
+/** A found-but-not-shipped inferred candidate, for a human to read (ADR-020, WP-55). */
+export interface ReviewInferredEntry {
+  readonly route: string;
+  readonly pattern: InferredPattern;
+  /** `<file>:<line>`, in the adopter's own tree. */
+  readonly source: string;
+  readonly detail: string;
 }
 
 /**

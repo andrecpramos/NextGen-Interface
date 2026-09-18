@@ -214,6 +214,18 @@ describe('init → build → doctor, end to end', () => {
     expect(doctor(kit).text).toMatch(/Rules read from validation schemas and control attributes: \d+ \(ADR-020, WP-54\)/);
   }, 60_000);
 
+  it('reports the inferred tier too, and writes review/INFERRED.md whether or not anything shipped (ADR-020, WP-55)', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit);
+    // tiny-app has no disabled-submit or guard-message shape at all — this is
+    // the honest zero, not an untested line.
+    expect(record.inferredRules).toBe(0);
+    expect(record.reviewInferred).toBe(0);
+    expect(doctor(kit).text).toMatch(/Rules inferred from a handler or a disabled control, shipped: 0 \(ADR-020, WP-55\)/);
+    expect(existsSync(join(kit, 'review', 'INFERRED.md'))).toBe(true);
+  }, 60_000);
+
   it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {
     // Reproduces the exact failure found running the kit against fut-app:
     // `dist/nextgen.js` survived a later `embed/src` change untouched because

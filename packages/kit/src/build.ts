@@ -93,6 +93,10 @@ export interface BuildRecord {
   readonly boundaries: number;
   /** Rules read from validation schemas and control attributes (ADR-020, WP-54). */
   readonly rules: number;
+  /** Rules inferred from a handler or a disabled condition, shipped because the pattern was exactly recognised (ADR-020, WP-55). */
+  readonly inferredRules: number;
+  /** Candidates WP-55 found but did not ship — read them in review/INFERRED.md. */
+  readonly reviewInferred: number;
   readonly skipped: readonly SkippedRoute[];
   /** Role registries that failed `validateRegistry()`, with the report. */
   readonly invalid: readonly string[];
@@ -275,7 +279,9 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     perRole,
     capabilities: output.master.length,
     boundaries: output.boundaries.length,
-    rules: output.master.reduce((n, c) => n + (c.rules?.length ?? 0), 0),
+    rules: output.master.reduce((n, c) => n + (c.rules ?? []).filter((r) => r.tier === 'read').length, 0),
+    inferredRules: output.master.reduce((n, c) => n + (c.rules ?? []).filter((r) => r.tier === 'inferred').length, 0),
+    reviewInferred: output.reviewInferred.length,
     skipped: output.skipped,
     invalid: written.invalid,
     calibrated,

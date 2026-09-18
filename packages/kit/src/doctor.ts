@@ -126,6 +126,10 @@ export function doctor(kitDir: string): DoctorReport {
   for (const role of record.roles) say(`    ${role.padEnd(14)} ${record.perRole[role] ?? 0} screen(s)`);
   say(`  Descriptions: ${record.prose}`);
   say(`  Rules read from validation schemas and control attributes: ${record.rules} (ADR-020, WP-54)`);
+  say(`  Rules inferred from a handler or a disabled control, shipped: ${record.inferredRules} (ADR-020, WP-55)`);
+  if (record.reviewInferred > 0) {
+    say(`  ${record.reviewInferred} more candidate(s) were found but not confident enough to ship — read them in review/INFERRED.md.`);
+  }
   say();
 
   // 3. What it skipped, grouped, most urgent first.

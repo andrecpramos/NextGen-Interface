@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
 import { dedupeFieldRules, htmlFieldRules, localDeclaration, registerNameOf, schemaFieldRules } from './field-rules.ts';
+import { inferredCandidates } from './inferred-rules.ts';
 import { readAngularComponent, readMarkupPage } from './markup.ts';
 import type { FormField, PageFacts } from './types.ts';
 
@@ -581,6 +582,7 @@ function readComponent(file: string, props: ReadonlyMap<string, string>): Compon
   const rendered = roots.filter((tag) => !TRANSPARENT_COMPONENTS.has(tag));
   const redirects = rendered.filter((tag) => REDIRECT_COMPONENTS.has(tag));
   const { namespace, keyOf, fromProps } = translationCalls(source, props);
+  const fields = formFields(source);
 
   const facts: PageFacts = {
     isPureRedirect: redirects.length > 0 && redirects.length === rendered.length,
@@ -592,9 +594,12 @@ function readComponent(file: string, props: ReadonlyMap<string, string>): Compon
     title: declaredTitle(source),
     // Same namespace rule as `i18nKeys`, so a label written as t('x.y') resolves
     // against the page's own namespace exactly as its other copy does.
-    fields: formFields(source).map((f) =>
+    fields: fields.map((f) =>
       f.labelKey && namespace && !f.labelKey.includes(':') ? { ...f, labelKey: `${namespace}:${f.labelKey}` } : f,
     ),
+    // WP-55, ADR-020's inferred tier: matched against the same, un-namespaced
+    // fields — a candidate's `field` is a `name`/`id`, never a label key.
+    inferredCandidates: inferredCandidates(source, fields),
   };
   return { facts, titleKeysFromProps: titleKeysFromProps(source, keyOf, fromProps) };
 }

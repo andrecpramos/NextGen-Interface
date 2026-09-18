@@ -4,7 +4,7 @@ import { join, relative, resolve } from 'node:path';
 import { validateRegistry, formatValidation, capabilityDocument, type Capability, type RegistryFile } from '@nextgen/core-capability';
 import { makeEmbedder } from '@nextgen/core-intent';
 
-import type { AnnotatedCapability, GeneratorOutput, RoleName, SkippedRoute } from './types.ts';
+import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleName, SkippedRoute } from './types.ts';
 
 /**
  * Turning one annotated inventory into the artefacts an adopter ships.
@@ -102,6 +102,50 @@ export function formatSkipReport(skipped: readonly SkippedRoute[]): string {
   return lines.join('\n');
 }
 
+const PATTERN_HEADINGS: Record<ReviewInferredEntry['pattern'], string> = {
+  'disabled-submit': 'A submit control was disabled by something this generator could not read as a plain field check',
+  'guard-message': "A submit handler's first guard did not match one of the two exact shapes this generator trusts",
+};
+
+/**
+ * Not a log either, for the same reason `SKIPPED.md` is not one — ADR-020's own
+ * consequence: "review/ becomes something a developer must read, not only
+ * something they must not serve." Every candidate here was found, and every one
+ * of them was judged not confident enough to state to a visitor; the raw source
+ * is quoted so a human can decide in one glance whether that judgement was
+ * right, or whether the pattern is worth widening.
+ */
+export function formatInferredReport(entries: readonly ReviewInferredEntry[]): string {
+  const lines: string[] = [
+    '# Inferred rules not shipped',
+    '',
+    `${entries.length} candidate(s) were found in this application's own submit handlers and`,
+    'disabled-submit conditions, and none of them reached a visitor. ADR-020: a rule inferred',
+    'from behaviour can be wrong in a way a declared one cannot, so only an exactly recognised',
+    'shape ships (see the read-tier ones instead, in every capability\'s own `rules`). Everything',
+    'below was found, and none of it was confident enough — read it, and either it is nothing,',
+    'or the pattern that would recognise it is worth adding.',
+    '',
+  ];
+  if (entries.length === 0) {
+    lines.push('Nothing found.');
+    return lines.join('\n');
+  }
+
+  const byPattern = new Map<ReviewInferredEntry['pattern'], ReviewInferredEntry[]>();
+  for (const entry of entries) {
+    const bucket = byPattern.get(entry.pattern) ?? [];
+    bucket.push(entry);
+    byPattern.set(entry.pattern, bucket);
+  }
+  for (const [pattern, group] of [...byPattern].sort((a, b) => b[1].length - a[1].length)) {
+    lines.push(`## ${PATTERN_HEADINGS[pattern]} (${group.length})`, '');
+    for (const entry of group) lines.push(`- \`${entry.route}\` (${entry.source}) — \`${entry.detail}\``);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
 export function formatRoleSummary(output: GeneratorOutput): string {
   const rows = [...output.registries]
     .map(([role, registry]) => {
@@ -170,6 +214,7 @@ export function writeOutput(outputDir: string, appRoot: string, output: Generato
     )}\n`,
   );
   write('SKIPPED.md', formatSkipReport(output.skipped));
+  write('INFERRED.md', formatInferredReport(output.reviewInferred));
 
   return { files, invalid };
 }
