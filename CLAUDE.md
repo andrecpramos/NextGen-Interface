@@ -49,6 +49,49 @@ did not touch appear, change, and disappear mid-session.
 - A modified or untracked file you did not create belongs to someone else.
   Leave it. Do not commit it, revert it, or "clean it up".
 
+## Commands
+
+pnpm workspace (`pnpm-workspace.yaml`); every package under `packages/*` uses
+the same pair of scripts, so the pattern below is uniform — there is no lint
+script in this repo.
+
+```bash
+pnpm app                                       # reference app, in a terminal
+pnpm app:offline                               # same, stages 1-2 only, no model/Ollama
+
+pnpm test                                      # every package (pnpm -r test)
+pnpm --filter @nextgen/<pkg> test              # one package, e.g. core-intent
+pnpm --filter @nextgen/<pkg> test -- <path>    # one file (vitest passthrough)
+pnpm --filter @nextgen/<pkg> test -- -t <name> # one test by name
+
+pnpm typecheck                                 # every package (pnpm -r typecheck)
+pnpm --filter @nextgen/<pkg> typecheck         # one package
+pnpm build                                     # build packages/* (tsc)
+
+pnpm registry:build / registry:check           # domain-modules capability registry
+pnpm registry:build:finance                    # same, domain-finance
+pnpm router:inspect                            # score distributions, recall@k — look here first
+pnpm router:eval / router:baseline / router:floor   # cascade against the golden set
+pnpm router:calibrate                          # sweep thresholds — never hand-tune them (Rule 14)
+```
+
+## Architecture
+
+The package layout and the engine/domain boundary are in
+[README.md → Structure](README.md#structure) — read that first when touching
+`packages/core-*` or a domain. In short: `core-*` is a domain-agnostic engine
+(registry schema, a three-stage router, a policy dispatcher, explainability
+trace) that domains (`domain-modules`, `domain-finance`) register capabilities
+into. **`packages/core-*` never imports a domain** — Rule 1, gated three ways
+(see `critical-infrastructure.md` §2) — and the `boundary-auditor` agent
+checks the `switch`-on-domain-type violations the import gate can't see.
+
+`.claude/docs/architecture.md` and `.claude/docs/testing.md` describe an
+earlier Dart/Flutter mobile design (Drift/SQLCipher, GoRouter, llama.cpp FFI)
+that predates this repo's actual TypeScript/pnpm/`node:sqlite` implementation
+and were not updated after the pivot. For anything architectural, trust
+README.md, the accepted ADRs in `.claude/decisions/`, and the code over them.
+
 ## Before you push
 
 CI gates these; running them locally first is faster than a red build.
