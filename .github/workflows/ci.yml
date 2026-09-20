@@ -2,10 +2,11 @@
 # reviewer cannot reliably check by eye.
 #
 # Node 24, not the `engines: >=20` in package.json. This repo runs TypeScript
-# through `node` directly (`node scripts/build-registry.ts`, `node src/index.ts`,
-# and eval/*.js importing ../src/config.ts) which needs unflagged type stripping
-# (Node 23.6+), and packages/data needs `node:sqlite` (22.5+). On Node 20 the
-# install succeeds and then everything fails at run time. See .claude/sdlc/ci-cd.md.
+# through `node` directly (`node --experimental-strip-types eval/frameworks/…`, and the
+# eval/*.js scripts importing ../src/config.ts), which needs type stripping (Node 23.6+
+# unflagged). On Node 20 the install succeeds and then everything fails at run time. What an
+# adopter runs is `adapter/scan.mjs`, a bundle with no TypeScript in it, and that is proved
+# on Node 20 by `check-adapter.mjs`. See .claude/sdlc/ci-cd.md.
 #
 # Every install passes --ignore-scripts. pnpm 11 EXITS 1 on a fresh clone with
 # ERR_PNPM_IGNORED_BUILDS (esbuild), and the onlyBuiltDependencies
@@ -13,10 +14,9 @@
 # clean clone locally, and again with the list moved to package.json. A working
 # checkout hides this because node_modules is already populated, so there are no
 # builds left to ignore. Skipping the scripts is safe and was verified end to end:
-# boundaries, typecheck, all 129 tests, registry:check, the floor eval and the
-# scorecard gate all pass against an --ignore-scripts install. Nothing here needs
-# a native build -- persistence is node:sqlite, not better-sqlite3, and vitest's
-# esbuild resolves through platform-specific optional dependencies.
+# boundaries, typecheck, every test, registry:check, the floor eval and the scorecard
+# gate all pass against an --ignore-scripts install. Nothing here needs a native
+# build -- vitest's esbuild resolves through platform-specific optional dependencies.
 
 name: CI
 
@@ -71,7 +71,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
-      # Rule 1 — core must never import a domain. Cheapest gate, run it first.
+      # Rule 1 — packages/core-* depend only on other core packages (ADR-021). Cheapest
+      # gate, run it first.
       - name: Import boundaries (Rule 1)
         run: node tooling/scripts/check-import-boundaries.mjs
 
@@ -117,33 +118,16 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      # WP-26. The packages an adopter installs must be built JavaScript: Node
-      # refuses to strip types inside node_modules, so a package whose `main` is
-      # a .ts file installs cleanly and throws on the adopter's first import.
-      # Every package here was `private: true` with a .ts entry point until
-      # 2026-09-11, which made the product literally uninstallable.
+      # The widget, built once: `adapter/runtime/nextgen.js` is this file byte for byte, and
+      # the accessibility, strict-CSP and adapter gates below all read it. Reading a bundle
+      # that was never built would pass vacuously, so the build comes first.
       #
-      # The build runs first because the gate reads built output — checking
-      # entry points that were never emitted would pass vacuously.
-      - name: Build the installable packages
+      # Nothing else is built. Until ADR-021 this step compiled every package to `dist/` for
+      # the tarballs an adopter used to install, and three gates (packaging, releasable,
+      # installs-from-tarballs) checked the result. No adopter installs a package now; they
+      # copy `adapter/`, and the two steps below are what prove that path.
+      - name: Build the widget
         run: pnpm build
-
-      - name: Packaging is importable (WP-26)
-        run: node tooling/scripts/check-packaging.mjs
-
-      # Keeps develop releasable: one version across the packages, a CHANGELOG section
-      # for it, and the LICENSE in each. release.yml runs the same script with --tag.
-      - name: Releasable - version, changelog, license
-        run: node tooling/scripts/check-release.mjs
-
-      # An adopter installs tarballs, not this workspace. Pack the kit's packages,
-      # npm-install them into a scratch project outside the repository, and run
-      # init, build and doctor through the installed bin — on this runner's Node
-      # and on Node 20, the declared minimum — plus an ES-module import that routes
-      # a turn. Rule 16 is re-checked on the copied app. check-packaging reads
-      # manifests; this is the half only running them can see.
-      - name: Installs from tarballs and runs on Node 20
-        run: node tooling/scripts/check-install.mjs
 
       # ADR-018's premise: an adopter copies `adapter/` into their repository and runs it,
       # with no package manager and no network. It is committed build output, so the first

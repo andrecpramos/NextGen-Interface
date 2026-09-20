@@ -1,6 +1,7 @@
 {
   "name": "@nextgen/kit",
   "version": "0.1.0",
+  "private": true,
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -12,32 +13,10 @@
   "engines": {
     "node": ">=20"
   },
-  "bin": {
-    "nextgen": "./src/cli.ts"
-  },
   "main": "./src/index.ts",
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
-  },
-  "publishConfig": {
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "bin": {
-      "nextgen": "./dist/cli.js"
-    },
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./package.json": "./package.json"
-    }
   },
   "dependencies": {
     "@nextgen/core-intent": "workspace:*",

@@ -1,6 +1,6 @@
 /**
  * The drop-in kit (PLAN.md WP-41): `init`, `build` and `doctor`, as functions.
- * `cli.ts` is the same three things as a command.
+ * `cli-copied.ts` is the same things as a command, and is what `adapter/scan.mjs` bundles.
  */
 
 export { detectApp, init, type Detection, type Finding, type InitResult } from './detect.ts';

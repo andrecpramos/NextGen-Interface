@@ -4,11 +4,11 @@ import { run } from './run.ts';
 /**
  * The entry point bundled into `adapter/scan.mjs` — what an adopter copies.
  *
- * It passes **no capabilities**, so `ollamaModel` is unreachable from its import graph
- * and the bundle contains neither it nor the chat endpoint it would call. `--model` is
- * refused by `build()` with a sentence saying why.
+ * It is the only entry point (ADR-021). Nothing in its import graph references
+ * `ollamaModel`, so the bundle contains neither it nor the chat endpoint it would call,
+ * and `run()` refuses `--model` with a sentence saying why.
  *
- * ## Why a separate entry point rather than a flag
+ * ## Why the capability is absent rather than switched off
  *
  * A flag that turns a capability off still ships the capability. Whoever reviews this
  * folder before letting it near their codebase — and someone will, since it arrives as
@@ -37,9 +37,8 @@ import { run } from './run.ts';
  * them evenly across the app's two languages, while the derived ones repeat the screen's
  * own words, which is what the shipped encoder rewards (`adapter/FIELD-NOTES.md` §4).
  *
- * An adopter who wants the model path has it: `packages/kit` installs from npm and its
- * `nextgen` command passes Ollama's. This folder is the no-install path, and the two are
- * allowed to differ.
+ * The generator's own CLI (`pnpm --filter @nextgen/generator generate --model …`) still takes
+ * a model, for work in this repository. Nothing an adopter receives does (ADR-021).
  */
 async function main(): Promise<void> {
   try {

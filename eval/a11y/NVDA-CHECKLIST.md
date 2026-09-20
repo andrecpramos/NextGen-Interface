@@ -16,7 +16,7 @@ judgement about what a person hears, sees or can reach.
 - Turn the **speech viewer** on (NVDA menu → Tools → Speech viewer). It prints
   what NVDA says, so you can copy the words into the "heard" column instead of
   remembering them.
-- Put the widget on a page: run `nextgen preview` on an app the kit has built, or drop
+- Put the widget on a page: run `node <tool>/scan.mjs preview` on an app the tool has built, or drop
   the kit's `nextgen` folder into an app and add the one-line script tag.
 - **Keep your hands off the mouse for the whole pass.** If you reach for it, that
   is itself a finding — write down what made you reach.

@@ -145,7 +145,7 @@ export async function preview(kitDir: string, options: PreviewOptions = {}): Pro
   const bundle = join(kit, BUNDLE_DIR);
   const recordFile = join(kit, REVIEW_DIR, 'build.json');
   if (!existsSync(recordFile) || !existsSync(join(bundle, 'nextgen.js'))) {
-    throw new Error(`Nothing to preview in ${kit}. Run "nextgen build" first.`);
+    throw new Error(`Nothing to preview in ${kit}. Run "node scan.mjs build" first.`);
   }
   const roles = (JSON.parse(readFileSync(recordFile, 'utf8')) as { roles: string[] }).roles;
   if (roles.length === 0) throw new Error(`The build in ${kit} has no roles to preview.`);

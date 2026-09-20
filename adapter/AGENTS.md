@@ -45,9 +45,8 @@ node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
 Two different things, and it matters which one you mean when you talk to the developer:
 
 **`scan.mjs` — what runs on your machine, right now.** Not "by default" — **at all**.
-There is no `--model` in this folder and no client for one in the bundle. If you have seen
-this tool documented with a `--model` flag, that is the npm-installed version; this is the
-copied one, and they differ deliberately. This is checked rather than claimed: the whole
+There is no `--model` in this folder and no client for one in the bundle; `build --model`
+is refused with a reason. This is checked rather than claimed: the whole
 pipeline is run on every commit with `fetch`, `net`, `tls`, `http`, `https` and DNS all
 throwing, and it completes. Do not offer to "enable the model" for *description writing* —
 there is nothing to enable.
@@ -204,7 +203,7 @@ question instead of guessing — which is safe, but can feel more like a menu th
 assistant. I can wire it to call a model through a small server on your own site instead,
 which answers more of what people actually ask. That means visitor text reaching your
 server and a model you run or pay for — want that, or is the current behaviour fine for
-now? It's a `nextgen build` flag either way, so it's easy to turn on later."*
+now? It's a `build --stage3` flag either way, so it's easy to turn on later."*
 
 If they say yes, ASK where the proxy should live and whether they want the reference
 implementation (Express, with rate limiting) or already have their own preference.

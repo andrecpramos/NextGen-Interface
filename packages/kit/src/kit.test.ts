@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import {
   existsSync,
@@ -31,6 +32,7 @@ import { doctor } from './doctor.ts';
 const FIXTURES = fileURLToPath(new URL('../../generator/fixtures/', import.meta.url));
 const TINY = join(FIXTURES, 'tiny-app');
 const DATA_ROUTER = join(FIXTURES, 'data-router-app');
+const CLI_COPIED = fileURLToPath(new URL('./cli-copied.ts', import.meta.url));
 
 const kitFolder = (): string => join(mkdtempSync(join(tmpdir(), 'nextgen-kit-')), 'nextgen');
 
@@ -74,40 +76,34 @@ describe('init — detection', () => {
   });
 });
 
-describe('AGENT.md — the decisions this kit leaves to the developer', () => {
-  it('is written by init, for whichever agent runs the rest of these commands', () => {
+describe('init writes its own two files and no instructions for an agent', () => {
+  it('writes the config and the detection record, and nothing else', () => {
+    // Until ADR-021 it also wrote AGENT.md, a second copy of adapter/AGENTS.md for the npm
+    // path. That copy offered `--model`, which the copied tool refuses. There is one front
+    // door now, in the folder the tool came from, and init does not add another beside the
+    // adopter's code.
     const kit = kitFolder();
     init(TINY, kit);
-    const text = readFileSync(join(kit, 'AGENT.md'), 'utf8');
-    // The point of this file is that these are put to the developer, not
-    // assumed. If a heading goes missing, so does the question.
-    for (const heading of [
-      'ASK 1',
-      'ASK 2',
-      'ASK 3',
-      'ASK 4',
-      'ASK 5',
-      'ASK 6',
-      'ASK 7',
-      'never do without asking',
-    ]) {
-      expect(text).toContain(heading);
-    }
+    expect(existsSync(join(kit, 'nextgen.config.json'))).toBe(true);
+    expect(existsSync(join(kit, 'review', 'detect.json'))).toBe(true);
+    expect(existsSync(join(kit, 'AGENT.md'))).toBe(false);
   });
+});
 
-  it('is not clobbered by --force, which redoes detection, not a developer\'s edits to it', () => {
+describe('build refuses a model rather than ignoring the flag', () => {
+  it('names why, and exits non-zero, when --model is passed', async () => {
+    // There is no model to reach. A flag silently dropped would give someone who has seen
+    // it documented a build that did something other than what they asked for.
     const kit = kitFolder();
     init(TINY, kit);
-    writeFileSync(join(kit, 'AGENT.md'), 'a developer wrote this instead');
-    init(TINY, kit, { force: true });
-    expect(readFileSync(join(kit, 'AGENT.md'), 'utf8')).toBe('a developer wrote this instead');
-  });
-
-  it('doctor points an agent at it, when it exists', async () => {
-    const kit = kitFolder();
-    init(TINY, kit);
-    await build(kit);
-    expect(doctor(kit).text).toMatch(/AGENT\.md/);
+    const { status, stderr } = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', CLI_COPIED, 'build', kit, '--model', 'llama3.1:8b'],
+      { encoding: 'utf8' },
+    );
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/cannot use a model/);
+    expect(existsSync(join(kit, 'bundle'))).toBe(false);
   }, 60_000);
 });
 
@@ -260,7 +256,7 @@ describe('init → build → doctor, end to end', () => {
     init(TINY, kit);
     const report = doctor(kit);
     expect(report.ok).toBe(false);
-    expect(report.text).toMatch(/nextgen build/);
+    expect(report.text).toMatch(/scan.mjs build/);
   });
 });
 
@@ -298,7 +294,7 @@ describe('calibrate', () => {
   it('refuses before a build, because there are no registries to calibrate against', async () => {
     const kit = kitFolder();
     init(TINY, kit);
-    await expect(calibrate(kit, goldenFor(kit, plausibleTurns()))).rejects.toThrow(/nextgen build/);
+    await expect(calibrate(kit, goldenFor(kit, plausibleTurns()))).rejects.toThrow(/scan.mjs build/);
   });
 
   it('refuses a golden set too small to mean anything, rather than fitting noise', async () => {

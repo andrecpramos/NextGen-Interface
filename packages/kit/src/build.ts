@@ -21,7 +21,6 @@ import {
   writeOutput,
   type GeneratorConfig,
   type ProseCache,
-  type ProseModel,
   type SkippedRoute,
 } from '@nextgen/generator';
 
@@ -55,22 +54,6 @@ export interface Stage3Config {
  */
 
 export interface BuildOptions {
-  /** The model that writes descriptions. `null`/absent: derive prose from the app's own labels. */
-  readonly model?: string | null;
-  readonly endpoint?: string;
-  /**
-   * How to reach a prose model, supplied by the caller rather than imported here.
-   *
-   * This exists so the entry point decides whether a build *can* reach a model at all,
-   * and so that decision is visible in the artefact rather than in a flag. `cli.ts`
-   * passes Ollama's; `cli-copied.ts` — the entry bundled into `adapter/scan.mjs` — passes
-   * nothing, and because nothing in its import graph then references `ollamaModel`, the
-   * shipped bundle contains no endpoint, no client and no way to acquire one.
-   *
-   * That is the difference between "it does not call out by default" and "it cannot",
-   * and only the second is a sentence an adopter's security review can check.
-   */
-  readonly proseModel?: (model: string, endpoint: string) => ProseModel;
   /** Copy the script tag into the bundle. Default true. */
   readonly scriptTag?: boolean;
   readonly onProgress?: (done: number, total: number) => void;
@@ -112,7 +95,7 @@ export interface BuildRecord {
 export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: string } {
   const file = join(resolve(kitDir), CONFIG_FILE);
   if (!existsSync(file)) {
-    throw new Error(`No ${CONFIG_FILE} in ${resolve(kitDir)}. Run "nextgen init <your app folder>" first.`);
+    throw new Error(`No ${CONFIG_FILE} in ${resolve(kitDir)}. Run "node scan.mjs init <your app folder>" first.`);
   }
   const config = JSON.parse(stripBom(readFileSync(file, 'utf8'))) as GeneratorConfig;
   // Relative to the config file, not to wherever the command was run from.
@@ -130,19 +113,14 @@ function newestSourceMtime(dir: string): number {
 }
 
 /**
- * The script tag, from the installed `@nextgen/embed`.
+ * The script tag: the prebuilt `runtime/nextgen.js` beside `scan.mjs` in the copied folder,
+ * or, when the kit runs from source in this workspace, `@nextgen/embed`'s own build.
  *
- * Resolved through the package's own manifest, so it is found the same way in
- * this workspace and in an adopter's node_modules. A published package ships
- * dist/nextgen.js and no source; if that file is missing the install is broken,
- * and saying so beats attempting a build that cannot run there.
- *
- * In a checkout, where build.mjs and src/ exist, the bundle existing is not the
- * same as it being current. It used to be rebuilt only when missing, so a bundle
- * built before a later `embed` change was reused byte for byte, and `doctor`
- * reported nothing wrong — found running the kit against fut-app: `dist` was two
- * days older than `src` and exported no `start` at all. It is rebuilt whenever
- * `embed`'s own source is newer than the bundle.
+ * In the workspace the bundle existing is not the same as it being current. It used to be
+ * rebuilt only when missing, so a bundle built before a later `embed` change was reused
+ * byte for byte, and `doctor` reported nothing wrong — found running the kit against a
+ * real application: `dist` was two days older than `src` and exported no `start` at all.
+ * It is rebuilt whenever `embed`'s own source is newer than the bundle.
  */
 function scriptTagFile(): string {
   // The copied-folder path first (ADR-018). `adapter/` ships `scan.mjs` beside
@@ -168,7 +146,7 @@ function scriptTagFile(): string {
   const current = existsSync(bundle) && !(canBuild && statSync(bundle).mtimeMs < newestSourceMtime(srcDir));
   if (current) return bundle;
   if (!canBuild) {
-    throw new Error(`@nextgen/embed is installed without dist/nextgen.js (${embedDir}). Reinstall it.`);
+    throw new Error(`@nextgen/embed has no dist/nextgen.js and cannot build one here (${embedDir}).`);
   }
   execFileSync(process.execPath, [builder], { stdio: 'pipe' });
   return bundle;
@@ -189,22 +167,12 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
 
   const cacheFile = join(reviewDir, 'prose-cache.json');
   const cache: ProseCache = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as ProseCache) : {};
-  // No default endpoint here: a default is a reachable host compiled into every build,
-  // including one whose entry point supplies no way to reach it. The caller that knows a
-  // model is possible is the caller that names where it lives.
-  const endpoint = options.endpoint ?? '';
-
-  if (options.model && !options.proseModel) {
-    throw new Error(
-      'This build cannot use a model: it was built without one. Descriptions are derived ' +
-        "from the application's own labels, which needs nothing installed and no network. " +
-        'Run without --model.',
-    );
-  }
-
   const output = await generate({
     config: { ...config, appRoot },
-    model: options.model && options.proseModel ? options.proseModel(options.model, endpoint) : null,
+    // Descriptions are derived from the app's own labels: nothing installed, no network.
+    // There is no model to pass here, and no client for one in this bundle (ADR-018 D-6,
+    // ADR-021). The generator's own CLI still takes `--model`, for work in this repository.
+    model: null,
     cache,
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
   });
@@ -287,7 +255,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     calibrated,
     thresholdsSource,
     stage3: options.stage3 ? { path: options.stage3.path, model: options.stage3.model ?? null } : null,
-    prose: options.model ? `${options.model} at ${endpoint}` : 'derived from the app’s own labels (no model)',
+    prose: 'derived from the app’s own labels (no model)',
     bundleFiles: readdirSync(bundleDir).sort(),
     warnings,
   };

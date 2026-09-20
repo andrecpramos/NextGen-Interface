@@ -2,7 +2,6 @@ import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { build } from './build.ts';
-import type { ProseModel } from '@nextgen/generator';
 import { calibrate } from './calibrate.ts';
 import { init } from './detect.ts';
 import { doctor } from './doctor.ts';
@@ -10,38 +9,21 @@ import { preview } from './preview.ts';
 import { report } from './report.ts';
 
 /**
- * Every command the tool has, minus the decision of what it is ALLOWED to reach.
+ *   scan.mjs init <app folder> [--out <kit folder>] [--force]
+ *   scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>]
+ *   scan.mjs calibrate [kit folder] --golden <file.jsonl>
+ *   scan.mjs doctor [kit folder] [--report <file.md>]
+ *   scan.mjs preview [kit folder] [--port <n>] [--app-url <url>]
  *
- * Two entry points call this with different capabilities, and the difference is the
- * product:
- *
- *   cli.ts          the installed `nextgen` command. Can use a local Ollama.
- *   cli-copied.ts   what is bundled into `adapter/scan.mjs`. Passes nothing, so
- *                   `ollamaModel` is unreachable from its import graph and the shipped
- *                   bundle contains no endpoint, no client, and no way to get one.
- *
- * A flag that turns a capability off still ships the capability. This ships neither,
- * which is what makes 'it cannot reach the network' checkable rather than promised
- * (ADR-018 D-6; `tooling/scripts/check-network-egress.mjs` covers `adapter/`).
- */
-export interface Capabilities {
-  /** How to reach a prose model. Absent: descriptions come from the app's own labels. */
-  readonly proseModel?: (model: string, endpoint: string) => ProseModel;
-  /** Where that model lives, when one is possible. */
-  readonly defaultEndpoint?: string;
-}
-
-/**
- *   nextgen init <app folder> [--out <kit folder>] [--force]
- *   nextgen build [kit folder] [--model <name>] [--endpoint <url>]
- *                              [--stage3 <path>] [--stage3-model <name>]
- *   nextgen calibrate [kit folder] --golden <file.jsonl>
- *   nextgen doctor [kit folder] [--report <file.md>]
- *   nextgen preview [kit folder] [--port <n>] [--app-url <url>]
+ * The one entry point is `cli-copied.ts`, bundled into `adapter/scan.mjs`. It has no model
+ * to reach: no client, no endpoint, and no flag that would name one — a flag that turns a
+ * capability off still ships the capability, and this ships neither. That is what makes
+ * "it cannot reach the network" checkable rather than promised (ADR-018 D-6, ADR-021;
+ * `tooling/scripts/check-network-egress.mjs` and `check-adapter.mjs` cover `adapter/`).
  *
  * The kit folder defaults to ./nextgen. Nothing is ever written outside it
- * (Rule 16). `build` without --model needs no model server: descriptions are
- * derived from the app's own labels, which is flatter but always available.
+ * (Rule 16). Descriptions are derived from the app's own labels, which is flatter than
+ * a model's but always available.
  *
  * `calibrate` requires a golden set you wrote (Rule 14), and there is
  * deliberately no way to calibrate from the generator's own examples — measured,
@@ -55,12 +37,11 @@ export interface Capabilities {
  */
 
 const USAGE = `usage:
-  nextgen init <app folder> [--out <kit folder>] [--force]
-  nextgen build [kit folder] [--model <name>] [--endpoint <url>]
-                             [--stage3 <path>] [--stage3-model <name>]
-  nextgen calibrate [kit folder] --golden <file.jsonl>
-  nextgen doctor [kit folder] [--report <file.md>]
-  nextgen preview [kit folder] [--port <n>] [--app-url <url>]`;
+  scan.mjs init <app folder> [--out <kit folder>] [--force]
+  scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>]
+  scan.mjs calibrate [kit folder] --golden <file.jsonl>
+  scan.mjs doctor [kit folder] [--report <file.md>]
+  scan.mjs preview [kit folder] [--port <n>] [--app-url <url>]`;
 
 function flag(name: string): string | null {
   const index = process.argv.indexOf(`--${name}`);
@@ -80,7 +61,7 @@ function positional(): string | null {
   return null;
 }
 
-export async function run(caps: Capabilities = {}): Promise<number> {
+export async function run(): Promise<number> {
   const command = process.argv[2];
 
   if (command === 'init') {
@@ -98,19 +79,25 @@ export async function run(caps: Capabilities = {}): Promise<number> {
     for (const w of result.warnings) console.log(`\n  ! ${w}`);
     console.log(`\n  Wrote ${result.configFile}`);
     console.log('  Anything marked GUESSED can be corrected in that file.');
-    console.log(`\n  Wrote ${join(result.kitDir, 'AGENT.md')}`);
-    console.log('  If an AI agent is running these next steps: read that file first.');
-    console.log('  It lists the decisions in here that are the developer\'s to make, not yours.');
-    console.log(`\n  Next: nextgen build ${result.kitDir}\n`);
+    console.log('\n  If an AI agent is running these next steps: read AGENTS.md, in the folder this');
+    console.log('  tool came from, first. It lists the decisions that are the developer\'s to make.');
+    console.log(`\n  Next: node scan.mjs build ${result.kitDir}\n`);
     return 0;
   }
 
   if (command === 'build') {
     const kit = resolve(positional() ?? 'nextgen');
+    // Refused, not ignored: someone who has seen `--model` documented would otherwise get a
+    // build that quietly did something other than what they asked for.
+    if (flag('model') !== null || flag('endpoint') !== null) {
+      console.error(
+        '\n  This tool cannot use a model: it has no client for one and reaches no network.\n' +
+          "  Descriptions are derived from the application's own labels. Run without --model.\n",
+      );
+      return 2;
+    }
     const stage3Path = flag('stage3');
     const record = await build(kit, {
-      model: flag('model'),
-      ...(caps.proseModel ? { proseModel: caps.proseModel, endpoint: flag('endpoint') ?? caps.defaultEndpoint ?? '' } : {}),
       ...(stage3Path
         ? { stage3: { path: stage3Path, ...(flag('stage3-model') ? { model: flag('stage3-model')! } : {}) } }
         : {}),
@@ -122,7 +109,7 @@ export async function run(caps: Capabilities = {}): Promise<number> {
     if (record.stage3) {
       console.log(`  Stage 3 is ON: unsettled turns will POST to "${record.stage3.path}" on your own origin.`);
     }
-    console.log(`  Next: nextgen doctor ${kit}\n`);
+    console.log(`  Next: node scan.mjs doctor ${kit}\n`);
     return record.invalid.length > 0 ? 1 : 0;
   }
 

@@ -74,6 +74,3 @@ sdlc-kit/
 # the recordings themselves are not.
 eval/fut-app/recordings/
 
-# Tarballs from `pnpm pack:release`, for installing in another project. Rebuilt on
-# demand from source; never committed.
-release/

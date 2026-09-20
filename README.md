@@ -220,7 +220,7 @@ figure is meaningless.
 | What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
 | How do I add it to my app? | [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) |
 | How do I run this repo itself (as a contributor)? | §Run it, above · [PLAN.md](.MDFiles/PLAN.md) §10 |
-| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 18 ADRs |
+| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 21 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
 | What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · `pnpm eval:apps` |
 | Working in this repo as an agent? | [CLAUDE.md](CLAUDE.md) |
@@ -234,9 +234,9 @@ was then spent trying to fix it, every lever was measured, and the claim was wit
 rather than restated — [PLAN.md](.MDFiles/PLAN.md) §13 D-4. The numbers were published
 rather than buried, which is the point.
 
-Built since then: the browser runtime, guided steps, the installable package, a script tag
-that runs under a strict Content-Security-Policy, and the drop-in kit —
-`nextgen init / build / doctor / preview / calibrate` ([INSTALL.md](.MDFiles/INSTALL.md)). The kit
+Built since then: the browser runtime, guided steps, a script tag that runs under a strict
+Content-Security-Policy, and the drop-in kit — `init / build / doctor / preview / calibrate`,
+bundled into `adapter/scan.mjs` ([GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md)). The kit
 reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps, and on six
 public apps it had never seen it found every route in ground truth written beforehand and
 changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
@@ -258,15 +258,12 @@ hidden.
 
 ## Installing it, and the license
 
-Adopters install **six** tarballs attached to a GitHub Release — it was eight until
-[ADR-018](.claude/decisions/ADR-018.md), and two of those eight were on the path to
-nobody. [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) has the steps,
-[INSTALL.md](.MDFiles/INSTALL.md) the full reference, and
-[CHANGELOG.md](.MDFiles/CHANGELOG.md) what each release contains.
-
-**This is the path being replaced.** ADR-018 makes the unit of distribution a folder the
-adopter copies, with no package manager and no private release. Until `adapter/` is
-finished, the tarballs are still how this installs.
+An adopter **copies one folder**, [`adapter/`](adapter/), with no package manager, no registry
+and no private release ([ADR-018](.claude/decisions/ADR-018.md),
+[ADR-021](.claude/decisions/ADR-021.md)). [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) has
+the steps. The packages under `packages/` are the source that builds it: none is installable
+and none is published. It was six tarballs on a GitHub Release until ADR-021; nothing was ever
+released, so nobody was on that path.
 
 **Proprietary — all rights reserved.** Use requires a written agreement with the copyright
 holder; see [LICENSE](LICENSE).

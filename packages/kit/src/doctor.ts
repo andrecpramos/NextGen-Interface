@@ -7,7 +7,7 @@ import type { SkipReason } from '@nextgen/generator';
 
 import { readConfig, type BuildRecord } from './build.ts';
 import type { Finding } from './detect.ts';
-import { AGENT_FILE, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
+import { BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
 import { describeSweep, sweepingTools } from './tooling.ts';
 
 /**
@@ -93,15 +93,17 @@ export function doctor(kitDir: string): DoctorReport {
   const say = (line = ''): void => void lines.push(line);
 
   if (!existsSync(join(kit, CONFIG_FILE))) {
-    return { ok: false, text: `No kit here (${kit}). Run "nextgen init <your app folder>" first.` };
+    return { ok: false, text: `No kit here (${kit}). Run "node scan.mjs init <your app folder>" first.` };
   }
   const detect = readJson<{ findings: Finding[]; warnings: string[]; projectDir?: string }>(join(kit, REVIEW_DIR, 'detect.json'));
   const projectDir = detect?.projectDir !== undefined ? resolve(kit, detect.projectDir) : null;
   const record = readJson<BuildRecord>(join(kit, REVIEW_DIR, 'build.json'));
 
   say(`nextgen doctor — ${kit}`);
-  if (existsSync(join(kit, AGENT_FILE))) {
-    say(`(If an AI agent is reading this on a developer's behalf: read ${join(kit, AGENT_FILE)} before acting on anything below.)`);
+  // The one front door for an installing agent ships beside the tool (adapter/AGENTS.md).
+  const agentsFile = join(dirname(fileURLToPath(import.meta.url)), 'AGENTS.md');
+  if (existsSync(agentsFile)) {
+    say(`(If an AI agent is reading this on a developer's behalf: read ${agentsFile} before acting on anything below.)`);
   }
   say();
 
@@ -116,7 +118,7 @@ export function doctor(kitDir: string): DoctorReport {
   }
 
   if (!record) {
-    say('Not built yet. Run "nextgen build" next.');
+    say('Not built yet. Run "node scan.mjs build" next.');
     return { ok: false, text: lines.join('\n') };
   }
 
@@ -165,7 +167,7 @@ export function doctor(kitDir: string): DoctorReport {
     say('  Calibrating needs real questions you wrote, each with the screen it should reach:');
     say('');
     say('    nextgen calibrate <kit folder> --golden your-questions.jsonl');
-    say('    nextgen build <kit folder>        # picks up the calibration');
+    say('    node scan.mjs build <kit folder>        # picks up the calibration');
     say('');
     say('  One JSON object per line: {"utterance": "...", "route": "/where", "role": "ADMIN"}.');
     say('  Use "route": null for a question it should refuse, and include both kinds — a sweep');
@@ -192,13 +194,13 @@ export function doctor(kitDir: string): DoctorReport {
   const served = existsSync(bundle) ? readdirSync(bundle) : [];
   for (const role of record.roles) {
     for (const file of [`registry.${role}.json`, `index.${role}.json`]) {
-      if (!served.includes(file)) problems.push(`bundle/${file} is missing. Run "nextgen build" again`);
+      if (!served.includes(file)) problems.push(`bundle/${file} is missing. Run "node scan.mjs build" again`);
     }
   }
   if (!served.includes('thresholds.hashing.json')) problems.push('bundle/thresholds.hashing.json is missing');
   if (served.includes('nextgen.js')) {
     const broken = scriptTagIsBroken(readFileSync(join(bundle, 'nextgen.js'), 'utf8'));
-    if (broken) problems.push(`bundle/nextgen.js is broken: ${broken}. Delete packages/embed/dist and run "nextgen build" again`);
+    if (broken) problems.push(`bundle/nextgen.js is broken: ${broken}. Delete packages/embed/dist and run "node scan.mjs build" again`);
   }
   if (served.includes('master.json')) problems.push('bundle/ contains master.json, which lists every role. Delete it; it must never be served');
   for (const file of served.filter((f) => /^registry\..+\.json$/.test(f))) {
@@ -217,15 +219,8 @@ export function doctor(kitDir: string): DoctorReport {
   if (record.roles.length > 1) {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
     say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
-    // Both installation paths get a pointer that exists for them. `node_modules` is the
-    // npm one; an adopter who copied the folder has no node_modules at all, and was being
-    // sent to a path that could not be there.
-    // Both installation paths get a pointer that exists for them. `node_modules` is the
-    // npm one; an adopter who copied the folder has no node_modules at all, and was being
-    // sent to a path that could not be there.
-    const copied = existsSync(join(dirname(fileURLToPath(import.meta.url)), 'AGENTS.md'));
     say('     Ready-made handlers for Express and Next.js, under "Serving it", in');
-    say(`     ${copied ? 'AGENTS.md, beside this tool' : 'node_modules/@nextgen/kit/README.md'}.`);
+    say('     AGENTS.md, beside this tool.');
     say('     The role comes from your session, never from the request.');
 
     // A bundle under the folder a web app serves as-is hands every role's file to everyone.
@@ -235,7 +230,7 @@ export function doctor(kitDir: string): DoctorReport {
         problems.push(
           `${served} is served to everyone: it sits in a folder your app serves as-is, and this app has ` +
             `${record.roles.length} roles, so every user could read every role's screen list (Rule 17). ` +
-            'Build the kit outside it (nextgen init --out) and serve each role its own files',
+            'Build the kit outside it (node scan.mjs init --out) and serve each role its own files',
         );
       }
     }
@@ -254,7 +249,6 @@ export function doctor(kitDir: string): DoctorReport {
   say('         event.preventDefault();');
   say('         router.navigate(event.detail.route);');
   say('       });');
-  say("     Or use it as a module: import { start } from '@nextgen/embed', and pass { navigate }.");
   say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
   say();
 

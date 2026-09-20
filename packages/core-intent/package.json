@@ -1,6 +1,7 @@
 {
   "name": "@nextgen/core-intent",
   "version": "0.1.0",
+  "private": true,
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -25,41 +26,14 @@
     "eval:floor": "node eval/evaluate.js --embedder=hashing --no-stage3",
     "compare": "node eval/compare.js",
     "calibrate": "node eval/calibrate.js --embedder=ollama --defer-oos",
-    "inspect": "node eval/inspect.js --embedder=ollama",
-    "build": "tsc -p tsconfig.build.json"
+    "inspect": "node eval/inspect.js --embedder=ollama"
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",
     "@nextgen/core-inference": "workspace:*"
   },
   "devDependencies": {},
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./config": {
-        "types": "./dist/config.d.ts",
-        "default": "./dist/config.js"
-      },
-      "./browser": {
-        "types": "./dist/browser.d.ts",
-        "default": "./dist/browser.js"
-      },
-      "./calibrate": {
-        "types": "./dist/calibrate.d.ts",
-        "default": "./dist/calibrate.js"
-      }
-    }
   }
 }

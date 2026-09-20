@@ -6,42 +6,42 @@ words, and it takes them to the right screen, or offers up to three to choose fr
 - It reads your app's routes, roles and translations to learn its screens.
 - It **never changes your files**; everything it writes goes into one folder of its own.
 - In the browser it needs **no model and no server**.
+- Nothing is installed: you copy one folder. No package manager, no registry, no network.
 
 **You need:**
 - Node 20 or newer.
 - An app built with React Router, Vue Router, Angular, Next.js, Remix, SvelteKit or Nuxt.
-- Access to this repository's releases.
+- Access to this repository, to copy one folder out of it.
 
 Use is governed by the [LICENSE](../LICENSE).
 
+**Using a coding agent?** Copy the folder (step 1), then give the agent its path and nothing
+else. [adapter/AGENTS.md](../adapter/AGENTS.md) is the first thing it reads, and it puts the
+decisions that are yours to you before acting on them. The steps below are what it does.
+
 ---
 
-## 1 · Install
+## 1 · Copy the folder
 
-In your app's root folder:
+Copy [`adapter/`](../adapter/) from this repository into your project. Any place works; this
+page calls it `nextgen-tool/`.
 
 ```bash
-gh release download v0.1.0 --repo andrecpramos/AI-Interface --dir vendor/nextgen
-npm install -D vendor/nextgen/*.tgz
+cp -r path/to/AI-Interface/adapter  your-app/nextgen-tool
 ```
 
-On **Windows PowerShell**, which passes `*` to npm unexpanded, use this line for the install:
-
-```powershell
-npm install -D (Get-ChildItem vendor/nextgen/*.tgz | Resolve-Path -Relative)
-```
-
-No `gh`? Download the `.tgz` files from the release page into `vendor/nextgen/` instead.
-
-**Commit `vendor/nextgen/`.** Your `package.json` now points at those files, so your CI
-needs them.
+It is about 4 MB and it is a tool, not application code. **Commit it**, so your CI and your
+teammates have exactly the version you used. It has no version number: what identifies it is
+the commit of this repository you copied it from.
 
 ## 2 · Generate
 
+From your app's root folder:
+
 ```bash
-npx nextgen init .
-npx nextgen build nextgen
-npx nextgen doctor nextgen
+node nextgen-tool/scan.mjs init .
+node nextgen-tool/scan.mjs build nextgen
+node nextgen-tool/scan.mjs doctor nextgen
 ```
 
 - **`init`** finds your routes, roles and languages, and writes `nextgen/nextgen.config.json`.
@@ -52,7 +52,7 @@ npx nextgen doctor nextgen
 - **`doctor`** tells you what it read, what it left out and why, and the exact line to add
   to your page. **Read all of it.**
 
-**Next.js, Remix, SvelteKit or Nuxt with role-restricted screens?** The kit cannot see roles
+**Next.js, Remix, SvelteKit or Nuxt with role-restricted screens?** The tool cannot see roles
 in a folder layout, so add them to the config by path prefix, then build again:
 
 ```json
@@ -62,7 +62,7 @@ in a folder layout, so add them to the config by path prefix, then build again:
 ## 3 · Try it before wiring anything in
 
 ```bash
-npx nextgen preview nextgen --app-url http://localhost:3000
+node nextgen-tool/scan.mjs preview nextgen --app-url http://localhost:3000
 ```
 
 This opens a local page. Pick a role, ask questions the way your users would, and see where
@@ -76,8 +76,8 @@ each answer would take them. Nothing in your app changes.
   has that role.
 - Never serve `nextgen/review/`: it lists every screen with every role that can open it.
 
-Ready-made handlers for Express and Next.js are in the
-[kit's README](../packages/kit/README.md#serving-each-role-only-its-own-files).
+Ready-made handlers for Express and Next.js are under "Serving it" in
+[adapter/AGENTS.md](../adapter/AGENTS.md#serving-it).
 
 **b. Add one line to your page.** Your server writes in the signed-in user's role:
 
@@ -119,19 +119,19 @@ Out of the box it uses general thresholds, and `doctor` says so. To tune them:
 2. Calibrate, then build again:
 
    ```bash
-   npx nextgen calibrate nextgen --golden questions.jsonl
-   npx nextgen build nextgen
+   node nextgen-tool/scan.mjs calibrate nextgen --golden questions.jsonl
+   node nextgen-tool/scan.mjs build nextgen
    ```
 
 ## Keeping it current
 
-- **Your routes change:** run `npx nextgen build nextgen`, then `doctor`, again.
-- **A new release:** empty `vendor/nextgen/`, download the new release into it, and run
-  `npm install -D vendor/nextgen/*.tgz` again (on PowerShell, the line from step 1).
+- **Your routes change:** run `node nextgen-tool/scan.mjs build nextgen`, then `doctor`, again.
+- **A newer version of the tool:** delete `nextgen-tool/`, copy `adapter/` from the commit you
+  want in its place, and run `build` again. There is no version number to compare, only the
+  commit you copied from.
 - **Removing it:**
   1. Delete the script line.
-  2. Run `npm uninstall` on the `@nextgen/*` packages.
-  3. Delete `nextgen/` and `vendor/nextgen/`.
+  2. Delete `nextgen/` and `nextgen-tool/`.
 
 ## What to expect
 
@@ -141,16 +141,20 @@ Out of the box it uses general thresholds, and `doctor` says so. To tune them:
   its own screens.
 - **It never performs actions.** It moves between screens and shows links; it does not
   save, send or delete anything.
+- **It does not use a model to write descriptions**, and the tool makes no network request.
+  A model at run time is a separate, off-by-default choice that goes to *your own* server
+  ([adapter/AGENTS.md](../adapter/AGENTS.md), "Turn on model-backed answers").
 
 ## When something looks wrong
 
 Run this and send `field-report.md`:
 
 ```bash
-npx nextgen doctor nextgen --report field-report.md
+node nextgen-tool/scan.mjs doctor nextgen --report field-report.md
 ```
 
 The report lists every screen with the roles that can open it, so share it only with
 people allowed to know that.
 
-The full reference is [.MDFiles/INSTALL.md](INSTALL.md).
+What goes wrong when this tool meets a real application, from the times it actually did, is
+in [adapter/FIELD-NOTES.md](../adapter/FIELD-NOTES.md).

@@ -1,5 +1,6 @@
 {
   "version": "0.1.0",
+  "private": true,
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -12,8 +13,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "generate": "node --experimental-strip-types src/cli.ts",
-    "build": "tsc -p tsconfig.build.json"
+    "generate": "node --experimental-strip-types src/cli.ts"
   },
   "type": "module",
   "exports": {
@@ -24,21 +24,7 @@
     "@nextgen/core-intent": "workspace:*",
     "typescript": "^5.7.2"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
-    }
   }
 }

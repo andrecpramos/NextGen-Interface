@@ -108,6 +108,11 @@ if (init.ok) {
   check(config.languages?.[0] === 'en', 'init guessed the language, and said so');
   config.languages = ['pt-PT', 'en'];
   writeFileSync(configFile, JSON.stringify(config, null, 2));
+
+  // ADR-021: one front door, and it is the AGENTS.md that was copied with the tool. `init`
+  // used to write a second copy beside the adopter's code, which had drifted — it offered
+  // `--model`, which this tool refuses.
+  check(!existsSync(join(project, 'nextgen', 'AGENT.md')), 'init wrote no second copy of the agent instructions (ADR-021)');
 }
 
 const built = run(['build', 'nextgen']);
@@ -142,7 +147,25 @@ if (report.ok) {
     !report.out.includes("The app's language is a guess"),
     'doctor stops repeating a warning the developer has acted on',
   );
+  // The only place an agent can be told to look, and it has to be a file that exists here.
+  check(
+    report.out.includes(join(tool, 'AGENTS.md')) && existsSync(join(tool, 'AGENTS.md')),
+    'doctor points an agent at the AGENTS.md beside the tool',
+  );
+  // `nextgen` is not a command on this path — nothing is installed, so nothing is on PATH.
+  // Any instruction that says to run it sends the adopter to a command that does not exist.
+  const said = [init.out, built.out, report.out].join('\n');
+  const wrongCommand = /(?:Run|run|Next:)[^\n]*\bnextgen (?:init|build|doctor|calibrate|preview)\b/.exec(said);
+  check(wrongCommand === null, `init, build and doctor tell the adopter to run a command that exists${wrongCommand ? ` — "${wrongCommand[0].trim()}"` : ''}`);
 }
+
+// `--model` is refused, not ignored: a flag silently dropped would give someone who had seen
+// it documented a build that did something other than what they asked for.
+const refused = run(['build', 'nextgen', '--model', 'llama3.1:8b']);
+check(
+  !refused.ok && /cannot use a model/.test(refused.out),
+  `build --model is refused with a reason${refused.ok ? ' — it succeeded' : ''}`,
+);
 
 // Rule 8, stated as what it is: three commands completed with every outbound path
 // throwing. The blocker is proved to block — `fetch`, `net.connect` and `dns.lookup` all

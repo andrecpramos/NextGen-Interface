@@ -1,6 +1,6 @@
 # Critical infrastructure and the rules that bind it
 
-**Audited against the tree:** 2026-09-17 — §1 and §2 rewritten after ADR-018 deleted their subjects, and two gates found stale by that deletion (see the banner under "Gates seen failing on purpose"). Previous full pass: 2026-09-12, when every file and test the matrix names was opened and checked to assert what the row claims. Earlier passes: 2026-09-11 (§1, §4, the
+**Audited against the tree:** 2026-09-17 — §1 and §2 rewritten after ADR-018 deleted their subjects (§2, the release/install rows and gap 9 revised again 2026-09-20 for ADR-021), and two gates found stale by that deletion (see the banner under "Gates seen failing on purpose"). Previous full pass: 2026-09-12, when every file and test the matrix names was opened and checked to assert what the row claims. Earlier passes: 2026-09-11 (§1, §4, the
 matrix, the gaps), 2026-09-10 (§8 and the ranked gaps), 2026-09-09 (the rest).
 Re-audit trigger: any change to `ci.yml`, any new gate, any new rule, or a release.
 *It fired twice before this pass — WP-47 rewrote the staleness step and WP-45 added a
@@ -105,6 +105,26 @@ subsystem reads.
 
 ## 2 · The engine/domain boundary
 
+> ✅ **2026-09-20 — repointed, ADR-021.** ADR-018 deleted both domain packages, and for
+> three days `check-import-boundaries.mjs` went on reporting *"clean of domain imports"*
+> against a tree containing none: it could not fail for the reason it existed. It now
+> enforces what survives the deletion and what a gate can still fail on: **`packages/core-*`
+> depend only on other `core-*` packages**, in `package.json` and in every import specifier,
+> including a relative path out of the package.
+>
+> **Proven live, three ways, by breaking it on purpose:** `core-intent` importing
+> `@nextgen/generator`; `core-inference` re-exporting `../../kit/src/index.ts`; and
+> `core-capability` declaring `@nextgen/embed` as a dependency. Each exited 1 naming the file
+> and line, and each was reverted. The deep relative import is the shape the old gate could
+> not see either.
+
+**What.** `packages/core-*` depend only on other `core-*`. The engine — registry contract,
+router, model runtimes — sits below the generator (reads an application), the widget (runs in
+its page) and the kit (drives both), so it cannot learn about an application from any of them.
+
+**Blast radius.** This is the invariant the entire "the engine knows nothing about any
+particular application" thesis rests on. Once broken it is rarely broken back.
+
 > ⚠️ **2026-09-17 — this rule's subject changed, and the change weakens the
 > enforcement.** ADR-018 deleted both domain packages. `check-import-boundaries.mjs`
 > still runs and still passes, but it now reports *"3 core package(s) clean of domain
@@ -127,7 +147,7 @@ application need" thesis rests on. Once broken it is rarely broken back.
 
 | Rule | Enforcement | Status |
 |---|---|---|
-| Rule 1 — core never imports a domain | `tooling/scripts/check-import-boundaries.mjs`, checking both the declared dependency and every actual import specifier. First step of CI's `verify` job; also `.claude/hooks/check-gates.mjs` on every `core-*` write | **enforced, three layers** |
+| Rule 1 — `core-*` depend only on other `core-*` | `tooling/scripts/check-import-boundaries.mjs`, checking both the declared dependency and every actual import specifier (by name, and by relative path out of the package). First step of CI's `verify` job; also the `postEdit` hook in `.claude/sdlc.config.json` on every `core-*` write | **enforced, two layers — repointed 2026-09-20, ADR-021** |
 
 What the gate cannot see: a `switch` or an `if` in `core-*` enumerating domain
 types. Same violation, no import. That one needs a reader — the
@@ -327,8 +347,6 @@ it has not earned. (Section 1 has this pass's example.)
 | Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced — but only from 2026-09-10; see below** |
 | A prompt never interpolates unfenced input | CI + `tooling/scripts/check-prompt-fencing.mjs` | **enforced (added 2026-09-10)**, §8 for its limits |
 | High and critical CVEs block | CI `audit` job (`pnpm audit --audit-level high`) | **enforced** |
-| A release is one version, a CHANGELOG section and the LICENSE in every package | `tooling/scripts/check-release.mjs`, in CI's `verify` job; with `--tag`, also a dated section and a tag equal to `v<version>` in `release.yml` | **gate (2026-09-13)** |
-| Release tarballs are built from `main` only, after the install check passes | `release.yml`: `git merge-base --is-ancestor` against `origin/main`, then typecheck, tests, packaging and `check-install.mjs` before `gh release create` | **in the workflow — not yet exercised: no tag has been pushed** |
 
 > ### ⚠️ This row was false for a day, and the way it was false is the point
 >
@@ -408,12 +426,18 @@ attempts found something. The `scorecard` gate could not be made to fail at all
 (it compared a file with itself), and this table's own `import-boundaries` row
 turned out to credit the gate with a catch only the test could have made.
 
+**Retired 2026-09-20 (ADR-021): `packaging`, `release` and `install`.** They guarded a tarball
+path that no adopter was ever on (no `v*` tag exists). Their rows are gone rather than left to
+read as protection that does not exist. What they found is worth keeping: the first `install`
+run caught `@nextgen/generator` importing `typescript` at run time while declaring it a
+devDependency, so every command threw `ERR_MODULE_NOT_FOUND` once installed from a tarball
+while 647 tests and `check-packaging` were green. The class of defect died with the install
+step: `adapter/scan.mjs` bundles `typescript` and `check-adapter.mjs` runs it from a directory
+with no `node_modules`.
+
 | Gate | Last seen failing correctly | How it was made to fail |
 |---|---|---|
-| `release` | **2026-09-13** | **Three ways, the first one real.** Run against the tree before it was licensed, it exited 1 with 9 problems: no `license` in the root `package.json`, and no LICENSE file in any of the eight packages, each of which would have shipped without one. Then, once licensed: `--tag v0.1.0` against the `## 0.1.0 — unreleased` heading exited 1, asking for a release date; and `core-trace` set to 0.1.1 exited 1, listing all eight versions. Restored, and it passed |
 | `csp` | **2026-09-13** | Put the widget back to the `<style>` element it shipped with until that day (the constructed-stylesheet branch disabled). Edge 153 exited 1 on two checks: *"no policy violations: style-src-elem inline"* and *"the widget is styled (input min-height 0px, expected 48px)"* — the widget still started, answered and routed, completely unstyled, which is exactly how it would have looked on a strict site. Restored, and it passed. Before the gate existed, a hand probe under the same policy also showed the `<script>NextGen.start(...)</script>` snippet `doctor` printed being blocked (`script-src-elem`) |
-| `install` | **2026-09-13** | **Its first run, on a real defect.** Every `nextgen` command — `init` included, because the CLI imports the build module up front — threw `ERR_MODULE_NOT_FOUND: Cannot find package 'typescript'` from `@nextgen/generator/dist/discover.js`, on Node 25 and on Node 20 alike. The generator parses source with `typescript` at run time and declared it a devDependency. Inside this workspace it resolved, so all 647 tests and `check-packaging` were green; installed from a tarball, the product could not start. Moved to `dependencies`; the gate then passed on both runtimes. **Then made to fail on Node 20 only**, because that first failure hit both runtimes and so proved nothing about the Node 20 half: `Object.groupBy` (Node 21+) added to the CLI. Node 25 passed every step; Node 20 failed `init`, `build`, `doctor` and the ES-module probe, while the TypeScript-adopter step still passed. Reverted, rebuilt, and green |
-| `packaging` (dependency check) | **2026-09-13** | Moved `typescript` back to the generator's devDependencies after the fix. Exited 1: *"@nextgen/generator: imports "typescript" at run time (dist/discover.js) but does not declare it in dependencies. It is a devDependency, which an install does not bring."* Restored, and it passed. **The same gate also produced a false positive that day**: it flagged the `./package.json` export as outside `files`, but npm always publishes `package.json`. Corrected in the gate, not worked around in the manifest |
 | `guard-git` (broad staging) | 2026-09-09 | Piped `git add -A`; got a deny naming explicit staging |
 | `guard-git` (production write) | 2026-09-09 | Piped `git push origin main`; got a deny naming `develop` |
 | `guard-git` (branch from production) | 2026-09-09 | Piped `git checkout -b feature/x main`; deny + correct command |
@@ -430,8 +454,7 @@ turned out to credit the gate with a catch only the test could have made.
 | `generated-golden` | **2026-09-12** | Deleted the `normalize()` sentence-punctuation line — the change that went stale unnoticed on 2026-09-11 and the same shape as the one that cost seven points. Exited 1 naming what moved: top-1 0.0795 → 0.0739, out-of-scope refused 47.1% → 41.2%, and the three turns that changed decision, two of them refusals degrading to clarifies. Restored, and it passed |
 | `accessibility` (WP-45) | **2026-09-12, on its first run, not deliberately** | Pointed at the built widget for the first time, it failed: focus fell to the document body when an answer replaced the link the user was standing on — a keyboard user silently returned to the top of the host page. Fixed, then made to fail on purpose twice more: removing the focus restoration fails exactly one unit test, and `widget.test.ts` now holds both halves (focus returns when the user was inside the answer; focus is left alone when they were not) |
 | `derived-artefacts` | 2026-09-11 | Deleted the `normalize()` punctuation line: the exact change that went stale unnoticed that morning. **All three checks failed**: 10 of 10 indexes stale, the per-registry `tauHigh` 0.61 shipped vs 0.59 re-swept, and browser parity broken. Restored with `git checkout`, and all three passed. About a second per run |
-| Rule 1 test (`domain.test.ts`) | **2026-09-12** | Appended `// domain-modules` to `core-voice/eval/acceptance.mjs`; the test failed naming the file, and passed again when reverted. **It was widened to make that possible.** It collected `.ts` and `.js` only, so a `.mjs` in a core package could name a domain and pass — and one did, for as long as WP-47's own help text sat there. The extension list now covers `.ts`/`.js`/`.mjs`/`.cjs`. Note `check-import-boundaries.mjs` scans `core-*/src` and never saw either, which is why both exist |
-| `import-boundaries` | **2026-09-13** | Added `import { x } from '@nextgen/domain-modules'` to `core-trace/src/index.ts`; exited 1 naming the file and line. **Correcting this row while doing so:** it used to say the gate caught a doc comment in `core-inference` on 2026-09-10 and that "the text grep is blunt on purpose". **There is no text grep.** The gate matches quoted specifiers after `from`/`import`/`require`, plus declared dependencies — a comment naming a domain does not trip it, verified by adding one. What caught that comment was `domain.test.ts`, which greps every file. Rule 1's protection has now been credited to the gate twice while the test did the catching both times |
+| `import-boundaries` | **2026-09-20** | Repointed by ADR-021 and made to fail three ways: `core-intent` importing `@nextgen/generator`, `core-inference` re-exporting `../../kit/src/index.ts`, and `core-capability` declaring `@nextgen/embed`. Each exited 1 naming the file and line, then each was reverted. Before this the gate reported "clean of domain imports" against a tree with no domains, and could not have failed |
 | `registry-check` | **2026-09-13** | Deleted three of `module.capture`'s four examples; exited 1 with `[examples-min] module.capture: "module.capture" has 1 example(s); at least 3 are required` (Rule 10), and the build refused to write a registry it had judged invalid |
 | `check-thresholds` | **2026-09-13** | Changed `THRESHOLD_PROFILES.hashing.tauHigh` from the calibrated 0.456 to a hand-picked 0.5 — the exact move Rule 14 exists to forbid. Exited 1: *"config.ts has 0.5, the sweep recommends 0.456"*, naming when the calibration was run and telling the reader to re-sweep rather than transcribe a guess |
 | `scorecard` | **2026-09-13** | **It could not be broken, which was the finding.** The configured local command was `--baseline X --current X` — the same path on both sides — so every delta was zero by construction. Setting every rate in that scorecard to 0.01, a total collapse, still printed *"OK — no accuracy regression beyond tolerance"*, and `/gates` reported it green. It now takes `--baseline-ref HEAD`, and the script **refuses** a same-path invocation rather than reporting a pass. Re-run against the same collapse: 5 regressions, exit 1 |
@@ -445,7 +468,7 @@ turned out to credit the gate with a catch only the test could have made.
 
 | # | Rule | Enforced by | Kind |
 |---|---|---|---|
-| 1 | `core-*` never imports a domain | `check-import-boundaries.mjs`, CI, PostToolUse hook — **plus `domain.test.ts`, which is what actually catches it**: the gate scans `core-*/src` only, and WP-47 put a domain name in `core-*/eval` twice (a default registry path, then a usage example in a `.mjs` the test did not yet collect). Both were caught by the test, neither by the gate | **gate + test** |
+| 1 | `core-*` depend only on other `core-*` | `check-import-boundaries.mjs`, CI, and the `postEdit` hook on every `core-*` edit. The `domain.test.ts` that used to be the layer that actually caught it went with the domain packages | **gate (repointed 2026-09-20, ADR-021)** |
 | 2 | Model never computes a user-visible number | `check-model-numerics.mjs`, CI — the model's output schema may not declare a number without a `// rule2-ok:` reason | **gate (2026-09-10), half the rule** — arithmetic on model output is still convention, and untestable until a number is rendered anywhere |
 | 3 | Model never emits SQL or a raw route | `dispatcher.test.ts`; query engine design | **test** |
 | 4 | Model-produced ids validated against the registry | `dispatcher.test.ts`, `cascade.ts`, `stages.ts` | **test** |
@@ -466,8 +489,6 @@ turned out to credit the gate with a catch only the test could have made.
 | — | Every capability can say what it is (WP-36) | `explanation-required` in `validate.ts`, gated by `pnpm registry:check` | **gate (2026-09-10)** |
 | — | Top-1 accuracy does not regress across a prompt change | `evaluate-golden.mjs --check`, CI — the model-free floor on the **generated** registries against the committed scorecard, every rate and every per-turn decision, timing excluded | **gate (2026-09-12)** — the model-free floor only; anything involving stage 3 needs a model server CI does not have, so a regression that only appears with a model is still ungated |
 | — | The browser entry loads with no Node globals ([L11](lessons.md)) | `packages/embed/src/embed.test.ts` runs the built bundle in a bare `vm` context holding only `window`, `console` and `performance` | **test (2026-09-11, WP-29)** |
-| — | The published package view is importable | `check-packaging.mjs` reads each manifest with `publishConfig` applied, after `pnpm build` in CI: every `main`, `types`, `exports` and `bin` target exists, is covered by `files` and is not TypeScript source, **and every bare import in the published JavaScript is a declared dependency** | **gate (WP-26; bin and dependency checks 2026-09-13)** |
-| — | An adopter can install the packages and use them | `check-install.mjs`, CI — packs the kit's six packages, `npm install`s the tarballs into a scratch project **outside this repository**, runs `nextgen init` / `build` / `doctor` through the installed bin on the runner's Node **and on Node 20**, imports `@nextgen/embed` as an ES module and routes a turn, hashes the copied app before and after (Rule 16), and type-checks a TypeScript adopter under `bundler` and `nodenext` | **gate (2026-09-13)** — needs network for npm. The packages are ESM-only, so a CommonJS adopter importing them statically is unsupported, documented and not tested |
 | — | Shipped indexes and per-registry thresholds match their inputs | `check-derived-artefacts.mjs`, CI (WP-46) | **gate (2026-09-11)** — covers `eval/fut-app/generated`; an adopter's own kit build is checked by its `doctor`, not here |
 | — | The shipped widget has no serious or critical accessibility violation | `check-accessibility.mjs`, CI (WP-45) — axe-core over the **built** `packages/embed/dist/nextgen.js` in a real DOM, in every state a user can reach, plus keyboard, focus, live-region and reduced-motion checks the stylesheet is read for | **gate (2026-09-12)** — blind to colour contrast (jsdom computes no layout, and the widget paints in the user's own system colours), to announcement order, and to anything as rendered. Those are [the NVDA pass](../../eval/a11y/NVDA-CHECKLIST.md), which a person runs and nobody has |
 | — | The widget works on a site with a strict Content-Security-Policy | `check-csp.mjs`, CI — headless Chrome loads a page served with `default-src 'self'; script-src 'self'; style-src 'self'` whose only integration is the documented `<script src=… data-nextgen-role=… defer>`, asks a question through the widget's own form and clicks a choice; fails on any violation, on the widget not starting or unstyled, on no answer, or on `nextgen:navigate` not reaching the page | **gate (2026-09-13)** — one policy and one browser engine per run (Chromium). A policy stricter than `'self'`, such as nonce- or hash-only `script-src`, needs the adopter to add their nonce to the tag and is not tested |
@@ -579,6 +600,12 @@ been sitting in the matrix as `none` without ever appearing on this list.
    admin surface to a user who must not see it. It ranks here, not lower, because the
    first code that could violate it has not been written — which is the cheapest moment
    to add the gate.
+
+9. **No package may be made installable again without an ADR** (ADR-021). Nothing checks
+   it: `private: true` in every manifest is the signal, and removing it is a one-line edit no
+   gate reads. It ranks here, not higher, because reintroducing the tarball path means
+   restoring a workflow, four scripts and six manifests' worth of fields, none of which happens
+   by accident — and `convention` is stated rather than dressed up as a gate.
 
 ---
 

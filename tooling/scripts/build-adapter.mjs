@@ -6,8 +6,8 @@
 // Two artefacts, from source that already exists:
 //
 //   scan.mjs            packages/kit/src/cli-copied.ts and everything it imports, in one
-//                       file. NOT cli.ts: that entry passes Ollama's prose model, and
-//                       this one passes nothing, so the bundle cannot reach a network.
+//                       file. It is the kit's only entry point (ADR-021) and references no
+//                       model client, so the bundle cannot reach a network.
 //   runtime/nextgen.js  packages/embed/dist/nextgen.js, byte for byte
 //
 // The premise of ADR-018 is "copy a folder, run it". That is only true if the folder
@@ -64,7 +64,7 @@ async function bundleScanner() {
   // Two fixes, both forced by what is inside this bundle, and both verified by running
   // the result from a directory with no node_modules (check-adapter.mjs).
   //
-  // 1. `cli.ts` starts with its own shebang and esbuild preserves it wherever it lands.
+  // 1. `cli-copied.ts` starts with its own shebang and esbuild preserves it wherever it lands.
   //    With anything prepended, Node hits `#!/usr/bin/env node` on line 2 and refuses the
   //    file outright. So it is stripped here and re-added first.
   // 2. The generator parses the adopter's source with `typescript`, which is CommonJS and

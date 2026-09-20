@@ -164,7 +164,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 >
 > **The next thing is the owner's acceptance run (WP-35), and it is now cheap to start:**
 > copy `adapter/` into any real application, paste its path into a coding agent, and read
-> what `doctor` says. [INSTALL.md](INSTALL.md) has the procedure and it names no
+> what `doctor` says. [ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md) has the procedure and it names no
 > application.
 >
 > **What changed about the owner's items.** Three of the four were defined against the
@@ -175,7 +175,7 @@ is **a folder copied into the adopter's repository and handed to their coding ag
 > | WP-45 | The NVDA pass, 17 items | **unchanged** — [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md) survives, ~15 min |
 > | WP-44 | Record 20 pt-PT utterances against Whisper/Piper | **void.** `core-voice` is deleted; the voice an adopter's users get is the browser's, on-device (§7.7) |
 > | WP-42 | Mark 25 pilot descriptions right/vague/wrong | **generalised.** The readable-app finding (15 right, 4 vague, 1 wrong of 20) stands and is in FIELD-NOTES §3; the pilot sheet is gone |
-> | WP-35 | Drop the kit into the pilot, deploy, measure | **still the acceptance test, and no longer names an app.** [INSTALL.md](INSTALL.md) §"The owner's acceptance run" is written against any real application |
+> | WP-35 | Drop the kit into the pilot, deploy, measure | **still the acceptance test, and no longer names an app.** [ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md) is written against any real application |
 >
 > **The claims stay where they were measured**: *"automated accessibility checks pass; no
 > screen reader has confirmed it"*, and no cost-per-session figure at all.
@@ -2045,7 +2045,7 @@ Ship navigation only and say so.
 >
 > Now: six packages build to `dist`, declare `files`, and were installed from tarballs into
 > a consumer outside the repository, which **routed real `fut-app` turns with no network
-> and no model server**. [INSTALL.md](INSTALL.md) is the procedure, written by performing
+> and no model server**. `INSTALL.md` (deleted by [ADR-021](../.claude/decisions/ADR-021.md); in git history) is the procedure, written by performing
 > it.
 >
 > | Acceptance | |
@@ -2265,7 +2265,7 @@ goes.
   - the exact line to mount.
 - **Mounting takes one line**: either the React component from `@nextgen/ui`, or the
   script tag.
-- **Rewrite [INSTALL.md](INSTALL.md) as the owner's checklist for `fut-app`**: what to
+- **Rewrite `INSTALL.md` (deleted by [ADR-021](../.claude/decisions/ADR-021.md); in git history) as the owner's checklist for `fut-app`**: what to
   run, what to look at, and what to send back.
 
 ⚠️ **An open question this WP must answer: calibration for an app that has no golden
@@ -2292,7 +2292,7 @@ the kit ships the shipped profile, and `doctor` says **uncalibrated** in plain w
         `pt-PT` first. The owner's run records the rest.
 - [x] The calibration question is answered with a measurement: self-calibration is not
       usable.
-- [x] The owner's `fut-app` checklist is written ([INSTALL.md](INSTALL.md) §0).
+- [x] The owner's `fut-app` checklist is written (`INSTALL.md` (deleted by [ADR-021](../.claude/decisions/ADR-021.md); in git history) §0).
 
 **Stop if.** The kit cannot work without editing the target's source. That breaks Rule
 16, which is the product, and the packaging model needs rethinking.
@@ -3149,7 +3149,7 @@ saying `>=20`. `jq` is not on PATH, so use Node for JSON.
 | How do I add a whole application? | [new-domain](../.claude/skills/new-domain/SKILL.md) |
 | Accuracy dropped — now what? | [router-regression](../.claude/skills/router-regression/SKILL.md) |
 | How do I run this? | §10 · [GETTING-STARTED.md](GETTING-STARTED.md) for an adopter's app |
-| How does an adopter install it? | [INSTALL.md](INSTALL.md): performed step by step, not just described. WP-41 turns it into one command |
+| How does an adopter install it? | [GETTING-STARTED.md](GETTING-STARTED.md). It was `INSTALL.md` (performed step by step) until ADR-021 retired the tarball path |
 | What mistakes has this repo already made? | [.claude/docs/lessons.md](../.claude/docs/lessons.md), L1 to L12 |
 | Which branch does this land on? | [CLAUDE.md](../CLAUDE.md) · [.claude/sdlc/branching.md](../.claude/sdlc/branching.md) |
 

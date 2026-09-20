@@ -25,8 +25,7 @@
     "router:inspect": "pnpm --filter @nextgen/core-intent inspect -- --registry=eval/fixture-registry.json",
     "router:compare": "pnpm --filter @nextgen/core-intent compare",
     "clean": "pnpm -r exec rm -rf dist node_modules .turbo .next",
-    "build": "pnpm -r --filter \"./packages/*\" build",
-    "pack:release": "node tooling/scripts/pack-release.mjs",
+    "build": "node packages/embed/build.mjs",
     "eval:apps": "node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing",
     "eval:apps:check": "node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check",
     "eval:calibrate": "node --experimental-strip-types eval/frameworks/calibrate-registries.mjs --embedder hashing"
