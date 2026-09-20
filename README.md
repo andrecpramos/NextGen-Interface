@@ -155,7 +155,7 @@ committed golden set.
 ```bash
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
 pnpm preview                     # the bench: ask, and see why it decided that
-pnpm check                       # typecheck + 726 tests + registry validation
+pnpm check                       # typecheck + every test + registry validation
 pnpm eval:apps                   # generate, calibrate and route over a fixture app
 pnpm adapter:build               # rebuild adapter/ after changing packages/
 pnpm adapter:check               # prove a copy of it runs with nothing installed
@@ -217,7 +217,8 @@ figure is meaningless.
 |---|---|
 | Does this work on an app it has never seen? | **[field-apps/RESULT.md](eval/field-apps/RESULT.md)** · [tutor-app/RESULT.md](eval/tutor-app/RESULT.md) |
 | What goes wrong when it meets a real app? | **[adapter/FIELD-NOTES.md](adapter/FIELD-NOTES.md)** |
-| What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) |
+| **What is the state right now?** | **[STATUS.md](.MDFiles/STATUS.md)** — one page |
+| What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) §0 |
 | How do I add it to my app? | [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) |
 | How do I run this repo itself (as a contributor)? | §Run it, above · [PLAN.md](.MDFiles/PLAN.md) §10 |
 | Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 21 ADRs |
