@@ -7,54 +7,46 @@ Riverpod described anywhere as current, it is drift — report it.
 
 ## Structure
 
-The critical boundary is `packages/core-*` (the domain-agnostic engine) versus
-`packages/domain-*` (a domain).
+The critical boundary is `packages/core-*` (the application-agnostic engine) sitting below
+everything that reads or serves an application.
 
 ```
 packages/
-├── core-capability/     # registry schema, validation, codegen — the engine/domain contract
-├── core-intent/         # 3-stage router, scoring, thresholds, the eval harness
-├── core-dispatch/       # dispatcher, policy table, confirmation, undo, navigation
-├── core-inference/      # LLM + embedding runtime adapters, model lifecycle
-├── core-voice/          # STT / TTS abstractions
-├── core-trace/          # TurnTrace recorder and store
-├── data/                # SQLite (node:sqlite), schema, migrations, query engine
-├── ui/                  # design system
-├── domain-modules/      # THE registered domain since WP-14
-└── domain-finance/      # the reference domain — proof the engine is domain-agnostic
+├── core-capability/     # the registry contract: schema, validation, typed builders
+├── core-inference/      # LLM + embedding runtimes, the untrusted-text fence
+├── core-intent/         # 3-stage router, scoring, thresholds, calibration, the trace
+├── generator/           # reads an application's source, emits one registry per role
+├── embed/               # the widget: one script tag, strict CSP
+└── kit/                 # init / build / doctor / calibrate / preview
 
-apps/
-├── web/                 # Next.js assistant surface — a composition root
-└── cli/                 # the same stack as a CLI — the other composition root
-
+adapter/                 # what an adopter copies — committed build output of the above
+preview/                 # the bench — never exported
+eval/                    # fixture apps, ground truth for public apps, the a11y record
 tooling/scripts/         # the CI gates that are not tests
 ```
 
-**Enforced rule:** nothing in `packages/core-*` may import a domain package.
-Checked by `node tooling/scripts/check-import-boundaries.mjs`, in both
-directions — the declared dependency in `package.json` *and* every actual import
-specifier under `src/`. If core needs to know something about a domain, that
-knowledge arrives as a **registration**, never an import.
-
-Inside a domain, dependencies point inward: use cases depend on entities, and
-`capabilities.ts` declares the surface. The domain declares repository interfaces
-(ports); `packages/data` implements them; the composition root wires the two. A
-domain imports `@nextgen/core-capability` and `@nextgen/core-inference`, and
-nothing else from the engine.
+**Enforced rule (Rule 1):** `packages/core-*` depend only on other `core-*` packages — never on
+`generator`, `embed` or `kit`. Checked by `node tooling/scripts/check-import-boundaries.mjs`,
+in both directions — the declared dependency in `package.json` *and* every actual import
+specifier under `src/`, including a relative path out of the package. If the engine needs to
+know something an application-facing package holds, that knowledge arrives as a
+**registration or a callback**, never an import. No package is installable or published
+(ADR-021).
 
 ## SOLID, applied here
 
-- **S** — a use case does one thing. `commitCapture` does not also recompute
-  related modules; it emits an event and a listener does.
-- **O** — new capabilities are added by declaration and registration, never by
-  editing a switch in the dispatcher. If you are editing a switch to add a
-  feature, the abstraction is wrong.
+- **S** — a function does one thing. `validateClaims` strips a model's unsafe sentences and
+  does not also decide what to say instead.
+- **O** — new behaviour is added by registration or by generation, never by editing a
+  `switch` over an application's type inside the engine. If you are editing a switch to add
+  a case, the abstraction is wrong.
 - **L** — every inference runtime (Ollama, llama.cpp, cloud, fake) is
   substitutable. Tests run against the fake; nothing in a test path needs a model.
 - **I** — narrow interfaces. A reader and a writer are separate, so the query
   path can be handed the reader alone.
-- **D** — domains declare interfaces, infrastructure implements them, and the
-  composition root (`apps/cli`) is the only place they meet.
+- **D** — the engine declares interfaces (`core-inference`'s runtimes, the registry
+  contract); `generator`, `embed` and `kit` implement or consume them, and `kit` is where
+  they meet at build time.
 
 ## TypeScript conventions
 
@@ -100,36 +92,28 @@ export type Result<T> =
 > in WP-37 — the absence of lint is deliberate and documented; an empty package
 > pretending otherwise was not.)*
 
-## Capability declarations
+## Capability entries
 
-Every capability carries a description, an **explanation**, triggers, typed params,
-and **at least three examples**. The examples feed the golden-set generator and the
-few-shot pool — an under-documented capability is a failing CI gate
-(`pnpm registry:check`), not a style nit.
+Capabilities are not declared by hand in this repository: `packages/generator` reads an
+application's source and emits them (ADR-013, ADR-018). `defineCapability` remains in
+`core-capability` as a typed builder that tests use; nothing an adopter runs declares a
+capability with it. Every entry the generator emits carries a description, an
+**explanation**, triggers, typed params, and **at least three examples**. The examples feed
+the retrieval text and the golden-set fixtures — an under-documented capability is a failing
+CI gate (`pnpm registry:check`), not a style nit.
 
-```ts
-defineCapability({
-  id: 'module.capture',
-  kind: 'write',                     // selects the dispatcher policy — ADR-004
-  route: '/modules/new',
-  title: 'Remember this',
-  description:                       // MATCHED: stage 2 embeds this
-    'Save something the user wants remembered — extract the important information ' +
-    'from what they said, wrote, or uploaded, and file it as a module',
-  explanation:                       // SERVED: the user reads this, verbatim (WP-36)
-    'Saving something you want to remember. Tell me the thing — a password, a date, ' +
-    'a phone number — and I file it as a module.',
-  explanationSource: 'packages/domain-modules/src/capabilities.ts',
-  triggers: ['remember this', 'save this', 'take a note'],
-  params: {
-    body: { type: 'string', required: false, description: 'what you want me to remember' },
-  },
-  examples: [
-    'remember that my passport expires in June 2027',
-    'save this: the wifi password is on the router label',
-    'note that the insurance renewal is in March',
-  ],
-})
+```json
+{
+  "id": "communication.my_announcements",
+  "kind": "navigate",
+  "route": "/my/announcements",
+  "title": "Anúncios",
+  "description": "Anúncios — part of the communication area of the application, at /my/announcements.",
+  "explanation": "Anúncios is a screen in the communication area … It shows: Enviado por, …",
+  "explanationSource": "features/communication/pages/MyAnnouncementsPage.tsx",
+  "examples": ["abre anúncios", "leva-me para anúncios", "…"],
+  "triggers": ["anuncios", "announcements"]
+}
 ```
 
 The **description is the retrieval surface** — stage 2 embeds it. Two
@@ -148,10 +132,9 @@ cost **7 points of top-1 accuracy** on a real registry — the explanation was f
 and the other two fields got worse. Output fields compete for attention exactly
 like stacked instructions do (§6 of PLAN.md, and WP-14 before it).
 
-Declarations generate three artefacts (`pnpm registry:build`): the registry the
-router reads, the route table the app reads, and the golden-set fixtures that
-assert those two agree. **Regenerate in the same commit** — CI fails on the
-drift, not on the edit.
+The committed registries under `eval/frameworks/<app>/generated/` are derived from the
+generator. **Regenerate them in the same commit as the change that alters them** — CI fails
+on the drift, not on the edit. The exact order is in the `new-feature` skill.
 
 ## Prompts
 

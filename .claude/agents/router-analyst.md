@@ -52,7 +52,7 @@ each other on a phrase that clearly belongs to one of them is the diagnosis.
 descriptions so they say what makes them *different*; move an overlapping trigger
 to whichever capability owns it; or argue that the new capability should not
 exist — collapsing two crowded capabilities into one with richer execution is
-often right. `domain-modules` has five capabilities deliberately.
+often right.
 
 Only when the corpus itself genuinely changed: `pnpm router:inspect` to see the
 distributions, then `pnpm router:calibrate`. Never edit

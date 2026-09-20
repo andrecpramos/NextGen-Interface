@@ -39,12 +39,12 @@ An item may enter an iteration when it has:
 ## Definition of Done
 
 - Code merged to `develop`, CI green
-- Unit + integration tests written, coverage not reduced
+- Unit tests written, and the built artefact run where it applies (`pnpm adapter:check`)
 - Golden-set entries added for any new capability; suite not regressed
-- Registry entry generated and route test passing
+- Derived artefacts regenerated in the same commit (`check-derived-artefacts.mjs`)
 - Trace recording verified for the new path
 - Docs updated — including an ADR if an architectural choice was made
-- Manually exercised on a physical device, not only the emulator
+- Exercised where it will run — a real browser or the bench (`pnpm preview`), not only jsdom
 
 ## Estimation
 

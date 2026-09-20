@@ -1,17 +1,17 @@
 ---
 name: boundary-auditor
-description: Review a change against the repo's layer boundaries and numbered rules — whether the dependency rule held, whether external input is validated before use, and whether untrusted text is isolated. Use before merging anything that touches a boundary, a dispatcher, or a new module. Read-only; never edits.
+description: Review a change against the repo's layer boundaries and numbered rules — whether the dependency rule held, whether external input is validated before use, and whether untrusted text is isolated. Use before merging anything that touches a package boundary or adds a package. Read-only; never edits.
 tools: Read, Grep, Glob, Bash
 ---
 
-Review a change against the boundaries in `.claude/docs/architecture.md` and the fourteen non-negotiable rules in
+Review a change against the boundaries in `.claude/docs/architecture.md` and the seventeen non-negotiable rules in
 `PLAN.md` §2.
 
 Read-only. You report; someone else fixes.
 
 ## The checks, in priority order
 
-**1 · The dependency rule.** Does `packages/core-*` import `packages/domain-*`?
+**1 · The dependency rule.** Does a `packages/core-*` package depend on anything that is not another `core-*` — `generator`, `embed` or `kit`, by name or by a relative path out of the package? (Rule 1, ADR-021.)
 
 ```bash
 node tooling/scripts/check-import-boundaries.mjs

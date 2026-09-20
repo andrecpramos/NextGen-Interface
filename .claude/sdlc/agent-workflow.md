@@ -74,7 +74,7 @@ so scanning it produces only false positives.
 A third hook, [`check-gates.mjs`](../hooks/check-gates.mjs), runs on
 `PostToolUse` for `Edit`/`Write` and surfaces the cheapest gate the edit could
 have broken — Rule 1 on a `core-*` write (it runs the real CI script, ~75ms), the
-codegen and Rule 10 reminders on a `capabilities.ts` write, the calibration
+Rule 10 reminder on a registry write, the calibration
 discipline on an `eval/` write. It is silent otherwise, deliberately: a hook that
 comments on every write becomes noise an agent learns to skim, which is worse
 than no hook at all.
@@ -113,7 +113,7 @@ agent loses the context that would have reminded it.
 
 **This repository is worked on concurrently.** While WP-12 (CI/CD) was being
 implemented on `wp-01-1b-validation`, another session was actively writing WP-08
-(`packages/ui`) and WP-09 (`apps/web`) **into the same working tree** — nine new
+(`packages/ui`) and WP-09 (`apps/web`) — both since deleted — **into the same working tree** — nine new
 component files, a modified `packages/ui/package.json`, and a `pnpm install` that
 rewrote `pnpm-lock.yaml` mid-run, all within a four-minute window.
 

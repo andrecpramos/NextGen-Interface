@@ -1,5 +1,16 @@
 # UI Guidelines
 
+> **Status, 2026-09-20 — partly current.** This was written for the assistant screen of an
+> offline mobile finance app. **Still describes the widget:** the orb as a state machine
+> that is "state, not decoration", never colour alone, `prefers-reduced-motion` degrading to
+> a static indicator, and every screen reachable without the assistant (Rule 7) — implemented
+> in `packages/embed` (`liquid.ts`, `assistant.ts`, `theme.ts`) and checked by
+> `check-accessibility.mjs`. **Does not:** the transcribing, acting and speaking states, the
+> confirmation card, charts, live figures, the nav drawer and the composer — those belonged
+> to the finance app (its dispatcher and voice packages were deleted with ADR-018). The
+> visual system is [ADR-012](../decisions/ADR-012.md)'s, not the Material 3 this file
+> started from.
+
 ## The core idea
 
 The interface has one primary surface — the assistant — and a set of secondary

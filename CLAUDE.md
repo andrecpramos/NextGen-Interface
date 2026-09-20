@@ -93,11 +93,12 @@ on every `core-*` edit (see `critical-infrastructure.md` §2) — and the
 `boundary-auditor` agent checks the `switch`-on-application-type violations the
 import gate can't see.
 
-`.claude/docs/architecture.md` and `.claude/docs/testing.md` describe an
-earlier Dart/Flutter mobile design (Drift/SQLCipher, GoRouter, llama.cpp FFI)
-that predates this repo's actual TypeScript/pnpm implementation and were not
-updated after the pivot. For anything architectural, trust README.md, the
-accepted ADRs in `.claude/decisions/`, and the code over them.
+`.claude/docs/architecture.md` and `.claude/docs/testing.md` were rewritten on
+2026-09-20; before that they described an earlier Dart/Flutter mobile finance
+app. Three other docs are only partly about this repo and open with a status
+note saying which parts: `security.md`, `ui-guidelines.md` and the older
+`sdlc/` files. For anything architectural, trust README.md, the accepted ADRs in
+`.claude/decisions/`, and the code over any of them.
 
 ## Before you push
 

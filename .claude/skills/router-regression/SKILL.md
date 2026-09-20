@@ -84,15 +84,21 @@ one of them is the diagnosis.
 - Rewrite the two descriptions so they describe what makes them *different*. The
   description is the retrieval surface — adding adjectives to both makes it worse.
 - Move an overlapping trigger to whichever capability actually owns it.
-- Ask whether the new capability should exist at all. `domain-modules` has five
-  deliberately: the router recognises the *kind* of turn, and the harder judgment
-  happens inside the capability's own execution with a larger model. Collapsing
-  two crowded capabilities into one with richer execution is often the right fix.
+- Ask whether the new capability should exist at all. The router recognises the *kind*
+  of turn; collapsing two crowded capabilities into one with richer execution is often
+  the right fix.
+- In a generated registry "the declaration" is what the generator wrote from the
+  application's own labels and routes, so the fix is in the generator's naming and trigger
+  code, then regenerate. The frozen `packages/core-intent/eval/fixture-registry.json` is
+  not edited (`packages/core-intent/eval/README.md`).
 
 Then regenerate and re-run:
 
 ```bash
-pnpm registry:build && pnpm router:floor
+node --experimental-strip-types packages/generator/src/cli.ts \
+  eval/frameworks/family/generator.config.json --no-model   # if the generator changed
+node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
+pnpm router:floor && pnpm eval:apps
 ```
 
 ## Step 4 — only if the corpus itself changed
@@ -151,4 +157,3 @@ re-run `pnpm router:floor`, and commit the scorecard with the fix.
 - [ADR-009](../../decisions/ADR-009.md) — out-of-scope as retrieval, not judgement
 - [ADR-011](../../decisions/ADR-011.md) — why CI gates on tolerances, never on model accuracy
 - `packages/core-intent/eval/FINDINGS.md` — Findings 1 and 11, the threshold lessons
-- [.claude/roles/qa.md](../../roles/qa.md) — bucket composition and field signals

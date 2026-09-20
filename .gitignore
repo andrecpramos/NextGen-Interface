@@ -32,7 +32,7 @@ next-env.d.ts.timestamp
 *.sqlite
 *.sqlite3
 
-# model weights — distributed on demand, never in the repo (see .claude/docs/deployment.md)
+# model weights — never in the repo
 models/
 *.gguf
 *.onnx

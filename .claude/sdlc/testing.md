@@ -1,60 +1,39 @@
 # SDLC — Testing (process)
 
-The strategy, thresholds, and test-type detail live in
-[../testing.md](../docs/testing.md). This document covers **process**: who runs what, when,
-and what blocks a release.
+The strategy and what each gate holds live in [../docs/testing.md](../docs/testing.md). This
+document covers **process**: who runs what, when, and what blocks a merge.
 
 ## Test-first rule
 
-For capabilities, tests come from the declaration. Writing `examples:` in the
-`@Capability` annotation generates golden-set entries before any implementation
-exists. The first run must fail for the right reason — capability not implemented, not
-capability not found.
+Say what should be true before you change anything: a turn in the relevant golden set, or
+the signature another package will import. The first run must fail for the right reason —
+*not implemented*, not *not found*. A test that was never seen failing may not be asserting
+anything.
 
 ## Per-commit (local, pre-push)
 
-- `pnpm -r typecheck` — strict TypeScript across the workspace
-- `node tooling/scripts/check-import-boundaries.mjs` — Rule 1
-  (no linter is configured; see [coding-standards.md](../docs/coding-standards.md))
-- Unit tests for touched packages
-- Golden set — **fast subset** (the buckets touching changed capabilities)
+The list is in [CLAUDE.md](../../CLAUDE.md), "Before you push", and `/gates` runs all of it,
+including the gates that list omits. In short: typecheck, the unit tests, Rule 1's boundary
+check, `pnpm registry:check`, and — if you changed anything that ships — `pnpm adapter:build`
+then `pnpm adapter:check`. No linter is configured
+(see [coding-standards.md](../docs/coding-standards.md)).
 
-## Per-PR (CI, blocking)
+## Per-PR (CI)
 
-| Stage | Blocks merge |
-|---|---|
-| Typecheck (strict) | yes |
-| Import-boundary lint | yes |
-| Unit (coverage ≥ 80%) | yes |
-| Integration (fake runtime) | yes |
-| Navigation (registry-generated) | yes |
-| Golden set — full, reference model | yes, on any regression |
-| Registry artefacts current | yes |
-| Dependency CVE scan | yes on high/critical |
+`.github/workflows/ci.yml` runs every gate in [sdlc.config.json](../sdlc.config.json) that
+does not need a model server or files outside this repository; what each enforces is in
+[ci-cd.md](ci-cd.md). The committed scorecards are in the diff, so an accuracy change is
+discussed rather than silently absorbed. Branch protection is not available on this
+repository's plan: CI is advisory in the mechanical sense, and the local hooks are the only
+layer that denies anything.
 
-The golden-set scorecard is committed, so accuracy changes appear in the PR diff and
-get discussed rather than silently absorbed.
+## What CI cannot run
 
-## Nightly
-
-- Performance suite on physical reference devices
-- Full voice corpus (WER + end-to-end intent accuracy)
-- Extended adversarial/injection corpus
-- Memory and battery profiling
-- Model-load and hash-verification integrity checks
-
-## Pre-release
-
-Manual, on real hardware, before any release branch is cut:
-
-- [ ] Full MVP scripted set, airplane mode, cold install
-- [ ] First-run experience *before* model download — app must be useful
-- [ ] Model download: interrupt it, resume it, corrupt it (hash must fail closed)
-- [ ] Accessibility pass: screen reader end-to-end, 200% text, reduced motion
-- [ ] Confirmation and undo for every `write` and `destructive` capability
-- [ ] Trace viewer accurate on 10 sampled turns — cross-check against the DB
-- [ ] Network monitor: confirm zero egress with cloud disabled
-- [ ] Migration from the previous released schema, with real-shaped data volume
+`adversarial-live` needs a model server, and `kit-sync` needs `sdlc-kit/`, which lives outside
+this repository. Run both through `/gates` before a change to a prompt, a threshold or a
+hook. **Human checks**, before a claim is made rather than before a merge: the screen-reader
+pass ([NVDA-CHECKLIST.md](../../eval/a11y/NVDA-CHECKLIST.md)) and the owner's acceptance run
+([ACCEPTANCE-RUN.md](../../.MDFiles/ACCEPTANCE-RUN.md)).
 
 ## When the router regresses
 
@@ -68,14 +47,15 @@ A golden-set drop is treated as a defect, not as noise:
 4. Add the specific failing utterances to the golden set permanently
 5. Re-tune thresholds only after the semantic overlap is resolved
 
+The `router-regression` skill has the commands.
+
 ## Bug policy
 
-Every routing bug becomes a permanent golden-set entry before it is closed. Every
-crash becomes an integration test. A fix without a test is not a fix — the same
-misrouting will reappear the next time a capability is added.
+Every routing bug becomes a permanent golden-set entry before it is closed (Rule 12). A fix
+without a test is not a fix — the same misrouting will reappear the next time the generator's
+output changes.
 
-## Release gates
+## Merge gates
 
-No release proceeds with: any failing CI stage, golden-set accuracy below the
-thresholds in [../testing.md](../docs/testing.md), a non-zero adversarial→destructive count,
-an unresolved accessibility blocker, or an untested schema migration.
+Nothing merges with a failing CI stage, a non-zero adversarial→destructive count, or a stale
+`adapter/` or derived artefact. A claim about accessibility waits on the screen-reader pass.

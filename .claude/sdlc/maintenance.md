@@ -9,11 +9,9 @@ is mostly about detecting quiet degradation.
 
 | Signal | Source | Watch for |
 |---|---|---|
-| Crash-free rate | crash reporter | any drop |
 | Turn latency p50/p95, per stage | traces (opt-in) | stage-3 share creeping up |
 | Stage-resolution mix | traces | stage 1+2 falling below 65% |
 | Clarify rate | traces | rising = router losing confidence |
-| Confirmation-rejection rate | traces | rising = router misunderstanding |
 | Model download success | telemetry | < 95% |
 | OOM kills | platform vitals | device-class correlation |
 
@@ -36,11 +34,10 @@ Countermeasures, applied on a schedule rather than reactively:
 
 ## Cadence
 
-**Weekly** — triage crashes; review clarify and rejection rates; add newly observed
+**Weekly** — triage field reports (`doctor --report`); review clarify rates; add newly observed
 failing utterances (consented) to the golden set.
 
-**Monthly** — dependency updates and CVE review; performance re-baseline on reference
-devices; prompt-version review; capability-usage review (unused capabilities are noise
+**Monthly** — dependency updates and CVE review; a re-baseline of the deterministic floor; prompt-version review; capability-usage review (unused capabilities are noise
 in the registry — remove or merge them).
 
 **Quarterly** — registry similarity audit; model-upgrade evaluation; security review;
@@ -49,10 +46,10 @@ practice but not in writing?).
 
 ## Model upgrade procedure
 
-Never swap a model in place. Treat it as a release ([deployment.md](./deployment.md)):
+Never swap a model in place. Treat it as a release — its own change, its own comparison:
 
 1. Full golden set against the candidate, per bucket
-2. Latency and memory on the reference device
+2. Latency and memory, on a warmed model, run sequentially
 3. Adversarial bucket must remain at zero destructive outcomes
 4. Prompts may need re-tuning per model — **prompt versions are model-coupled** and
    the pairing must be recorded
@@ -76,7 +73,7 @@ stops detecting the failures that matter.
 ## Technical debt
 
 Tracked explicitly with the cost of *not* fixing it. Debt that touches the router, the
-dispatcher policy table, or the core/features boundary is paid down first, because
+claim validator, or the `core-*` boundary is paid down first, because
 those compound. Presentation-layer debt can wait.
 
 ## Deprecation

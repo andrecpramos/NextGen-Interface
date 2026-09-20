@@ -1,10 +1,10 @@
 # CI/CD — WP-12
 
 **Status:** implemented 2026-08-30 · [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
-**Supersedes** the sketch in [.claude/docs/deployment.md](../docs/deployment.md) §CI/CD, which described a
-Flutter pipeline (`analyze`, `widget`, device farm) from before [ADR-006](../decisions/ADR-006.md)
-moved the stack to a TypeScript monorepo. The deployment targets in that document still stand;
-the job list did not.
+**Supersedes** the sketch that used to be in `.claude/docs/deployment.md` §CI/CD (a Flutter
+pipeline — `analyze`, `widget`, device farm — from before [ADR-006](../decisions/ADR-006.md)
+moved the stack to a TypeScript monorepo). That file is deleted: its mobile deployment targets
+described a product that no longer exists (2026-09-20).
 
 Gate strategy and its rationale: [ADR-011](../decisions/ADR-011.md).
 
@@ -115,15 +115,16 @@ does not pay for them twice.
 
 **`engines.node` is wrong.** `package.json` declares `">=20"`. The repo cannot run
 on Node 20. It executes TypeScript through `node` directly — `node
-scripts/build-registry.ts`, `node src/index.ts`, and `eval/*.js` importing
-`../src/config.ts` — which needs unflagged type stripping (**Node 23.6+**), and
-`packages/data` needs `node:sqlite` (22.5+). On Node 20 `pnpm install` succeeds
-and everything then fails at run time. CI pins **Node 24**. The declared range
+--experimental-strip-types eval/frameworks/…`, and `eval/*.js` importing
+`../src/config.ts` — which needs unflagged type stripping (**Node 23.6+**). On Node 20
+`pnpm install` succeeds and everything then fails at run time. (What an adopter runs is
+`adapter/scan.mjs`, a bundle with no TypeScript in it, and `check-adapter.mjs` proves that on
+Node 20.) CI pins **Node 24**. The declared range
 should be corrected to match; it is left alone here because it is a published
 constraint, not a CI detail.
 
-**No `package.json` carries a UTF-8 BOM any more.** The last was `services/api`'s, written
-by PowerShell's `Set-Content`, and it went with that package on 2026-09-13. `JSON.parse`
+**No `package.json` carries a UTF-8 BOM any more.** The last was a since-deleted package's,
+written by PowerShell's `Set-Content`. `JSON.parse`
 rejects a BOM outright while pnpm tolerates one, so a manifest written from PowerShell can
 break a tool with every install still green. The scripts here still strip `﻿` before
 parsing.
@@ -133,10 +134,10 @@ version of the SessionStart hook was written around `jq` and silently emitted
 nothing. Hook and gate scripts are written in Node, which the repo already
 requires. Pipe-test every hook before trusting it.
 
-**Scope the artefact-drift check.** A bare `git diff --quiet` after
-`pnpm registry:build` also trips on `pnpm-lock.yaml`, which pnpm rewrites whenever
-any workspace manifest changed — an unrelated red build. The check names the three
-files the builder writes and nothing else.
+**Scope any artefact-drift check.** A bare `git diff --quiet` after a regeneration also
+trips on `pnpm-lock.yaml`, which pnpm rewrites whenever any workspace manifest changed — an
+unrelated red build. `build-adapter.mjs --check` and `check-derived-artefacts.mjs` compare
+the named artefacts against a rebuild in memory and nothing else.
 
 **The CVE gate is calibrated, not arbitrary.** It blocks on high and critical only.
 The sole advisory in the pre-WP-09 dependency set was one moderate
@@ -169,56 +170,6 @@ No deploy job, deliberately. Adopters copy `adapter/` out of the repository, and
 [ADR-008](../decisions/ADR-008.md) keeps the device as the source of truth, so
 there is no server on the critical path to ship.
 
-MCP connectivity was verified during this work: **Supabase** and **Vercel** both
-authenticate and respond. Neither holds a project for this repo — the only
-project on either account is `WeFitAll`, unrelated. Nothing was created; a
-deploy target is a decision to make when there is something to deploy, and
-`vercel.create_git_project` needs the GitHub repository to exist first.
-
-Still requiring authorization before they can be used: Atlassian, Gmail, Google
-Calendar, Google Drive, Figma. These need an interactive OAuth flow through
-claude.ai connector settings.
-
----
-
-## Repository — one step still owed
-
-The repository was **not** created. `gh` is installed (2.89.0) and the active
-account is `andrecpramos`, but the stored token is invalid — `gh api user` returns
-`401 Bad credentials` and `gh auth status` reports *"The token in keyring is
-invalid."* Re-authenticating needs an interactive browser flow, which a
-non-interactive session cannot perform.
-
-Everything else is ready. `main` has been fast-forwarded to `wp-01-1b-validation`
-(a strict fast-forward — 8 ahead, 0 behind, nothing rewritten), so the CI workflow
-is on the default branch and runs on the first push. No remote is configured yet,
-deliberately: `gh repo create --source=.` adds it.
-
-To finish, in an interactive terminal:
-
-```bash
-gh auth login -h github.com          # browser flow, needs 'repo' scope
-gh repo create "AI Interface" --private --source=. --remote=origin --push
-```
-
-GitHub slugs the name to **`AI-Interface`**; the display name keeps the space.
-Verify with `gh repo view --json name,visibility,defaultBranchRef`.
-
-The first CI run is expected **green**: typecheck, 129 tests, `registry:check`,
-the boundary check and the scorecard gate were all run locally against this commit
-and pass, and on committed dependencies `pnpm audit --audit-level high` finds
-nothing (the PostCSS advisories belong to `apps/web`, which is not committed yet).
-
-Note that `packages/ui` and `apps/web` were under active construction in this
-working tree by a concurrent session while WP-12 was implemented, and are **not**
-part of the WP-12 commit. Push order matters: whoever commits that work should
-re-run the gates, because it is what will first turn the `audit` job red.
-
-**Done — 2026-08-31.** That work was committed on `wp-01-1b-validation` and every
-gate was re-run against it: boundary check, `pnpm -r typecheck`, `pnpm -r test`
-(248), `pnpm registry:check`, `pnpm install --frozen-lockfile`, and
-`pnpm audit --audit-level high`. The audit was the one that failed, and it is fixed
-above. One discrepancy worth noting rather than quietly editing: this section
-records 129 tests for the WP-12 commit, but `pnpm -r test` reports 248 both before
-and after the UI work — `packages/ui` and `apps/web` add no tests of their own, so
-the two numbers should agree. Whoever wrote the 129 should confirm which is right.
+*(This section used to carry the WP-12 implementation log — the repository not yet created,
+an invalid `gh` token, MCP connectivity checks, a test-count discrepancy. All of it described a
+state of 2026-08-30 and 2026-08-31 that no longer exists; it is in git history.)*

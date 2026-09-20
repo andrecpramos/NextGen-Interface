@@ -1,5 +1,18 @@
 # Security & Privacy
 
+> **Status, 2026-09-20 — only part of this file describes this repository.** It was written
+> for an offline mobile finance app that held a user's transactions in an encrypted local
+> database. That app is gone (ADR-013, ADR-018). **Not current:** *Assets*, *Data at rest*
+> (SQLCipher, Drift, the platform keystore), *Data in transit*, *Telemetry*, *Application
+> hardening* and *Privacy posture* — nothing here holds a user's data, a database or a key.
+> **Current in principle:** *LLM-specific threats* — prompt injection through stored text,
+> hallucinated identifiers, no model-authored SQL, traces as sensitive data — though its
+> examples are finance-shaped. What actually holds those up now is Rules 2, 3, 4, 13 and 15
+> and the gates in [critical-infrastructure.md](./critical-infrastructure.md) §8, and what a
+> *visitor's* words may do is ADR-008, ADR-017 and ADR-019 (Rule 8: the only network path is
+> an opt-in POST to the adopter's own origin). Where this file and an ADR disagree, the ADR
+> wins.
+
 Threat model for an offline-first app holding financial data, driven by an LLM that
 can execute actions. Two distinct problem classes: classic mobile data security, and
 LLM-specific attack surface. The second is the one teams forget.
