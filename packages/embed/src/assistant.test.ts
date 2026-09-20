@@ -821,6 +821,42 @@ describe('when routing fails', () => {
   });
 });
 
+describe('the composer’s edge light', () => {
+  it('rests with the screen shut, in the accent of the page it sits on', () => {
+    const { byClass, host } = setup(answering({}));
+    const composer = byClass('composer');
+    expect(composer.getAttribute('data-state')).toBe('idle');
+    expect(composer.children.some((el) => el.getAttribute('aria-hidden') === 'true' && String(el.className) === 'beam')).toBe(true);
+    for (const name of ['--ng-beam-1', '--ng-beam-2', '--ng-beam-3', '--ng-beam-e']) expect(host.style[name]).toMatch(/^rgb\(/);
+  });
+
+  it('thinks while the router works, and rests once it has answered', async () => {
+    let answer!: (turn: TurnTrace) => void;
+    const slow: Routable = { registry, route: () => new Promise<TurnTrace>((resolve) => (answer = resolve)) };
+    const { mounted, byClass } = setup(slow);
+    const composer = byClass('composer');
+    const done = mounted.ask('where is the calendar');
+    await settle(10);
+    expect(composer.getAttribute('data-state')).toBe('thinking');
+    answer(trace(clarifying));
+    await settle(5000);
+    await done;
+    expect(composer.getAttribute('data-state')).toBe('idle');
+  });
+
+  it('holds the danger colour when routing fails, then rests', async () => {
+    const broken: Routable = { registry, route: () => Promise.reject(new Error('boom')) };
+    const { mounted, byClass } = setup(broken);
+    const composer = byClass('composer');
+    const done = mounted.ask('anything');
+    await settle(50);
+    expect(composer.getAttribute('data-state')).toBe('error');
+    await settle(2000);
+    await done;
+    expect(composer.getAttribute('data-state')).toBe('idle');
+  });
+});
+
 describe('destroy', () => {
   it('removes the layer and gives the page its scrolling back', async () => {
     const { mounted, doc, orb } = setup(answering({}));

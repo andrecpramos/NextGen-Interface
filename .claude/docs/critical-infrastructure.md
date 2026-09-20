@@ -347,6 +347,7 @@ it has not earned. (Section 1 has this pass's example.)
 | Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced — but only from 2026-09-10; see below** |
 | A prompt never interpolates unfenced input | CI + `tooling/scripts/check-prompt-fencing.mjs` | **enforced (added 2026-09-10)**, §8 for its limits |
 | High and critical CVEs block | CI `audit` job (`pnpm audit --audit-level high`) | **enforced** |
+| The script tag stays near its measured size (40.0KB gzipped, 2026-09-21) and never imports a React entry | none — `build.mjs` prints the size and nothing fails on it; a React import would add 69KB | **none — [ADR-022](../decisions/ADR-022.md)** |
 
 > ### ⚠️ This row was false for a day, and the way it was false is the point
 >

@@ -4,7 +4,7 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~30KB gzipped)
+node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~40KB gzipped)
 ```
 
 ```html
@@ -12,7 +12,7 @@ node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~30KB gzipped
 ```
 
 That one line loads the role's bundle and mounts **the assistant layer** (`assistant.ts`):
-a liquid orb at the edge of the page that opens into a full-screen assistant. It needs no
+an orb at the edge of the page that opens into a full-screen assistant. It needs no
 inline script and no inline style, so it works on a site with a strict
 Content-Security-Policy — checked in a real browser by `tooling/scripts/check-csp.mjs`.
 
@@ -64,11 +64,23 @@ and `?ask=…` asks a question on load, so a state can be linked to.
   page underneath (Rule 7). Every other page is left exactly as it was, with the small orb
   at the emptier edge. A single-page app that reaches its landing route on its own router
   can call `open()`.
-- **The orb** (`liquid.ts`) is a canvas: four translucent masses of one liquid, each a
-  closed curve built from a few sine waves, drifting off-centre and blended with `screen`.
-  It keeps one state grammar: idle breathes, listening follows the microphone, thinking has
-  one droplet in orbit, speaking pulses, error contracts. The state is always written in
-  text too. Under `prefers-reduced-motion` the loop never starts.
+- **The orb** (`liquid.ts`, `mind.ts`) is a canvas: four translucent masses of one liquid, each a
+  closed curve built from a few sine waves, drifting off-centre and blended with `screen`,
+  with a dotted sphere inside it drawn by [thinking-orbs](https://github.com/Jakubantalik/Libraries.dev)'
+  engine (only the engine: no React). The liquid is how the assistant feels; the dots are
+  what it is doing. It keeps one state grammar: idle breathes (a slow ring), listening
+  follows the microphone (a waveform through the rings), thinking searches (a scan across a
+  globe, one droplet in orbit), speaking composes (an undulating sash), error contracts and
+  rests. A change of state crossfades. The state is always written in text too. Under
+  `prefers-reduced-motion` the loop never starts and each state is one still frame.
+- **The composer's light** (`beam.ts`) answers to the same state: a slow breath at rest, a
+  lit segment travelling the bottom edge while it thinks, a glow that rises with the
+  microphone or the voice while it listens or speaks, the danger colour on error. It is CSS
+  in the assistant's adopted stylesheet — the look of `border-beam` and `voice-glow`,
+  rebuilt, because the originals are React components that inject a `<style>` element. Its
+  colours are the orb's accent turned either way round the hue wheel. It is absent under
+  forced colours. [ADR-022](../../.claude/decisions/ADR-022.md) records the choice, the size
+  it costs (+8KB gzipped) and the alternatives.
 - **The screen** (`assistant.ts`) is a modal dialog: a greeting and a composer, and no
   pre-written questions. Focus moves in, Tab stays in, Escape closes it and focus returns
   to the orb.
@@ -183,7 +195,7 @@ highlight anything than point at the wrong field.
 acting would be wrong. `src/widget.test.ts` drives the chat box and `src/assistant.test.ts`
 the assistant layer, each through a small fake DOM, because the repository has no DOM
 library. `src/voice.test.ts` holds the on-device-only rules against fake browser APIs,
-and `src/liquid.test.ts` the orb's shape. `tooling/scripts/check-accessibility.mjs` audits
+and `src/liquid.test.ts`, `src/mind.test.ts` and `src/beam.test.ts` the orb, its dots and the composer's light. `tooling/scripts/check-accessibility.mjs` audits
 the launcher, the open screen and an answered screen, as well as the chat box.
 
 **That test found two defects in the package's browser entry**, and neither could load in a

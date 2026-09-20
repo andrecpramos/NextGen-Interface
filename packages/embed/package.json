@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",
-    "@nextgen/core-intent": "workspace:*"
+    "@nextgen/core-intent": "workspace:*",
+    "thinking-orbs": "^0.3.1"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0"

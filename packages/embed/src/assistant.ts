@@ -29,6 +29,7 @@ import type { TurnTrace } from '@nextgen/core-intent/browser';
 
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 import { commandFor, type Command } from './commands.ts';
+import { BEAM_CSS, beamVariables, createBeam } from './beam.ts';
 import { chooseDockSide, type DockSide } from './dock.ts';
 import { createLiquid } from './liquid.ts';
 import { adopterNav, type NavLink, type NavRoot } from './nav.ts';
@@ -197,7 +198,7 @@ const CSS = `
   background: transparent; color: var(--ng-text, #e6e9ee); font: inherit; font-size: 1rem;
 }
 .composer input::placeholder { color: var(--ng-muted, #7a838f); }
-
+${BEAM_CSS}
 .icon {
   display: inline-grid; place-items: center; flex: none; min-width: 48px; min-height: 48px; margin: 0; padding: 0;
   border: 0; border-radius: var(--ng-radius, 999px); background: transparent; color: var(--ng-muted, #9aa3af);
@@ -470,6 +471,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const send = iconButton('send', words.submit, ICON_SEND);
   send.type = 'submit';
   form.append(label, input, mic, send);
+  const beam = createBeam(form, doc);
 
   stage.append(slot, caption, greeting, answer, form);
 
@@ -535,12 +537,15 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     reducedMotion,
     view,
     palette: () => ({ accent: css(theme.accent), scheme: theme.scheme, bead: css(theme.raised) }),
+    onState: (state) => beam.setState(state),
+    onLevel: (level) => beam.setLevel(level),
   });
 
   /** Read the adopter's look from the page as it is now, and wear it. */
   function applyTheme(): void {
     theme = readTheme(pageThemeSource(doc, view, host));
     for (const [name, value] of Object.entries(themeVariables(theme))) host.style.setProperty(name, value);
+    for (const [name, value] of Object.entries(beamVariables(css(theme.accent), theme.scheme))) host.style.setProperty(name, value);
     liquid.refresh();
   }
   applyTheme();

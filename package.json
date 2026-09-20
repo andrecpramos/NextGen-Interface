@@ -10,8 +10,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "preview": "node packages/embed/build.mjs && node preview/serve.mjs",
-    "preview:check": "node packages/embed/build.mjs && node preview/check-bench.mjs",
+    "preview": "node packages/embed/build.mjs && node preview/build.mjs && node preview/serve.mjs",
+    "preview:check": "node packages/embed/build.mjs && node preview/build.mjs && node preview/check-bench.mjs",
     "adapter:build": "node packages/embed/build.mjs && node tooling/scripts/build-adapter.mjs",
     "adapter:check": "node tooling/scripts/build-adapter.mjs --check && node tooling/scripts/check-adapter.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm registry:check",
@@ -33,9 +33,17 @@
   "devDependencies": {
     "@types/node": "^26.4.0",
     "axe-core": "^4.13.0",
+    "border-beam": "^1.3.0",
     "esbuild": "0.25.12",
+    "img-fx": "^0.5.1",
     "jsdom": "^30.0.1",
+    "liquid-gooey": "^0.2.1",
+    "metal-fx": "^2.0.10",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.186.0",
     "typescript": "^5.7.2",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "voice-glow": "^0.2.0"
   }
 }

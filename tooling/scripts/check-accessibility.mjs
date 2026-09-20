@@ -167,8 +167,8 @@ const states = [];
 //
 // `start()` mounts this, so it is what an adopter's visitor meets first: an orb
 // at the edge, and a full-screen dialog behind it. jsdom has no layout and no
-// canvas, so the liquid draws nothing here and where the orb sits is not judged —
-// `chooseDockSide` and the liquid's shape have their own tests. What is judged is
+// canvas, so the orb draws nothing here and where it sits is not judged —
+// `chooseDockSide` and the orb's state have their own tests. What is judged is
 // everything a keyboard or screen-reader user reaches.
 
 say('\n  the assistant layer — orb, screen, answer\n');

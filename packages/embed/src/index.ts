@@ -7,7 +7,7 @@
 // From a module instead: `import { start } from '@nextgen/embed'`.
 //
 // `start` loads the role's bundle and mounts the assistant layer (assistant.ts):
-// a liquid orb at the edge of the page that opens into a full-screen assistant.
+// an orb at the edge of the page that opens into a full-screen assistant.
 // `mount` is the plain chat box (widget.ts, WP-41) for a page that wants it inline.
 // `load` gives the router alone, for a page that draws its own interface.
 //

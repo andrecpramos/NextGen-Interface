@@ -153,3 +153,54 @@ describe('createLiquid', () => {
     expect(calls.filter((c) => c === 'fill').length).toBeGreaterThan(drawn);
   });
 });
+
+describe('createLiquid — the mind inside it', () => {
+  const palette = () => ({ accent: '#79c0ce', scheme: 'dark' as const, bead: null });
+  const fills = (mind: boolean | undefined): number => {
+    const { canvas, calls } = fakeCanvas();
+    createLiquid(canvas, { size: 320, palette, reducedMotion: true, view: fakeView().view, ...(mind === undefined ? {} : { mind }) });
+    return calls.filter((c) => c === 'fill').length;
+  };
+
+  it('draws a dotted sphere in the body by default', () => {
+    expect(fills(undefined)).toBeGreaterThan(fills(false) + 50);
+  });
+
+  it('can be left out, and then draws the liquid alone', () => {
+    expect(fills(false)).toBeLessThan(20);
+  });
+});
+
+describe('createLiquid — telling the composer', () => {
+  const palette = () => ({ accent: null, scheme: 'dark' as const, bead: null });
+
+  it('says which state it is in, as soon as it is asked', () => {
+    const seen: string[] = [];
+    const liquid = createLiquid(fakeCanvas().canvas, { size: 320, palette, reducedMotion: false, view: fakeView().view, onState: (s) => seen.push(s) });
+    liquid.setState('thinking');
+    liquid.setState('idle');
+    expect(seen).toEqual(['thinking', 'idle']);
+  });
+
+  it('reports the level it is showing — smoothed, so a glow that follows it does not flicker', () => {
+    const levels: number[] = [];
+    const { view, frames } = fakeView();
+    const liquid = createLiquid(fakeCanvas().canvas, { size: 320, palette, reducedMotion: false, view, onLevel: (l) => levels.push(l) });
+    liquid.setLevel(1);
+    (frames.shift() as FrameRequestCallback)(1000);
+    (frames.shift() as FrameRequestCallback)(1016);
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels[0]!).toBeGreaterThan(0);
+    expect(levels[0]!).toBeLessThan(1);
+    expect(levels[1]!).toBeGreaterThan(levels[0]!);
+  });
+
+  it('is quiet when nothing changed', () => {
+    const levels: number[] = [];
+    const { view, frames } = fakeView();
+    createLiquid(fakeCanvas().canvas, { size: 320, palette, reducedMotion: false, view, onLevel: (l) => levels.push(l) });
+    (frames.shift() as FrameRequestCallback)(1000);
+    (frames.shift() as FrameRequestCallback)(1016);
+    expect(levels).toEqual([]);
+  });
+});
