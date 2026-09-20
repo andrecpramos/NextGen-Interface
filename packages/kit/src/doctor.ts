@@ -14,7 +14,7 @@ import { describeSweep, sweepingTools } from './tooling.ts';
  * `nextgen doctor`: what the kit read, what it could not, and what to do.
  *
  * Written for the person who runs the kit on their own app without having built
- * it. That is the owner's run in `fut-app` (WP-35), and it is the product's
+ * it. That is the owner's run in the pilot app (WP-35), and it is the product's
  * promise to every adopter. So every line says what happened in plain words, and
  * every problem says what to change. A report that lists a skip reason code
  * without saying what it means has failed at its only job.
@@ -156,7 +156,7 @@ export function doctor(kitDir: string): DoctorReport {
   if (record.calibrated) {
     say(`  Calibrated for this app (${record.thresholdsSource}).`);
   } else {
-    // Measured, not assumed: eval/fut-app/experiment-self-calibration.mjs. An earlier
+    // Measured, not assumed: an experiment script deleted with the pilot's evidence, ADR-018. An earlier
     // version of this text said an uncalibrated build "will work, but ask more
     // clarifying questions". On a 145-screen app that was false.
     say('  NOT calibrated for this app. It is using default settings tuned on a different,');

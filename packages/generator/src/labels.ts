@@ -62,7 +62,7 @@ export function readManifest(file: string): ManifestEntry[] {
   const source = parse(file);
   const out: ManifestEntry[] = [];
   // The labels of the nav groups being read, innermost last. A group is an object with a
-  // `label` and an `items` array: fut-app's sidebar nests every "Visão geral" leaf in one,
+  // `label` and an `items` array: the pilot app's sidebar nests every "Visão geral" leaf in one,
   // and its command palette names the leaf "Plantel · Visão geral" from exactly that.
   const groups: (string | null)[] = [];
 
@@ -135,7 +135,7 @@ const NOT_SOURCE = new Set(['node_modules', '.git', 'dist', 'build', 'out', 'cov
  * Nav-shaped entries written anywhere in the application's source: route -> label key.
  *
  * A configured manifest is where an app keeps its navigation, but not always all of it.
- * fut-app renders its pinned Settings item inline in `Sidebar.tsx` —
+ * The pilot app renders its pinned Settings item inline in `Sidebar.tsx` —
  * `{ label: 'nav.settings', route: '/settings' }` — so `/settings` had no label and was
  * named after its component: "Settings", in a Portuguese registry. Read with the same
  * shape-driven reader as a manifest, and used only as a last resort: a title the page or

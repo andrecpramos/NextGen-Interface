@@ -27,9 +27,9 @@ import { BUNDLE_DIR, CALIBRATION_FILE, stripBom } from './paths.ts';
  *
  * **This command requires a golden set the adopter wrote**, and deliberately
  * offers no way to calibrate from the generator's own examples. That is not an
- * oversight — it was measured on `fut-app`, where both kinds of data exist, and
+ * oversight — it was measured on the pilot app, where both kinds of data exist, and
  * the decision rule was written before the run
- * (`eval/fut-app/experiment-self-calibration.mjs`):
+ * (an experiment script deleted with the pilot's evidence, ADR-018):
  *
  * | arm | settled | accepts right | wrongly refused |
  * |---|---|---|---|

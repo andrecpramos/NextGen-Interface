@@ -49,7 +49,7 @@ export function stage1(utterance: string, registry: Registry): Stage1Hit | null 
   // The character rule counted the question's wrapper against the trigger, so a
   // correct trigger sitting inside a normal question could not clear the bar:
   // *"Para que serve a 'Composição corporal'?"* scored 0.53 with exactly the
-  // right trigger. Measured over the fut-app golden set, 102 entries had a
+  // right trigger. Measured over the pilot app golden set, 102 entries had a
   // trigger on the correct capability, 2 cleared 0.6, and 100 sat below it.
   //
   // The bar itself is unchanged at 0.6, and the rule it enforces is unchanged:

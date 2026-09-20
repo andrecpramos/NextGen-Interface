@@ -6,8 +6,8 @@
 // product actually claims — it works on any web app — and a harness wired to one app
 // cannot demonstrate it.
 //
-// Until 2026-09-17 these scripts lived in eval/fut-app and resolved everything relative to
-// themselves, which made the measured application structurally unswappable.
+// Until 2026-09-17 these scripts lived beside the one application they measured and resolved
+// everything relative to themselves, which made the measured application structurally unswappable.
 
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';

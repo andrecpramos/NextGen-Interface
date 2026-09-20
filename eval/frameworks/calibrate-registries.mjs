@@ -1,10 +1,10 @@
 // Rule 14 — thresholds are calibrated per encoder AND per registry, never
 // hand-set and never carried across.
 //
-// The shipped `hashing` profile (tauHigh 0.436) was calibrated for
-// `domain-modules`: 7 capabilities, English, a hand-written golden set. Applied
-// unchanged to a generated 145-capability Portuguese registry it accepts
-// nothing at all — every turn falls under the bar and degrades to a clarify,
+// The shipped `hashing` profile (tauHigh 0.436) was calibrated for the frozen
+// 7-capability fixture (`core-intent/eval/fixture-registry.json`): English, a
+// hand-written golden set. Applied unchanged to a generated registry an order of
+// magnitude larger, in another language, it accepts nothing at all — every turn falls under the bar and degrades to a clarify,
 // which reads as "the router is broken" and is really "the threshold belongs to
 // a different registry". PLAN.md §6 has this lesson twice already, at both ends
 // of the scale.
@@ -12,7 +12,7 @@
 // **The sweep itself now lives in `core-intent/src/calibrate.ts`** (WP-41). It
 // used to live here, and a third copy was about to be written for the drop-in
 // kit; two copies of a calibration sweep is how Rule 14 drifts. This file is now
-// what it always should have been — the part that is specific to `fut-app`:
+// what it always should have been — the part that is specific to one fixture app:
 // which golden set, which role registries, and where the thresholds are written.
 //
 // SPLIT: calibration sees 40% of the destinations, and the held-out 60% is
@@ -21,7 +21,7 @@
 // "o que é o centro clínico" would be validated on "para que serve o centro
 // clínico", which is the same question twice.
 //
-//   node --experimental-strip-types eval/fut-app/calibrate-registries.mjs [--embedder hashing] [--check]
+//   node --experimental-strip-types eval/frameworks/calibrate-registries.mjs [--embedder hashing] [--check]
 //
 // `--check` (WP-46) writes nothing. It compares the freshly swept thresholds with
 // the shipped file's, and exits 1 if they differ. Only the operating point is
@@ -44,7 +44,7 @@ import {
   tradeOffCurve,
 } from '../../packages/core-intent/src/calibrate.ts';
 
-import { appDir } from './app-dir.mjs';
+import { appDir, appName } from './app-dir.mjs';
 const HERE = appDir();
 const flag = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -67,7 +67,7 @@ for (const role of roles) {
   loaded.set(role, { registry, embedder });
 }
 
-// fut-app's golden set, in the shape the shared sweep takes: a role is just the
+// The fixture app's golden set, in the shape the shared sweep takes: a role is just the
 // key that says which registry scores this turn.
 const entries = golden.map((e) => ({
   id: e.id,
@@ -143,9 +143,9 @@ for (const point of curve) {
 const output = {
   generatedAt: new Date().toISOString(),
   encoder: EMBEDDER,
-  registry: 'eval/fut-app/generated (WP-25, 145 capabilities + 4 boundaries)',
+  registry: `eval/frameworks/${appName(HERE)}/generated`,
   method:
-    'Swept against WP-32’s golden set, split by destination 40/60. boundaryMargin maximises ' +
+    'Swept against the fixture app’s golden set, split by destination 40/60. boundaryMargin maximises ' +
     'out-of-scope refusal subject to zero in-domain refusals; actionBoundaryMargin (ADR-015) ' +
     'does the same for utterances carrying an action verb, under the identical zero-false-refusal ' +
     'constraint and never above boundaryMargin; tauHigh/delta maximise stage-2 ' +
@@ -166,7 +166,7 @@ if (process.argv.includes('--check')) {
     console.log(`\n  STALE: ${file}`);
     console.log(`    shipped:    ${JSON.stringify(shipped)}`);
     console.log(`    calibrated: ${JSON.stringify(output.thresholds)}`);
-    console.log('  Regenerate: node --experimental-strip-types eval/fut-app/calibrate-registries.mjs --embedder hashing');
+    console.log('  Regenerate: node --experimental-strip-types eval/frameworks/calibrate-registries.mjs --embedder hashing');
     process.exitCode = 1;
   } else {
     console.log(`\n  shipped thresholds match a fresh calibration (${file})`);

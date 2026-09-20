@@ -11,7 +11,7 @@ import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleNam
  *
  * **Rule 17 lives in `splitByRole`.** A capability the current user cannot
  * reach is not in the registry they receive — not filtered at render, *absent*.
- * That is a security property, not a UX filter: `fut-app` is role-gated, and
+ * That is a security property, not a UX filter: the pilot app is role-gated, and
  * shipping one registry to every role would hand a guardian the shape of the
  * admin surface (route names, screen titles, the vocabulary of a system they
  * must not see) even if every one of those entries were greyed out.

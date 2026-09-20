@@ -1,4 +1,4 @@
-// Per-role sidebars in fut-app's shape: items, groups of items, and section dividers.
+// Per-role sidebars in the pilot app's shape: items, groups of items, and section dividers.
 
 const SQUAD_GROUP = {
   kind: 'group',

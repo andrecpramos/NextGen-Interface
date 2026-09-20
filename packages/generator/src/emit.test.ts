@@ -39,7 +39,7 @@ const master = [
 /**
  * Rule 17 is a security property, not a UX filter.
  *
- * `fut-app` is role-gated throughout, and one ADMIN capability in a guardian's
+ * The pilot app is role-gated throughout, and one ADMIN capability in a guardian's
  * registry reveals the shape of a surface that user must not know exists —
  * route names, screen titles, the vocabulary of an administrative system.
  * PLAN.md §8 gives generator role handling a zero-tolerance kill criterion for

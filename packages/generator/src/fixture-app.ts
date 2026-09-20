@@ -9,7 +9,7 @@ import type { GeneratorConfig } from './types.ts';
  * importing one test file from another silently re-runs its cases. It is a real
  * React Router application in miniature — a legacy route, a dev-only route, an
  * unreadable role guard, a URL shim, a section landing and a data-resolving
- * redirect — so the tests never need `fut-app` to be checked out, which CI's
+ * redirect — so the tests never need the pilot app to be checked out, which CI's
  * runner does not have.
  */
 export const FIXTURE_ROOT = fileURLToPath(new URL('../fixtures/tiny-app/src', import.meta.url));
@@ -26,7 +26,7 @@ export const FIXTURE_CONFIG: GeneratorConfig = {
 };
 
 /**
- * A Portuguese-first application in fut-app's shapes, for naming a screen in two
+ * A Portuguese-first application in the pilot app's shapes, for naming a screen in two
  * languages: nav groups whose leaves are all "Visão geral", a label two roles share
  * without ever meeting, a heading read through an aliased translation function, and a
  * route that picks a child and redirects to that child's page.

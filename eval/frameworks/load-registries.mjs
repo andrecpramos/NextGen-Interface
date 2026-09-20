@@ -9,11 +9,11 @@
 // exists — and the query is then embedded under the tenth. The comparison is
 // between two different spaces, and the scores are noise.
 //
-// The repo already knew. `apps/cli/src/app.ts` constructs a second instance for
-// module search with the comment *"sharing one with the router would mean each
-// `.fit()` call stomps the other's fitted vocabulary (relevant only to the
-// hashing embedder; the neural one is stateless)"*. Every `eval/fut-app`
-// harness then shared one across ten registries.
+// The repo already knew: a terminal app (since deleted, ADR-018) constructed a second
+// instance for its module search, with the comment *"sharing one with the router would
+// mean each `.fit()` call stomps the other's fitted vocabulary (relevant only to the
+// hashing embedder; the neural one is stateless)"*. The eval harness of the day then
+// shared one across ten registries.
 //
 // **This is what produced "hashing gets 4.0% recall@1".** Fitted correctly it
 // gets ~45% on the same registry and the same questions. The 4.0% figure was

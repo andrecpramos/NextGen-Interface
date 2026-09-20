@@ -29,8 +29,8 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 //
 // `ground-truth.registry.json` is excluded and must stay excluded: it is WP-31's
 // hand-written answer key, scored *against*, not shipped. It has its own runner,
-// `eval/fut-app/verify.mjs`, which applies validateRegistry plus WP-31's own acceptance
-// checks. That runner currently reports FAIL — WP-36 added the `explanation` requirement
+// runner (`eval/fut-app/verify.mjs`, deleted with the pilot's evidence, ADR-018), which
+// applied validateRegistry plus WP-31's own acceptance checks. That runner reported FAIL — WP-36 added the `explanation` requirement
 // after the key was written — and excluding the file here neither causes nor hides that;
 // see the note in GROUND_TRUTH.md.
 const ROOTS = ['eval', 'packages/core-intent/eval', 'adapter'];

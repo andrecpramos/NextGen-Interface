@@ -9,8 +9,8 @@ calibrate → route) over fixture applications, one per routing framework.
 
 Seven capabilities: `module.capture`, `.list`, `.search`, `.delete`, `.revert`, and two
 declared `unsupported.*` boundaries. It is the registry that
-`packages/domain-modules` used to generate, kept as a fixture when that package was
-deleted ([ADR-018](../../../.claude/decisions/ADR-018.md)).
+a domain package (`domain-modules`) used to generate, kept as a fixture when that
+package was deleted ([ADR-018](../../../.claude/decisions/ADR-018.md)).
 
 **It is a fixture, not a domain.** `core-intent` knows no application; `evaluate.js`
 refuses to run without `--registry=`. This file is what the 85 entries in
@@ -19,8 +19,9 @@ produced from, so **changing it invalidates the baseline CI compares against**
 (`check-scorecard.mjs`). If the router needs a different shape to be exercised, add a
 second fixture rather than editing this one.
 
-Why keep it at all, when `eval/fut-app` is the real target: a 7-capability registry with
-two boundaries isolates router behaviour that 145 capabilities drown out — stage-1
+Why keep it at all, when `eval/frameworks` is where whole applications are measured: a
+7-capability registry with two boundaries isolates router behaviour that a large registry
+drowns out — stage-1
 precision, and whether a declared boundary is reached by retrieval rather than by a
 model's judgement ([ADR-009](../../../.claude/decisions/ADR-009.md)). It also runs in
 seconds with no model.

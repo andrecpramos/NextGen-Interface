@@ -7,8 +7,8 @@
 // generator would fix that too, but it re-reads the application; this touches
 // only what the generator already wrote.
 //
-//   node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs           # rewrite them
-//   node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs --check   # WP-46: are they current?
+//   node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs           # rewrite them
+//   node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs --check   # WP-46: are they current?
 //
 // `--check` rebuilds into a temporary folder and compares the result with what is
 // shipped, ignoring `generatedAt`. It uses the same `writeIndexes` the generator
@@ -47,7 +47,7 @@ if (!CHECK) {
     const stale = written.filter((name) => !existsSync(join(GEN, name)) || content(join(GEN, name)) !== content(join(scratch, name)));
     if (stale.length > 0) {
       console.log(`${stale.length} of ${written.length} shipped index(es) do not match a fresh rebuild: ${stale.join(', ')}`);
-      console.log('Regenerate: node --experimental-strip-types eval/fut-app/rebuild-indexes.mjs');
+      console.log('Regenerate: node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs');
       process.exitCode = 1;
     } else {
       console.log(`${written.length} shipped index(es) match a fresh rebuild`);

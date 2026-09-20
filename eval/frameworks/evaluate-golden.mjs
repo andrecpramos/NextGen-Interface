@@ -8,7 +8,7 @@
 // screen. Comparing ids would score the generator on whether it guessed the
 // same names a person chose.
 //
-//   node --experimental-strip-types eval/fut-app/evaluate-golden.mjs [--stage3 llama3.1:8b] [--embedder hashing]
+//   node --experimental-strip-types eval/frameworks/evaluate-golden.mjs [--stage3 llama3.1:8b] [--embedder hashing]
 //
 // With no --stage3 the run is the model-free floor: stages 1+2 only, no network,
 // which is the number the whole cost argument rests on (business-case §5).
@@ -57,7 +57,7 @@ const entries = readFileSync(join(HERE, 'golden-set.jsonl'), 'utf8')
 
 
 // Rule 14: use the thresholds calibrated for THIS registry when they exist. The
-// shipped profile belongs to `domain-modules` — 7 capabilities, English — and
+// shipped profile belongs to the frozen 7-capability fixture, in English, and
 // carrying it across is the exact mistake the rule was written about.
 const calibratedFile = join(HERE, 'generated', `thresholds.${EMBEDDER}.json`);
 const calibrated = existsSync(calibratedFile)
@@ -248,7 +248,7 @@ if (process.argv.includes('--check')) {
     }
   }
   console.error('\n  If the change was intended, regenerate and commit it in the same commit as the cause:');
-  console.error(`    node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder ${EMBEDDER}\n`);
+  console.error(`    node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder ${EMBEDDER}\n`);
   process.exit(1);
 }
 

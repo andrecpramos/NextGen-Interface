@@ -11,7 +11,7 @@ import {
  * ADR-015's action signal, and the guard that decides when it means anything.
  *
  * The signal is easy to get right and easy to get subtly wrong: every case below
- * is one WP-40 measured against `fut-app`'s golden set, not one invented to make
+ * is one WP-40 measured against the pilot app's golden set, not one invented to make
  * the implementation look good.
  */
 

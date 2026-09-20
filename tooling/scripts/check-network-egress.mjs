@@ -14,7 +14,8 @@
 // WHAT IS ALLOWED
 //   1. Loopback. `http://127.0.0.1:11434` is Ollama on the same machine.
 //   2. The asset manifest, and only it — on-demand model downloads, which are
-//      the one deliberate exception (ADR-006 / core-voice). Every URL there must
+//      the one deliberate exception (ADR-006; the package that held it was deleted by
+//      ADR-018 — see below). Every URL there must
 //      sit beside a `sha256`, which is the actual safety property: a host that
 //      is compromised, or a mirror that is not what it claims, cannot substitute
 //      a different binary. An allowlisted host with no hash would be a weaker

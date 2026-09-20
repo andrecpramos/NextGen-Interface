@@ -17,7 +17,7 @@
 // remove. A browser bundle ships the fitted vocabulary or refits it locally;
 // this measures the vectors, which is the part that was in question.
 //
-//   node --experimental-strip-types eval/fut-app/verify-browser-parity.mjs
+//   node --experimental-strip-types eval/frameworks/verify-browser-parity.mjs
 
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

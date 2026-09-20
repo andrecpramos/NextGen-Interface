@@ -223,7 +223,7 @@ describe('init → build → doctor, end to end', () => {
   }, 60_000);
 
   it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {
-    // Reproduces the exact failure found running the kit against fut-app:
+    // Reproduces the exact failure found running the kit against the pilot app:
     // `dist/nextgen.js` survived a later `embed/src` change untouched because
     // the old check only asked whether a bundle existed, not whether it was
     // current. `doctor` reported a clean build while `NextGen.start` did not
@@ -333,7 +333,7 @@ describe('calibrate', () => {
   }, 120_000);
 
   it('offers no way to calibrate from the generator\'s own examples', () => {
-    // Measured on fut-app: calibrating on the generator's examples wrongly
+    // Measured on the pilot app: calibrating on the generator's examples wrongly
     // refused 7 real requests in 105, against 1 for the default profile. A
     // command that offered it would offer a worse outcome than doing nothing,
     // wrapped in something that looks like diligence. This asserts the absence.

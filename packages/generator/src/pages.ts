@@ -143,7 +143,7 @@ type KeyOf = (node: ts.Node, keyOnly?: boolean) => string | null;
  *
  * `const { t } = useTranslation('squad')` binds `t` to one namespace, and a page that
  * reads a second binds it under another name: `const { t: tp } = useTranslation('player')`.
- * fut-app's announcements screen takes its title from `tp('announcements.title')`, and
+ * The pilot app's announcements screen takes its title from `tp('announcements.title')`, and
  * reading only calls to `t` lost it — the screen was named after its component, "My
  * Announcements", in English, in a Portuguese application.
  *
@@ -260,14 +260,14 @@ function insideIf(node: ts.Node): boolean {
  * `*.title` keys a page renders — a dialog's, a card's, an empty state's — by where it is
  * rendered, rather than guessed from the shape of the key as `PAGE_TITLE_KEY` has to.
  *
- * fut-app's child medical page names itself through a variable,
+ * The pilot app's child medical page names itself through a variable,
  * `const title = childName ? tg('medical.titleFor', { name }) : tg('medical.title')`. The
  * variable is followed, and a call that interpolates a value is not a name: it is a
  * sentence with a child's name in it.
  *
  * A header rendered from inside an `if` is not read at all. That is an early return —
  * `if (isPending) return <PageHeader title={t('hub.loading')} />` — and it names a moment
- * rather than the screen: fut-app's match hub came out as "Jogo não encontrado" from its
+ * rather than the screen: the pilot app's match hub came out as "Jogo não encontrado" from its
  * not-found branch, and a team's page as "A carregar…".
  */
 function titleKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
@@ -632,7 +632,7 @@ const SHARED_UI = /[\\/](?:ui|design-system|primitives)[\\/]/i;
 /**
  * A screen, read through the components it renders when its own file says nothing.
  *
- * 19 of fut-app's 141 declared screens are wrappers. `/settings/notifications` is
+ * 19 of the pilot app's 141 declared screens are wrappers. `/settings/notifications` is
  * `<PersonalSettingsLayout active="notif"><PersonalNotificationsSection /></PersonalSettingsLayout>`
  * and nothing more. Read alone, such a page has no heading, no copy and no form: it was
  * named after its component, "Personal Notifications", and described from nothing. Its
