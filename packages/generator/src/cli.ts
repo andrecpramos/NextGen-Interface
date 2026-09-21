@@ -5,6 +5,7 @@ import { generate } from './generate.ts';
 import { formatRoleSummary, writeOutput, writeIndexes } from './emit.ts';
 import { ollamaModel, type ProseCache } from './synthesise.ts';
 import { normaliseConfig, REQUIRED_FIELD_HELP } from './config.ts';
+import { loadKnowledge } from './knowledge-file.ts';
 import type { GeneratorConfig } from './types.ts';
 
 /**
@@ -71,12 +72,18 @@ async function main(): Promise<void> {
     : {};
   const cachedBefore = Object.keys(cache).length;
 
+  // What the adopter wrote about their own app: beside the config, or where the config says.
+  const knowledgeLoaded = loadKnowledge(configFile, config.knowledge);
+
   console.log(`  reading ${appRoot}`);
+  if (knowledgeLoaded.found) console.log(`  knowledge: ${knowledgeLoaded.path}`);
+  for (const problem of knowledgeLoaded.problems) console.warn(`  knowledge.json: ${problem.path ? `${problem.path}: ` : ''}${problem.message}`);
   console.log(`  prose:  ${useModel ? `${modelName} at ${endpoint}` : 'derived from the app’s own labels (--no-model)'}`);
   if (cachedBefore > 0) console.log(`  cache:  ${cachedBefore} entries`);
 
   const output = await generate({
     config: { ...config, appRoot },
+    knowledge: knowledgeLoaded.knowledge,
     model: useModel ? ollamaModel(modelName, endpoint) : null,
     cache,
     onProgress: (done, total) => {

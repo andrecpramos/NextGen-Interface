@@ -129,6 +129,19 @@ export function doctor(kitDir: string): DoctorReport {
   say(`  Descriptions: ${record.prose}`);
   say(`  Rules read from validation schemas and control attributes: ${record.rules} (ADR-020, WP-54)`);
   say(`  Rules inferred from a handler or a disabled control, shipped: ${record.inferredRules} (ADR-020, WP-55)`);
+  // Older builds have no knowledge block; say nothing rather than something wrong.
+  const knowledge = (record as { knowledge?: BuildRecord['knowledge'] }).knowledge;
+  if (knowledge) {
+    const { coverage } = knowledge;
+    say(
+      knowledge.found
+        ? `  What you told it about the app: knowledge.json — ${coverage.withPurpose} of ${coverage.screens} screens described, real phrasing for ${coverage.withPhrasing} of ${coverage.screens}`
+        : '  What you told it about the app: nothing yet (no knowledge.json)',
+    );
+    if (knowledge.gaps > 0) {
+      say(`  ${knowledge.gaps} open question(s) for the developer — review/KNOWLEDGE-GAPS.md. Answering them is the biggest lever on how well it understands your users.`);
+    }
+  }
   if (record.reviewInferred > 0) {
     say(`  ${record.reviewInferred} more candidate(s) were found but not confident enough to ship — read them in review/INFERRED.md.`);
   }

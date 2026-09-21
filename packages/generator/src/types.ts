@@ -285,4 +285,10 @@ export interface GeneratorConfig {
    * adopter wants to override the generated one (WP-16, D-2).
    */
   readonly domainDescription?: string;
+  /**
+   * The adopter's own account of their app — what each screen is for, what is on it, what their
+   * users call it (`knowledge.ts`). A path relative to this config file. Optional, and the
+   * single biggest lever on whether an ordinary question reaches the right screen.
+   */
+  readonly knowledge?: string;
 }

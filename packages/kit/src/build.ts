@@ -17,13 +17,17 @@ import { fileURLToPath } from 'node:url';
 import { THRESHOLD_PROFILES, type Thresholds } from '@nextgen/core-intent/config';
 import {
   generate,
+  knowledgeGaps,
+  loadKnowledge,
   writeIndexes,
   writeOutput,
   type GeneratorConfig,
+  type KnowledgeCoverage,
   type ProseCache,
   type SkippedRoute,
 } from '@nextgen/generator';
 
+import { knowledgeQuestions } from './knowledge-report.ts';
 import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, stripBom } from './paths.ts';
 
 /**
@@ -88,6 +92,16 @@ export interface BuildRecord {
   readonly prose: string;
   readonly bundleFiles: readonly string[];
   readonly warnings: readonly string[];
+  /**
+   * What the adopter wrote about their own app (`knowledge.json`), and how much of the app it
+   * covers. The gaps themselves are in review/KNOWLEDGE-GAPS.md, as questions.
+   */
+  readonly knowledge: {
+    readonly found: boolean;
+    readonly path: string | null;
+    readonly coverage: KnowledgeCoverage;
+    readonly gaps: number;
+  };
   /** `null` when this bundle was built without `--stage3` — the default, and what most reviews will see. */
   readonly stage3: { readonly path: string; readonly model: string | null } | null;
 }
@@ -167,8 +181,11 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
 
   const cacheFile = join(reviewDir, 'prose-cache.json');
   const cache: ProseCache = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as ProseCache) : {};
+  // What the adopter wrote about their own app: beside the config, or where the config says.
+  const loaded = loadKnowledge(join(kit, CONFIG_FILE), config.knowledge);
   const output = await generate({
     config: { ...config, appRoot },
+    knowledge: loaded.knowledge,
     // Descriptions are derived from the app's own labels: nothing installed, no network.
     // There is no model to pass here, and no client for one in this bundle (ADR-018 D-6,
     // ADR-021). The generator's own CLI still takes `--model`, for work in this repository.
@@ -189,6 +206,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
   // Rule 14: thresholds belong to a registry. A calibration the adopter produced
   // wins. Otherwise the shipped profile is used, and says it is not theirs.
   const warnings: string[] = [];
+  for (const problem of loaded.problems) warnings.push(`knowledge.json: ${problem.path ? `${problem.path}: ` : ''}${problem.message}`);
   const calibration = join(kit, CALIBRATION_FILE);
   let thresholds: Thresholds;
   let calibrated = false;
@@ -234,6 +252,10 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     }
   }
 
+  // The questions the scanner could not answer itself, for the agent to put to the developer.
+  const { gaps, coverage } = knowledgeGaps(output.master, loaded.knowledge);
+  writeFileSync(join(reviewDir, 'KNOWLEDGE-GAPS.md'), knowledgeQuestions(gaps, coverage, loaded.found), 'utf8');
+
   const perRole: Record<string, number> = {};
   for (const [role, registry] of output.registries) {
     perRole[role] = registry.capabilities.filter((c) => c.kind !== 'unsupported').length;
@@ -254,6 +276,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     invalid: written.invalid,
     calibrated,
     thresholdsSource,
+    knowledge: { found: loaded.found, path: loaded.path, coverage, gaps: gaps.length },
     stage3: options.stage3 ? { path: options.stage3.path, model: options.stage3.model ?? null } : null,
     prose: 'derived from the app’s own labels (no model)',
     bundleFiles: readdirSync(bundleDir).sort(),

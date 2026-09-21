@@ -40,6 +40,13 @@ node <here>/scan.mjs doctor nextgen      # what it read, what it guessed, what t
 node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
 ```
 
+**There is a fifth step, and it is not a command: ASK 9, an interview.** Run it after the
+first `build` and before calibration. Read from the source alone, a screen is a title and a
+template sentence, so an ordinary question ("my son got hurt in training") does not find
+the medical screen. Only the developer knows what each screen is for and how their users
+talk. `build` writes `nextgen/review/KNOWLEDGE-GAPS.md` — the questions to ask them — and
+`doctor` says how much of the app is covered.
+
 ### This tool does not reach the network — the widget it builds may, if you turn that on
 
 Two different things, and it matters which one you mean when you talk to the developer:
@@ -208,6 +215,92 @@ now? It's a `build --stage3` flag either way, so it's easy to turn on later."*
 If they say yes, ASK where the proxy should live and whether they want the reference
 implementation (Express, with rate limiting) or already have their own preference.
 
+## ASK 9 — What does this app know that the scanner cannot? (the interview)
+
+This is the single biggest lever on whether the assistant feels intelligent, and the only
+one that costs the developer a conversation instead of a flag. Read from source alone,
+every screen is a title and a template sentence ("*Estado Médico is a screen in the
+guardian area of this application*"). The matcher can only recognise words that appear in
+the registry, so a question in ordinary words never reaches the screen it means. Measured
+on the reference app, writing down what a developer knows lifted the right screen from
+ranked-first in 6 of 10 everyday questions to 9 of 10, and the share of the golden set it
+acts on directly from 26% to 62%, with no screen executed wrongly. That was
+knowledge written by the author of the tool, not by a developer, on a fixture — the owner's
+run on a real application is the real test.
+
+**Run this after the first `build` and before calibration (ASK 7).** Open
+`nextgen/review/KNOWLEDGE-GAPS.md`: `build` wrote it, and it lists what the tool does not
+know as questions, screen by screen. It is your script. Then have an actual conversation,
+in **open questions** — ones a developer has to answer in their own words. A yes/no ("is
+this the medical screen?") teaches you nothing you could not read from the route, and it
+puts your guess in their mouth:
+
+- **The app.** *"In two sentences, what is this app for and who uses it?"*
+- **Each screen, starting with the five that matter most.** Name the route and the title so
+  they know which one you mean, then: *"What is this screen for? What is on it? What would a
+  user say to get here?"* You may offer a draft made from reading the page's source, but
+  the developer confirms or corrects every word.
+- **Their words.** *"Which words do your users say that never appear on a screen?"* — the
+  child a guardian calls "o meu filho", the report they call "a ficha". Each goes in
+  `glossary` with what people say instead.
+- **What it cannot do.** *"What do users ask for that this app cannot do — and what should
+  the assistant say when they do?"* — payments, contacting a person, changing a record. At
+  least three ways people ask, for each; a limit it cannot recognise protects nobody.
+- **What only they know.** *"Which three screens do your users most often fail to find? Is
+  there something about how they talk, or what they get wrong, I should know?"*
+
+Write what they say into `nextgen/knowledge.json`, beside `nextgen.config.json`. The shape
+is at the end of `KNOWLEDGE-GAPS.md`. Run `build` again, then `doctor` and read the coverage
+line to them. The file is theirs: it belongs in their repository, and adding a real user's
+question to it later is how the assistant improves.
+
+**How to write the phrases** (`askedAs`), from a field measurement that went the other way
+(`FIELD-NOTES.md` §4: model-written examples routed *worse* until this was corrected):
+
+- **Requests, not statements.** "*quero ver o estado médico*", not "*o estado médico é importante*".
+- **In the language most of their users write**, not split evenly across two. Some in a
+  second language is fine; half is not.
+- **Only what the screen actually does.** A phrase for something the screen does not do
+  sends people to the wrong place with confidence. Do not stretch a screen to cover a
+  neighbour.
+- **Aim for five or more per screen.** Real questions beat elegant ones: if you can, ask
+  the developer to paste a few from a support inbox instead of composing them.
+
+**Then try to break your limits.** A declared limit refuses anything it beats, so a word it
+shares with a screen the app *can* do will refuse a real question. It happened in the first
+honest test of this: a "payments" limit whose phrases included *mensalidade* refused "*tenho
+alguma mensagem nova?*", because the offline matcher works on fragments of words and *mensagem*
+and *mensalidade* share "mens". Refusing a real request is the expensive error. So after the
+second `build`, for each limit, write three ordinary questions about things the app can
+already do that have words in common with it (whole words, or a stem), ask them (the preview
+bench, or the widget), and check none is refused. If one is, change the limit's phrases to
+words only that limit uses. Do not raise a threshold: that is not what is wrong.
+
+**Never invent an answer.** A screen's `purpose` is served to visitors as fact, in the
+app's own voice, and a wrong one is worse than none. If the developer does not know, leave
+it out: it stays a gap, and `doctor` keeps saying so.
+
+**Never reuse the same phrases in the calibration set (ASK 7).** Calibrating on the
+sentences you put in the registry measures memory, not understanding, and will look
+wonderful. Ask for a separate 20 or 30 questions.
+
+## ASK 10 — Is there anything you want to ask me?
+
+Before you call it done, hand the conversation back. The developer has been answering your
+questions for a while; they almost certainly have some of their own, and the ones they do
+not think to ask are the ones that surprise them later.
+
+Ask: *"Is there anything you'd like to ask about how this works — what it can and can't do,
+what happens to your users' questions, what it sends where, what it will look like on your
+pages, or what to do when it gets one wrong?"*
+
+Answer from what is written in this folder (`AGENTS.md`, `FIELD-NOTES.md`, what `doctor`
+printed) and from what you have watched happen in this run. **If you do not know, say so** —
+do not guess, and do not reassure. "I don't know; that is worth asking the owner of this
+tool" is a good answer; a confident wrong one about privacy, cost or accuracy is not. Write
+anything left open into a short note in the developer's own repository, so it is not lost
+when this conversation ends.
+
 ---
 
 ## Serving it
@@ -333,6 +426,9 @@ developer before they ship, every time this flag is used.
 - Run `calibrate` on anything other than questions the developer actually wrote and can
   stand behind.
 - Present an uncalibrated build, or one with unresolved `GUESSED` lines, as finished.
+- Write `knowledge.json` from your own guesses. Every purpose in it is served to visitors as
+  fact; it comes from the developer's answers (ASK 9) or it stays a gap.
+- Put the same sentences in `knowledge.json` and in the calibration set.
 - Run `build --stage3` before the developer has said yes to ASK 8. It sends visitor text
   to a server they have to run and secure; that is theirs to decide, not yours to default.
 

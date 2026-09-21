@@ -16,6 +16,7 @@ import {
   type ProseRequest,
 } from './synthesise.ts';
 import { splitByRole } from './emit.ts';
+import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, type AppKnowledge } from './knowledge.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
 import { rulesEntry } from './field-rules.ts';
@@ -433,6 +434,11 @@ export interface GenerateOptions {
   /** Absent means "no model": prose is derived from the app's own labels. */
   readonly model?: ProseModel | null;
   readonly cache?: ProseCache;
+  /**
+   * What the adopter wrote about their own app (`knowledge.ts`), already parsed. Merged into what
+   * each screen says about itself; absent means the screens are described from source alone.
+   */
+  readonly knowledge?: AppKnowledge;
   readonly onProgress?: (done: number, total: number) => void;
 }
 
@@ -584,7 +590,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     new Map(accepted.map(({ id, route }) => [id, route.roles ?? []])),
   );
 
-  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
+  const found: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
     const parameters = routeSegments(route.path)
@@ -634,7 +640,11 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     };
   });
 
-  master.sort((a, b) => a.id.localeCompare(b.id));
+  found.sort((a, b) => a.id.localeCompare(b.id));
+  // What the adopter knows about their screens and the source cannot: merged after the sort, so
+  // the order never depends on what was written.
+  const knowledge = options.knowledge ?? EMPTY_KNOWLEDGE;
+  const master = applyKnowledge(found, knowledge).capabilities;
   skipped.sort((a, b) => a.path.localeCompare(b.path));
 
   // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
@@ -643,9 +653,10 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     pageFile ? reviewInferredEntries(facts.inferredCandidates, route.path, config.appRoot, pageFile) : [],
   );
 
-  const boundaries = synthesiseBoundaries(routes);
+  // The generic catalogue, then the limits this adopter declared in their own words.
+  const boundaries = [...synthesiseBoundaries(routes), ...knowledgeBoundaries(knowledge)];
   const domainDescription =
-    config.domainDescription ?? (await describeApplication(master, options.model ?? null, cache));
+    config.domainDescription ?? knowledge.app.about ?? (await describeApplication(master, options.model ?? null, cache));
 
   // The cache is committed, so it must describe the application as it is now
   // rather than every prompt version and every screen that ever existed. Pruned

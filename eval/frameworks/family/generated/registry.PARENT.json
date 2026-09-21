@@ -1,22 +1,26 @@
 {
   "schemaVersion": 1,
-  "domainDescription": "An application with 11 screens across 8 areas: dashboard, guardian, settings, communication, notifications, player, squad, training.",
+  "domainDescription": "A aplicação de um clube desportivo de formação: os encarregados de educação acompanham os seus filhos, os jogadores veem o que o clube lhes diz e o seu estado, e os treinadores gerem o plantel e os treinos. / A youth sports club app: guardians follow their children, players see what the club tells them, and coaches run the squad and training.",
   "capabilities": [
     {
       "id": "communication.my_announcements",
       "kind": "navigate",
       "route": "/my/announcements",
       "title": "Anúncios",
-      "description": "Anúncios — part of the communication area of the application, at /my/announcements.",
-      "explanation": "Anúncios is a screen in the communication area of this application, at /my/announcements. It shows: Enviado por, Anúncios, Mensagens do clube, Sem anúncios.",
-      "explanationSource": "features/communication/pages/MyAnnouncementsPage.tsx",
+      "description": "Anúncios — part of the communication area of the application, at /my/announcements. Onde se leem os anúncios e as mensagens que o clube publica para jogadores e encarregados. mensagens do clube, comunicados, quem enviou cada anúncio. novidades do clube, comunicados, notícias do clube, club news.",
+      "explanation": "Onde se leem os anúncios e as mensagens que o clube publica para jogadores e encarregados.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre anúncios",
         "leva-me para anúncios",
         "ir para anúncios",
         "open announcements",
         "take me to announcements",
-        "go to announcements"
+        "go to announcements",
+        "o que anunciou o clube",
+        "quero ler os comunicados",
+        "há novidades no clube",
+        "any club news"
       ],
       "triggers": [
         "anuncios",
@@ -28,16 +32,20 @@
       "kind": "navigate",
       "route": "/my",
       "title": "Painel",
-      "description": "Painel — part of the dashboard area of the application, at /my.",
-      "explanation": "Painel is a screen in the dashboard area of this application, at /my. It shows: Início.",
-      "explanationSource": "features/dashboard/pages/MyHomePage.tsx",
+      "description": "Painel — part of the dashboard area of the application, at /my. A página inicial de quem é jogador ou encarregado de educação: o ponto de partida com o resumo do que importa. resumo, atalhos. início, página inicial, home, painel.",
+      "explanation": "A página inicial de quem é jogador ou encarregado de educação: o ponto de partida com o resumo do que importa.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre painel",
         "leva-me para painel",
         "ir para painel",
         "open dashboard",
         "take me to dashboard",
-        "go to dashboard"
+        "go to dashboard",
+        "levar-me para o início",
+        "voltar à página inicial",
+        "quero ver o resumo",
+        "take me home"
       ],
       "triggers": [
         "painel",
@@ -49,16 +57,20 @@
       "kind": "navigate",
       "route": "/my/children",
       "title": "Os Meus Educandos",
-      "description": "Os Meus Educandos — part of the guardian area of the application, at /my/children.",
-      "explanation": "Os Meus Educandos is a screen in the guardian area of this application, at /my/children. It shows: Os meus filhos.",
-      "explanationSource": "features/guardian/pages/MyChildrenPage.tsx",
+      "description": "Os Meus Educandos — part of the guardian area of the application, at /my/children. Onde o encarregado de educação vê os filhos que tem registados no clube e escolhe um para ver mais. lista dos educandos, acesso ao estado médico de cada um. os meus filhos, as minhas crianças, my children. filho, filha, criança, miúdo, child, son, daughter, kid, saúde, lesão, recuperação, medical, health, injury.",
+      "explanation": "Onde o encarregado de educação vê os filhos que tem registados no clube e escolhe um para ver mais.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre os meus educandos",
         "leva-me para os meus educandos",
         "ir para os meus educandos",
         "open my children",
         "take me to my children",
-        "go to my children"
+        "go to my children",
+        "quero ver os meus filhos",
+        "quem tenho registado no clube",
+        "lista de educandos",
+        "show me my kids"
       ],
       "triggers": [
         "os meus educandos",
@@ -70,16 +82,20 @@
       "kind": "navigate",
       "route": "/my/children/medical",
       "title": "Estado Médico",
-      "description": "Estado Médico — part of the guardian area of the application, at /my/children/medical.",
-      "explanation": "Estado Médico is a screen in the guardian area of this application, at /my/children/medical. It shows: Estado médico de {{name}}, Estado médico do educando, Estado de aptidão e recuperação (sem diagnóstico), Partilhar com o treinador?.",
-      "explanationSource": "features/guardian/pages/ChildMedicalPage.tsx",
+      "description": "Estado Médico — part of the guardian area of the application, at /my/children/medical. Onde o encarregado de educação vê o estado médico de um educando: se está apto a treinar e como vai a recuperação (sem diagnóstico), e escolhe se partilha isso com o treinador. estado de aptidão, recuperação, partilha com o treinador. saúde do meu filho, ficha médica, enfermaria, child medical status. filha, criança, miúdo, son, daughter, kid, health, injury.",
+      "explanation": "Onde o encarregado de educação vê o estado médico de um educando: se está apto a treinar e como vai a recuperação (sem diagnóstico), e escolhe se partilha isso com o treinador.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre estado médico",
         "leva-me para estado médico",
         "ir para estado médico",
         "open medical status",
         "take me to medical status",
-        "go to medical status"
+        "go to medical status",
+        "como está o meu filho depois da lesão",
+        "o meu filho já pode voltar a treinar",
+        "quero saber a recuperação do meu filho",
+        "is my child fit to train"
       ],
       "triggers": [
         "estado medico",
@@ -91,16 +107,20 @@
       "kind": "navigate",
       "route": "/my/notifications",
       "title": "Notificações",
-      "description": "Notificações — part of the notifications area of the application, at /my/notifications.",
-      "explanation": "Notificações is a screen in the notifications area of this application, at /my/notifications. It shows: Notificações.",
-      "explanationSource": "features/notifications/pages/NotificationsPage.tsx",
+      "description": "Notificações — part of the notifications area of the application, at /my/notifications. Onde se veem as notificações: os avisos automáticos da aplicação sobre o que aconteceu de novo. alertas recentes, avisos da aplicação. alertas, avisos da aplicação, notifications.",
+      "explanation": "Onde se veem as notificações: os avisos automáticos da aplicação sobre o que aconteceu de novo.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre notificações",
         "leva-me para notificações",
         "ir para notificações",
         "open notifications",
         "take me to notifications",
-        "go to notifications"
+        "go to notifications",
+        "tenho alertas novos",
+        "ver as minhas notificações",
+        "o que aconteceu de novo na aplicação",
+        "any new alerts"
       ],
       "triggers": [
         "notificacoes",
@@ -112,16 +132,20 @@
       "kind": "navigate",
       "route": "/settings/notifications",
       "title": "As Minhas Preferências · Notificações",
-      "description": "As Minhas Preferências · Notificações — part of the settings area of the application, at /settings/notifications.",
-      "explanation": "As Minhas Preferências · Notificações is a screen in the settings area of this application, at /settings/notifications. It shows: As Minhas Preferências, Notificações, Endereço de email.",
-      "explanationSource": "features/settings/pages/PersonalNotificationsPage.tsx",
+      "description": "As Minhas Preferências · Notificações — part of the settings area of the application, at /settings/notifications. Onde cada pessoa escolhe que avisos quer receber e por que meio, incluindo o email. escolher avisos, email para os avisos, tutoriais. preferências de avisos, avisos por email, alertas por email, notification settings. alerts.",
+      "explanation": "Onde cada pessoa escolhe que avisos quer receber e por que meio, incluindo o email.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre as minhas preferências · notificações",
         "leva-me para as minhas preferências · notificações",
         "ir para as minhas preferências · notificações",
         "open my preferences · notifications",
         "take me to my preferences · notifications",
-        "go to my preferences · notifications"
+        "go to my preferences · notifications",
+        "não quero receber emails",
+        "desligar os avisos por email",
+        "mudar o email onde recebo os avisos",
+        "stop the emails"
       ],
       "triggers": [
         "as minhas preferencias notificacoes",
@@ -143,16 +167,20 @@
       "kind": "navigate",
       "route": "/settings",
       "title": "Definições",
-      "description": "Definições — part of the settings area of the application, at /settings.",
-      "explanation": "Definições is a screen in the settings area of this application, at /settings.",
-      "explanationSource": "features/settings/pages/SettingsPage.tsx",
+      "description": "Definições — part of the settings area of the application, at /settings. As definições da conta: as preferências pessoais, as notificações e o endereço de email. preferências, notificações, endereço de email. configurações, opções, a minha conta, account settings. alertas, notifications, alerts.",
+      "explanation": "As definições da conta: as preferências pessoais, as notificações e o endereço de email.",
+      "explanationSource": "knowledge.json",
       "examples": [
         "abre definições",
         "leva-me para definições",
         "ir para definições",
         "open settings",
         "take me to settings",
-        "go to settings"
+        "go to settings",
+        "mudar as minhas definições",
+        "abrir as configurações",
+        "alterar o meu email",
+        "open my settings"
       ],
       "triggers": [
         "definicoes",
@@ -202,6 +230,34 @@
         "what’s in my email inbox",
         "como está o tempo amanhã",
         "escreve-me um poema"
+      ]
+    },
+    {
+      "id": "unsupported.declared.pagamentos_quotas_e_faturas",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Pagamentos, quotas e faturas",
+      "description": "Pagamentos, quotas e faturas. quanto tenho de pagar este mês, pagar a quota do meu filho, quando vence a fatura, how much do I owe the club.",
+      "refusal": "Não trato de pagamentos. As quotas e as faturas são geridas pela secretaria do clube.",
+      "examples": [
+        "quanto tenho de pagar este mês",
+        "pagar a quota do meu filho",
+        "quando vence a fatura",
+        "how much do I owe the club"
+      ]
+    },
+    {
+      "id": "unsupported.declared.contactar_uma_pessoa",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Contactar uma pessoa",
+      "description": "Contactar uma pessoa. quero falar com o treinador, como contacto o clube, fala com a secretaria por mim, message the coach.",
+      "refusal": "Não consigo enviar mensagens nem contactar ninguém por si. Pode ler os anúncios do clube ou falar diretamente com o treinador ou a secretaria.",
+      "examples": [
+        "quero falar com o treinador",
+        "como contacto o clube",
+        "fala com a secretaria por mim",
+        "message the coach"
       ]
     }
   ]
