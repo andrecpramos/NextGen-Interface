@@ -203,6 +203,25 @@ say('\n  the assistant layer — orb, screen, answer\n');
 
   const noSuggestions = root.querySelectorAll('.places, .place, .more').length === 0;
 
+  // A photo and a document waiting to be sent (ADR-024): the paperclip, the tray, a chip and a remove button
+  // for each. This state did not exist until 2026-09-21, and a gate that never saw it could not have failed on it.
+  const picker = root.querySelector('.file-picker');
+  Object.defineProperty(picker, 'files', {
+    configurable: true,
+    value: [new window.File(['x'], 'certificate.pdf', { type: 'application/pdf' }), new window.File(['y'], 'photo.png', { type: 'image/png' })],
+  });
+  picker.dispatchEvent(new window.Event('change'));
+  await tick(60);
+  const chips = root.querySelectorAll('.attach-item').length;
+  layerStates.push([`screen, ${chips} files attached`, await audit(window, mounted.host)]);
+  const removers = [...root.querySelectorAll('.attach-x')].map((b) => b.textContent.trim());
+  note(chips === 2 && removers.length === 2 && removers.every(Boolean), 'each attached file has a remove button that names it', removers.join(' | '));
+  note(Boolean(root.querySelector('.attach')?.textContent.trim()), 'the paperclip has an accessible name', `"${root.querySelector('.attach')?.textContent.trim()}"`);
+  note(picker.getAttribute('aria-hidden') === 'true' && picker.tabIndex === -1 && picker.hidden,
+    'the hidden file input is out of the accessibility tree and the tab order',
+    `aria-hidden=${picker.getAttribute('aria-hidden')} tabindex=${picker.tabIndex} hidden=${picker.hidden}`);
+  for (const remove of root.querySelectorAll('.attach-x')) remove.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
   // The menu: the adopter's navigation, or the registry's places where the page has none.
   const menuButton = root.querySelector('.menu');
   const drawer = root.querySelector('.drawer');

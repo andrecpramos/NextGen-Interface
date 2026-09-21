@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-17T21:26:27.786Z",
+  "checkedAt": "2026-09-21T19:04:58.132Z",
   "artefact": "packages/embed/dist/nextgen.js",
   "data": "eval/frameworks/family/generated (PARENT)",
   "tool": "axe-core 4.13.0 in jsdom",
@@ -21,7 +21,7 @@
         "color-contrast"
       ]
     },
-    "choose (3 links)": {
+    "choose (2 links)": {
       "violations": [],
       "incomplete": [
         "color-contrast"
@@ -55,7 +55,7 @@
     },
     {
       "ok": true,
-      "label": "choose (3 links): 0 serious/critical",
+      "label": "choose (2 links): 0 serious/critical",
       "detail": "incomplete (jsdom cannot judge): color-contrast"
     },
     {
@@ -75,6 +75,21 @@
     },
     {
       "ok": true,
+      "label": "each attached file has a remove button that names it",
+      "detail": "Remover certificate.pdf | Remover photo.png"
+    },
+    {
+      "ok": true,
+      "label": "the paperclip has an accessible name",
+      "detail": "\"Anexar uma foto ou ficheiro\""
+    },
+    {
+      "ok": true,
+      "label": "the hidden file input is out of the accessibility tree and the tab order",
+      "detail": "aria-hidden=true tabindex=-1 hidden=true"
+    },
+    {
+      "ok": true,
       "label": "orb, screen shut: 0 serious/critical",
       "detail": ""
     },
@@ -85,12 +100,17 @@
     },
     {
       "ok": true,
+      "label": "screen, 2 files attached: 0 serious/critical",
+      "detail": ""
+    },
+    {
+      "ok": true,
       "label": "screen, menu open (7 links): 0 serious/critical",
       "detail": ""
     },
     {
       "ok": true,
-      "label": "screen answered (3 links): 0 serious/critical",
+      "label": "screen answered (2 links): 0 serious/critical",
       "detail": ""
     },
     {
@@ -199,12 +219,12 @@
     {
       "ok": true,
       "label": "assistant.ts: every declared motion is cancelled under reduced motion",
-      "detail": "14 animated rule(s), all guarded"
+      "detail": "21 animated rule(s), all guarded"
     },
     {
       "ok": true,
       "label": "assistant.ts: declares 48px targets",
-      "detail": "8 rule(s) at 48px"
+      "detail": "7 rule(s) at 48px"
     },
     {
       "ok": true,

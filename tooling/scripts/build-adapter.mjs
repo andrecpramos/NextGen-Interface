@@ -3,12 +3,14 @@
 //   node tooling/scripts/build-adapter.mjs           # write it
 //   node tooling/scripts/build-adapter.mjs --check   # is what is committed current?
 //
-// Two artefacts, from source that already exists:
+// Three artefacts, from source that already exists:
 //
 //   scan.mjs            packages/kit/src/cli-copied.ts and everything it imports, in one
 //                       file. It is the kit's only entry point (ADR-021) and references no
 //                       model client, so the bundle cannot reach a network.
 //   runtime/nextgen.js  packages/embed/dist/nextgen.js, byte for byte
+//   VERSION             an id of the two files above (their hashes; no date, no commit), which
+//                       `doctor` prints so an adopter can say which build they copied
 //
 // The premise of ADR-018 is "copy a folder, run it". That is only true if the folder
 // needs no package manager, no registry and no network, so `scan.mjs` is bundled with
@@ -34,10 +36,31 @@ const ENTRY = join(ROOT, 'packages', 'kit', 'src', 'cli-copied.ts');
 const WIDGET = join(ROOT, 'packages', 'embed', 'dist', 'nextgen.js');
 const OUT = join(ROOT, 'adapter');
 
+// Each artefact is built once, however many others read it.
+const memo = new Map();
+const built = (target) => {
+  if (!memo.has(target)) memo.set(target, target.build());
+  return memo.get(target);
+};
+
 const targets = [
   { path: join(OUT, 'scan.mjs'), build: bundleScanner },
   { path: join(OUT, 'runtime', 'nextgen.js'), build: readWidget },
+  // Which build an adopter copied. An id of the two files above and nothing else — no date, no commit —
+  // so it changes exactly when they do, and `--check` stays a comparison of bytes.
+  { path: join(OUT, 'VERSION'), build: writeVersion },
 ];
+
+async function writeVersion() {
+  const [scanner, widget] = await Promise.all([built(targets[0]), built(targets[1])]);
+  const text = [
+    `nextgen-adapter ${sha(scanner)}-${sha(widget)}`,
+    'Identifies scan.mjs and runtime/nextgen.js, the two files an adopter copies. It changes exactly when',
+    'either does. `node scan.mjs doctor` prints it: quote it when you report a problem.',
+    '',
+  ].join('\n');
+  return Buffer.from(text, 'utf8');
+}
 
 async function bundleScanner() {
   if (!existsSync(ENTRY)) throw new Error(`missing ${relative(ROOT, ENTRY)}`);
@@ -106,9 +129,9 @@ const kb = (buffer) => `${(buffer.length / 1024).toFixed(0)}KB`;
 const stale = [];
 for (const target of targets) {
   const shown = relative(ROOT, target.path).replace(/\\/g, '/');
-  let built;
+  let output;
   try {
-    built = await target.build();
+    output = await built(target);
   } catch (cause) {
     console.error(`FAIL  ${shown}\n      ${cause.message}`);
     process.exit(1);
@@ -119,18 +142,18 @@ for (const target of targets) {
     if (committed === null) {
       console.error(`FAIL  ${shown}  is not committed`);
       stale.push(shown);
-    } else if (!committed.equals(built)) {
-      console.error(`FAIL  ${shown}  committed ${sha(committed)}, rebuild gives ${sha(built)}`);
+    } else if (!committed.equals(output)) {
+      console.error(`FAIL  ${shown}  committed ${sha(committed)}, rebuild gives ${sha(output)}`);
       stale.push(shown);
     } else {
-      console.log(`ok    ${shown}  ${kb(built)}  ${sha(built)}`);
+      console.log(`ok    ${shown}  ${kb(output)}  ${sha(output)}`);
     }
     continue;
   }
 
   mkdirSync(dirname(target.path), { recursive: true });
-  writeFileSync(target.path, built);
-  console.log(`wrote ${shown}  ${kb(built)}  ${sha(built)}`);
+  writeFileSync(target.path, output);
+  console.log(`wrote ${shown}  ${kb(output)}  ${sha(output)}`);
 }
 
 if (CHECK && stale.length > 0) {

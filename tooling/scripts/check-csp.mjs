@@ -100,7 +100,7 @@ writeFileSync(
 writeFileSync(
   join(site, 'probe.js'),
   `(function () {
-  var report = { violations: [], warnings: [], errors: [], mounted: false, minHeight: null, tone: null, choices: 0, navigated: null };
+  var report = { violations: [], warnings: [], errors: [], mounted: false, minHeight: null, tone: null, choices: 0, navigated: null, attached: 0, thumbnail: false, attachEvent: null, sentThumb: false };
   document.addEventListener('securitypolicyviolation', function (e) {
     report.violations.push(e.effectiveDirective + (e.blockedURI ? ' ' + e.blockedURI : ''));
   });
@@ -109,6 +109,11 @@ writeFileSync(
   window.addEventListener('nextgen:navigate', function (e) {
     e.preventDefault();
     report.navigated = e.detail ? e.detail.route : '(no detail)';
+  });
+  // What a page does to take an attachment (ADR-024): the assistant hands it over as an event, and nothing else.
+  window.addEventListener('nextgen:attach', function (e) {
+    e.preventDefault();
+    report.attachEvent = e.detail.files.length + ' file(s): ' + e.detail.files[0].name + ', words "' + e.detail.utterance + '"';
   });
   var warn = console.warn;
   console.warn = function () { report.warnings.push(Array.prototype.join.call(arguments, ' ')); warn.apply(console, arguments); };
@@ -127,6 +132,25 @@ writeFileSync(
     report.mounted = true;
     var input = root.querySelector('input');
     report.minHeight = getComputedStyle(input).minHeight;
+    // A real photo, made here, through the real file input: the one path a strict policy could break, because
+    // a preview shown through a blob: or data: URL is exactly what img-src refuses. The widget draws it on a canvas.
+    var canvas = document.createElement('canvas');
+    canvas.width = 40; canvas.height = 40;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#c33'; ctx.fillRect(0, 0, 40, 40);
+    canvas.toBlob(function (blob) {
+      var transfer = new DataTransfer();
+      transfer.items.add(new File([blob], 'photo.png', { type: 'image/png' }));
+      var picker = root.querySelector('.file-picker');
+      picker.files = transfer.files;
+      picker.dispatchEvent(new Event('change'));
+      waitFor(function () { return root.querySelector('.attach-item canvas'); }, function () {
+        report.thumbnail = true;
+        report.attached = root.querySelectorAll('.attach-item').length;
+        ask();
+      });
+    }, 'image/png');
+    function ask() {
     input.value = 'onde vejo como o meu filho está a evoluir';
     root.querySelector('form').requestSubmit();
     // An answer is an assistant message in the thread (what the one-liner mounts) carrying its tone;
@@ -134,6 +158,7 @@ writeFileSync(
     waitFor(function () { var r = root.querySelector('.msg.assistant[data-tone], .result'); return r && r.hasAttribute('data-tone'); }, function () {
       var result = root.querySelector('.msg.assistant[data-tone], .result');
       report.tone = result.getAttribute('data-tone');
+      report.sentThumb = root.querySelector('.msg-file canvas') !== null;
       var links = result.querySelectorAll('a');
       report.choices = links.length;
       if (links.length > 0) links[0].click();
@@ -141,6 +166,7 @@ writeFileSync(
       if (links.length > 0 || report.tone === 'go') waitFor(function () { return report.navigated !== null; }, finish);
       else setTimeout(finish, 200);
     });
+    }
   });
 })();
 `,
@@ -211,6 +237,9 @@ if (!report) {
   if (report.choices > 0 || report.tone === 'go') {
     check(Boolean(report.navigated), `nextgen:navigate reached the page and it took the move (${report.navigated ?? 'no event'})`);
   }
+  check(report.thumbnail && report.attached === 1, `a photo put through the real file input was drawn as a thumbnail on a canvas (${report.attached} attached, thumbnail ${report.thumbnail})`);
+  check(Boolean(report.attachEvent), `the page took the attachment through nextgen:attach (${report.attachEvent ?? 'no event'})`);
+  check(report.sentThumb, "the visitor's own message shows the photo");
   check(report.errors.length === 0, `no page errors${report.errors.length ? `: ${report.errors.join('; ')}` : ''}`);
   check(report.warnings.length === 0, `no warnings from the widget${report.warnings.length ? `: ${report.warnings.join('; ')}` : ''}`);
 }
