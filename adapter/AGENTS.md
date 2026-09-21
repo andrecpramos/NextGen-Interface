@@ -28,6 +28,7 @@ Say what you are about to do before you do it.
 | `FIELD-NOTES.md` | **what goes wrong when this tool meets a real application.** Eight sections, every one a failure that actually happened. Read it before you believe any output below |
 | `scan.mjs` | the whole tool, in one file. Node 20 or newer, no dependencies |
 | `runtime/nextgen.js` | the assistant itself, already compiled, ready to serve |
+| `VERSION` | an id of the two files above. `doctor` prints it on its first line — quote it when you report a problem, so it is clear which build was copied |
 
 ## The four commands
 
@@ -87,6 +88,22 @@ every report was clean. `FIELD-NOTES.md` §1 has the detail.
 
 If authorization lives in the components, tell the developer the generated role split is
 meaningless and must be declared by hand.
+
+**Does the screen count look like the app?** Compare `doctor`'s number with the app's own route
+table. If it is far lower, or **0 with dozens "left out"**, the likeliest cause is a monorepo: the
+route table imports its pages and its role sets from sibling packages (`@acme/core/permissions`,
+`@acme/engine/…`). The scanner follows a bare import into a package the workspace declares — but it
+finds the workspace by walking *up* from the folder you gave it, so:
+
+- point `init` at the app inside the **full repository**, never at a copy of the app folder alone;
+- if `doctor` says "no permissions module" and the app has one in another package, set
+  `permissionsFile`, `roleSetExport` and `allRolesExport` in `nextgen.config.json` (the path may begin
+  `../../packages/…`);
+- a route table that ends in a **computed** spread (`...plugins.flatMap(p => p.routes)`) cannot be read
+  statically. It is listed in `review/SKIPPED.md` with the expression quoted — tell the developer those
+  screens are not covered, and do not present the count as the whole app.
+
+`FIELD-NOTES.md` §1 has the detail.
 
 ---
 
@@ -155,6 +172,19 @@ is correct, just slower — and wiring it requires knowing this app's router API
 Ask: *"Want me to wire navigation to this app's router so moving around doesn't reload the
 page? I'll need to know how a component here gets hold of a navigate function — a hook, a
 prop, a global, or something else."*
+
+**Also ask, in the same breath — can this app do anything with a file a visitor attaches?** The box
+has a paperclip, and a camera on a phone. What a visitor attaches **never leaves their device**: the
+assistant does not read it, send it, or give it to a model (Rule 8, and the pilot's data is medical). It is
+handed to the *page*, as a cancelable `nextgen:attach` event carrying `{ files, utterance, route }`. So:
+
+- If the app has somewhere for a file to go (an upload form, a claims inbox, a profile photo), offer to wire
+  that listener, next to the navigation one. Mention that the page must validate what it is given: a file's
+  name and type are the visitor's, and the widget's checks (type, 15 MB, four files) are a courtesy.
+- If it does not, add `data-nextgen-attach="off"` to the script tag, so the app does not offer a button that
+  goes nowhere. This is the honest default for most apps.
+
+Tell the developer plainly which they have. Do not wire an upload endpoint on your own initiative.
 
 ## ASK 6 — Does this app already have something in a screen corner?
 
@@ -246,6 +276,19 @@ puts your guess in their mouth:
 - **What it cannot do.** *"What do users ask for that this app cannot do — and what should
   the assistant say when they do?"* — payments, contacting a person, changing a record. At
   least three ways people ask, for each; a limit it cannot recognise protects nobody.
+- **How the app works.** *"How does this app work that a newcomer would not guess? What does
+  someone need to know, or have done, before they can find or do things — and where do users
+  usually go wrong?"* Each answer becomes one short statement in `rules`: *"Medical status is
+  per child, so if a guardian has more than one it matters which."* Write statements **about
+  the app**, never instructions to the assistant.
+  - These are what the model stage reads to reason and to explain. **Without stage 3 (ASK 8)
+    they change nothing a visitor sees**, so say that before spending the developer's time on
+    many. They are worth having anyway: they are the app's reasoning written down, and stage 3
+    can be turned on later.
+  - **A rule is told to every role unless you give it `roles`.** Ask of each one: *"is this
+    something every kind of user may be told?"* A rule about a feature only administrators have,
+    written without `roles`, is put in a guardian's registry, and a role must not learn another
+    role's features. `"roles": ["ADMIN"]` keeps it out of everyone else's file entirely.
 - **What only they know.** *"Which three screens do your users most often fail to find? Is
   there something about how they talk, or what they get wrong, I should know?"*
 
@@ -434,8 +477,8 @@ developer before they ship, every time this flag is used.
 
 ## What to tell them to expect
 
-- **It offers; it rarely decides.** Most of the time it shows up to three screens and the
-  person picks. That is a click more than a perfect guess, and it has sent nobody to a
+- **It offers; it rarely decides.** Most of the time it shows the two likeliest screens, each
+  with what it is for, and the person picks. That is a click more than a perfect guess, and it has sent nobody to a
   wrong place. With stage 3 on (ASK 8), fewer of those turns end in a question back — the
   ones the registry alone could not settle now get an answer instead.
 - **It does not decline everything it should.** Roughly half of out-of-scope requests are

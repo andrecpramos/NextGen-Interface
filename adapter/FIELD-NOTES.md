@@ -19,6 +19,30 @@ The single most useful habit: **when the tool says it guessed, it means it.** A 
 This is the only category where a mistake is a **security** defect rather than a quality one.
 Treat everything here as blocking.
 
+### An app in a monorepo: roles and pages live in sibling packages
+
+The pilot app's current source came out as **0 screens, 65 left out** — every route "role guard could
+not be evaluated" — because its route table reads `ROUTE_ROLES` from `@acme/core/permissions` and its
+pages from `@acme/engine/…`, workspace packages beside the app, and the scan resolved only relative
+imports and path aliases. The kit now walks up from the app to the workspace root (`pnpm-workspace.yaml`,
+or `workspaces` in `package.json`, npm and yarn), and follows a bare import into **a package the
+workspace declares** through its `exports` (explicit subpaths and `*` wildcards) — and into nothing else:
+not `node_modules`, not a package the repository does not list. `init` finds the role module by
+resolving what the route table imports, so it reads one file per import, not the whole monorepo. Rerun
+on the full pilot: **56 screens across 10 roles**, roles found automatically, `PLAYER` reaching only its
+own `/my/*` screens.
+
+Things to check on a monorepo: `explanationSource` paths now begin `../../packages/…`; and translations
+that live in a package rather than the app are read only if `localesDir` points at them. A route table
+that ends `...clubeRoutes` is followed into the module that declares the array (with that module's own
+imports) when the array is written out; a *computed* spread — the pilot's `...workspaces.flatMap(…)`,
+which assembles routes from installed plugins — cannot be read statically, and is now **listed in
+`SKIPPED.md` with the expression quoted**. Before, it vanished without a word. The pilot's own
+"clube" and "futebol" workspace screens are exactly what that line stands for: this scan does not
+have them, and `doctor` should not be read as covering them. **Always copy the whole
+repository when rehearsing** — copying only the app folder makes every sibling package vanish and
+reproduces the 0-screen failure for a reason that is your setup, not the scanner.
+
 ### A role guard the parser cannot read must drop the route, never widen it
 
 The worst failure recorded happened on an app that gates routes on a parent element:
@@ -121,15 +145,44 @@ and code is not evaluated. Those screens fall through to their component name.
   accident, and *"Genre movie"* became *"Movie"* — worse, for the pages of one genre. Hence
   rule 3 above naming from the last **two** segments, so a screen keeps its section.
 - **Two routes sharing one component share a title.** `/editor` and `/editor/:slug`; `/profile`
-  and `/profile/@:user`. They compete with each other during retrieval and there is no
-  automatic way to tell them apart — writing a distinguishing word would mean writing it in
-  the app's language.
+  and `/profile/@:user`; `/squad/new` and `/squad/:id/edit`. They compete with each other during
+  retrieval. Where the two addresses end in different words, the title is now told apart with
+  that word ("Squad player Form · new" / "· edit") — the developer's own word, in their own
+  language, never a translation. Two addresses that end alike are still left as they are, and
+  those are worth a look.
+- **A locale in front of every route is not a section.** On a next-intl app every route began
+  `/:locale/…`; every screen was "in the locale area" (`locale.auth_login`), and the locale was
+  declared as a parameter the visitor must supply, so even "sign in", matched at 1.00, ended as a
+  question. A leading parameter is now never an area, and a locale prefix (`:locale`, `:lang`) is
+  not a slot — the widget fills it from the page the visitor is on: from the URL, and when the URL
+  carries none (`localePrefix: 'as-needed'`, the default language) from `<html lang>`. That fallback
+  assumes `<html lang>` is exactly the locale code the routes use — next-intl sets it so — and it
+  applies only to a parameter *named* like a locale, so an item parameter is never filled by it.
+  Untested against a running `as-needed` app; check which the app uses and try one link.
 - **A component name filling every language.** English identifiers must not end up in a
   non-English registry.
 - **A header from an early return.** A loading or not-found branch's heading is not the
   screen's name.
 - **Only reading `t(...)`.** An app calling `tp('announcements.title')` or any other wrapper
   loses its title keys and falls back to component names.
+- **The route's component is the guard, not the page.** `<Route element={<ProtectedRoute>
+  <WellnessFormPage /></ProtectedRoute>} />` named the screen "Protected Route" and described it
+  with the login wall's own words. A guard-shaped wrapper (`Protected…`, `Require…`, `…Guard`,
+  `…Route`) with exactly one child is now read as that child; who may reach it is still read from
+  the guard's props. A wrapper that is not named like a guard (a layout shell) is read through as
+  before, and two children are never guessed between.
+- **next-intl.** `const t = await getTranslations('portal.athlete')` and `useTranslations('ns')`
+  bind a namespace exactly as `useTranslation('ns')` does; before this, every page of a next-intl
+  app was described from nothing. Its messages are one nested file per language.
+- **HTML entities.** `Match &amp; results` is now `Match & results`.
+- **What the page "shows" came from wherever `t()` was called first.** On the pilot that meant toasts
+  ("Bem-estar registado com sucesso!"), delete confirmations ("Eliminar ementa?"), the shared
+  namespace's buttons ("Eliminar, Cancelar") — and, in 9 of 56 screens, a sentence with its placeholder
+  still in it ("Desenvolvimento de {{name}}"). A sentence with `{{x}}`, `{x}` or `%s` in it is now dropped,
+  and strings whose *key* says toast, error, success, confirm, delete, dialog, validation, or that live in
+  `common`/`shared`/`actions`, come after what the page renders, and only when it renders nothing else.
+  The rule reads the developer's key names, so an app whose keys say nothing (`t('a1')`) gets none of it.
+- **A route that only `<Navigate>`s** was titled "Navigate · schedule". It is now named for its address.
 
 ### One page with two addresses ties every question between them
 
@@ -160,6 +213,26 @@ of 141 screens were in that position.
 
 If the descriptions come back vague, the fix is usually in the app (give the page a doc
 comment) or in the title, not in the prompt.
+
+**What the visitor is shown under a screen's name** is the first sentence of its explanation, and
+with no model that sentence used to be a template in English with a route in it ("Entrar is a
+screen in the auth area of this application, at /:locale/auth/login."). It is now what the screen
+shows ("This screen shows: Sign in, Access the FPJ portal…"), in the app's own language when that
+is Portuguese or English, each item clipped at a word. The area and the route stay in
+`description`, which retrieval matches on and no one reads. A screen the scanner can say nothing
+about is still "X is a screen in this application" — read `review/KNOWLEDGE-GAPS.md` for those.
+
+**The app's language.** A Next.js app that routes by locale sets `<html lang={locale}>` per request, so
+the kit fell back to the first language *alphabetically* — English, for a Portuguese federation whose
+routing file says `defaultLocale: 'pt'`. It now reads `defaultLocale` from `i18n/routing.ts`,
+`next.config` or the middleware, and only accepts one the app has messages for.
+
+A page whose component is declared **in the route table's own file** (`function MainPage() {
+return <><Hero /><Pricing /></> }` two lines above `<Route element={<MainPage />}>`) used to
+have no file to read, and the one screen a one-page site is made of was described as "a screen
+in this application, at /". It is now read through the sections it composes, and only those —
+the header and footer the app renders around its routes are chrome. If a one-page site's home
+still reads thin, that is the next place to look, and it is `knowledge.json`'s to fix (ASK 9).
 
 ### A failure state is not the screen — but an authorization fallback is
 
@@ -240,6 +313,38 @@ The same run's boundaries were *"Acting outside this application"*, *"Changing r
 you"*, *"Questions about anything else"*. Real out-of-scope questions do not resemble those
 closely enough for similarity to connect them. Boundaries written in the app's own vocabulary
 work; generic ones are decoration.
+
+### Uncalibrated, on a thin app, the limits win over screens that score nothing
+
+The opposite failure to "decoration", found by running this kit on a small real app it had not
+seen (a 2-route landing page, no `knowledge.json`, uncalibrated). Descriptions came from the
+page's own labels alone, so a visitor's everyday words matched no screen at all: every real
+screen scored ~0.00, and a declared limit with the slightest word in common (0.07–0.16) cleared
+the default margin and **won**. Of 12 everyday questions ("how do I sign up", "who are the
+trainers", "what is the price", "how does it work"), **7 were refused** — as "changing records",
+"acting outside this application" and "anything else". Four unrelated controls ("what is the
+weather tomorrow", "write me a poem") scored 0.19–0.32 and were refused too, so a limit's
+*absolute* score did separate them here; it did not on the reference fixture, where in-scope
+turns reach 0.15 and true refusals start at 0.14. Twelve questions written by the tool's author
+are an anecdote, not a calibration.
+
+**What the kit now does about it.** A bundle built with *no calibration* carries `boundaryFloor:
+0.15` in its `thresholds.hashing.json`: a declared limit must score at least that in its own right,
+not just lead a near-zero screen, before it may refuse. On the same 12 questions, refusals fell from
+7 to 1 (the one left, "what are your opening hours", scored 0.16), and all seven out-of-scope controls
+were still refused — "delete my account" and "send an email to the gym" through the action-verb path,
+which is independent evidence and is not held to the floor (ADR-015). The 0.15 is not fitted: it is the
+"barely a match" bar the likely-one tier already uses for a screen, applied to a limit too — but it
+*was* chosen after this data was seen, so treat it as a stand-in. **A calibration replaces the whole
+set and the floor goes with it**; calibrated profiles never carry one, and the sweep does not decide it
+(Rule 14). The price: an uncalibrated app refuses fewer out-of-scope requests and asks instead.
+
+Still, in this order: **write `knowledge.json`** (ASK 9 — what each screen is for, the words users say),
+which is what makes a screen score at all; then **calibrate on questions the developer wrote** (this
+section, below), which is the only thing that sets the margin for this app; and say plainly to the
+developer that until then the assistant is more cautious about refusing and less able to tell screens
+apart. The assistant also no longer offers two arbitrary screens when nothing matched — it says so and
+offers the app's own navigation.
 
 ### You need real questions, and enough of them
 
