@@ -575,7 +575,7 @@ describe('a clear leader, offered as the likely one', () => {
     expect(thread.textContent).toContain('You probably want Calendar.');
     expect(thread.textContent).toContain('Open Calendar');
     expect(thread.textContent).toContain('Training and matches by day.');
-    expect(thread.textContent).toContain('Or one of these:');
+    expect(thread.textContent).toContain('Or maybe:');
   });
 
   it('is still only a link: nothing moves until the visitor takes it', async () => {
@@ -596,7 +596,7 @@ describe('a clear leader, offered as the likely one', () => {
     await settle(2000);
     await done;
     expect(all('lead')).toHaveLength(1);
-    expect(thread.textContent).not.toContain('Or one of these:');
+    expect(thread.textContent).not.toContain('Or maybe:');
   });
 
   it('leaves a menu of equals exactly as it was: no likely one, no label', async () => {
@@ -606,8 +606,403 @@ describe('a clear leader, offered as the likely one', () => {
     await done;
     expect(all('lead')).toHaveLength(0);
     expect(all('chip')).toHaveLength(2);
-    expect(thread.textContent).toContain('Which of these do you mean?');
-    expect(thread.textContent).not.toContain('Or one of these:');
+    expect(thread.textContent).toContain('Two places could help with that:');
+    expect(thread.textContent).not.toContain('Or maybe:');
+  });
+});
+
+/**
+ * A visitor who knows nothing about the app says "hi", "help", "I'm lost", "make an appointment". The
+ * first three are not questions for the router — and a router handed them refuses — and the last is
+ * answered with as few places as will do, each said in the adopter's own words.
+ */
+describe('a visitor who knows nothing about the app', () => {
+  const text = (el: FakeElement): string => String(el.textContent);
+  // A longer answer is "spoken" for longer (up to 2.2 s without a voice), so wait a little more than the rest do.
+  const settle = (ms: number) => vi.advanceTimersByTimeAsync(ms * 3);
+
+  it('is greeted, not refused, and the router is never asked', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread, all, moves } = setup(routed);
+    const done = mounted.ask('hi');
+    await settle(2000);
+    await done;
+    expect(routed.asked).toEqual([]);
+    expect(text(thread)).toContain('Hi! How can I help?');
+    expect(text(thread)).not.toContain('can’t help with that');
+    expect(all('user').map(text)).toEqual(['hi']);
+    expect(moves).toEqual([]);
+  });
+
+  it('says thanks, goodbye and who it is just as kindly', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread } = setup(routed);
+    for (const [said, reply] of [['thanks!', 'You’re welcome!'], ['bye', 'Bye for now!'], ['who are you?', 'I’m this app’s assistant.']] as const) {
+      const done = mounted.ask(said);
+      await settle(2000);
+      await done;
+      expect(text(thread)).toContain(reply);
+    }
+    expect(routed.asked).toEqual([]);
+  });
+
+  it('is routed on what follows a greeting, and the thread shows what they actually typed', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread, all } = setup(routed);
+    const done = mounted.ask('hi, where is the calendar?');
+    await settle(2000);
+    await done;
+    expect(routed.asked).toEqual(['where is the calendar?']);
+    expect(all('user').map(text)).toEqual(['hi, where is the calendar?']);
+    expect(text(thread)).toContain('Opening Calendar');
+  });
+
+  it('is shown a few real places to begin when they say they are lost, each with what it is for', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread, all } = setup(routed);
+    const done = mounted.ask("I don't know what to do");
+    await settle(2000);
+    await done;
+    expect(routed.asked).toEqual([]);
+    expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/squad', '/competition/standings']);
+    expect(text(thread)).toContain('Training and matches by day.');
+    expect(text(thread)).toContain('The league table.');
+    expect(text(thread)).toContain('Not sure where to start?');
+  });
+
+  it('is started from the app’s own main navigation, in its own words, where the assistant knows what a place is for', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread, all } = setup(routed, {}, { page: clubPage });
+    const done = mounted.ask('i have no idea what to do here');
+    await settle(2000);
+    await done;
+    // Home is the page they are on, Shop is somewhere else, and neither is a place it can describe.
+    expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/competition/standings']);
+    expect(all('chip').map((a) => text(a))).toEqual(['CalendarTraining and matches by day.', 'StandingsThe league table.']);
+    expect(text(thread)).toContain('Not sure where to start?');
+  });
+
+  it('is given two places for a task, not three, each said in the adopter’s words', async () => {
+    const task = {
+      outcome: 'clarify',
+      decidedAt: 'embedding',
+      latency: { total: 5 },
+      utterance: 'make an appointment',
+      candidates: [
+        { capabilityId: 'calendar.overview', score: 0.3 },
+        { capabilityId: 'squad.list', score: 0.27 },
+        { capabilityId: 'standings', score: 0.2 },
+      ],
+    } as unknown as Partial<TurnTrace>;
+    const { mounted, thread, all } = setup(answering(task));
+    const done = mounted.ask('make an appointment');
+    await settle(2000);
+    await done;
+    expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/squad']);
+    expect(text(thread)).toContain('Training and matches by day.');
+    expect(text(thread)).toContain('Every player.');
+    expect(text(thread)).not.toContain('The league table.');
+  });
+
+  it('is told how to be understood better, and only when the answer was a guess', async () => {
+    const guess = answering(clarifying);
+    const a = setup(guess);
+    const asking = a.mounted.ask('games');
+    await settle(2000);
+    await asking;
+    expect(text(a.thread)).toContain('Not what you meant?');
+
+    for (const other of [answering(toCalendar), answering({ outcome: 'out_of_scope' })]) {
+      const b = setup(other);
+      const done = b.mounted.ask('games');
+      await settle(2000);
+      await done;
+      expect(text(b.thread)).not.toContain('Not what you meant?');
+    }
+    const c = setup(answering(toCalendar));
+    const hello = c.mounted.ask('hello');
+    await settle(2000);
+    await hello;
+    expect(text(c.thread)).not.toContain('Not what you meant?');
+  });
+
+  it('is not handed two arbitrary screens when nothing they said matched anything: it says so, and offers places to begin', async () => {
+    const blank = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0 }, { capabilityId: 'squad.list', score: 0 }] } as unknown as Partial<TurnTrace>;
+    const { mounted, thread, all } = setup(answering(blank), {}, { page: clubPage });
+    const done = mounted.ask('quero falar com alguém');
+    await settle(2000);
+    await done;
+    expect(text(thread)).toContain('not sure what you’re after');
+    expect(text(thread)).not.toContain('Two places could help with that:');
+    expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/competition/standings']);
+  });
+
+  it('is never left at a dead end: even a refusal says what it can do instead', async () => {
+    const { mounted, thread } = setup(answering({ outcome: 'out_of_scope', capabilityId: 'unsupported.payments' }));
+    const done = mounted.ask('pay my invoice');
+    await settle(2000);
+    await done;
+    expect(text(thread)).toContain('I can’t help with that here');
+    expect(text(thread)).toContain('I cannot move money.');
+    expect(text(thread)).toContain('I can help you find your way around this app');
+  });
+});
+
+/**
+ * A photo or a file, sent with what the visitor says — especially from a phone. What it is for: the
+ * visitor is holding the thing they need help with (a certificate, a receipt, a screenshot of an error),
+ * and a box that only takes typing tells them the assistant is not for that. What the assistant does with
+ * it is deliberately little: nothing attached is sent anywhere — not to the router, not to a trace, not to a
+ * model — because this product's promise is that nothing leaves the device. It is shown back, and handed
+ * to the page it sits in (`nextgen:attach`), which may want it; and the visitor is told which happened.
+ */
+describe('attachments — a photo or a file, kept on the device', () => {
+  const text = (el: FakeElement): string => String(el.textContent);
+  const settle = (ms: number) => vi.advanceTimersByTimeAsync(ms * 3);
+  const file = (name: string, type = 'image/png', size = 2048) => ({ name, type, size }) as unknown as File;
+
+  interface Fitted {
+    events: { type: string; detail: { files: File[]; utterance: string; route: string } }[];
+    handle: { take: boolean };
+  }
+  /** A window that can be asked its pointer, and can be handed events — what a phone's browser is. */
+  const fitted = (coarse = false): { page: (doc: FakeDocument) => void; sent: Fitted } => {
+    const sent: Fitted = { events: [], handle: { take: false } };
+    return {
+      sent,
+      page: (doc) => {
+        const view = doc.defaultView as unknown as Record<string, unknown>;
+        view.matchMedia = (query: string) => ({ matches: coarse && /pointer:\s*coarse/.test(query) });
+        view.CustomEvent = class {
+          type: string;
+          detail: unknown;
+          cancelable: boolean;
+          defaultPrevented = false;
+          constructor(type: string, init: { detail?: unknown; cancelable?: boolean } = {}) {
+            this.type = type;
+            this.detail = init.detail;
+            this.cancelable = Boolean(init.cancelable);
+          }
+          preventDefault(): void {
+            if (this.cancelable) this.defaultPrevented = true;
+          }
+        };
+        view.dispatchEvent = (event: { type: string; detail: unknown; defaultPrevented: boolean; preventDefault(): void }) => {
+          sent.events.push({ type: event.type, detail: event.detail as Fitted['events'][number]['detail'] });
+          if (sent.handle.take) event.preventDefault();
+          return !event.defaultPrevented;
+        };
+      },
+    };
+  };
+  const pickers = (host: FakeElement) => host.findAll((el) => el.tagName === 'input' && el.type === 'file');
+  const attach = (host: FakeElement, files: File[], which = 0) => {
+    const picker = pickers(host)[which]!;
+    picker.files = files;
+    picker.fire('change');
+  };
+
+  it('offers a paperclip that opens the file picker, for photos and common documents', () => {
+    const { page } = fitted();
+    const { host, byClass } = setup(answering(toCalendar), {}, { page });
+    const [picker] = pickers(host);
+    let opened = 0;
+    picker!.click = () => void opened++;
+    byClass('attach').fire('click');
+    expect(opened).toBe(1);
+    expect(picker!.multiple).toBe(true);
+    expect(String(picker!.accept)).toMatch(/image\/\*/);
+    expect(String(picker!.accept)).toMatch(/pdf/);
+    expect(text(byClass('attach'))).toContain('Attach a photo or file');
+  });
+
+  it('offers a camera only where the device is touch-first, and opens the rear camera', () => {
+    const desktop = setup(answering(toCalendar), {}, { page: fitted(false).page });
+    expect(desktop.byClass('camera').hidden).toBe(true);
+    const phone = setup(answering(toCalendar), {}, { page: fitted(true).page });
+    expect(phone.byClass('camera').hidden).toBe(false);
+    const camera = pickers(phone.host)[1]!;
+    expect(camera.getAttribute('capture')).toBe('environment');
+    expect(String(camera.accept)).toBe('image/*');
+    let opened = 0;
+    camera.click = () => void opened++;
+    phone.byClass('camera').fire('click');
+    expect(opened).toBe(1);
+  });
+
+  it('is left out entirely when the adopter says the app has nowhere to send a file', () => {
+    const { page } = fitted(true);
+    const { host, byClass, input, screen, all } = setup(answering(toCalendar), { attach: false }, { page });
+    expect(byClass('attach').hidden).toBe(true);
+    expect(byClass('camera').hidden).toBe(true);
+    // …and pasting or dropping a file does not sneak one in.
+    const event = (extra: object) => extra as never;
+    expect(input.fire('paste', event({ clipboardData: { files: [file('a.png')] } })).defaultPrevented).toBe(false);
+    expect(screen.fire('dragover', event({ dataTransfer: { types: ['Files'] } })).defaultPrevented).toBe(false);
+    attach(host, [file('a.png')]);
+    expect(all('attach-item')).toHaveLength(0);
+    // The box is the same width it was before any of this existed: the full placeholder, not the short one.
+    expect(input.placeholder).toBe('Ask anything about this app');
+  });
+
+  it('asks in fewer words where the row is crowded, so the box is not clipped mid-sentence', () => {
+    const desktop = setup(answering(toCalendar), {}, { page: fitted(false).page });
+    expect(desktop.input.placeholder).toBe('Ask anything about this app');
+    const phone = setup(answering(toCalendar), {}, { page: fitted(true).page });
+    expect(phone.input.placeholder).toBe('Ask anything');
+    expect(String(phone.input.placeholder).length).toBeLessThanOrEqual(16);
+  });
+
+  it('shows what was chosen, with a way to take each one back, and says how many in the status line', () => {
+    const { page } = fitted();
+    const { host, all, byClass, caption } = setup(answering(toCalendar), {}, { page });
+    expect(byClass('tray').hidden).toBe(true);
+    attach(host, [file('certificate.pdf', 'application/pdf'), file('photo.png')]);
+    expect(all('attach-item').map(text).join(' ')).toContain('certificate.pdf');
+    expect(all('attach-item').map(text).join(' ')).toContain('photo.png');
+    expect(byClass('tray').hidden).toBe(false);
+    expect(text(caption)).toBe('2 files attached');
+    // Each has a remove button that names what it removes.
+    expect(all('attach-x').map(text)).toEqual(['Remove certificate.pdf', 'Remove photo.png']);
+    all('attach-x')[0]!.fire('click');
+    expect(all('attach-item')).toHaveLength(1);
+    all('attach-x')[0]!.fire('click');
+    expect(byClass('tray').hidden).toBe(true);
+  });
+
+  it('turns away what is too many, too large, empty or not a photo or document — and says why, with the real limit', () => {
+    const { page } = fitted();
+    const { host, all, caption } = setup(answering(toCalendar), {}, { page });
+    attach(host, ['a', 'b', 'c', 'd', 'e'].map((n) => file(`${n}.png`)));
+    expect(all('attach-item')).toHaveLength(4);
+    expect(text(caption)).toContain('up to 4');
+
+    attach(host, [file('setup.exe', 'application/x-msdownload')]);
+    expect(text(caption)).toContain('can’t be attached');
+    const big = setup(answering(toCalendar), {}, { page: fitted().page });
+    attach(big.host, [file('huge.pdf', 'application/pdf', 16 * 1024 * 1024)]);
+    expect(text(big.caption)).toContain('15 MB');
+    expect(big.all('attach-item')).toHaveLength(0);
+    attach(big.host, [file('empty.pdf', 'application/pdf', 0)]);
+    expect(text(big.caption)).toContain('empty');
+  });
+
+  it('takes a photo pasted into the box and a file dropped on the screen, as it does one chosen', () => {
+    const { page } = fitted();
+    const { input, screen, all } = setup(answering(toCalendar), {}, { page });
+    // The fake event carries only what a test hands it; a browser's paste and drop events carry these.
+    const event = (extra: object) => extra as never;
+    const pasted = input.fire('paste', event({ clipboardData: { files: [file('pasted.png')] } }));
+    expect(pasted.defaultPrevented).toBe(true);
+    // Pasting text is left alone.
+    expect(input.fire('paste', event({ clipboardData: { files: [] } })).defaultPrevented).toBe(false);
+    const over = screen.fire('dragover', event({ dataTransfer: { types: ['Files'] } }));
+    expect(over.defaultPrevented).toBe(true);
+    screen.fire('drop', event({ dataTransfer: { types: ['Files'], files: [file('dropped.pdf', 'application/pdf')] } }));
+    expect(all('attach-item').map(text).join(' ')).toMatch(/pasted\.png.*dropped\.pdf|dropped\.pdf.*pasted\.png/);
+    expect(screen.dataset.dropping).toBe('false');
+  });
+
+  it('sends only the words to the router, shows the files in the visitor’s message, and empties the tray', async () => {
+    const { page, sent } = fitted();
+    const routed = answering(toCalendar);
+    const { mounted, host, all, thread, byClass } = setup(routed, {}, { page });
+    attach(host, [file('certificate.pdf', 'application/pdf')]);
+    const done = mounted.ask('where do I put this?');
+    await settle(2000);
+    await done;
+    // The router is handed a string, and nothing else. Never a file, never its name.
+    expect(routed.asked).toEqual(['where do I put this?']);
+    expect(routed.asked.every((said) => typeof said === 'string' && !said.includes('certificate'))).toBe(true);
+    expect(all('msg-file').map(text).join(' ')).toContain('certificate.pdf');
+    expect(all('user').map(text).join(' ')).toContain('where do I put this?');
+    expect(all('attach-item')).toHaveLength(0);
+    expect(byClass('tray').hidden).toBe(true);
+    expect(text(thread)).toContain('Opening Calendar');
+    expect(sent.events).toHaveLength(1);
+  });
+
+  it('hands the files to the page as a cancelable event, with the words and where the visitor was', async () => {
+    const { page, sent } = fitted();
+    const { mounted, host } = setup(answering(toCalendar), {}, { page, path: '/claims' });
+    const files = [file('a.png'), file('b.pdf', 'application/pdf')];
+    attach(host, files);
+    const done = mounted.ask('this is for my claim');
+    await settle(2000);
+    await done;
+    expect(sent.events[0]!.type).toBe('nextgen:attach');
+    expect(sent.events[0]!.detail).toEqual({ files, utterance: 'this is for my claim', route: '/claims' });
+  });
+
+  it('says it kept them on the device when the page did not take them, and that it passed them on when it did', async () => {
+    const kept = fitted();
+    const a = setup(answering(toCalendar), {}, { page: kept.page });
+    attach(a.host, [file('a.png')]);
+    const first = a.mounted.ask('where does this go?');
+    await settle(2000);
+    await first;
+    expect(text(a.thread)).toContain('stays on this device');
+    expect(text(a.thread)).not.toContain('passed your attachment');
+
+    const taken = fitted();
+    taken.sent.handle.take = true;
+    const b = setup(answering(toCalendar), {}, { page: taken.page });
+    attach(b.host, [file('a.png')]);
+    const second = b.mounted.ask('where does this go?');
+    await settle(2000);
+    await second;
+    expect(text(b.thread)).toContain('passed your attachment to the app');
+    expect(text(b.thread)).not.toContain('stays on this device');
+  });
+
+  it('answers a message that is only a file: no router, no refusal, and the one question that lets it help', async () => {
+    const { page, sent } = fitted();
+    const routed = answering(toCalendar);
+    const { mounted, host, thread } = setup(routed, {}, { page });
+    attach(host, [file('receipt.pdf', 'application/pdf')]);
+    const done = mounted.ask('');
+    await settle(2000);
+    await done;
+    expect(routed.asked).toEqual([]);
+    expect(text(thread)).toContain('Thanks — I’ve got it.');
+    expect(text(thread)).toContain('nothing leaves your device');
+    expect(text(thread)).not.toContain('can’t help with that');
+    expect(sent.events).toHaveLength(1);
+    expect(sent.events[0]!.detail.utterance).toBe('');
+  });
+
+  it('does nothing at all for no words and no file', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread } = setup(routed);
+    expect(await mounted.ask('   ')).toBeNull();
+    expect(routed.asked).toEqual([]);
+    expect(text(thread)).not.toContain('Thanks');
+  });
+
+  it('never makes a network request of its own for what was attached', async () => {
+    const fetched = vi.fn();
+    vi.stubGlobal('fetch', fetched);
+    try {
+      const { page } = fitted();
+      const { mounted, host } = setup(answering(toCalendar), {}, { page });
+      attach(host, [file('a.png')]);
+      const done = mounted.ask('here you go');
+      await settle(2000);
+      await done;
+      expect(fetched).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('lets go of what was attached when the conversation is started over', () => {
+    const { page } = fitted();
+    const { host, all, byClass } = setup(answering(toCalendar), {}, { page });
+    attach(host, [file('a.png'), file('b.png')]);
+    expect(all('attach-item')).toHaveLength(2);
+    byClass('restart').fire('click');
+    expect(all('attach-item')).toHaveLength(0);
+    expect(byClass('tray').hidden).toBe(true);
   });
 });
 
@@ -697,7 +1092,7 @@ describe('reading answers aloud', () => {
     const first = mounted.ask('games');
     await settle(0);
     expect(spoken).toHaveLength(1);
-    expect(spoken[0]!.text.startsWith('Which of these do you mean?')).toBe(true);
+    expect(spoken[0]!.text.startsWith('Two places could help with that:')).toBe(true);
     expect(spoken[0]!.voice).toBe(local);
     spoken[0]!.onend!();
     await settle(0);
@@ -710,6 +1105,25 @@ describe('reading answers aloud', () => {
     await settle(3000);
     await second;
     expect(spoken).toHaveLength(1);
+  });
+
+  it('reads a greeting as sentences: a title that ends in punctuation is not given another full stop', async () => {
+    const spoken: Utterance[] = [];
+    const local = { name: 'US', lang: 'en-US', localService: true, default: true, voiceURI: 'US' } as SpeechSynthesisVoice;
+    const synth = { getVoices: () => [local], speak: (u: Utterance) => void spoken.push(u), cancel: () => undefined };
+    const { env } = localVoice({
+      getUserMedia: null,
+      synth: synth as unknown as SpeechSynthesis,
+      Utterance: Utterance as unknown as VoiceEnv['Utterance'],
+    });
+    const { mounted } = setup(answering(toCalendar), { voiceEnv: env });
+    const asking = mounted.ask('hi');
+    await settle(0);
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0]!.text).toBe('Hi! How can I help? Tell me what you want to do, in your own words, and I’ll take you there.');
+    spoken[0]!.onend!();
+    await settle(0);
+    await asking;
   });
 });
 
@@ -972,7 +1386,7 @@ describe('the conversation is a chat', () => {
     const all = messages(thread);
     expect(all.length).toBeLessThanOrEqual(60);
     expect(all[0]!.textContent).toBe('Ready when you are.');
-    expect(all[all.length - 1]!.textContent).toContain('Which of these do you mean?');
+    expect(all[all.length - 1]!.textContent).toContain('Two places could help with that:');
     expect(all[all.length - 2]!.textContent).toBe('question 44');
   });
 
@@ -980,6 +1394,112 @@ describe('the conversation is a chat', () => {
     const { screen, byClass } = setup(answering({}));
     expect(screen.getAttribute('aria-labelledby')).toBe('nextgen-greeting');
     expect(byClass('greeting').id).toBe('nextgen-greeting');
+  });
+});
+
+describe('chat extras — start over, copy, recall', () => {
+  const messages = (thread: FakeElement): FakeElement[] => thread.children.filter((el) => /(^|\s)msg(\s|$)/.test(String(el.className)));
+  const withClipboard = (writeText: (text: string) => Promise<void>) => (doc: FakeDocument) => {
+    (doc.defaultView as unknown as { navigator: unknown }).navigator = { clipboard: { writeText } };
+  };
+  const answer = async (mounted: { ask: (q: string) => Promise<unknown> }, question: string) => {
+    const done = mounted.ask(question);
+    await settle(2000);
+    await done;
+  };
+
+  it('offers to start over only once there is something to start over from', async () => {
+    const { mounted, byClass } = setup(answering(clarifying));
+    const restart = byClass('restart');
+    expect(restart.hidden).toBe(true);
+    await answer(mounted, 'games');
+    expect(restart.hidden).toBe(false);
+  });
+
+  it('starts over: the greeting again, the landing page again, and the composer ready', async () => {
+    const { mounted, thread, screen, byClass, all, input, doc } = setup(answering(clarifying));
+    await answer(mounted, 'games');
+    expect(messages(thread)).toHaveLength(3);
+    byClass('restart').fire('click');
+    await settle(10);
+    expect(messages(thread).map((m) => m.textContent)).toEqual(['Ready when you are.']);
+    expect(screen.dataset.conversation).toBe('false');
+    expect(byClass('restart').hidden).toBe(true);
+    expect(all('chip')).toHaveLength(0);
+    expect(doc.activeElement).toBe(input);
+  });
+
+  it('does not let an answer that was still being worked out arrive into the fresh conversation', async () => {
+    let resolve!: (turn: TurnTrace) => void;
+    const slow: Routable = { registry, route: () => new Promise<TurnTrace>((r) => (resolve = r)) };
+    const { mounted, thread, byClass, all } = setup(slow);
+    const done = mounted.ask('games');
+    await settle(10);
+    byClass('restart').fire('click');
+    resolve(trace(clarifying));
+    await settle(3000);
+    await done;
+    expect(messages(thread)).toHaveLength(1);
+    expect(all('typing')).toHaveLength(0);
+    expect(all('chip')).toHaveLength(0);
+  });
+
+  it('copies an answer as plain text, says so, and stops saying so', async () => {
+    const copied: string[] = [];
+    const { mounted, all, caption } = setup(answering(clarifying), {}, { page: withClipboard(async (text) => void copied.push(text)) });
+    await answer(mounted, 'games');
+    all('copy')[0]!.fire('click');
+    await settle(10);
+    expect(copied).toHaveLength(1);
+    expect(copied[0]).toContain('Two places could help with that:');
+    expect(copied[0]).toContain('Calendar');
+    expect(copied[0]).toContain('/calendar');
+    expect(caption.textContent).toBe('Copied');
+    await settle(2500);
+    expect(caption.textContent).toBe('');
+  });
+
+  it('says so when the browser will not let it copy, rather than pretending it did', async () => {
+    const { mounted, all, caption } = setup(answering(clarifying), {}, { page: withClipboard(() => Promise.reject(new Error('denied'))) });
+    await answer(mounted, 'games');
+    all('copy')[0]!.fire('click');
+    await settle(10);
+    expect(caption.textContent).toBe('Could not copy');
+  });
+
+  it('offers no copy where the browser has no clipboard to offer', async () => {
+    const { mounted, all } = setup(answering(clarifying));
+    await answer(mounted, 'games');
+    expect(all('copy')).toHaveLength(0);
+  });
+
+  it('keeps "Why?" and Copy together in one quiet row under the answer', async () => {
+    const { mounted, all } = setup(answering(clarifying), {}, { page: withClipboard(async () => undefined) });
+    await answer(mounted, 'games');
+    const tools = all('msg-tools');
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.findAll((el) => /(^|\s)copy(\s|$)/.test(String(el.className)))).toHaveLength(1);
+    expect(tools[0]!.findAll((el) => /(^|\s)why(\s|$)/.test(String(el.className)))).toHaveLength(1);
+  });
+
+  it('recalls what was asked with the arrow keys, as any chat does — and never over what is being typed', async () => {
+    const { mounted, input } = setup(answering(clarifying, clarifying));
+    await answer(mounted, 'first question');
+    await answer(mounted, 'second question');
+    expect(input.value).toBe('');
+    expect(input.fire('keydown', { key: 'ArrowUp' }).defaultPrevented).toBe(true);
+    expect(input.value).toBe('second question');
+    input.fire('keydown', { key: 'ArrowUp' });
+    expect(input.value).toBe('first question');
+    input.fire('keydown', { key: 'ArrowUp' });
+    expect(input.value).toBe('first question');
+    input.fire('keydown', { key: 'ArrowDown' });
+    expect(input.value).toBe('second question');
+    input.fire('keydown', { key: 'ArrowDown' });
+    expect(input.value).toBe('');
+    input.value = 'half a thought';
+    expect(input.fire('keydown', { key: 'ArrowUp' }).defaultPrevented).toBe(false);
+    expect(input.value).toBe('half a thought');
   });
 });
 

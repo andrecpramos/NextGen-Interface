@@ -3,13 +3,18 @@
 // The liquid (liquid.ts) is the orb's body; this is what is going on inside it. Nine
 // hand-tuned motions ship in the engine — a scan meridian sweeping a globe, a waveform
 // rolling through rings, a slowly morphing ring — and the orb's five states each take
-// one, so a state always looks like what it is:
+// a *look* of one, so a state always looks like what it is:
 //
-//   idle       a ring, slowly morphing     — breathing
+//   idle       the globe, whole and evenly lit, turning quietly — no scan across it
 //   listening  a waveform through the rings — the microphone's own motion
-//   thinking   a globe with a scan across it — looking for the right screen
+//   thinking   the same globe with a scan across it — looking for the right screen
 //   speaking   an undulating sash           — composing an answer
-//   error      the idle ring                — an error rests; it does not perform
+//   error      the resting globe            — an error rests; it does not perform
+//
+// A look is an engine motion plus a tempo and option overrides, because idle and thinking are
+// one geometry: what tells them apart is the scan and the pace, which is what makes a change
+// of state read as the same thing waking up rather than one thing replaced by another. (Idle was
+// the engine's slow morphing ring until 2026-09-21; the owner asked for a complete sphere.)
 //
 // Only `thinking-orbs/engine` is imported: pure geometry, no React, no DOM, ~19KB of it.
 // It hands back finished dots (position, radius, depth); the painting is ours, because
@@ -20,16 +25,36 @@
 // A change of state crossfades over about half a second. Under reduced motion nobody
 // calls `step`, so the sphere is one still frame — the moment the library itself picks.
 
-import { MODE_FRAMES, resolvePreset, type OrbState } from 'thinking-orbs/engine';
+import { MODE_FRAMES, resolvePreset, type ModeOpts, type OrbState as Motion } from 'thinking-orbs/engine';
 
 import type { LiquidState, Rgb } from './liquid.ts';
 
-export const MIND_FOR: Readonly<Record<LiquidState, OrbState>> = {
-  idle: 'breathing',
+export type LookId = 'resting' | 'searching' | 'listening' | 'composing';
+
+export interface Look {
+  /** Which of the engine's nine motions. */
+  readonly motion: Motion;
+  /** A multiple of the motion's own tuned pace. */
+  readonly tempo: number;
+  /** Engine options laid over the tuned ones. */
+  readonly opts?: ModeOpts;
+}
+
+export const LOOKS: Readonly<Record<LookId, Look>> = {
+  // The globe with its scan taken out: `dimBase: 1` stops un-scanned dots being faded so a meridian
+  // can read, `rBoost: 0` stops the dots under it swelling. What is left is the whole sphere.
+  resting: { motion: 'searching', tempo: 0.32, opts: { dimBase: 1, rBoost: 0 } },
+  searching: { motion: 'searching', tempo: 1 },
+  listening: { motion: 'listening', tempo: 1 },
+  composing: { motion: 'composing', tempo: 1 },
+};
+
+export const MIND_FOR: Readonly<Record<LiquidState, LookId>> = {
+  idle: 'resting',
   listening: 'listening',
   thinking: 'searching',
   speaking: 'composing',
-  error: 'breathing',
+  error: 'resting',
 };
 
 /** Every motion is authored in this square, at the size the library tunes its presets for. */
@@ -48,7 +73,7 @@ const SWELL = 0.07;
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
 
 interface Layer {
-  readonly orb: OrbState;
+  readonly look: LookId;
   weight: number;
 }
 
@@ -60,8 +85,8 @@ export interface Mind {
   paint(ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, ink: Rgb, light: boolean, level: number): void;
   /** Finish any crossfade at once, without moving the motion on — for a page that asked for none. */
   settle(): void;
-  /** The motions currently drawn, oldest first — more than one while a change of state fades. */
-  showing(): readonly OrbState[];
+  /** The looks currently drawn, oldest first — more than one while a change of state fades. */
+  showing(): readonly LookId[];
 }
 
 /** `from` moved `k` of the way to `to`, as a colour. */
@@ -74,16 +99,16 @@ const WHITE: Rgb = [255, 255, 255];
 const BLACK: Rgb = [0, 0, 0];
 
 export function createMind(): Mind {
-  const layers: Layer[] = [{ orb: MIND_FOR.idle, weight: 1 }];
+  const layers: Layer[] = [{ look: MIND_FOR.idle, weight: 1 }];
   let time = STILL;
 
   return {
     setState(state) {
-      const orb = MIND_FOR[state];
-      if (layers[layers.length - 1]!.orb === orb) return;
-      // A motion asked for again while it is still fading out comes back from where it was.
-      const at = layers.findIndex((layer) => layer.orb === orb);
-      layers.push(at >= 0 ? layers.splice(at, 1)[0]! : { orb, weight: 0 });
+      const look = MIND_FOR[state];
+      if (layers[layers.length - 1]!.look === look) return;
+      // A look asked for again while it is still fading out comes back from where it was.
+      const at = layers.findIndex((layer) => layer.look === look);
+      layers.push(at >= 0 ? layers.splice(at, 1)[0]! : { look, weight: 0 });
     },
 
     step(dt, level) {
@@ -102,8 +127,9 @@ export function createMind(): Mind {
       const toward = light ? BLACK : WHITE;
       for (const layer of layers) {
         if (layer.weight < 0.02) continue;
-        const { mode, speed, opts } = resolvePreset(layer.orb, FRAME);
-        const frame = MODE_FRAMES[mode](FRAME, time * speed, opts);
+        const look = LOOKS[layer.look];
+        const { mode, speed, opts } = resolvePreset(look.motion, FRAME);
+        const frame = MODE_FRAMES[mode](FRAME, time * speed * look.tempo, look.opts ? { ...opts, ...look.opts } : opts);
         // `white` is the ink of the library's paper theme: 0 is nearest and darkest. Near
         // is what we want strongest, on a light page and a dark one alike.
         const strength = (white: number, a: number | undefined): [number, number] => {
@@ -136,7 +162,7 @@ export function createMind(): Mind {
     },
 
     showing() {
-      return layers.map((layer) => layer.orb);
+      return layers.map((layer) => layer.look);
     },
   };
 }

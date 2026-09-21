@@ -186,6 +186,68 @@ describe('themeVariables', () => {
     expect(shaped['--ng-field-radius']).toBe('4px');
   });
 
+  // The signature look: glass, metal, light. Every value is derived from the page's own scheme and accent, so
+  // it looks like part of their application and not like ours laid over it.
+  describe('the glass, metal and light of the signature look', () => {
+    const alpha = (value: string | undefined): number => {
+      const match = /\/\s*([\d.]+)\)/.exec(value ?? '');
+      return match ? Number(match[1]) : 1;
+    };
+    const channels = (value: string | undefined): number[] => (/rgb\((\d+) (\d+) (\d+)/.exec(value ?? '') ?? []).slice(1, 4).map(Number);
+    const lightness = (value: string | undefined): number => channels(value).reduce((a, b) => a + b, 0) / 3;
+    const amber = { ...GRAPHITE, accent: [224, 160, 74, 1] as const, accentText: [224, 160, 74, 1] as const, onAccent: [30, 20, 5, 1] as const };
+
+    it('gives translucent surfaces, so the aurora and the page can be seen through them', () => {
+      const vars = themeVariables(GRAPHITE);
+      expect(alpha(vars['--ng-glass'])).toBeLessThan(0.8);
+      expect(alpha(vars['--ng-glass'])).toBeGreaterThan(0.3);
+      // The strong one is for what must stay legible: it is still glass, but mostly there.
+      expect(alpha(vars['--ng-glass-strong'])).toBeGreaterThan(alpha(vars['--ng-glass']));
+      expect(alpha(vars['--ng-glass-strong'])).toBeLessThan(1);
+    });
+
+    it('lights the top-left edge and leaves the bottom-right dim, in a dark page and in a light one', () => {
+      const light = { ...GRAPHITE, scheme: 'light' as const, background: [255, 255, 255, 1] as const, raised: [255, 255, 255, 1] as const };
+      for (const vars of [themeVariables(GRAPHITE), themeVariables(light)]) {
+        expect(alpha(vars['--ng-edge-hi'])).toBeGreaterThan(alpha(vars['--ng-edge-lo']));
+        expect(vars['--ng-inner']).toBeTruthy();
+      }
+    });
+
+    it('is white glass with soft depth on a light page — the light half of the look', () => {
+      const light = { ...GRAPHITE, scheme: 'light' as const, background: [246, 247, 249, 1] as const, raised: [255, 255, 255, 1] as const };
+      const dark = themeVariables(GRAPHITE);
+      const bright = themeVariables(light);
+      expect(lightness(bright['--ng-glass'])).toBeGreaterThan(200);
+      expect(lightness(dark['--ng-glass'])).toBeLessThan(100);
+      expect(lightness(bright['--ng-edge-hi'])).toBeGreaterThan(240);
+      expect(bright['--ng-glass']).not.toBe(dark['--ng-glass']);
+    });
+
+    it('makes the metal from the page’s accent: lighter at the top, darker at the bottom, the same hue', () => {
+      const vars = themeVariables(amber);
+      const [r, g, b] = channels(vars['--ng-accent']);
+      expect(lightness(vars['--ng-metal-hi'])).toBeGreaterThan(lightness(vars['--ng-accent']));
+      expect(lightness(vars['--ng-metal-lo'])).toBeLessThan(lightness(vars['--ng-accent']));
+      // Amber stays amber: red strongest, blue weakest, in the lit and in the shaded end alike.
+      for (const end of ['--ng-metal-hi', '--ng-metal-lo']) {
+        const [er = 0, eg = 0, eb = 0] = channels(vars[end]);
+        expect(er).toBeGreaterThanOrEqual(eg);
+        expect(eg).toBeGreaterThanOrEqual(eb);
+      }
+      expect([r, g, b]).toEqual([224, 160, 74]);
+    });
+
+    it('throws light in the page’s accent and never in ours', () => {
+      const vars = themeVariables(amber);
+      for (const name of ['--ng-glow', '--ng-aurora-1', '--ng-aurora-2']) {
+        expect(vars[name]).toMatch(/22\d[, ]+1\d\d[, ]+\d\d/);
+        expect(alpha(vars[name])).toBeLessThan(0.7);
+      }
+      expect(JSON.stringify(vars)).not.toContain('121 192 206');
+    });
+  });
+
   it('gives the accent as a soft fill and as a line, both in the page’s accent and not ours', () => {
     const amber = { ...GRAPHITE, accent: [224, 160, 74, 1] as const };
     const vars = themeVariables(amber);

@@ -28,12 +28,14 @@ import type { GuidedStep } from '@nextgen/core-capability';
 import type { TurnTrace } from '@nextgen/core-intent/browser';
 
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
+import { ACCEPT, checkAttachment, kindOf, LIMITS, offerFiles, safeName, sizeText, thumbnail, type Rejection } from './attach.ts';
+import { smalltalkFor } from './chat.ts';
 import { commandFor, type Command } from './commands.ts';
 import { BEAM_CSS, beamVariables, createBeam } from './beam.ts';
 import { chooseDockSide, type DockSide } from './dock.ts';
 import { createLiquid } from './liquid.ts';
 import { adopterNav, type NavLink, type NavRoot } from './nav.ts';
-import { fillParams, isSamePlace, present, suggestionsFor, wordsFor, type Choice, type View, type Words } from './present.ts';
+import { attachmentView, fillParams, gist, isSamePlace, present, smalltalkView, suggestionsFor, wordsFor, type Choice, type ParamHints, type View, type Words } from './present.ts';
 import { css, GRAPHITE, pageThemeSource, readTheme, themeVariables, type Theme } from './theme.ts';
 import {
   converse,
@@ -65,6 +67,12 @@ export interface AssistantOptions extends MountOptions {
   readonly preferences?: Store | null;
   /** Offer voice at all. Default `true`; it only appears where the browser supports it. */
   readonly voice?: boolean;
+  /**
+   * Offer to attach a photo or a file. Default `true`. What is attached never leaves the visitor's
+   * device: it goes to the page as a `nextgen:attach` event, and to nothing else. An app with nowhere
+   * to send a file should say `false`, so it does not offer one.
+   */
+  readonly attach?: boolean;
   /** The browser's voice APIs. A seam for tests; the default reads them from the page. */
   readonly voiceEnv?: VoiceEnv | null;
 }
@@ -116,13 +124,26 @@ const CSS = `
   transition: opacity 380ms cubic-bezier(.32,.72,0,1), visibility 0s linear 380ms;
 }
 .screen[data-open="true"] { opacity: 1; visibility: visible; transition-delay: 0s; }
+/* The page behind the glass. Opaque underneath — on the landing route this screen is the page — with the
+   host's accent lit softly through it: glass over a flat colour is only a grey rectangle. */
 .backdrop {
   position: absolute; inset: 0;
-  background: var(--ng-backdrop, rgb(8 9 12));
+  background:
+    radial-gradient(70% 52% at 50% 6%, var(--ng-aurora-1, rgb(121 192 206 / .2)), transparent 72%),
+    radial-gradient(48% 42% at 96% 98%, var(--ng-aurora-2, rgb(121 192 206 / .1)), transparent 70%),
+    radial-gradient(44% 38% at 2% 72%, var(--ng-aurora-2, rgb(121 192 206 / .1)), transparent 70%),
+    var(--ng-backdrop, rgb(8 9 12));
   -webkit-backdrop-filter: blur(18px) saturate(115%);
   backdrop-filter: blur(18px) saturate(115%);
 }
 .controls { position: absolute; top: 16px; z-index: 2; display: flex; gap: 4px; }
+/* The corner controls: small glass discs, so they stay findable over whatever the aurora is doing. */
+.controls .icon {
+  background: var(--ng-glass, rgb(23 27 33 / .56));
+  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 8px 20px -12px var(--ng-shadow, rgb(0 0 0 / .6));
+}
+.controls .icon:hover { background: var(--ng-glass-strong, rgb(23 27 33 / .82)); }
 .controls-start { left: 16px; }
 .controls-end { right: 16px; }
 
@@ -132,7 +153,7 @@ const CSS = `
 .stage {
   position: relative; height: 100%; min-height: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 18px; padding: 72px 16px 28px;
+  gap: 18px; padding: 72px 16px calc(28px + env(safe-area-inset-bottom, 0px));
 }
 .screen[data-conversation="true"] .stage { justify-content: flex-start; gap: 8px; padding-top: 58px; }
 .stage > :not(.slot) {
@@ -146,13 +167,13 @@ const CSS = `
 .slot { flex: none; width: min(200px, 46vw, 26vh); aspect-ratio: 1; }
 .screen[data-conversation="true"] .slot { width: 60px; }
 .caption {
-  margin: -10px 0 0; min-height: 1rem; max-width: 36rem; text-align: center;
+  margin: 6px 0 0; min-height: 1rem; max-width: 36rem; text-align: center;
   font-size: .6875rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ng-muted, #7a838f);
 }
 .screen[data-conversation="true"] .caption { margin: -4px 0 0; }
 
 .thread {
-  width: min(720px, 100%); display: flex; flex-direction: column; gap: 10px;
+  width: min(720px, 100%); display: flex; flex-direction: column; gap: 6px;
   overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth;
 }
 .screen[data-conversation="true"] .thread {
@@ -162,20 +183,27 @@ const CSS = `
 }
 .msg { display: flex; min-width: 0; animation: nextgen-rise 320ms cubic-bezier(.22,1,.36,1) both; }
 @keyframes nextgen-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.msg.user { justify-content: flex-end; }
+/* A turn is a question and its answer: close together, with more air before the next one. */
+.msg.user { justify-content: flex-end; margin-top: 16px; }
+.msg.intro + .msg.user { margin-top: 8px; }
 .msg-body { min-width: 0; max-width: min(88%, 36rem); padding: 11px 16px; border-radius: 20px; overflow-wrap: anywhere; }
+/* Messages are lit glass, not blurred glass: dozens of them scrolling, each with its own backdrop filter,
+   would stutter a phone, and over a smooth aurora a blur would add nothing anyway. */
 .msg.user .msg-body {
-  background: var(--ng-accent-soft, rgb(121 192 206 / .16)); color: var(--ng-text, #e6e9ee); border-bottom-right-radius: 6px;
+  background: linear-gradient(150deg, var(--ng-accent-line, rgb(121 192 206 / .34)), var(--ng-accent-soft, rgb(121 192 206 / .16)));
+  color: var(--ng-text, #e6e9ee); border-bottom-right-radius: 6px;
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset 0 0 0 1px var(--ng-accent-soft, rgb(121 192 206 / .16)), 0 10px 24px -16px var(--ng-glow, rgb(121 192 206 / .5));
 }
 .msg.assistant .msg-body {
-  background: var(--ng-surface, #171b21); border: 1px solid var(--ng-border, rgb(255 255 255 / .09)); border-bottom-left-radius: 6px;
+  background: var(--ng-glass, rgb(23 27 33 / .56)); border-bottom-left-radius: 6px;
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 14px 32px -20px var(--ng-shadow, rgb(0 0 0 / .6));
 }
 .msg-text { margin: 0; }
 
 .greeting { margin: 0; font-size: .9375rem; font-weight: 500; }
 .msg.intro { justify-content: center; }
 .screen[data-conversation="true"] .msg.intro { justify-content: flex-start; }
-.screen[data-conversation="false"] .msg.intro .msg-body { background: none; border: 0; padding: 0; max-width: none; text-align: center; }
+.screen[data-conversation="false"] .msg.intro .msg-body { background: none; border: 0; box-shadow: none; padding: 0; max-width: none; text-align: center; }
 .screen[data-conversation="false"] .greeting { font-size: clamp(1.375rem, 1.05rem + 1.1vw, 1.875rem); letter-spacing: -.015em; }
 
 .typing .msg-body { padding: 15px 18px; }
@@ -201,24 +229,41 @@ const CSS = `
 .chip.lead {
   flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; min-height: 0;
   margin: 12px 0 0; padding: 12px 14px; border-radius: 14px;
-  background: var(--ng-accent-soft, rgb(121 192 206 / .16)); box-shadow: inset 0 0 0 1px var(--ng-accent-line, rgb(121 192 206 / .28));
+  background: linear-gradient(155deg, var(--ng-accent-line, rgb(121 192 206 / .28)), var(--ng-accent-soft, rgb(121 192 206 / .16)) 58%);
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset 0 0 0 1px var(--ng-accent-line, rgb(121 192 206 / .28)), 0 10px 26px -16px var(--ng-glow, rgb(121 192 206 / .5));
   transition: box-shadow 160ms ease, background-color 160ms ease;
 }
 .chip.lead::after { content: none; }
-.chip.lead:hover { background: var(--ng-accent-soft, rgb(121 192 206 / .16)); box-shadow: inset 0 0 0 1px var(--ng-accent, #79c0ce); }
+.chip.lead:hover { box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset 0 0 0 1px var(--ng-accent, #79c0ce), 0 12px 30px -14px var(--ng-glow, rgb(121 192 206 / .5)); }
 .lead-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
 .lead-label::after { content: "→"; content: "→" / ""; transition: transform 180ms ease; }
 .chip.lead:hover .lead-label::after { transform: translateX(3px); }
 .lead-detail { font-size: .8125rem; font-weight: 400; color: var(--ng-muted, #9aa3af); }
+/* Any other place that says what it is for: the same two lines, quieter. */
+.chip.card {
+  flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; min-height: 0; padding: 10px 12px;
+  box-shadow: inset 1px 1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04));
+}
+.chip.card:hover { box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)); }
+.chip.card::after { content: none; }
+.chip.card:hover .lead-label::after { transform: translateX(3px); }
 .or { margin: 14px 0 0; font-size: .75rem; letter-spacing: .02em; color: var(--ng-muted, #7a838f); }
 .or + .chips { margin-top: 2px; padding-top: 0; border-top: 0; }
+/* After a guess: the way out is to say more. */
+.hint { margin: 14px 0 0; font-size: .75rem; color: var(--ng-muted, #7a838f); }
 
-.why { margin: 8px -8px -6px; color: var(--ng-muted, #9aa3af); font-size: .8125rem; }
+/* What can be done with an answer: copy it, see why it was given. One quiet row, not a row each. */
+.msg-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px; margin: 6px -10px -8px; }
+.copy { order: 0; }
+.why { order: 1; flex: 0 1 auto; margin: 0; color: var(--ng-muted, #9aa3af); font-size: .8125rem; }
+.why[open] { flex-basis: 100%; }
 .why > :not(summary) { text-align: left; }
-.why summary {
-  display: inline-flex; align-items: center; min-height: 48px; padding: 0 12px; border-radius: 12px;
-  color: var(--ng-muted, #9aa3af); cursor: pointer; list-style: none; transition: background-color 160ms ease, color 160ms ease;
+.tool, .why summary {
+  display: inline-flex; align-items: center; min-height: 44px; margin: 0; padding: 0 12px; border: 0; border-radius: 12px; background: transparent;
+  color: var(--ng-muted, #9aa3af); font: inherit; font-size: .75rem; cursor: pointer; list-style: none;
+  transition: background-color 160ms ease, color 160ms ease;
 }
+.tool:hover { color: var(--ng-text, #e6e9ee); background: var(--ng-hover, rgb(255 255 255 / .06)); }
 .why summary::-webkit-details-marker { display: none; }
 .why summary:hover, .why[open] summary { color: var(--ng-text, #e6e9ee); background: var(--ng-hover, rgb(255 255 255 / .045)); }
 .why-how { margin: 6px 16px 12px; }
@@ -234,17 +279,62 @@ const CSS = `
 
 .composer {
   width: min(720px, 100%); display: flex; align-items: center; gap: 2px; margin: 6px 0 0;
-  padding: 4px 4px 4px 22px; border-radius: var(--ng-field-radius, 999px);
-  background: var(--ng-field, #1a1e24); border: 1px solid var(--ng-border, rgb(255 255 255 / .08));
-  box-shadow: 0 28px 70px -24px var(--ng-shadow, rgb(0 0 0 / .8));
-  transition: border-color 200ms ease;
+  padding: 4px; border-radius: var(--ng-field-radius, 999px);
+  background: var(--ng-glass-strong, rgb(26 30 36 / .82));
+  -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 28px 70px -24px var(--ng-shadow, rgb(0 0 0 / .8));
+  transition: box-shadow 200ms ease;
 }
-.composer:focus-within { border-color: var(--ng-accent, #79c0ce); }
+.composer:focus-within {
+  box-shadow: inset 0 0 0 1px var(--ng-accent, #79c0ce), 0 0 0 4px var(--ng-accent-soft, rgb(121 192 206 / .16)), 0 28px 70px -24px var(--ng-shadow, rgb(0 0 0 / .8));
+}
 .composer input {
-  flex: 1; min-width: 0; min-height: 48px; margin: 0; padding: 0; border: 0; outline: 0;
+  flex: 1; min-width: 0; min-height: 48px; margin: 0; padding: 0 8px 0 12px; border: 0; outline: 0;
   background: transparent; color: var(--ng-text, #e6e9ee); font: inherit; font-size: 1rem;
 }
 .composer input::placeholder { color: var(--ng-muted, #7a838f); }
+
+/* What is waiting to be sent, above the box: small glass chips, each with its own way out. */
+.tray {
+  list-style: none; margin: 0; padding: 2px; width: min(720px, 100%);
+  display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: none;
+}
+.tray::-webkit-scrollbar { display: none; }
+.attach-item {
+  flex: none; display: flex; align-items: center; gap: 10px; max-width: 250px; padding: 6px 2px 6px 6px; border-radius: 18px;
+  background: var(--ng-glass-strong, rgb(23 27 33 / .82));
+  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 10px 24px -14px var(--ng-shadow, rgb(0 0 0 / .6));
+  animation: nextgen-rise 260ms cubic-bezier(.22,1,.36,1) both;
+}
+.attach-thumb {
+  flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; overflow: hidden;
+  background: var(--ng-hover, rgb(255 255 255 / .06)); color: var(--ng-muted, #9aa3af);
+}
+.attach-canvas, .msg-file canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+.attach-icon { display: grid; place-items: center; gap: 1px; }
+.attach-ext { font-size: .5625rem; font-weight: 700; letter-spacing: .06em; line-height: 1; }
+.attach-meta { display: grid; min-width: 0; gap: 1px; }
+.attach-name { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; font-weight: 500; }
+.attach-size { font-size: .6875rem; color: var(--ng-muted, #7a838f); }
+.attach-x {
+  flex: none; display: grid; place-items: center; min-width: 44px; min-height: 44px; margin: -6px 0; padding: 0; border: 0;
+  background: transparent; color: var(--ng-muted, #9aa3af); font: inherit; cursor: pointer;
+}
+.attach-x .glyph { width: 24px; height: 24px; border-radius: 50%; background: var(--ng-hover, rgb(255 255 255 / .08)); }
+.attach-x:hover { color: var(--ng-text, #e6e9ee); }
+/* …and in the visitor's own message, once sent. */
+.msg-files { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.msg-file { display: flex; align-items: center; gap: 8px; }
+.msg-file[data-kind="image"] canvas {
+  width: 72px; height: 72px; border-radius: 14px;
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), 0 8px 20px -12px var(--ng-shadow, rgb(0 0 0 / .6));
+}
+.msg-file .attach-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--ng-hover, rgb(255 255 255 / .08)); }
+.msg-file-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; }
+/* A file being dragged over: the whole screen says it will take it. */
+.screen[data-dropping="true"] .stage { outline: 2px dashed var(--ng-accent, #79c0ce); outline-offset: -10px; border-radius: 28px; }
+.hint.note { margin-top: 10px; }
 ${BEAM_CSS}
 .icon {
   display: inline-grid; place-items: center; flex: none; min-width: 48px; min-height: 48px; margin: 0; padding: 0;
@@ -254,11 +344,24 @@ ${BEAM_CSS}
 .icon:hover { background: var(--ng-hover, rgb(255 255 255 / .06)); color: var(--ng-text, #e6e9ee); }
 .glyph { position: relative; display: grid; place-items: center; pointer-events: none; }
 .glyph svg { display: block; }
+/* The primary actions are metal: the host's accent, lit from above and shaded below, in a bright-edged rim
+   — and a sweep of light across it when it is reached for. */
 .send .glyph,
-.mic[aria-pressed="true"] .glyph {
-  width: 38px; height: 38px; border-radius: var(--ng-radius, 999px);
-  background: var(--ng-accent, #79c0ce); color: var(--ng-on-accent, #07171b);
+.mic[aria-pressed="true"] .glyph,
+.pill.primary {
+  color: var(--ng-on-accent, #07171b); border: 1px solid transparent; overflow: hidden;
+  background:
+    linear-gradient(165deg, var(--ng-metal-hi, #a9d8e2), var(--ng-accent, #79c0ce) 48%, var(--ng-metal-lo, #52858f)) padding-box,
+    conic-gradient(from 200deg, rgb(255 255 255 / .85), rgb(255 255 255 / .1) 22%, var(--ng-metal-hi, #a9d8e2) 42%, rgb(255 255 255 / .06) 60%, var(--ng-metal-lo, #52858f) 78%, rgb(255 255 255 / .8)) border-box;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 -1px 1px rgb(0 0 0 / .25), 0 8px 18px -8px var(--ng-glow, rgb(121 192 206 / .5));
 }
+.send .glyph, .mic[aria-pressed="true"] .glyph { width: 38px; height: 38px; border-radius: var(--ng-radius, 999px); }
+.send .glyph::before, .mic[aria-pressed="true"] .glyph::before, .pill.primary::before {
+  content: ''; position: absolute; inset: -1px; pointer-events: none;
+  background: linear-gradient(115deg, transparent 32%, rgb(255 255 255 / .45) 50%, transparent 68%);
+  transform: translateX(-125%); transition: transform 720ms cubic-bezier(.22,1,.36,1);
+}
+.send:hover .glyph::before, .mic[aria-pressed="true"]:hover .glyph::before, .pill.primary:hover::before { transform: translateX(125%); }
 .send:hover, .mic[aria-pressed="true"]:hover { background: transparent; }
 .sound[aria-pressed="false"] .glyph::after {
   content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 2px; margin: -1px 0 0 -12px;
@@ -275,9 +378,9 @@ ${BEAM_CSS}
 .drawer {
   position: absolute; top: 0; bottom: 0; left: 0; z-index: 4; width: min(320px, 86vw);
   display: flex; flex-direction: column;
-  background: var(--ng-raised, #171b21); color: var(--ng-text, #e6e9ee);
-  border-right: 1px solid var(--ng-border, rgb(255 255 255 / .1));
-  box-shadow: 24px 0 60px -30px var(--ng-shadow, rgb(0 0 0 / .7));
+  background: var(--ng-glass-strong, rgb(23 27 33 / .82)); color: var(--ng-text, #e6e9ee);
+  -webkit-backdrop-filter: blur(26px) saturate(160%); backdrop-filter: blur(26px) saturate(160%);
+  box-shadow: inset -1px 0 0 var(--ng-edge-lo, rgb(255 255 255 / .06)), inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), 24px 0 60px -30px var(--ng-shadow, rgb(0 0 0 / .7));
   transform: translateX(-100%); visibility: hidden;
   transition: transform 320ms cubic-bezier(.22,1,.36,1), visibility 0s linear 320ms;
 }
@@ -312,8 +415,9 @@ ${BEAM_CSS}
 
 .bubble, .guide {
   position: fixed; z-index: 2147483001; margin: 0;
-  background: var(--ng-raised, #171b21); color: var(--ng-text, #e6e9ee); border: 1px solid var(--ng-border, rgb(255 255 255 / .1));
-  box-shadow: 0 18px 44px -14px var(--ng-shadow, rgb(0 0 0 / .65));
+  background: var(--ng-glass-strong, rgb(23 27 33 / .82)); color: var(--ng-text, #e6e9ee);
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 18px 44px -14px var(--ng-shadow, rgb(0 0 0 / .65));
   font: 500 14px/1.4 var(--ng-font, ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif);
 }
 .bubble {
@@ -333,12 +437,13 @@ ${BEAM_CSS}
 .guide-text { margin: 0 0 12px; font-weight: 400; }
 .guide-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .pill {
-  min-height: 48px; min-width: 48px; padding: 0 18px; border-radius: var(--ng-radius, 999px);
-  border: 1px solid var(--ng-border, rgb(255 255 255 / .12)); background: transparent; color: var(--ng-text, #e6e9ee);
+  position: relative; min-height: 48px; min-width: 48px; padding: 0 18px; border-radius: var(--ng-radius, 999px);
+  border: 0; background: var(--ng-glass, rgb(23 27 33 / .56)); color: var(--ng-text, #e6e9ee);
+  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04));
   font: inherit; cursor: pointer; transition: background-color 160ms ease;
 }
-.pill:hover { background: var(--ng-hover, rgb(255 255 255 / .06)); }
-.pill.primary { border-color: transparent; background: var(--ng-accent, #79c0ce); color: var(--ng-on-accent, #07171b); font-weight: 600; }
+.pill:hover { background: var(--ng-glass-strong, rgb(23 27 33 / .82)); }
+.pill.primary { font-weight: 600; }
 
 .ring {
   position: fixed; z-index: 2147482999; pointer-events: none;
@@ -350,11 +455,29 @@ ${BEAM_CSS}
 }
 .ring[data-show="true"] { opacity: 1; }
 
+/* Glass is only ever an enhancement: where the browser cannot blur, or the visitor has asked for no
+   transparency, every surface is the host's own solid raised colour, exactly as it was before. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .composer, .drawer, .bubble, .guide, .controls .icon, .pill, .msg.assistant .msg-body { background: var(--ng-raised, #171b21); }
+}
+/* A phone: four buttons and a box in one row must still be four 44px targets and a box you can type in. */
+@media (max-width: 480px) {
+  .composer { gap: 0; }
+  .composer .icon { min-width: 44px; min-height: 44px; }
+  .composer input { padding: 0 6px; }
+  .attach-name { max-width: 96px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .attach-item { background: var(--ng-raised, #171b21); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .composer, .drawer, .bubble, .guide, .controls .icon, .pill, .msg.assistant .msg-body { background: var(--ng-raised, #171b21); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .backdrop { background: var(--ng-backdrop, rgb(8 9 12)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 @media (forced-colors: active) {
   .backdrop { background: Canvas; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .composer, .msg-body, .bubble, .guide, .pill, .drawer { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
-  .chip { color: LinkText; }
-  .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary, .why-bar::after { background: Highlight; color: HighlightText; }
+  .composer, .msg-body, .bubble, .guide, .pill, .drawer, .controls .icon, .attach-item { background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .chip, .chip.lead, .chip.card { color: LinkText; box-shadow: none; }
+  .send .glyph::before, .mic .glyph::before, .pill.primary::before { display: none; }
+  .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary, .why-bar::after { background: Highlight; color: HighlightText; box-shadow: none; }
   .drawer-link[aria-current="page"] { background: Highlight; color: HighlightText; }
   .orb { border: 1px solid ButtonText; }
   .ring { border-color: Highlight; }
@@ -372,6 +495,11 @@ const ICON_MENU = svg('<path d="M4 7h16M4 12h16M4 17h16"/>');
 const ICON_CLOSE = svg('<path d="M6 6l12 12M18 6L6 18"/>');
 const ICON_MIC = svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>');
 const ICON_SEND = svg('<path d="M12 19V5M6 11l6-6 6 6"/>', 18);
+const ICON_ATTACH = svg('<path d="M20.5 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>');
+const ICON_CAMERA = svg('<path d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/>');
+const ICON_FILE = svg('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>', 22);
+const ICON_REMOVE = svg('<path d="M7 7l10 10M17 7L7 17"/>', 14);
+const ICON_RESTART = svg('<path d="M4 4v6h6"/><path d="M4.6 14a8 8 0 1 0 1.9-8.3L4 10"/>');
 const ICON_SOUND = svg('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>');
 
 function browserStore(view: Window | null, which: 'sessionStorage' | 'localStorage'): Store | null {
@@ -387,6 +515,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const view = doc.defaultView;
   const pageLang = options.lang ?? doc.documentElement?.getAttribute('lang');
   const words: Words = { ...wordsFor(pageLang), ...options.words };
+  // What the page knows that its URL may not say: the locale an i18n router prefixes routes with, for the
+  // pages of its default language (`localePrefix: 'as-needed'`). Only ever a fallback (fillParams).
+  const hints: ParamHints = { locale: pageLang ?? undefined };
   const lang = speechLang(pageLang);
   const currentPath = options.currentPath ?? (() => view?.location.pathname ?? '/');
   /**
@@ -489,7 +620,10 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const soundButton = iconButton('sound', words.readAloud, ICON_SOUND);
   soundButton.hidden = !canSpeak;
   const closeButton = iconButton('close', words.close, ICON_CLOSE);
-  endControls.append(soundButton, closeButton);
+  // Only once there is a conversation to start over from.
+  const restartButton = iconButton('restart', words.startOver, ICON_RESTART);
+  restartButton.hidden = true;
+  endControls.append(restartButton, soundButton, closeButton);
 
   const stage = make('div', 'stage');
   const slot = make('div', 'slot');
@@ -526,11 +660,38 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   mic.hidden = !canListen;
   const send = iconButton('send', words.submit, ICON_SEND);
   send.type = 'submit';
-  form.append(label, input, mic, send);
+  // A photo or a file, kept on the device (attach.ts). The camera is offered only where the device is
+  // touch-first: on a laptop the paperclip already opens a picker that can take a file from anywhere.
+  const attachButton = iconButton('attach', words.attach, ICON_ATTACH);
+  const cameraButton = iconButton('camera', words.attachCamera, ICON_CAMERA);
+  const canAttach = options.attach !== false;
+  const coarse = Boolean(view?.matchMedia?.('(pointer: coarse)').matches);
+  attachButton.hidden = !canAttach;
+  cameraButton.hidden = !canAttach || !coarse;
+  // The box shares its row with four buttons on a phone: ask in fewer words rather than be clipped.
+  if (coarse && canAttach) input.placeholder = words.composerShort;
+  const picker = (accept: string, className: string): HTMLInputElement => {
+    const control = make('input', className);
+    control.type = 'file';
+    control.accept = accept;
+    control.hidden = true;
+    control.tabIndex = -1;
+    control.setAttribute('aria-hidden', 'true');
+    return control;
+  };
+  const filePicker = picker(ACCEPT, 'file-picker');
+  filePicker.multiple = true;
+  const cameraPicker = picker('image/*', 'camera-picker');
+  cameraPicker.setAttribute('capture', 'environment');
+  form.append(label, attachButton, cameraButton, input, mic, send, filePicker, cameraPicker);
   const beam = createBeam(form, doc);
+  // What is waiting to be sent with the next message.
+  const tray = make('ul', 'tray');
+  tray.hidden = true;
+  tray.setAttribute('aria-label', words.attach);
 
   screen.dataset.conversation = 'false';
-  stage.append(slot, caption, thread, form);
+  stage.append(slot, caption, thread, tray, form);
 
   const scrim = make('div', 'scrim');
   scrim.setAttribute('aria-hidden', 'true');
@@ -709,7 +870,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     const here = currentPath();
     const path = route.replace(/[?#].*$/, '');
     return assistant.registry.capabilities.find(
-      (c) => c.kind !== 'unsupported' && fillParams(c.route, here, patterns) === path,
+      (c) => c.kind !== 'unsupported' && fillParams(c.route, here, patterns, hints) === path,
     );
   }
 
@@ -727,6 +888,21 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       const capability = capabilityAt(choice.route);
       void travel(choice.route, capability?.title ?? choice.label, capability?.id ?? null);
     });
+    return a;
+  }
+
+  /** A link that also says what is behind it, in the adopter's own words. Still an ordinary link. */
+  function card(choice: Choice, className: string, label: string = choice.label): HTMLAnchorElement {
+    const a = link(choice, className);
+    const name = make('span', 'lead-label');
+    name.textContent = label;
+    const parts: HTMLElement[] = [name];
+    if (choice.detail) {
+      const detail = make('span', 'lead-detail');
+      detail.textContent = choice.detail;
+      parts.push(detail);
+    }
+    a.replaceChildren(...parts);
     return a;
   }
 
@@ -816,10 +992,146 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     return message;
   }
 
-  function addVisitorMessage(text: string): void {
-    const p = make('p', 'msg-text');
-    p.textContent = text;
-    addMessage('user', '', [p]);
+  function addVisitorMessage(text: string, files: readonly Attached[] = []): void {
+    const nodes: HTMLElement[] = [];
+    if (files.length > 0) {
+      const row = make('ul', 'msg-files');
+      for (const entry of files) row.append(fileChip(entry));
+      nodes.push(row);
+    }
+    if (text) {
+      const p = make('p', 'msg-text');
+      p.textContent = text;
+      nodes.push(p);
+    }
+    addMessage('user', '', nodes);
+  }
+
+  // ------------------------------------------------------------ attachments --
+  //
+  // A photo or a file, kept on the device (attach.ts). Nothing here reaches the router, a trace or a
+  // model: `ask` sends the router the words and nothing else, and the files go to the page as an event.
+
+  interface Attached {
+    readonly file: File;
+    readonly item: HTMLLIElement;
+    /** The picture, once the browser has drawn it; the file's icon until then, and always for a document. */
+    thumb: HTMLCanvasElement | null;
+  }
+  let attached: Attached[] = [];
+
+  /** A line in the status region that goes away by itself. */
+  const notice = (message: string): void => {
+    setCaption(message);
+    later(() => {
+      if (caption.textContent === message) setCaption('');
+    }, 3200);
+  };
+
+  const rejection = (why: Rejection): string =>
+    why === 'too-many'
+      ? words.attachTooMany(LIMITS.files)
+      : why === 'too-large'
+        ? words.attachTooLarge(LIMITS.bytes / (1024 * 1024))
+        : why === 'empty'
+          ? words.attachEmpty
+          : words.attachUnsupported;
+
+  /** The icon a file has until — and unless — there is a picture of it. */
+  function fileGlyph(file: File): HTMLSpanElement {
+    const box = make('span', 'attach-icon');
+    box.setAttribute('aria-hidden', 'true');
+    box.append(glyph(ICON_FILE));
+    const dot = file.name.lastIndexOf('.');
+    const extension = dot > 0 ? file.name.slice(dot + 1, dot + 5).toUpperCase() : '';
+    if (extension) {
+      const label = make('span', 'attach-ext');
+      label.textContent = extension;
+      box.append(label);
+    }
+    return box;
+  }
+
+  /** A file as it appears in the visitor's own message: its picture or icon, and its name. */
+  function fileChip(entry: Attached): HTMLLIElement {
+    const chip = make('li', 'msg-file');
+    chip.dataset.kind = kindOf(entry.file);
+    const name = make('span', entry.thumb ? 'sr-only' : 'msg-file-name');
+    name.textContent = safeName(entry.file.name);
+    chip.append(entry.thumb ?? fileGlyph(entry.file), name);
+    return chip;
+  }
+
+  function reflectTray(): void {
+    tray.hidden = attached.length === 0;
+    screen.dataset.attaching = attached.length > 0 ? 'true' : 'false';
+  }
+
+  function dropAttached(entry: Attached): void {
+    attached = attached.filter((other) => other !== entry);
+    entry.item.remove();
+    reflectTray();
+    setCaption(attached.length > 0 ? words.attachedFiles(attached.length) : '');
+  }
+
+  function clearAttached(): void {
+    for (const entry of attached) entry.item.remove();
+    attached = [];
+    reflectTray();
+  }
+
+  function addToTray(file: File): Attached {
+    const shown = safeName(file.name);
+    const item = make('li', 'attach-item');
+    item.dataset.kind = kindOf(file);
+    const thumb = make('span', 'attach-thumb');
+    thumb.setAttribute('aria-hidden', 'true');
+    thumb.append(fileGlyph(file));
+    const name = make('span', 'attach-name');
+    name.textContent = shown;
+    const size = make('span', 'attach-size');
+    size.textContent = sizeText(file.size);
+    const meta = make('span', 'attach-meta');
+    meta.append(name, size);
+    const remove = make('button', 'attach-x');
+    remove.type = 'button';
+    const removeLabel = make('span', 'sr-only');
+    removeLabel.textContent = words.removeFile(shown);
+    remove.append(removeLabel, glyph(ICON_REMOVE));
+    item.append(thumb, meta, remove);
+    tray.append(item);
+
+    const entry: Attached = { file, item, thumb: null };
+    remove.addEventListener('click', () => dropAttached(entry));
+    if (view) {
+      void thumbnail(file, doc, view as Window & typeof globalThis).then((canvas) => {
+        // Taken back, or sent, before the picture was ready: nothing to draw it on.
+        if (!canvas || destroyed || !attached.includes(entry)) return;
+        canvas.className = 'attach-canvas';
+        entry.thumb = canvas;
+        thumb.replaceChildren(canvas);
+      });
+    }
+    return entry;
+  }
+
+  /** Chosen, pasted or dropped: every way in is judged by the same limits. */
+  function attachFiles(list: ArrayLike<File> | null | undefined): void {
+    if (!list || destroyed || !canAttach) return;
+    let added = 0;
+    let refused: Rejection | null = null;
+    for (const file of Array.from(list)) {
+      const why = checkAttachment(file, attached.length);
+      if (why) {
+        refused ??= why;
+        continue;
+      }
+      attached.push(addToTray(file));
+      added++;
+    }
+    reflectTray();
+    if (refused) notice(rejection(refused));
+    else if (added > 0) setCaption(words.attachedFiles(attached.length));
   }
 
   /** Three dots while it works out an answer. Decorative: the thread is `aria-busy` and the caption says so. */
@@ -852,16 +1164,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     // The likely one is offered as a card of its own — what it is, and what it is for — with the
     // rest introduced as alternatives. It is still an ordinary link: a tap takes it, nothing else does.
     if (shown.probable && first) {
-      const lead = link(first, 'chip lead');
-      const label = make('span', 'lead-label');
-      label.textContent = words.open(first.label);
-      const parts: HTMLElement[] = [label];
-      if (first.detail) {
-        const detail = make('span', 'lead-detail');
-        detail.textContent = first.detail;
-        parts.push(detail);
-      }
-      lead.replaceChildren(...parts);
+      const lead = card(first, 'chip lead', words.open(first.label));
       stops.push(lead);
       nodes.push(lead);
       if (rest.length > 0) {
@@ -870,23 +1173,115 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
         nodes.push(or);
       }
     }
-    const alternatives = (shown.probable ? rest : shown.choices).map((c) => link(c, 'chip'));
+    // A place that says what it is for is a card, so someone who has never seen the app can tell two
+    // names apart; one that does not is a plain link, and nothing is invented for it.
+    const alternatives = (shown.probable ? rest : shown.choices).map((c) => (c.detail ? card(c, 'chip card') : link(c, 'chip')));
     if (alternatives.length > 0) {
       const list = make('ul', 'chips');
       list.append(...listItems(alternatives));
       nodes.push(list);
       stops.push(...alternatives);
     }
+    // What became of anything they attached: passed to the app, or kept on their device.
+    if (shown.note) {
+      const note = make('p', 'hint note');
+      note.textContent = shown.note;
+      nodes.push(note);
+    }
+    // An answer that was a guess ends by saying how to get a better one — say more, in your own words —
+    // and a refusal by saying what can be done instead. Neither is a dead end.
+    const next = shown.tone === 'choose' ? words.notThat : shown.tone === 'limit' ? words.limitNext : null;
+    if (next) {
+      const hint = make('p', 'hint');
+      hint.textContent = next;
+      nodes.push(hint);
+    }
+    // One quiet row of what can be done with the answer: copy it, and see why it was given. Both stay
+    // reachable by keyboard; neither is a row of its own, which is what made every answer tall.
+    const tools = make('div', 'msg-tools');
+    if (canCopy) {
+      const copy = make('button', 'tool copy');
+      copy.type = 'button';
+      copy.textContent = words.copy;
+      const text = [shown.title, shown.body, ...shown.choices.map((c) => `${c.label} — ${c.route}`)].filter(Boolean).join('\n');
+      copy.addEventListener('click', () => void copyText(text));
+      tools.append(copy);
+      stops.push(copy);
+    }
     if (trace) {
       const [details, summary] = whyFor(trace);
+      tools.append(details);
       stops.push(summary);
-      nodes.push(details);
     }
+    if (tools.children.length > 0) nodes.push(tools);
     threadStops.push(...stops);
     addMessage('assistant', '', nodes).dataset.tone = shown.tone;
   }
 
+  const canCopy = typeof view?.navigator?.clipboard?.writeText === 'function';
+
+  /** Copy an answer as plain text, and say whether it worked in the status line. */
+  async function copyText(text: string): Promise<void> {
+    let said = words.copied;
+    try {
+      await view!.navigator.clipboard.writeText(text);
+    } catch {
+      said = words.copyFailed;
+    }
+    setCaption(said);
+    later(() => {
+      if (caption.textContent === said) setCaption('');
+    }, 1600);
+  }
+
+  /** Back to the greeting. Whatever was still being worked out is no longer wanted, and is dropped when it arrives. */
+  function startOver(): void {
+    latest++;
+    stopSpeaking();
+    dropTyping();
+    thread.replaceChildren(intro);
+    threadStops = [];
+    thread.removeAttribute('aria-busy');
+    setCaption('');
+    input.value = '';
+    clearAttached();
+    asked.length = 0;
+    recalling = -1;
+    screen.dataset.conversation = 'false';
+    restartButton.hidden = true;
+    liquid.setState('idle');
+    liquid.setLevel(0);
+    place();
+    input.focus();
+  }
+
+  /** What was asked this session, for the arrow keys. */
+  const asked: string[] = [];
+  let recalling = -1;
+
   // -------------------------------------------------------------------- menu --
+
+  /**
+   * Where a lost visitor could begin: the app's own main navigation, in its own words, restricted to
+   * places the assistant can say what they are for. Empty on a page with no navigation of its own.
+   */
+  function startingPoints(): Choice[] {
+    const found = adopterNav(doc as unknown as NavRoot, {
+      base: view?.location.href ?? 'http://localhost/',
+      currentPath: currentPath(),
+      exclude: host,
+    });
+    const out: Choice[] = [];
+    for (const item of found) {
+      if (out.length === 3) break;
+      if (item.current || out.some((o) => isSamePlace(o.route, item.href))) continue;
+      const capability = capabilityAt(item.href);
+      if (!capability) continue;
+      const detail = gist(capability.explanation);
+      out.push({ label: item.label, route: item.href, ...(detail ? { detail } : {}) });
+    }
+    return out;
+  }
 
   /** The adopter's own navigation — or, on a page without one, the places the registry knows. */
   function openMenu(): void {
@@ -899,7 +1294,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     const items: readonly NavLink[] =
       found.length > 0
         ? found
-        : suggestionsFor(assistant.registry, currentPath(), Infinity).map((c) => ({ label: c.label, href: c.route, current: false }));
+        : suggestionsFor(assistant.registry, currentPath(), Infinity, hints).map((c) => ({ label: c.label, href: c.route, current: false }));
     menuLinks = items.map((item) => {
       const a = link({ label: item.label, route: item.href }, 'drawer-link');
       if (item.current) a.setAttribute('aria-current', 'page');
@@ -1293,12 +1688,22 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
 
   async function ask(text: string): Promise<View | null> {
     const utterance = text.trim();
-    if (!utterance || destroyed) return null;
-    const command = commandFor(utterance, pageLang);
+    // What was attached when they sent it. A message can be only files.
+    const sending = attached;
+    if ((!utterance && sending.length === 0) || destroyed) return null;
+    const filesOnly = utterance === '';
+    const command = utterance && sending.length === 0 ? commandFor(utterance, pageLang) : null;
     if (command && runCommand(command)) {
       input.value = '';
       return null;
     }
+    // Small talk is answered, not routed (chat.ts): a router handed "hi" refuses it, and a visitor greeted
+    // with a refusal has learned the assistant is not for them. A leading greeting is let go, and what
+    // follows it is the question.
+    const talk = utterance ? smalltalkFor(utterance, pageLang) : null;
+    const chatty = talk !== null && talk.rest === '';
+    // Nothing to wait for when there is nothing to work out.
+    const instant = chatty || filesOnly;
     open();
     closeMenu(false);
     stopSpeaking();
@@ -1310,20 +1715,45 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       // smaller seat at the top, and is placed again now that the layout has changed.
       const first = screen.dataset.conversation !== 'true';
       screen.dataset.conversation = 'true';
+      restartButton.hidden = false;
       if (first) place();
-      addVisitorMessage(utterance);
+      addVisitorMessage(utterance, sending);
+      // Handed to the page, and only to the page: the router below is given the words and nothing else,
+      // and nothing attached is ever sent anywhere by the assistant.
+      const handed =
+        sending.length > 0 && view
+          ? offerFiles(view as Window & typeof globalThis, { files: sending.map((entry) => entry.file), utterance, route: currentPath() })
+          : false;
+      attached = [];
+      for (const entry of sending) entry.item.remove();
+      reflectTray();
       input.value = '';
+      if (utterance && asked[asked.length - 1] !== utterance) asked.push(utterance);
+      recalling = -1;
       thread.setAttribute('aria-busy', 'true');
-      setCaption(words.thinking);
-      showTyping();
-      liquid.setState('thinking');
+      // No dots, no "Looking…" for small talk, or for a message that is only a file.
+      if (!instant) {
+        setCaption(words.thinking);
+        showTyping();
+        liquid.setState('thinking');
+      }
 
       let shown: View;
       let trace: TurnTrace | null = null;
       try {
         const where = currentPath();
-        trace = await assistant.route(utterance, { route: where });
-        shown = present(trace, assistant.registry, where, words);
+        if (filesOnly) {
+          shown = attachmentView(handed, words);
+        } else if (talk && chatty) {
+          shown = smalltalkView(talk.kind, assistant.registry, where, words, talk.kind === 'help' ? startingPoints() : [], hints);
+        } else {
+          trace = await assistant.route(talk ? talk.rest : utterance, { route: where });
+          // Where to begin is only needed when nothing matched, so the page's navigation is read only then.
+          const nothingMatched = trace.outcome === 'clarify' && trace.candidates.every((c) => c.score <= 0);
+          shown = present(trace, assistant.registry, where, words, nothingMatched ? startingPoints() : [], hints);
+        }
+        // Whatever was asked, the visitor is told what became of what they attached.
+        if (sending.length > 0 && !filesOnly) shown = { ...shown, note: handed ? words.attachHanded : words.attachKept };
       } catch {
         trace = null;
         shown = { tone: 'unsure', title: words.error, body: null, destination: null, choices: [] };
@@ -1342,7 +1772,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
         return shown;
       }
 
-      lastSaid = [shown.title, shown.body].filter(Boolean).join('. ');
+      // A title that already ends a sentence ("Hi! How can I help?") is not given a second full stop.
+      lastSaid = [shown.title, shown.body].filter(Boolean).join(/[.!?:…]$/.test(shown.title) ? ' ' : '. ');
       await say(lastSaid, readAloud);
       if (destroyed || mine !== latest) return shown;
       if (shown.destination) {
@@ -1370,6 +1801,20 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   drawerClose.addEventListener('click', () => closeMenu(true));
   scrim.addEventListener('click', () => closeMenu(true));
   closeButton.addEventListener('click', close);
+  restartButton.addEventListener('click', startOver);
+  // Up and down walk back through what was asked, as any chat does — but only from an empty composer or
+  // one already showing a recalled question, so it never overwrites something being typed.
+  input.addEventListener('keydown', (event) => {
+    const e = event as KeyboardEvent;
+    if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (asked.length === 0) return;
+    if (input.value !== '' && !(recalling !== -1 && input.value === asked[recalling])) return;
+    if (e.key === 'ArrowDown' && recalling === -1) return;
+    e.preventDefault();
+    if (e.key === 'ArrowUp') recalling = recalling === -1 ? asked.length - 1 : Math.max(0, recalling - 1);
+    else recalling = recalling + 1 >= asked.length ? -1 : recalling + 1;
+    input.value = recalling === -1 ? '' : asked[recalling]!;
+  });
   soundButton.addEventListener('click', () => {
     readAloud = !readAloud;
     saveChoice(READ_ALOUD_KEY, readAloud);
@@ -1377,6 +1822,41 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     if (!readAloud) stopSpeaking();
   });
   mic.addEventListener('click', toggleVoice);
+  // A photo or a file: chosen with the paperclip or the camera, pasted into the box, or dropped on the screen.
+  // Every way in is judged by the same limits, because `accept` on a picker is only a hint.
+  const openPicker = (control: HTMLInputElement): void => {
+    if (typeof control.click === 'function') control.click();
+  };
+  attachButton.addEventListener('click', () => openPicker(filePicker));
+  cameraButton.addEventListener('click', () => openPicker(cameraPicker));
+  for (const control of [filePicker, cameraPicker]) {
+    control.addEventListener('change', () => {
+      const chosen = Array.from(control.files ?? []);
+      control.value = ''; // so choosing the same photo again is a change
+      attachFiles(chosen);
+    });
+  }
+  input.addEventListener('paste', (event) => {
+    const pasted = (event as ClipboardEvent).clipboardData?.files;
+    if (!canAttach || !pasted || pasted.length === 0) return; // pasting text is left alone
+    event.preventDefault();
+    attachFiles(Array.from(pasted));
+  });
+  const carriesFiles = (event: Event): boolean => canAttach && Array.from((event as DragEvent).dataTransfer?.types ?? []).includes('Files');
+  screen.addEventListener('dragover', (event) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    screen.dataset.dropping = 'true';
+  });
+  screen.addEventListener('dragleave', () => {
+    screen.dataset.dropping = 'false';
+  });
+  screen.addEventListener('drop', (event) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    screen.dataset.dropping = 'false';
+    attachFiles(Array.from((event as DragEvent).dataTransfer?.files ?? []));
+  });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     void ask(input.value);
@@ -1406,6 +1886,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       ? [drawerClose, ...menuLinks]
       : [
           menuButton,
+          ...(restartButton.hidden ? [] : [restartButton]),
           ...(soundButton.hidden ? [] : [soundButton]),
           closeButton,
           ...threadStops,
@@ -1479,6 +1960,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       stopSpeaking();
       guide = [];
       ringTarget = null;
+      attached = [];
       for (const id of timers) view?.clearTimeout(id);
       timers.clear();
       view?.removeEventListener('resize', onResize);

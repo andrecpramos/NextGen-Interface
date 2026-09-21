@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolvePreset } from 'thinking-orbs/engine';
 
 import { STATE_PARAMS, type LiquidState } from './liquid.ts';
-import { createMind, MIND_FOR } from './mind.ts';
+import { createMind, LOOKS, MIND_FOR } from './mind.ts';
 
 /**
  * The mind is the dotted sphere inside the orb (thinking-orbs' engine). Its geometry is
@@ -54,9 +54,12 @@ function paint(mind: ReturnType<typeof createMind>, level = 0, light = false): D
 }
 
 describe('MIND_FOR — which state means which motion', () => {
-  it('gives every orb state a motion the engine can draw', () => {
+  it('gives every orb state a look the engine can draw', () => {
     for (const state of STATES) {
-      expect(() => resolvePreset(MIND_FOR[state], 64)).not.toThrow();
+      const look = LOOKS[MIND_FOR[state]];
+      expect(look).toBeDefined();
+      expect(() => resolvePreset(look.motion, 64)).not.toThrow();
+      expect(look.tempo).toBeGreaterThan(0);
     }
   });
 
@@ -66,8 +69,58 @@ describe('MIND_FOR — which state means which motion', () => {
     expect(MIND_FOR.speaking).toBe('composing');
   });
 
-  it('lets an error rest rather than perform: the same slow ring as idle', () => {
+  it('lets an error rest rather than perform: the same quiet look as idle', () => {
     expect(MIND_FOR.error).toBe(MIND_FOR.idle);
+  });
+});
+
+describe('createMind — at rest', () => {
+  const at = (mind: ReturnType<typeof createMind>, state: (typeof STATES)[number]): Dot[] => {
+    mind.setState(state);
+    mind.settle();
+    return paint(mind);
+  };
+  const distance = (d: Dot): number => Math.hypot(d.x - CENTRE, d.y - CENTRE);
+
+  it('is a complete sphere, not a ring: dots across the whole disc, the middle included', () => {
+    const dots = at(createMind(), 'idle');
+    expect(dots.length).toBeGreaterThan(150);
+    // Dots on a sphere lie denser toward its rim once projected, so about 13% (1 - sqrt(0.75)) fall in
+    // the inner half of the radius. A ring has none.
+    const inner = dots.filter((d) => distance(d) < RADIUS * 0.5).length;
+    expect(inner / dots.length).toBeGreaterThan(0.1);
+    const xs = dots.map((d) => d.x);
+    const ys = dots.map((d) => d.y);
+    // Round: about as tall as it is wide.
+    const [w, h] = [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+    expect(Math.min(w, h) / Math.max(w, h)).toBeGreaterThan(0.85);
+  });
+
+  it('is a sphere in every state that rests, so an error is the same shape in another colour', () => {
+    const idle = at(createMind(), 'idle');
+    const error = at(createMind(), 'error');
+    expect(error.length).toBe(idle.length);
+  });
+
+  it('turns more slowly than it does when it is searching', () => {
+    const travelled = (state: (typeof STATES)[number]): number => {
+      const mind = createMind();
+      const before = at(mind, state);
+      // A short step: on a regular lattice "nearest dot" stops meaning anything once the picture has
+      // moved further than half the spacing, and both looks would read the same.
+      mind.step(0.05, 0);
+      const after = paint(mind);
+      // Dots are drawn depth-sorted, so they cannot be paired by position. How far the picture
+      // moved is how far each dot is from the nearest dot of the other picture.
+      let total = 0;
+      for (const d of before) total += Math.min(...after.map((a) => Math.hypot(a.x - d.x, a.y - d.y)));
+      return total / before.length;
+    };
+    expect(travelled('idle')).toBeLessThan(travelled('thinking') * 0.7);
+  });
+
+  it('is not the same picture as searching, though both are that sphere', () => {
+    expect(paint(createMind())).not.toEqual(at(createMind(), 'thinking'));
   });
 });
 
@@ -140,9 +193,9 @@ describe('createMind — the dots', () => {
 describe('createMind — a change of state', () => {
   it('crossfades: the old motion is still there while the new one arrives', () => {
     const mind = createMind();
-    expect(mind.showing()).toEqual(['breathing']);
+    expect(mind.showing()).toEqual(['resting']);
     mind.setState('thinking');
-    expect(mind.showing()).toEqual(['breathing', 'searching']);
+    expect(mind.showing()).toEqual(['resting', 'searching']);
   });
 
   it('settles on the new motion and lets the old one go', () => {
@@ -158,7 +211,7 @@ describe('createMind — a change of state', () => {
     const mind = createMind();
     mind.setState('idle');
     mind.setState('error');
-    expect(mind.showing()).toEqual(['breathing']);
+    expect(mind.showing()).toEqual(['resting']);
   });
 
   it('can skip the fade, for a page that asked for no motion', () => {

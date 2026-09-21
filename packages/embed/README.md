@@ -4,7 +4,7 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~40KB gzipped)
+node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~51KB gzipped)
 ```
 
 ```html
@@ -68,10 +68,11 @@ and `?ask=…` asks a question on load, so a state can be linked to.
   closed curve built from a few sine waves, drifting off-centre and blended with `screen`,
   with a dotted sphere inside it drawn by [thinking-orbs](https://github.com/Jakubantalik/Libraries.dev)'
   engine (only the engine: no React). The liquid is how the assistant feels; the dots are
-  what it is doing. It keeps one state grammar: idle breathes (a slow ring), listening
-  follows the microphone (a waveform through the rings), thinking searches (a scan across a
-  globe, one droplet in orbit), speaking composes (an undulating sash), error contracts and
-  rests. A change of state crossfades. The state is always written in text too. Under
+  what it is doing. It keeps one state grammar: idle is the whole globe, evenly lit and turning
+  quietly (`mind.ts`'s "resting" look: the searching globe with its scan taken out, at a third of
+  the pace), listening follows the microphone (a waveform through the rings), thinking is that
+  same globe with a scan across it and one droplet in orbit, speaking composes (an undulating
+  sash), error is the resting globe contracted and turned toward red. A change of state crossfades. The state is always written in text too. Under
   `prefers-reduced-motion` the loop never starts and each state is one still frame.
 - **The composer's light** (`beam.ts`) answers to the same state: a slow breath at rest, a
   lit segment travelling the bottom edge while it thinks, a glow that rises with the
@@ -89,10 +90,19 @@ and `?ask=…` asks a question on load, so a state can be linked to.
   them (as text, never as markup); a typing indicator shows while it works out an answer; the
   answer arrives on the left with its options as rows and its "Why?" beneath — and when the router
   will not act but one screen is plainly ahead (its score at least 1.5 times the runner-up's, and
-  not a declared limit close behind), that screen is offered first as "you probably want X", with
-  what it is for in the adopter's own words, and the rest as alternatives; it is only ever a link
+  not a declared limit close behind), that screen is offered first as "you probably want X" ("you can
+  probably do that on X" when the visitor asked for a task), with what it is for in the adopter's own
+  words, and one alternative beneath it. **At most two places are ever offered**, each with its purpose
+  (never an invented one: a screen with no declared purpose is a plain link), because someone who has
+  never seen the app cannot rank three names; an answer that was a guess ends "Not what you meant? Tell
+  me a bit more", and a refusal ends with what the assistant can do instead. It is only ever a link
   (`present.ts`); every turn is
-  kept. The thread is a `role="log"` (announced in order, once complete), keeps the greeting and
+  kept. Under each answer is one quiet row: **Copy** (as plain text, where the browser has a
+  clipboard) and **Why?**. **Start over** (the ↺ in the corner, once there is a conversation)
+  returns to the greeting and drops any answer still being worked out; **↑ and ↓ in the composer**
+  walk back through what was asked, only from an empty composer so they never overwrite what is
+  being typed. A question and its answer sit closer together than one turn does to the next. The
+  thread is a `role="log"` (announced in order, once complete), keeps the greeting and
   the latest 60 messages rather than growing all day, and is reachable by keyboard from the
   first option to the last. Focus moves in, Tab stays in, Escape closes it and focus returns
   to the orb.
@@ -157,6 +167,49 @@ up on rather than listened to forever.
 **Commands.** A short, closed list of things a visitor says to the assistant itself — close,
 menu, back, home, stop, repeat, stop listening, in Portuguese and English (`commands.ts`) — is
 acted on at once and never routed. Anything longer is a question.
+
+**Small talk.** "Hi", "thanks", "bye", "how are you", "who are you", "what can you do", "I have no
+idea what to do here" are answered, never routed (`chat.ts`): a router handed "hi" refuses it, and a
+visitor greeted with a refusal has learned the assistant is not for them. Matching is exact on a short
+list in Portuguese and English, tolerant of a stretched word ("hiii"), plus one rule for the two things
+that cannot be listed — being lost and being thankful: every word must be a generic one and at least one
+must be the marker, so a single word about the app ("I have no idea where the *calendar* is", "help me
+*book*…") makes it a question for the router. A leading greeting is let go and the rest is routed
+("hi, where are my kids?"). When the visitor is lost it offers up to three places to begin, taken from
+the page's own navigation, in its own words, where the assistant can say what each is for. These turns
+have no `TurnTrace` — Rule 9 covers routed turns — and so no "Why?". A language other than these two gets
+none of this: the visitor is routed, as before.
+
+**Photos and files** ([ADR-024](../../.claude/decisions/ADR-024.md), `attach.ts`). The box has a paperclip, and
+on a touch-first device a camera that opens the rear camera; a photo can also be pasted into the box and a
+file dropped on the screen (desktop). What is attached waits in a tray of small chips, each with a way out,
+and appears in the visitor's own message. **It never leaves the device**: the router is handed the words and
+nothing else; no trace, prompt or request carries it; a photo's preview is drawn on a canvas by the browser's
+own decoder, because a `blob:` URL is what a strict Content-Security-Policy refuses. The one place it goes is
+the page the assistant sits in, as a cancelable event:
+
+```js
+window.addEventListener('nextgen:attach', (event) => {
+  const { files, utterance, route } = event.detail; // File[], what they typed, where they were
+  event.preventDefault();                           // "I've passed your attachment to the app"
+});
+```
+
+If nothing takes it the visitor is told so — "your attachment stays on this device; I can't read it, but you
+can add it on that page" — and their words are routed as usual. A message that is only a file is answered
+("Thanks — I've got it … tell me what you want to do with it"), never refused. Limits are declared: four
+files, 15 MB each, photos and common documents; SVG, HTML, scripts, archives and executables are turned away
+by name and by type — and because `accept` is only a hint, a paste or a drop is judged by the same function.
+**The page must still validate what it is given.** An app with nowhere to send a file turns the buttons off
+with `data-nextgen-attach="off"` (or `attach: false`).
+
+**The look** is glass, metal and light, in CSS — no WebGL, no dependency, no React — and derived from the host:
+the host's raised surface made translucent with a lit top-left edge; the host's accent as a metal (lit above,
+shaded below, in a bright rim, with a sweep of light when reached for); the accent again as a soft aurora
+behind the glass on an otherwise opaque backdrop. A light host gets white glass with soft depth. Blur is spent
+only where something is behind it (the composer, the corner controls, the drawer, the docked bubbles), not on
+every message. Without `backdrop-filter`, under `prefers-reduced-transparency`, or in forced-colours mode, every
+surface is the host's solid colour, as before.
 
 ## The chat box
 

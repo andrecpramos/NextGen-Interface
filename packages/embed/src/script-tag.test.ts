@@ -113,6 +113,22 @@ describe('the script tag starts itself from its own attributes', () => {
     expect(orbSide(cornered.window)).toBe('left');
   });
 
+  it('offers attachments unless data-nextgen-attach says "off" — an app with nowhere to send a file should not offer one', async () => {
+    const offered = (window: Page['window']) => {
+      const root = window.document.querySelector('[data-nextgen]')?.shadowRoot;
+      return { paperclip: !root?.querySelector('.attach')?.hasAttribute('hidden'), camera: root?.querySelector('.camera') ?? null };
+    };
+    const on = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' });
+    await settle(() => on.window.document.querySelector('[data-nextgen]') !== null);
+    expect(offered(on.window).paperclip).toBe(true);
+
+    for (const value of ['off', 'false', 'no', '0']) {
+      const off = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-attach': value });
+      await settle(() => off.window.document.querySelector('[data-nextgen]') !== null);
+      expect(offered(off.window).paperclip, value).toBe(false);
+    }
+  });
+
   it('warns and ignores a position that is not one of the four corners — it never becomes CSS', async () => {
     const { window, warnings } = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-position': 'bottom:0;background:red' });
     await settle(() => window.document.querySelector('[data-nextgen]') !== null);
