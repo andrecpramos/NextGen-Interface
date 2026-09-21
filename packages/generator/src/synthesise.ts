@@ -280,12 +280,25 @@ export function deriveProse(request: ProseRequest): Prose {
   const titles = Object.values(request.titles).filter(Boolean);
   const primary = titles[0] ?? request.route;
   const description = `${primary} — part of the ${request.feature} area of the application, at ${request.route}.`;
-  // Says only what is known: the screen's own name and where it sits. An
-  // explanation that reads like someone wrote it, when nobody did, is the
-  // failure WP-30 found — a fabricated purpose stated confidently.
+  // Says only what is known: what the screen itself says, or failing that its name and where it sits.
+  // An explanation that reads like someone wrote it, when nobody did, is the failure WP-30 found — a
+  // fabricated purpose stated confidently.
+  //
+  // It is the first thing a visitor reads under the screen's name when the assistant offers it, so it
+  // leads with what the screen shows — in the application's own language, without a route nobody says
+  // and without a template sentence. (It was "X is a screen in the auth area of this application, at
+  // /:locale/auth/login." — English on a Portuguese app, and no information.) The area and the route
+  // stay in `description`, which is what retrieval matches on and no visitor reads.
+  const words = DERIVED_WORDS[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? DERIVED_WORDS.en!;
+  const shown = request.copy
+    .filter((text) => text.trim().toLowerCase() !== primary.trim().toLowerCase())
+    .slice(0, 4)
+    .map((text) => clip(text));
   const explanation =
-    `${primary} is a screen in the ${request.feature} area of this application, at ${request.route}.` +
-    (request.copy.length > 0 ? ` It shows: ${request.copy.slice(0, 4).join(', ')}.` : '');
+    shown.length > 0
+      ? // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
+        `${words.shows} ${shown.join(', ').replace(/[.!?…]+$/, '')}.`
+      : words.only(primary, request.feature === 'app' ? null : request.feature);
   // Each title with its own language's words for "take me there". The first version put
   // "open" before the first title and "abre" before the second, whatever their languages
   // were: a Portuguese application was given "open finanças", and an English one
@@ -299,6 +312,27 @@ export function deriveProse(request: ProseRequest): Prose {
   if (examples.length === 0) for (const verb of ASK_TO_GO.en!) examples.push(`${verb} ${primary.toLowerCase()}`);
   return { description, explanation, examples: [...new Set(examples)], source: 'derived' };
 }
+
+/** A line of page copy for a list: a paragraph is cut at a word, so four of them cannot run to a wall of text. */
+function clip(text: string, max = 90): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length <= max) return flat;
+  return `${flat.slice(0, max).replace(/\s+\S*$/, '')}…`;
+}
+
+/** The words of a derived explanation, per language. Anything else falls back to English. */
+const DERIVED_WORDS: Readonly<
+  Record<string, { readonly shows: string; readonly only: (name: string, area: string | null) => string }>
+> = {
+  en: {
+    shows: 'This screen shows:',
+    only: (name, area) => `${name} is a screen in ${area ? `the ${area} area of ` : ''}this application.`,
+  },
+  pt: {
+    shows: 'Este ecrã mostra:',
+    only: (name, area) => `${name} é um ecrã ${area ? `da área ${area} ` : ''}desta aplicação.`,
+  },
+};
 
 /** How a user asks to be taken to a screen. Three each, so a derived capability still meets Rule 10's minimum. */
 const ASK_TO_GO: Readonly<Record<string, readonly string[]>> = {

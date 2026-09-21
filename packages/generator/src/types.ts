@@ -55,6 +55,12 @@ export interface DiscoveredRoute {
   readonly component: string | null;
   /** Absolute path to the component's source file, when the import resolved. */
   readonly componentFile: string | null;
+  /**
+   * The file this route was written in, for a route whose component is not imported from anywhere — it
+   * may be declared right beside the route table (`function MainPage() {…}`). Absent when
+   * `componentFile` resolved, or there is no component.
+   */
+  readonly routedIn?: string;
   /** `features/<feature>/pages/X.tsx` — the real information architecture. */
   readonly feature: string | null;
   readonly roles: readonly RoleName[] | null;

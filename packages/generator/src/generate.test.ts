@@ -101,7 +101,10 @@ describe('generate — end to end, with no model', () => {
   it('gives every capability something to say about itself, traceable to a file', async () => {
     const output = await run();
     for (const capability of output.master) {
-      expect(capability.explanation?.length ?? 0).toBeGreaterThan(29);
+      // Something to say, however little: a page with one label ("My child") has a short explanation, and
+      // the registry validator's `explanation-thin` warning is what tells its owner so — padding it with
+      // a template sentence would say nothing and cost the visitor a line to read.
+      expect(capability.explanation?.length ?? 0).toBeGreaterThan(15);
       // Relative to the adopter's own source root, forward slashes, no drive
       // letter — our machine must not end up in their bundle.
       expect(capability.explanationSource).toMatch(/^features\/.*\.tsx$/);

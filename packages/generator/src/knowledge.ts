@@ -14,6 +14,7 @@
 //   glossary  their terms, and the everyday words people use instead   -> vocabulary
 //   screens   per route: purpose, what is on it, aliases, real phrases -> description, explanation, examples
 //   cannot    what the app does not do, and what to say          -> declared limits (Rule 13), in the adopter's words
+//   rules     how the app works and how to reason about a request -> the model stage's context, role by role
 //
 // It is merged into `description`, `examples` and `explanation` — the fields stage 2 already
 // indexes and the widget already serves — so no matcher changes and nothing new is trusted at run
@@ -21,7 +22,7 @@
 // (ADR-021), and the file is *written* rather than read, so it arrives as untrusted JSON: parsed,
 // never cast, capped, and stripped of anything that could rewrite what an object is (Rule 15).
 
-import type { Capability } from '@nextgen/core-capability';
+import type { Capability, RegistryContext } from '@nextgen/core-capability';
 
 import type { AnnotatedCapability } from './types.ts';
 
@@ -31,6 +32,19 @@ export interface GlossaryEntry {
   readonly means: string | null;
   /** The everyday words people say instead. */
   readonly aliases: readonly string[];
+  /** Which roles are told this word. `null` is every role. Rule 17: a registry is its role's entitlement. */
+  readonly roles: readonly string[] | null;
+}
+
+/**
+ * A statement about how the app works, for the model to reason from: what depends on what, what has
+ * to be known before something can be found, where people usually go wrong. Short, and about the
+ * app — "medical status is per child, so ask which child" — never an instruction to the model.
+ */
+export interface Rule {
+  readonly text: string;
+  /** Which roles are told this. `null` is every role. */
+  readonly roles: readonly string[] | null;
 }
 
 export interface ScreenKnowledge {
@@ -60,9 +74,10 @@ export interface AppKnowledge {
   /** Keyed by route path (`/my/children/medical`) or capability id. */
   readonly screens: Readonly<Record<string, ScreenKnowledge>>;
   readonly cannot: readonly Limit[];
+  readonly rules: readonly Rule[];
 }
 
-export const EMPTY_KNOWLEDGE: AppKnowledge = { app: { name: null, about: null }, glossary: [], screens: {}, cannot: [] };
+export const EMPTY_KNOWLEDGE: AppKnowledge = { app: { name: null, about: null }, glossary: [], screens: {}, cannot: [], rules: [] };
 
 export interface KnowledgeProblem {
   /** Where in the file, e.g. `screens./a.askedAs[1]`; empty for the file as a whole. */
@@ -74,13 +89,17 @@ export interface KnowledgeProblem {
 const MAX_SCREENS = 500;
 const MAX_GLOSSARY = 200;
 const MAX_LIMITS = 50;
+const MAX_RULES = 60;
+const MAX_ROLES = 20;
+/** Aliases a role's model prompt is given per word: the vocabulary must not crowd out the rules. */
+const CONTEXT_ALIASES = 8;
 const MIN_PHRASES = 3;
 const MAX_LIST = 40;
 const MAX_ALIASES = 20;
 const MAX_TEXT = 300;
 const MAX_LONG = 600;
 const MAX_EXAMPLES = 60;
-const SECTIONS = new Set(['app', 'glossary', 'screens', 'cannot']);
+const SECTIONS = new Set(['app', 'glossary', 'screens', 'cannot', 'rules']);
 const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 const SOURCE = 'knowledge.json';
 
@@ -101,7 +120,7 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
     return { knowledge: EMPTY_KNOWLEDGE, problems };
   }
 
-  for (const key of Object.keys(raw)) if (!SECTIONS.has(key)) problem(key, 'unknown section, ignored — known: app, glossary, screens, cannot');
+  for (const key of Object.keys(raw)) if (!SECTIONS.has(key)) problem(key, 'unknown section, ignored — known: app, glossary, screens, cannot, rules');
 
   /** Text, cleaned; `null` (and a problem, when it was present but wrong) if there is none. */
   const text = (value: unknown, path: string, max: number): string | null => {
@@ -139,6 +158,13 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
     return out;
   };
 
+  /** Which roles something is for: a name or a list of names; absent is every role (`null`). */
+  const roles = (value: unknown, path: string): string[] | null => {
+    if (value === undefined || value === null) return null;
+    const names = list(value, path, MAX_ROLES, 60);
+    return names.length > 0 ? names : null;
+  };
+
   const app = isObject(raw.app) ? raw.app : {};
   if (raw.app !== undefined && !isObject(raw.app)) problem('app', 'expected an object, ignored');
 
@@ -159,7 +185,30 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
       problem(path, 'a glossary entry needs a term, ignored');
       continue;
     }
-    glossary.push({ term, means: text(entry.means, `${path}.means`, MAX_TEXT), aliases: list(entry.aliases, `${path}.aliases`, MAX_ALIASES, 80) });
+    glossary.push({
+      term,
+      means: text(entry.means, `${path}.means`, MAX_TEXT),
+      aliases: list(entry.aliases, `${path}.aliases`, MAX_ALIASES, 80),
+      roles: roles(entry.roles, `${path}.roles`),
+    });
+  }
+
+  const rules: Rule[] = [];
+  if (raw.rules !== undefined && !Array.isArray(raw.rules)) problem('rules', 'expected a list, ignored');
+  for (const [i, entry] of (Array.isArray(raw.rules) ? raw.rules : []).entries()) {
+    const path = `rules[${i}]`;
+    if (rules.length >= MAX_RULES) {
+      problem('rules', `too many — kept the first ${MAX_RULES}`);
+      break;
+    }
+    // A rule is a string, or text with the roles it is for.
+    const said = typeof entry === 'string' ? entry : isObject(entry) ? entry.text : undefined;
+    const body = text(said, typeof entry === 'string' ? path : `${path}.text`, MAX_LONG);
+    if (!body) {
+      problem(path, 'a rule needs text, ignored');
+      continue;
+    }
+    rules.push({ text: body, roles: isObject(entry) ? roles(entry.roles, `${path}.roles`) : null });
   }
 
   // A null prototype: a key in someone's file can only ever be a key.
@@ -208,7 +257,7 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
   }
 
   return {
-    knowledge: { app: { name: text(app.name, 'app.name', 80), about: text(app.about, 'app.about', MAX_LONG) }, glossary, screens, cannot },
+    knowledge: { app: { name: text(app.name, 'app.name', 80), about: text(app.about, 'app.about', MAX_LONG) }, glossary, screens, cannot, rules },
     problems,
   };
 }
@@ -309,9 +358,37 @@ export function knowledgeBoundaries(knowledge: AppKnowledge): Capability[] {
   });
 }
 
+// -------------------------------------------------------------- context ----
+
+const forRole = (roles: readonly string[] | null, role: string): boolean => roles === null || roles.includes(role);
+
+/**
+ * What the model stage is told about the app, for one role: the rules, the vocabulary and the limits
+ * that are for it. Rule 17 lives here: a registry *is* its role's entitlement, so a rule scoped to
+ * COACH is not written into a PARENT's registry at all, rather than being filtered when read.
+ * `null` when there is nothing to tell, so a registry without any is byte-identical to before.
+ */
+export function knowledgeContext(knowledge: AppKnowledge, role: string): RegistryContext | null {
+  const rules = knowledge.rules.filter((r) => forRole(r.roles, role)).map((r) => r.text);
+  const glossary = knowledge.glossary
+    .filter((g) => forRole(g.roles, role))
+    .map((g) => ({
+      term: g.term,
+      ...(g.means ? { means: g.means } : {}),
+      ...(g.aliases.length > 0 ? { aliases: g.aliases.slice(0, CONTEXT_ALIASES) } : {}),
+    }));
+  const limits = knowledge.cannot.map((l) => ({ about: l.about, say: l.say }));
+  if (rules.length === 0 && glossary.length === 0 && limits.length === 0) return null;
+  return {
+    ...(glossary.length > 0 ? { glossary } : {}),
+    ...(rules.length > 0 ? { rules } : {}),
+    ...(limits.length > 0 ? { limits } : {}),
+  };
+}
+
 // ----------------------------------------------------------------- gaps ----
 
-export type GapKind = 'app-about-missing' | 'limits-missing' | 'screen-unknown' | 'purpose-missing' | 'phrasing-thin' | 'knowledge-orphan';
+export type GapKind = 'app-about-missing' | 'limits-missing' | 'rules-missing' | 'role-unknown' | 'screen-unknown' | 'purpose-missing' | 'phrasing-thin' | 'knowledge-orphan';
 
 export interface KnowledgeGap {
   readonly kind: GapKind;
@@ -344,6 +421,22 @@ export function knowledgeGaps(
 
   if (knowledge.cannot.length === 0) {
     gaps.push({ kind: 'limits-missing', message: 'What do your users ask for that this app cannot do, and what should the assistant say when they do? (Payments, contacting a person, editing data…)' });
+  }
+  if (knowledge.rules.length === 0) {
+    gaps.push({
+      kind: 'rules-missing',
+      message: 'How does this app work that a newcomer would not guess? What must someone know, or have done, before they can find or do things — and where do users usually go wrong? (One short statement each; say which roles it is for if it is not for everyone.)',
+    });
+  }
+  // A rule or a word scoped to a role the app does not have would be dropped without a word.
+  const known = new Set(capabilities.flatMap((c) => c.roles));
+  const scoped = [...knowledge.rules.map((r) => ['rule', r.text, r.roles] as const), ...knowledge.glossary.map((g) => ['word', g.term, g.roles] as const)];
+  for (const [what, label, roles] of scoped) {
+    for (const role of roles ?? []) {
+      if (!known.has(role)) {
+        gaps.push({ kind: 'role-unknown', message: `The ${what} “${label.slice(0, 60)}” is for the role “${role}”, and this app has no such role (it has ${[...known].join(', ') || 'none'}) — so nobody is told it. A typo?` });
+      }
+    }
   }
 
   const screens = new Map<string, AnnotatedCapability>();

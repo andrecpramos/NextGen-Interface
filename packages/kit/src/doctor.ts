@@ -86,11 +86,30 @@ function scriptTagIsBroken(code: string): string | null {
   }
 }
 
-export function doctor(kitDir: string): DoctorReport {
+/**
+ * Which build of the adapter this is: the first line of `VERSION`, next to `scan.mjs` — an id of the two
+ * files an adopter copies, written by the build and changing exactly when they do. Null when there is no
+ * such file (running from source, or from a copy that lost it).
+ */
+export function adapterVersion(dir: string = dirname(fileURLToPath(import.meta.url))): string | null {
+  try {
+    const first = readFileSync(join(dir, 'VERSION'), 'utf8').split(/\r?\n/, 1)[0]?.trim();
+    return first && /^nextgen-adapter\s+\S+$/.test(first) ? first : null;
+  } catch {
+    return null;
+  }
+}
+
+export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   const kit = resolve(kitDir);
   const lines: string[] = [];
   const problems: string[] = [];
   const say = (line = ''): void => void lines.push(line);
+  const version = adapterVersion(adapterDir);
+  if (version) {
+    say(`${version}   (quote this when you report a problem)`);
+    say();
+  }
 
   if (!existsSync(join(kit, CONFIG_FILE))) {
     return { ok: false, text: `No kit here (${kit}). Run "node scan.mjs init <your app folder>" first.` };
@@ -177,6 +196,13 @@ export function doctor(kitDir: string): DoctorReport {
     say('  the wrong screen, and refused 1 real question in 105. Calibrated for that app, it');
     say('  made neither mistake. The kit cannot calibrate from its own example questions:');
     say('  that was measured too, and it was worse — it wrongly refused 7 real requests in 105.');
+    say('  A small app, or one described only by its own labels, fares worse: on a 2-route');
+    say('  landing page, 7 of 12 everyday questions (written by the tool’s author, so an');
+    say('  anecdote) were refused. So until you calibrate, a declared limit must score at least');
+    say('  a floor of 0.15 of its own before it may refuse — it asks the visitor instead, and');
+    say('  refuses fewer out-of-scope requests. Say what each screen is for first —');
+    say('  knowledge.json, see review/KNOWLEDGE-GAPS.md — because a screen the visitor’s words');
+    say('  never match cannot win.');
     say('  Calibrating needs real questions you wrote, each with the screen it should reach:');
     say('');
     say('    nextgen calibrate <kit folder> --golden your-questions.jsonl');
@@ -262,6 +288,15 @@ export function doctor(kitDir: string): DoctorReport {
   say('         event.preventDefault();');
   say('         router.navigate(event.detail.route);');
   say('       });');
+  say('  4. Photos and files. The box has a paperclip (and a camera, on a phone). What a visitor attaches');
+  say('     never leaves their device: it reaches YOUR page as an event, and nothing else. If the app can');
+  say('     use one — an upload form, an inbox — take it; if not, turn the buttons off:');
+  say("       window.addEventListener('nextgen:attach', (event) => {");
+  say('         const { files, utterance, route } = event.detail;   // File objects, what they typed, where they were');
+  say('         event.preventDefault();                             // tells the visitor the app took it');
+  say('       });');
+  say('     or  data-nextgen-attach="off"  on the script tag. Files are validated (type, size, count); the');
+  say("     page should still check what it is given — a file's name and type are the visitor's, not ours.");
   say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
   say();
 

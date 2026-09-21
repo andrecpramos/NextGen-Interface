@@ -22,6 +22,13 @@
       "askedAs": ["quero falar com o treinador", "como contacto o clube", "fala com a secretaria por mim", "message the coach"]
     }
   ],
+  "rules": [
+    "Os Anúncios são as mensagens que o clube publica para todos; as Notificações são avisos automáticos da aplicação. Quem pergunta por mensagens do clube, novidades ou comunicados quer quase sempre os Anúncios.",
+    "As preferências de avisos, incluindo o email onde se recebem, estão nas Definições e não nas Notificações: as Notificações só mostram o que já aconteceu.",
+    { "text": "Um encarregado só vê os seus próprios educandos. O estado médico é o de um educando: mostra se está apto e como vai a recuperação, sem diagnóstico, e é o encarregado quem decide se o partilha com o treinador.", "roles": ["PARENT"] },
+    { "text": "Um jogador vê o seu próprio estado médico e os anúncios do clube, mas não o dos outros jogadores.", "roles": ["PLAYER"] },
+    { "text": "O treinador dirige um plantel e os seus treinos. O estado médico dos jogadores não está nesta aplicação para o treinador: é o encarregado que o partilha.", "roles": ["COACH"] }
+  ],
   "screens": {
     "/my": {
       "purpose": "A página inicial de quem é jogador ou encarregado de educação: o ponto de partida com o resumo do que importa.",

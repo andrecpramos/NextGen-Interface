@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 
-import type { GeneratorConfig } from '@nextgen/generator';
+import { importResolver, type GeneratorConfig } from '@nextgen/generator';
 
 import { assertOutsideApp, CONFIG_FILE, REVIEW_DIR, toPosix } from './paths.ts';
 
@@ -55,6 +55,36 @@ function sourceFiles(root: string, limit = 5000): string[] {
 }
 
 const count = (text: string, pattern: RegExp): number => (text.match(pattern) ?? []).length;
+
+/**
+ * Role modules in the workspace packages the route table imports from. Only what the routes file names
+ * is read — one file per import, resolved through the packages the workspace declares — so a large
+ * monorepo is not walked and nothing the route table does not reference is opened.
+ */
+function workspaceRoleFiles(
+  appRoot: string,
+  routesFile: string,
+  routesText: string,
+): { file: string; sets: string[]; all: string[] }[] {
+  const resolveImport = importResolver(appRoot);
+  const inside = resolve(appRoot);
+  const found: { file: string; sets: string[]; all: string[] }[] = [];
+  const specifiers = new Set([...routesText.matchAll(/(?:from|import\()\s*['"]([^'"]+)['"]/g)].map((m) => m[1]!));
+  for (const specifier of [...specifiers].slice(0, 300)) {
+    if (specifier.startsWith('.')) continue;
+    const file = resolveImport(specifier, routesFile);
+    if (!file || resolve(file).startsWith(inside)) continue;
+    try {
+      const text = readFileSync(file, 'utf8');
+      const sets = exportsNamed(text, OBJECT_EXPORT);
+      const all = exportsNamed(text, ARRAY_EXPORT);
+      if (sets.length > 0 && all.length > 0) found.push({ file, sets, all });
+    } catch {
+      continue;
+    }
+  }
+  return found;
+}
 
 // ------------------------------------------------------------ the route table --
 
@@ -252,10 +282,35 @@ function detectFramework(dir: string): Framework {
 
 /** Nuxt sets <html lang> at run time; its i18n module's `defaultLocale` says which language the app speaks. */
 function nuxtDefaultLocale(dir: string): { lang: string; file: string } | null {
-  for (const name of ['nuxt.config.ts', 'nuxt.config.js', 'nuxt.config.mjs']) {
+  return defaultLocaleIn(dir, ['nuxt.config.ts', 'nuxt.config.js', 'nuxt.config.mjs']);
+}
+
+/**
+ * A Next.js app that routes by locale sets `<html lang={locale}>` per request, so there is no literal
+ * to read — but its routing says which language is the app's own: next-intl's
+ * `defineRouting({ defaultLocale: 'pt' })`, or the pages router's `i18n: { defaultLocale }` in next.config.
+ */
+function nextDefaultLocale(dir: string): { lang: string; file: string } | null {
+  return defaultLocaleIn(dir, [
+    'src/i18n/routing.ts',
+    'i18n/routing.ts',
+    'src/i18n/config.ts',
+    'i18n/config.ts',
+    'src/i18n.ts',
+    'i18n.ts',
+    'next.config.ts',
+    'next.config.mjs',
+    'next.config.js',
+    'src/middleware.ts',
+    'middleware.ts',
+  ]);
+}
+
+function defaultLocaleIn(dir: string, names: readonly string[]): { lang: string; file: string } | null {
+  for (const name of names) {
     const file = join(dir, name);
     if (!existsSync(file)) continue;
-    const match = /\bdefaultLocale\s*:\s*['"]([^'"]+)['"]/.exec(readFileSync(file, 'utf8'));
+    const match = /\bdefaultLocale\s*[:=]\s*['"]([^'"]+)['"]/.exec(readFileSync(file, 'utf8'));
     if (match) return { lang: match[1]!, file };
   }
   return null;
@@ -309,7 +364,9 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
   });
 
   const locales = findLocales(appRoot) ?? findLocales(dir);
-  const html = htmlLang(dir, appRoot) ?? (framework.kind === 'nuxt' ? nuxtDefaultLocale(dir) : null);
+  const html =
+    htmlLang(dir, appRoot) ??
+    (framework.kind === 'nuxt' ? nuxtDefaultLocale(dir) : framework.kind === 'next' ? nextDefaultLocale(dir) : null);
   let languages: string[];
   if (locales) {
     const primary = html
@@ -326,7 +383,7 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
     what: 'app language',
     value: languages[0]!,
     evidence: html
-      ? html.file.includes('nuxt.config')
+      ? /\.(?:ts|js|mjs)$/.test(html.file)
         ? `defaultLocale "${html.lang}" in ${toPosix(relative(dir, html.file))}`
         : `<html lang="${html.lang}"> in ${toPosix(relative(dir, html.file))}`
       : 'no <html lang> found, so English was assumed: confirm it',
@@ -400,9 +457,12 @@ export function detectApp(appDir: string): Detection {
   });
 
   // The roles: an exported object of named role sets, plus the array of every role.
-  const roleFiles = files
+  const inApp = files
     .map(({ file, text }) => ({ file, sets: exportsNamed(text, OBJECT_EXPORT), all: exportsNamed(text, ARRAY_EXPORT) }))
     .filter((r) => r.sets.length > 0 && r.all.length > 0);
+  // An app in a monorepo imports them from a sibling package (`@acme/core/permissions`): look where the
+  // route table itself says it reads them from, when the app has none of its own.
+  const roleFiles = inApp.length > 0 ? inApp : workspaceRoleFiles(appRoot, routes.file, routesText);
   const referenced = roleFiles.find((r) => r.sets.some((name) => routesText.includes(`${name}.`)));
   const roles = referenced ?? roleFiles[0];
 

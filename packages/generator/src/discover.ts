@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import ts from 'typescript';
 
 import { discoverNextRoutes, discoverNuxtRoutes, discoverRemixRoutes, discoverSvelteKitRoutes } from './filesystem.ts';
+import { findWorkspace, type Workspace } from './workspace.ts';
 
 import type { DiscoveredRoute, GeneratorConfig, RoleName } from './types.ts';
 
@@ -396,6 +397,111 @@ function routeObjectsIn(node: ts.Node): RouteObject[] {
   return out;
 }
 
+interface RouteSpread {
+  readonly spread: ts.SpreadElement;
+  /** Inside a route's own `children`: there a parent's path and guard apply, and are not carried in. */
+  readonly nested: boolean;
+}
+
+/** `...x` inside an array that holds route objects — `[{ path: '/a', … }, ...extraRoutes]`. */
+function routeSpreads(root: ts.Node): RouteSpread[] {
+  const out: RouteSpread[] = [];
+  const isRoute = (element: ts.Node): boolean => {
+    if (!ts.isObjectLiteralExpression(element)) return false;
+    const properties = objectProperties(element);
+    return properties.has('path') || properties.has('children') || properties.has('index');
+  };
+  const visit = (node: ts.Node, nested: boolean): void => {
+    if (ts.isArrayLiteralExpression(node) && node.elements.some(isRoute)) {
+      for (const element of node.elements) if (ts.isSpreadElement(element)) out.push({ spread: element, nested });
+    }
+    const inChildren = ts.isPropertyAssignment(node) && node.name.getText() === 'children';
+    ts.forEachChild(node, (child) => visit(child, nested || inChildren));
+  };
+  visit(root, false);
+  return out;
+}
+
+type CollectContext = Parameters<typeof collect>[2];
+
+/**
+ * A spread of routes from another module: followed, or reported — never silently dropped.
+ *
+ * The pilot app's route table ends `...workspaces`, and before this the routes it named were simply not
+ * there, with nothing in `SKIPPED.md` to say so (WP-28's "under-discovery no skip report can mention").
+ * An imported array of routes is read in the module that declares it, with *that* module's imports. A
+ * computed one (`...workspaces.flatMap(…)`), one that is not an array literal, and any inside a nested
+ * route — where a parent's path and guard would have to be carried in, and a guess there is a role leak
+ * (Rule 17) — are reported with the expression quoted.
+ */
+function followSpreads(root: ts.Node, source: ts.SourceFile, sourceFile: string, context: CollectContext, seen: Set<string>): void {
+  const local = moduleConstants(source);
+  const imported = new Map<string, { file: string; name: string }>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
+    const file = resolveSpecifierFile(statement.moduleSpecifier.text, sourceFile, context.aliases);
+    const clause = statement.importClause;
+    if (!file || !clause) continue;
+    if (clause.name) imported.set(clause.name.text, { file, name: 'default' });
+    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) imported.set(element.name.text, { file, name: (element.propertyName ?? element.name).text });
+    }
+  }
+
+  for (const { spread, nested } of routeSpreads(root)) {
+    const quoted = spread.getText(source).replace(/\s+/g, ' ').slice(0, 90);
+    const report = (why: string): void => {
+      context.unreadable.push({ path: quoted, detail: `routes spread into the route table (${why}) — none of them are declared` });
+    };
+    const expression = unwrap(spread.expression);
+    if (!ts.isIdentifier(expression)) {
+      // `...(import.meta.env.DEV ? [{ path: '/dev', … }] : [])`: the routes are written out right here and
+      // the whole file is already read for them. Only an expression with none in it is opaque.
+      if (routeObjectsIn(expression).length === 0) report('a computed expression cannot be read');
+      continue;
+    }
+    if (nested) {
+      report('inside a nested route, whose path and guard would apply');
+      continue;
+    }
+    const own = local.get(expression.text);
+    if (own) {
+      // Declared in this file: the whole file is read for route objects already.
+      if (!ts.isArrayLiteralExpression(unwrap(own))) report(`${expression.text} is not an array of routes written out`);
+      continue;
+    }
+    const target = imported.get(expression.text);
+    if (!target) {
+      report(`${expression.text} is not imported from a file the scanner can read`);
+      continue;
+    }
+    const key = `${target.file}#${target.name}`;
+    if (seen.has(key)) continue; // already followed: a cycle proves nothing
+    seen.add(key);
+    let child: ts.SourceFile | null = null;
+    try {
+      child = parse(target.file);
+    } catch {
+      child = null;
+    }
+    const declared = child ? moduleConstants(child).get(target.name) : undefined;
+    const array = declared ? unwrap(declared) : undefined;
+    if (!child || !array || !ts.isArrayLiteralExpression(array)) {
+      report(`${expression.text} is not an array of routes written out`);
+      continue;
+    }
+    const childContext: CollectContext = {
+      ...context,
+      source: child,
+      sourceFile: target.file,
+      components: componentSources(child, target.file, context.aliases),
+      scope: stringScope(child, target.file, context.aliases),
+    };
+    collect(routeObjectsIn(array), '', childContext);
+    followSpreads(array, child, target.file, childContext, seen);
+  }
+}
+
 /**
  * The roles an application names, when it has no permissions module to read (WP-43).
  *
@@ -449,6 +555,19 @@ type Aliases = ReadonlyMap<string, string>;
  * already declared — which would be a human step.
  */
 function readAliases(appRoot: string): Aliases {
+  const aliases = readDeclaredAliases(appRoot);
+  // The monorepo the app sits in, if any. It rides on the aliases object — every place that resolves a
+  // specifier already carries one — so a bare import of a sibling package resolves without a new
+  // parameter on every function between here and there.
+  const workspace = findWorkspace(appRoot, resolveComponentFile);
+  if (workspace) WORKSPACES.set(aliases, workspace);
+  return aliases;
+}
+
+/** The workspace an alias set belongs to (see `readAliases`). */
+const WORKSPACES = new WeakMap<Aliases, Workspace>();
+
+function readDeclaredAliases(appRoot: string): Aliases {
   const out = new Map<string, string>();
   let dir = resolve(appRoot);
   for (let depth = 0; depth < 5; depth++) {
@@ -511,7 +630,8 @@ function resolveSpecifierFile(specifier: string | null | undefined, fromFile: st
   for (const [prefix, dir] of aliases) {
     if (specifier.startsWith(prefix)) return resolveComponentFile(join(dir, specifier.slice(prefix.length)));
   }
-  return null;
+  // A package the workspace declares is the adopter's own code; any other package is not.
+  return WORKSPACES.get(aliases)?.resolve(specifier) ?? null;
 }
 
 /**
@@ -538,15 +658,19 @@ function elementRedirect(expression: ts.Expression | undefined): string | null {
 
 /**
  * Resolve an import written anywhere in the application the way a route's page is resolved:
- * relative, or through the app's own path aliases. A package, or a file outside the
- * application, is null — the generator reads the adopter's code and nothing else.
+ * relative, through the app's own path aliases, or — in a monorepo — by bare name into a
+ * package the workspace declares (see `workspace.ts`). Any other package, and any file outside
+ * the application and those packages, is null — the generator reads the adopter's code and
+ * nothing else.
  */
 export function importResolver(appRoot: string): (specifier: string, fromFile: string) => string | null {
   const aliases = readAliases(appRoot);
-  const root = resolve(appRoot);
+  // The application, and the packages of the workspace it sits in: the generator reads the adopter's
+  // code and nothing else.
+  const roots = [resolve(appRoot), ...(WORKSPACES.get(aliases)?.roots ?? [])];
   return (specifier, fromFile) => {
     const file = resolveSpecifierFile(specifier, fromFile, aliases);
-    return file && resolve(file).startsWith(root) ? file : null;
+    return file && roots.some((root) => resolve(file).startsWith(root)) ? file : null;
   };
 }
 
@@ -647,6 +771,13 @@ function childRoutesOf(container: ts.Node, self: ts.Node): RouteObject[] {
   return routeObjectsIn(container);
 }
 
+/**
+ * A component named as a guard or a provider rather than a page: `ProtectedRoute`, `RequireAuth`,
+ * `PrivateRoute`, `RoleGuard`, `Suspense`. It renders its child when allowed and something of its own
+ * (a login wall, a spinner) when not — and that something is not the screen.
+ */
+const GUARD_NAME = /^(?:Protected|Private|Guarded|Secure|Authenticated|Auth|Require\w*|Role\w*|Permission\w*|Guard\w*|Suspense|ErrorBoundary)|(?:Guard|Gate|Protected|Route|Boundary|Provider)$/;
+
 /** The component name in `element: <Thing prop="x" />` or `Component: Thing`. */
 function elementComponent(expression: ts.Expression | undefined): string | null {
   if (!expression) return null;
@@ -659,7 +790,21 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
       : null;
   if (!opening) return null;
   const tag = opening.tagName;
-  return ts.isIdentifier(tag) ? tag.text : tag.getText();
+  const name = ts.isIdentifier(tag) ? tag.text : tag.getText();
+  // `<ProtectedRoute><WellnessFormPage /></ProtectedRoute>`: the page is the guard's one child. Two
+  // children, or a wrapper not named as a guard (a layout shell, whose children are read through it
+  // later), is not guessed at. Who may reach the page is read from the outer element's props, and
+  // stays that way.
+  if (ts.isJsxElement(node) && GUARD_NAME.test(name)) {
+    const children = node.children.filter(
+      (child) => ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child) || (ts.isJsxExpression(child) && child.expression !== undefined),
+    );
+    const [only] = children;
+    if (children.length === 1 && only && (ts.isJsxElement(only) || ts.isJsxSelfClosingElement(only))) {
+      return elementComponent(only as unknown as ts.Expression) ?? name;
+    }
+  }
+  return name;
 }
 
 /**
@@ -852,6 +997,7 @@ function collect(
       component,
       componentFile,
       feature: featureOf(componentFile),
+      ...(hasElement && component && !componentFile ? { routedIn: context.sourceFile } : {}),
       roles: roles && roles.length > 0 ? [...new Set(roles)] : roles === null ? null : [],
       roleKey,
       devOnly: isDevGuarded(node),
@@ -959,7 +1105,7 @@ function discoverByRouter(config: GeneratorConfig): {
   const out: DiscoveredRoute[] = [];
   const unreadable: UnreadableRoute[] = [];
 
-  collect(routeObjectsIn(source), '', {
+  const context: CollectContext = {
     source,
     sourceFile: routesFile,
     components: componentSources(source, routesFile, aliases),
@@ -968,7 +1114,9 @@ function discoverByRouter(config: GeneratorConfig): {
     scope: stringScope(source, routesFile, aliases),
     unreadable,
     out,
-  });
+  };
+  collect(routeObjectsIn(source), '', context);
+  followSpreads(source, source, routesFile, context, new Set());
 
   return { routes: out, roles, unreadable };
 }

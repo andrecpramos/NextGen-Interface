@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeGaps, parseKnowledge } from './knowledge.ts';
+import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, knowledgeGaps, parseKnowledge } from './knowledge.ts';
 import type { AnnotatedCapability } from './types.ts';
 
 /**
@@ -258,5 +258,93 @@ describe('cannot — what the app does not do, in the adopter’s words', () => 
     expect(none.some((g) => g.kind === 'limits-missing')).toBe(true);
     const some = knowledgeGaps([medical], parseKnowledge({ cannot: [payments] }).knowledge).gaps;
     expect(some.some((g) => g.kind === 'limits-missing')).toBe(false);
+  });
+});
+
+/**
+ * How the app works, and how to reason about a request in it — for the model stage (ADR-023).
+ * It is the one part of the file that is *about the whole app* rather than a screen, so it is
+ * the part most likely to name something a given role must not be told (Rule 17): each rule and
+ * each glossary entry can be scoped to roles, and a role receives only its own.
+ */
+describe('rules — how the app works, told to the model', () => {
+  const guardianRule = 'O estado médico é por educando: se houver mais do que um, é preciso saber qual.';
+  const coachRule = 'Um treinador só vê os jogadores das equipas que dirige.';
+  const source = {
+    rules: [guardianRule, { text: coachRule, roles: ['COACH'] }],
+    glossary: [
+      { term: 'educando', means: 'um jovem atleta', aliases: ['filho', 'filha'] },
+      { term: 'convocatória', means: 'a lista de um jogo', aliases: ['lista'], roles: ['COACH'] },
+    ],
+    cannot: [payments],
+  };
+  const { knowledge } = parseKnowledge(source);
+
+  it('reads a rule as a string or as text with the roles it is for', () => {
+    expect(knowledge.rules).toEqual([
+      { text: guardianRule, roles: null },
+      { text: coachRule, roles: ['COACH'] },
+    ]);
+    expect(knowledge.glossary[1]!.roles).toEqual(['COACH']);
+    expect(knowledge.glossary[0]!.roles).toBeNull();
+  });
+
+  it('drops a rule that is not text, and names where it was', () => {
+    const { knowledge: k, problems } = parseKnowledge({ rules: ['ok', 7, { roles: ['X'] }, { text: '   ' }, { text: 'fine', roles: 'PARENT' }] });
+    expect(k.rules.map((r) => r.text)).toEqual(['ok', 'fine']);
+    expect(k.rules[1]!.roles).toEqual(['PARENT']);
+    expect(problems.map((p) => p.path).sort()).toEqual(['rules[1]', 'rules[2]', 'rules[3]']);
+  });
+
+  it('caps how many rules one file can carry', () => {
+    const { knowledge: k, problems } = parseKnowledge({ rules: Array.from({ length: 90 }, (_, i) => `regra ${i}`) });
+    expect(k.rules).toHaveLength(60);
+    expect(problems.some((p) => p.path === 'rules' && /too many/.test(p.message))).toBe(true);
+  });
+
+  it('gives each role only its own: what is for everyone, and what is for it', () => {
+    const parent = knowledgeContext(knowledge, 'PARENT')!;
+    expect(parent.rules).toEqual([guardianRule]);
+    expect(parent.glossary?.map((g) => g.term)).toEqual(['educando']);
+    const coach = knowledgeContext(knowledge, 'COACH')!;
+    expect(coach.rules).toEqual([guardianRule, coachRule]);
+    expect(coach.glossary?.map((g) => g.term)).toEqual(['educando', 'convocatória']);
+  });
+
+  it('never tells one role what another was told, in any field', () => {
+    const parent = JSON.stringify(knowledgeContext(knowledge, 'PARENT'));
+    expect(parent).not.toContain('treinador só vê');
+    expect(parent).not.toContain('convocatória');
+    expect(knowledgeContext(knowledge, 'PLAYER')).not.toBeNull();
+    expect(JSON.stringify(knowledgeContext(knowledge, 'PLAYER'))).not.toContain('convocatória');
+  });
+
+  it('gives every role the app’s declared limits, which are about the app and not a screen', () => {
+    for (const role of ['PARENT', 'COACH', 'ANYONE']) {
+      expect(knowledgeContext(knowledge, role)!.limits).toEqual([{ about: 'Pagamentos e quotas', say: payments.say }]);
+    }
+  });
+
+  it('is nothing at all for an app that said nothing, or only what is for other roles', () => {
+    expect(knowledgeContext(EMPTY_KNOWLEDGE, 'PARENT')).toBeNull();
+    const onlyCoach = parseKnowledge({ rules: [{ text: coachRule, roles: ['COACH'] }] }).knowledge;
+    expect(knowledgeContext(onlyCoach, 'PARENT')).toBeNull();
+  });
+
+  it('keeps a few aliases per word, so vocabulary cannot crowd out the rules', () => {
+    const many = parseKnowledge({ glossary: [{ term: 'x', aliases: Array.from({ length: 20 }, (_, i) => `a${i}`) }] }).knowledge;
+    expect(knowledgeContext(many, 'PARENT')!.glossary![0]!.aliases!.length).toBeLessThanOrEqual(8);
+  });
+
+  it('is a gap to ask about while there are none, and not once there are', () => {
+    expect(knowledgeGaps([medical], EMPTY_KNOWLEDGE).gaps.some((g) => g.kind === 'rules-missing')).toBe(true);
+    expect(knowledgeGaps([medical], knowledge).gaps.some((g) => g.kind === 'rules-missing')).toBe(false);
+  });
+
+  it('points at a rule scoped to a role the app does not have, rather than dropping it without a word', () => {
+    const typo = parseKnowledge({ rules: [{ text: 'algo', roles: ['COACHH'] }] }).knowledge;
+    const gap = knowledgeGaps([medical], typo).gaps.find((g) => g.kind === 'role-unknown');
+    expect(gap).toBeDefined();
+    expect(gap!.message).toContain('COACHH');
   });
 });

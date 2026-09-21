@@ -124,7 +124,7 @@ interface TranslationBinding {
   readonly namespace: string | null;
 }
 
-/** `'squad'`, or the first of `['squad', 'common']`. */
+/** `'squad'`, the first of `['squad', 'common']`, or next-intl's `{ locale, namespace: 'squad' }`. */
 function namespaceArgument(argument: ts.Expression | undefined): string | null {
   if (!argument) return null;
   if (ts.isStringLiteralLike(argument)) return argument.text;
@@ -132,8 +132,23 @@ function namespaceArgument(argument: ts.Expression | undefined): string | null {
     const [first] = argument.elements;
     return first && ts.isStringLiteralLike(first) ? first.text : null;
   }
+  if (ts.isObjectLiteralExpression(argument)) {
+    for (const property of argument.properties) {
+      if (ts.isPropertyAssignment(property) && property.name.getText() === 'namespace' && ts.isStringLiteralLike(property.initializer)) {
+        return property.initializer.text;
+      }
+    }
+  }
   return null;
 }
+
+/**
+ * next-intl, the i18n library of the Next.js app router: `const t = useTranslations('portal')` in a
+ * client component, `const t = await getTranslations('portal')` in a server one. Its messages are a
+ * nested object per language, so a namespace is a path into it — `portal.athlete` — and a key
+ * `portal.athlete:title` resolves the way an i18next `ns:key` does.
+ */
+const NEXT_INTL_HOOKS = new Set(['useTranslations', 'getTranslations']);
 
 /** A call's namespaced i18n key, or null when it is not a translation. `keyOnly` refuses a call that interpolates. */
 type KeyOf = (node: ts.Node, keyOnly?: boolean) => string | null;
@@ -171,6 +186,17 @@ function translationCalls(
             bindings.push({ scope, local: element.name.text, namespace: bound });
           }
         }
+      }
+    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && NEXT_INTL_HOOKS.has(node.expression.text)) {
+      const bound = namespaceArgument(node.arguments[0]);
+      namespace ??= bound;
+      // `const t = await getTranslations(...)`: the call sits under an `await`.
+      const declaration = node.parent && ts.isAwaitExpression(node.parent) ? node.parent.parent : node.parent;
+      if (declaration && ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name)) {
+        let scope: ts.Node = declaration;
+        while (scope.parent && !ts.isBlock(scope) && !ts.isSourceFile(scope)) scope = scope.parent;
+        bindings.push({ scope, local: declaration.name.text, namespace: bound });
       }
     }
     ts.forEachChild(node, visit);
@@ -331,10 +357,41 @@ function titleKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
  */
 const FALLBACK_ATTRIBUTES = /^(fallback|errorFallback|loadingFallback|errorElement)$/;
 
+const NAMED_ENTITIES: Readonly<Record<string, string>> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', copy: '©', reg: '®', hellip: '…', ndash: '–', mdash: '—',
+  laquo: '«', raquo: '»', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', euro: '€', middot: '·', bull: '•',
+};
+
+/**
+ * JSX text is read raw, so `Match &amp; results` is what a page's source says and `Match & results` is what
+ * a person reads. It was offered to visitors, and matched against, with the entity in it.
+ */
+function decodeEntities(text: string): string {
+  return text.replace(/&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi, (whole, decimal?: string, hex?: string, name?: string) => {
+    if (name !== undefined) return NAMED_ENTITIES[name.toLowerCase()] ?? whole;
+    const code = decimal !== undefined ? Number(decimal) : Number.parseInt(hex!, 16);
+    return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+  });
+}
+
+/**
+ * "Skip to the main content": a link to a place on the same page, which every accessible app has and
+ * which says nothing about the page it is on. Only that — a link to a section (`#pricing`) is still
+ * the page's own words.
+ */
+function isSkipLink(node: ts.Node): boolean {
+  if (!ts.isJsxElement(node) || node.openingElement.tagName.getText() !== 'a') return false;
+  const attributes = node.openingElement.attributes;
+  const href = literalAttr(attributes, 'href');
+  if (!href?.startsWith('#')) return false;
+  return /skip/i.test(literalAttr(attributes, 'className') ?? literalAttr(attributes, 'class') ?? '') || /^#(?:main|content|skip)/i.test(href);
+}
+
 /** Literal user-visible text: headings, titles, and JSX text nodes. */
-function headings(source: ts.SourceFile): string[] {
+function headings(source: ts.Node): string[] {
   const out: string[] = [];
   const visit = (node: ts.Node): void => {
+    if (isSkipLink(node)) return;
     if (ts.isJsxAttribute(node)) {
       const name = node.name.getText();
       if (FALLBACK_ATTRIBUTES.test(name)) return; // its subtree is the failure state, not the screen
@@ -344,7 +401,7 @@ function headings(source: ts.SourceFile): string[] {
       }
     }
     if (ts.isJsxText(node)) {
-      const text = node.text.trim();
+      const text = decodeEntities(node.text).replace(/\s+/g, ' ').trim();
       if (text.length > 2 && /[a-zA-ZÀ-ÿ]/.test(text)) out.push(text);
     }
     ts.forEachChild(node, visit);
@@ -648,8 +705,65 @@ export function readScreen(file: string, resolveImport: ImportResolver): PageFac
   const own = readPage(file);
   const saysNothing = own.titleKeys.length === 0 && own.i18nKeys.length === 0 && own.headings.length === 0;
   if (!saysNothing || !/\.(tsx|jsx)$/.test(file)) return own;
-
   const source = parse(file);
+  return readThrough(file, source, source, own, resolveImport);
+}
+
+/** Nothing said about a screen yet. */
+export const EMPTY_FACTS: PageFacts = {
+  isPureRedirect: false,
+  fields: [],
+  redirectTargets: [],
+  i18nKeys: [],
+  headings: [],
+  titleKeys: [],
+  doc: null,
+  title: null,
+  inferredCandidates: [],
+};
+
+/** The component `name` declared at the top level of a file — `function X() {}` or `const X = () => …` — or null. */
+function localComponent(source: ts.SourceFile, name: string): ts.Node | null {
+  for (const statement of source.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name?.text === name) return statement;
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (ts.isIdentifier(declaration.name) && declaration.name.text === name && declaration.initializer) return declaration.initializer;
+    }
+  }
+  return null;
+}
+
+/**
+ * A screen whose component is declared in the very file that routes to it.
+ *
+ *     function MainPage() { return <main><Hero /><Pricing /><Team /></main>; }
+ *     …
+ *     <Route path="/" element={<MainPage />} />
+ *
+ * Common in a small app, and it is the whole of a one-page site: discovery follows imports, so a
+ * component with no import had no file, and the screen everything is on was described from nothing.
+ * It is read like a wrapper page — through the sections it composes, one level, the application's own
+ * components only — and *only* that declaration is read: the header and footer the app renders
+ * around its routes are chrome, and are nobody's page.
+ *
+ * `null` when it says nothing readable, so the caller keeps what it always did and does not point
+ * "where this description came from" at a file that contributed none of it.
+ */
+export function readLocalScreen(file: string, name: string, resolveImport: ImportResolver): PageFacts | null {
+  if (!/\.(tsx|jsx)$/.test(file)) return null;
+  const source = parse(file);
+  const declaration = localComponent(source, name);
+  if (!declaration) return null;
+  const ownWords = headings(declaration);
+  const through = readThrough(file, source, declaration, EMPTY_FACTS, resolveImport);
+  const facts = { ...through, headings: [...new Set([...ownWords, ...through.headings])].slice(0, 12) };
+  const saysSomething = facts.headings.length > 0 || facts.titleKeys.length > 0 || facts.i18nKeys.length > 0 || facts.fields.length > 0;
+  return saysSomething ? facts : null;
+}
+
+/** `own`, or — when `own` says nothing — what the application's own components rendered under `root` say. */
+function readThrough(file: string, source: ts.SourceFile, root: ts.Node, own: PageFacts, resolveImport: ImportResolver): PageFacts {
   const imports = importedComponents(source);
   const children: ComponentReading[] = [];
   const seen = new Set<string>();
@@ -669,7 +783,7 @@ export function readScreen(file: string, resolveImport: ImportResolver): PageFac
     }
     ts.forEachChild(node, visit);
   };
-  visit(source);
+  visit(root);
   if (children.length === 0) return own;
 
   const flat = (pick: (reading: ComponentReading) => readonly string[]): string[] => [...new Set(children.flatMap(pick))];

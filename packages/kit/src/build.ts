@@ -14,7 +14,7 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { THRESHOLD_PROFILES, type Thresholds } from '@nextgen/core-intent/config';
+import { THRESHOLD_PROFILES, UNCALIBRATED_BOUNDARY_FLOOR, type Thresholds } from '@nextgen/core-intent/config';
 import {
   generate,
   knowledgeGaps,
@@ -216,8 +216,12 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     calibrated = true;
     thresholdsSource = CALIBRATION_FILE;
   } else {
-    thresholds = THRESHOLD_PROFILES.hashing;
-    thresholdsSource = 'the default hashing profile, calibrated on a 7-screen reference app rather than this one';
+    // Refusal is the one claim nothing has measured for this app: a limit must clear a floor of its own
+    // until a calibration decides (Thresholds.boundaryFloor). The floor is a stand-in, not a setting.
+    thresholds = { ...THRESHOLD_PROFILES.hashing, boundaryFloor: UNCALIBRATED_BOUNDARY_FLOOR };
+    thresholdsSource =
+      `the default hashing profile, calibrated on a 7-screen reference app rather than this one, ` +
+      `with declared limits held to a floor of ${UNCALIBRATED_BOUNDARY_FLOOR} until you calibrate`;
   }
   // WP-52 (ADR-017). `stage3` rides in the same manifest `load()` already fetches
   // unconditionally, so turning this on costs the visitor's browser nothing extra until a

@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { build } from './build.ts';
 import { detectApp, init } from './detect.ts';
 import { calibrate } from './calibrate.ts';
-import { doctor } from './doctor.ts';
+import { adapterVersion, doctor } from './doctor.ts';
 
 /**
  * WP-41: the kit, run the way an adopter runs it, on apps it was not written for.
@@ -156,7 +156,34 @@ describe('init → build → doctor, end to end', () => {
     expect(thresholds.calibrated).toBe(false);
     // The script tag reads `.thresholds` — the shape WP-29's load() expects.
     expect(thresholds.thresholds.tauHigh).toBeTypeOf('number');
+    // Refusal is the one claim nothing has measured for this app, so a limit must clear a floor of its own
+    // until a calibration decides otherwise (Thresholds.boundaryFloor) — and the file says so.
+    expect(thresholds.thresholds.boundaryFloor).toBe(0.15);
+    expect(thresholds.source).toMatch(/floor/i);
     expect(doctor(kit).text).toMatch(/NOT calibrated/);
+    expect(doctor(kit).text).toMatch(/floor of 0\.15/);
+    // …and that the first thing to do about it, on a small or thinly described app, is to say what the
+    // screens are for: a screen the visitor's words never match cannot win (FIELD-NOTES §5).
+    expect(doctor(kit).text).toMatch(/small app[\s\S]*knowledge\.json/);
+    // …and it says what a visitor's attachment does: reaches the page as an event, or is switched off.
+    expect(doctor(kit).text).toMatch(/nextgen:attach/);
+    expect(doctor(kit).text).toMatch(/data-nextgen-attach="off"/);
+    expect(doctor(kit).text).toMatch(/never leaves their device/);
+  }, 60_000);
+
+  // `adapter/VERSION` is written by tooling/scripts/build-adapter.mjs: an id of the two shipped files, so an
+  // adopter can say which build they copied. It changes exactly when scan.mjs or runtime/nextgen.js does.
+  it('says which build of the adapter produced this report, when the adapter says', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit);
+    const adapter = mkdtempSync(join(tmpdir(), 'nextgen-adapter-'));
+    writeFileSync(join(adapter, 'VERSION'), 'nextgen-adapter 3240543bfd6a-ab20d96823cd\nIdentifies these two files.\n');
+    expect(adapterVersion(adapter)).toBe('nextgen-adapter 3240543bfd6a-ab20d96823cd');
+    expect(doctor(kit, adapter).text).toMatch(/nextgen-adapter 3240543bfd6a-ab20d96823cd/);
+    // Run from source, or from a copy that lost the file: nothing to say, and nothing broken.
+    expect(adapterVersion(join(adapter, 'missing'))).toBeNull();
+    expect(doctor(kit, join(adapter, 'missing')).text).not.toMatch(/nextgen-adapter/);
   }, 60_000);
 
   it('explains every skip in words, with what to do', async () => {
@@ -190,6 +217,10 @@ describe('init → build → doctor, end to end', () => {
     const record = await build(kit);
     expect(record.calibrated).toBe(true);
     expect(doctor(kit).text).toMatch(/Calibrated for this app/);
+    // A calibration replaces the whole set: the floor was a stand-in for one, and is gone with it.
+    const shipped = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect(shipped.thresholds).toEqual(thresholds);
+    expect('boundaryFloor' in shipped.thresholds).toBe(false);
   }, 60_000);
 
   it('treats an app with no role table as one audience, and serves it as PUBLIC', async () => {
@@ -511,5 +542,54 @@ describe('doctor — how much the assistant knows about the app', () => {
     writeFileSync(join(kit, 'knowledge.json'), JSON.stringify({ app: { about: 'x' }, screens: { '/settings': { purpose: 'Contas.', askedAs: ['a', 'b', 'c'] } } }));
     await build(kit);
     expect(doctor(kit).text).toMatch(/knowledge\.json — 1 of \d+ screens described, real phrasing for 1 of \d+/);
+  }, 60_000);
+});
+
+describe('knowledge — what the model stage is told, role by role (Rule 17)', () => {
+  const contextOf = (kit: string, role: string) =>
+    (JSON.parse(readFileSync(join(kit, 'bundle', `registry.${role}.json`), 'utf8')) as { context?: { rules?: string[]; glossary?: { term: string }[]; limits?: { about: string }[] } }).context;
+
+  const build_ = async (knowledge: unknown) => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    writeFileSync(join(kit, 'knowledge.json'), JSON.stringify(knowledge));
+    const record = await build(kit);
+    return { kit, record };
+  };
+
+  const everyone = 'Every page is reached from the menu on the left.';
+  const adminOnly = 'Only an administrator can change who is a coach.';
+
+  it('writes each role only the rules and words that are for it, and never another role’s', async () => {
+    const { kit } = await build_({
+      rules: [everyone, { text: adminOnly, roles: ['ADMIN'] }],
+      glossary: [{ term: 'squad', means: 'a team', aliases: ['team'] }, { term: 'audit trail', roles: ['ADMIN'] }],
+      cannot: [{ about: 'Payments', say: 'Fees are handled by the office.', askedAs: ['pay my fee', 'how much do I owe', 'when is the fee due'] }],
+    });
+    expect(contextOf(kit, 'ADMIN')!.rules).toEqual([everyone, adminOnly]);
+    expect(contextOf(kit, 'PARENT')!.rules).toEqual([everyone]);
+    expect(contextOf(kit, 'COACH')!.rules).toEqual([everyone]);
+    expect(contextOf(kit, 'PARENT')!.glossary!.map((g) => g.term)).toEqual(['squad']);
+    expect(contextOf(kit, 'ADMIN')!.glossary!.map((g) => g.term)).toEqual(['squad', 'audit trail']);
+    for (const role of ['ADMIN', 'PARENT', 'COACH']) expect(contextOf(kit, role)!.limits![0]!.about).toBe('Payments');
+    // Not just absent from the field: absent from the served file altogether.
+    for (const role of ['PARENT', 'COACH']) expect(readFileSync(join(kit, 'bundle', `registry.${role}.json`), 'utf8')).not.toContain('change who is a coach');
+    expect(readFileSync(join(kit, 'bundle', 'registry.PARENT.json'), 'utf8')).not.toContain('audit trail');
+  }, 60_000);
+
+  it('writes no context at all when the developer has said nothing for the model', async () => {
+    const { kit } = await build_({ app: { about: 'A club.' }, screens: { '/settings': { purpose: 'Contas.' } } });
+    for (const role of ['ADMIN', 'PARENT', 'COACH']) expect(contextOf(kit, role)).toBeUndefined();
+  }, 60_000);
+
+  it('says so, and still builds, when a rule is for a role the app does not have', async () => {
+    const { kit, record } = await build_({ rules: [{ text: 'Something.', roles: ['ADMINN'] }] });
+    expect(record.roles.length).toBeGreaterThan(0);
+    expect(readFileSync(join(kit, 'review', 'KNOWLEDGE-GAPS.md'), 'utf8')).toMatch(/ADMINN.*no such role/);
+  }, 60_000);
+
+  it('asks how the app works while nothing has been said about it', async () => {
+    const { kit } = await build_({ app: { about: 'x' } });
+    expect(readFileSync(join(kit, 'review', 'KNOWLEDGE-GAPS.md'), 'utf8')).toMatch(/How does this app work that a newcomer would not guess/);
   }, 60_000);
 });

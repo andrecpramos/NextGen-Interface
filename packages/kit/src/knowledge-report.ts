@@ -19,6 +19,10 @@ const EXAMPLE = `{
   "cannot": [
     { "about": "something users ask for that the app does not do", "say": "what to tell them, in your words", "askedAs": ["how they ask", "another way", "a third way"] }
   ],
+  "rules": [
+    "How the app works that a newcomer would not guess, as one short statement.",
+    { "text": "A rule that only some roles should be told.", "roles": ["ADMIN"] }
+  ],
   "screens": {
     "/your/route": {
       "purpose": "What this screen is for, in your words. Shown to a visitor who asks what it is.",
@@ -31,7 +35,7 @@ const EXAMPLE = `{
 
 export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: KnowledgeCoverage, found: boolean): string {
   const of = (n: number): string => `${n} of ${coverage.screens}`;
-  const app = gaps.filter((g) => g.kind === 'app-about-missing' || g.kind === 'limits-missing');
+  const app = gaps.filter((g) => g.kind === 'app-about-missing' || g.kind === 'limits-missing' || g.kind === 'rules-missing' || g.kind === 'role-unknown');
   const screens = gaps.filter((g) => g.route !== undefined && g.kind !== 'knowledge-orphan');
   const orphans = gaps.filter((g) => g.kind === 'knowledge-orphan');
   const lines: string[] = [

@@ -46,7 +46,30 @@ export interface Thresholds {
    * the engine falls back to `boundaryMargin` and behaves exactly as it did.
    */
   readonly actionBoundaryMargin?: number;
+  /**
+   * The score a declared limit must reach *in its own right* before it may refuse — `boundaryMargin`
+   * asks how far it leads, this asks whether it is evidence at all.
+   *
+   * On an app the router has not been calibrated for and can describe only by its own labels, every
+   * real screen scores ~0 for an everyday question, and a limit sharing one word with it (0.07–0.16)
+   * leads by enough and wins: 7 of 12 ordinary questions on a real one-page site were refused. Genuine
+   * out-of-scope requests scored 0.19–0.32 there.
+   *
+   * **Absent from every calibrated profile, on purpose** — a sweep decides those, and this is not one of
+   * its outputs (Rule 14). It is set only on a bundle built with no calibration, by
+   * `UNCALIBRATED_BOUNDARY_FLOOR`, and a calibration replaces the whole set. It does not apply to a
+   * request that asks the assistant to *do* something: that verb is independent evidence (ADR-015).
+   * Absent or 0, it changes nothing.
+   */
+  readonly boundaryFloor?: number;
 }
+
+/**
+ * The floor of a bundle built with no calibration: what a screen or a limit must score to count as more
+ * than "barely a match". Not fitted — it is the bar `embed`'s likely-one tier already uses for a screen
+ * (`LEAD_FLOOR`, chosen before it was measured), applied to a limit too. See `Thresholds.boundaryFloor`.
+ */
+export const UNCALIBRATED_BOUNDARY_FLOOR = 0.15;
 
 export type EmbedderKind = 'hashing' | 'ollama';
 

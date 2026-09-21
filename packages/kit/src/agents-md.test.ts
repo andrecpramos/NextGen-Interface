@@ -16,6 +16,16 @@ const AGENTS = readFileSync(
   'utf8',
 );
 
+describe('adapter/AGENTS.md — what an attachment is, and is not, allowed to become', () => {
+  it('has the agent ask whether the app can use a file, and never wire an upload on its own', () => {
+    expect(AGENTS).toMatch(/can this app do anything with a file a visitor attaches/i);
+    expect(AGENTS).toMatch(/never leaves their device/);
+    expect(AGENTS).toMatch(/nextgen:attach/);
+    expect(AGENTS).toMatch(/data-nextgen-attach="off"/);
+    expect(AGENTS).toMatch(/Do not wire an upload endpoint on your own initiative/);
+  });
+});
+
 describe('adapter/AGENTS.md keeps the decisions that are the developer\'s to make', () => {
   it('numbers its decisions from 1 with no gaps, and has at least the seven that were field-tested', () => {
     const numbers = [...AGENTS.matchAll(/^#+ ASK (\d+)/gm)].map((m) => Number(m[1]));
@@ -87,6 +97,24 @@ describe('adapter/AGENTS.md runs an interview about the app, and keeps it honest
     expect(interview).toMatch(/share[sd]?\s+(a\s+|the\s+)?(word|words|stem)|same\s+words?|words?\s+in\s+common/i);
     expect(interview).toMatch(/can\s+(already\s+)?do|does\s+do/i);
     expect(interview).toMatch(/wrongly\s+refus|refuse[sd]?\s+(a\s+)?(real|genuine|ordinary)|refusing\s+a\s+real/i);
+  });
+
+  it('asks how the app works — the reasoning a newcomer would not guess — and writes it as rules', () => {
+    expect(interview).toMatch(/`rules`/);
+    expect(interview).toMatch(/how\s+(does\s+)?(this|the)\s+app\s+work/i);
+    expect(interview).toMatch(/depends?\s+on|before\s+(they|someone|a\s+user)\s+can/i);
+    expect(interview).toMatch(/go(es)?\s+wrong/i);
+  });
+
+  it('warns that a rule is told to every role unless scoped, because a role must not learn another’s features', () => {
+    expect(interview).toMatch(/every\s+role/i);
+    expect(interview).toMatch(/`roles`/);
+    expect(interview).toMatch(/admin|another\s+role|not\s+(be\s+)?(told|shown)/i);
+  });
+
+  it('says the rules go to the model stage, and that without it they change nothing a visitor sees', () => {
+    expect(interview).toMatch(/model/i);
+    expect(interview).toMatch(/stage\s+3|ASK\s+8/i);
   });
 
   it('keeps phrasing out of the calibration set, which would otherwise measure memory', () => {
