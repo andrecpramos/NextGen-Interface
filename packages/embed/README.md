@@ -81,8 +81,20 @@ and `?ask=…` asks a question on load, so a state can be linked to.
   colours are the orb's accent turned either way round the hue wheel. It is absent under
   forced colours. [ADR-022](../../.claude/decisions/ADR-022.md) records the choice, the size
   it costs (+8KB gzipped) and the alternatives.
-- **The screen** (`assistant.ts`) is a modal dialog: a greeting and a composer, and no
-  pre-written questions. Focus moves in, Tab stays in, Escape closes it and focus returns
+- **The screen** (`assistant.ts`) is a modal dialog with two layouts of one page. Before anyone
+  has said anything it is a landing page: the orb, a greeting and a composer, and no
+  pre-written questions. From the first question it is a **chat**: the orb shrinks to the top,
+  the conversation fills the screen and scrolls, and the composer stays at the bottom. The
+  greeting is the first message; the visitor's words appear on the right the moment they send
+  them (as text, never as markup); a typing indicator shows while it works out an answer; the
+  answer arrives on the left with its options as rows and its "Why?" beneath — and when the router
+  will not act but one screen is plainly ahead (its score at least 1.5 times the runner-up's, and
+  not a declared limit close behind), that screen is offered first as "you probably want X", with
+  what it is for in the adopter's own words, and the rest as alternatives; it is only ever a link
+  (`present.ts`); every turn is
+  kept. The thread is a `role="log"` (announced in order, once complete), keeps the greeting and
+  the latest 60 messages rather than growing all day, and is reachable by keyboard from the
+  first option to the last. Focus moves in, Tab stays in, Escape closes it and focus returns
   to the orb.
 - **The adopter's look** (`theme.ts`). The screen, its buttons and the orb take the look of
   the page they sit on, read from what it renders: its background and text colour, its

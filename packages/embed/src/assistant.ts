@@ -126,50 +126,97 @@ const CSS = `
 .controls-start { left: 16px; }
 .controls-end { right: 16px; }
 
+/* Two layouts of one screen. Before anyone has said anything it is a landing page: the orb, a
+   greeting, a composer. From the first question it is a conversation: the orb shrinks to the
+   top, the thread fills the screen and scrolls, and the composer stays at the bottom. */
 .stage {
-  position: relative; height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  position: relative; height: 100%; min-height: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 18px; padding: 72px 16px 48px;
+  gap: 18px; padding: 72px 16px 28px;
 }
+.screen[data-conversation="true"] .stage { justify-content: flex-start; gap: 8px; padding-top: 58px; }
 .stage > :not(.slot) {
   opacity: 0; transform: translateY(16px);
   transition: opacity 420ms cubic-bezier(.22,1,.36,1), transform 620ms cubic-bezier(.22,1,.36,1);
 }
 .screen[data-open="true"] .stage > :not(.slot) { opacity: 1; transform: none; }
-.screen[data-open="true"] .greeting,
-.screen[data-open="true"] .answer   { transition-delay: 90ms; }
+.screen[data-open="true"] .thread   { transition-delay: 90ms; }
 .screen[data-open="true"] .composer { transition-delay: 160ms; }
 
 .slot { flex: none; width: min(200px, 46vw, 26vh); aspect-ratio: 1; }
+.screen[data-conversation="true"] .slot { width: 60px; }
 .caption {
   margin: -10px 0 0; min-height: 1rem; max-width: 36rem; text-align: center;
   font-size: .6875rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--ng-muted, #7a838f);
 }
-.greeting {
-  margin: 0; text-align: center;
-  font-size: clamp(1.375rem, 1.05rem + 1.1vw, 1.875rem); font-weight: 500; letter-spacing: -.015em;
-}
-.screen[data-conversation="true"] .greeting { display: none; }
+.screen[data-conversation="true"] .caption { margin: -4px 0 0; }
 
-.answer { width: min(640px, 100%); text-align: center; }
-.answer:empty { display: none; }
-.question { margin: 0 0 8px; font-size: .8125rem; color: var(--ng-muted, #7a838f); }
-.title { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -.01em; }
-.body { margin: 6px auto 0; max-width: 52ch; color: var(--ng-muted, #9aa3af); }
-.chips { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.thread {
+  width: min(720px, 100%); display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth;
+}
+.screen[data-conversation="true"] .thread {
+  flex: 1 1 auto; min-height: 0; padding: 18px 2px 12px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
+}
+.msg { display: flex; min-width: 0; animation: nextgen-rise 320ms cubic-bezier(.22,1,.36,1) both; }
+@keyframes nextgen-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.msg.user { justify-content: flex-end; }
+.msg-body { min-width: 0; max-width: min(88%, 36rem); padding: 11px 16px; border-radius: 20px; overflow-wrap: anywhere; }
+.msg.user .msg-body {
+  background: var(--ng-accent-soft, rgb(121 192 206 / .16)); color: var(--ng-text, #e6e9ee); border-bottom-right-radius: 6px;
+}
+.msg.assistant .msg-body {
+  background: var(--ng-surface, #171b21); border: 1px solid var(--ng-border, rgb(255 255 255 / .09)); border-bottom-left-radius: 6px;
+}
+.msg-text { margin: 0; }
+
+.greeting { margin: 0; font-size: .9375rem; font-weight: 500; }
+.msg.intro { justify-content: center; }
+.screen[data-conversation="true"] .msg.intro { justify-content: flex-start; }
+.screen[data-conversation="false"] .msg.intro .msg-body { background: none; border: 0; padding: 0; max-width: none; text-align: center; }
+.screen[data-conversation="false"] .greeting { font-size: clamp(1.375rem, 1.05rem + 1.1vw, 1.875rem); letter-spacing: -.015em; }
+
+.typing .msg-body { padding: 15px 18px; }
+.dots { display: inline-flex; align-items: center; gap: 5px; height: 8px; }
+.dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--ng-muted, #7a838f); opacity: .6; animation: nextgen-dot 1.2s ease-in-out infinite both; }
+.dots span:nth-child(2) { animation-delay: .15s; }
+.dots span:nth-child(3) { animation-delay: .3s; }
+@keyframes nextgen-dot { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
+.title { margin: 0; font-size: .9375rem; font-weight: 600; letter-spacing: -.005em; }
+.body { margin: 4px 0 0; font-size: .875rem; color: var(--ng-muted, #9aa3af); }
+.chips { list-style: none; margin: 12px -8px -6px; padding: 6px 0 0; display: grid; gap: 2px; border-top: 1px solid var(--ng-border, rgb(255 255 255 / .09)); }
 .chip {
-  display: inline-flex; align-items: center; min-height: 48px; padding: 0 20px;
-  border-radius: var(--ng-radius, 999px);
-  background: var(--ng-surface, #171b21); border: 1px solid var(--ng-border, rgb(255 255 255 / .09));
-  color: var(--ng-text, #e6e9ee); text-decoration: none;
-  transition: background-color 180ms ease, border-color 180ms ease;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 0 12px;
+  border-radius: 12px; color: var(--ng-accent-text, #79c0ce); font-weight: 500; text-decoration: none;
+  transition: background-color 160ms ease;
 }
-.chip:hover { background: var(--ng-hover-strong, #1d222a); border-color: var(--ng-accent, #79c0ce); }
+.chip::after { content: "→"; content: "→" / ""; color: var(--ng-muted, #7a838f); transition: transform 180ms ease, color 180ms ease; }
+.chip:hover { background: var(--ng-hover, rgb(255 255 255 / .06)); }
+.chip:hover::after { transform: translateX(3px); color: var(--ng-accent, #79c0ce); }
 
-.why { margin: 14px auto 0; max-width: 34rem; text-align: center; color: var(--ng-muted, #9aa3af); font-size: .8125rem; }
+/* The likely one: a card of its own, above the alternatives. */
+.chip.lead {
+  flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; min-height: 0;
+  margin: 12px 0 0; padding: 12px 14px; border-radius: 14px;
+  background: var(--ng-accent-soft, rgb(121 192 206 / .16)); box-shadow: inset 0 0 0 1px var(--ng-accent-line, rgb(121 192 206 / .28));
+  transition: box-shadow 160ms ease, background-color 160ms ease;
+}
+.chip.lead::after { content: none; }
+.chip.lead:hover { background: var(--ng-accent-soft, rgb(121 192 206 / .16)); box-shadow: inset 0 0 0 1px var(--ng-accent, #79c0ce); }
+.lead-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
+.lead-label::after { content: "→"; content: "→" / ""; transition: transform 180ms ease; }
+.chip.lead:hover .lead-label::after { transform: translateX(3px); }
+.lead-detail { font-size: .8125rem; font-weight: 400; color: var(--ng-muted, #9aa3af); }
+.or { margin: 14px 0 0; font-size: .75rem; letter-spacing: .02em; color: var(--ng-muted, #7a838f); }
+.or + .chips { margin-top: 2px; padding-top: 0; border-top: 0; }
+
+.why { margin: 8px -8px -6px; color: var(--ng-muted, #9aa3af); font-size: .8125rem; }
 .why > :not(summary) { text-align: left; }
 .why summary {
-  display: inline-flex; align-items: center; min-height: 48px; padding: 0 16px; border-radius: var(--ng-radius, 999px);
+  display: inline-flex; align-items: center; min-height: 48px; padding: 0 12px; border-radius: 12px;
   color: var(--ng-muted, #9aa3af); cursor: pointer; list-style: none; transition: background-color 160ms ease, color 160ms ease;
 }
 .why summary::-webkit-details-marker { display: none; }
@@ -305,7 +352,8 @@ ${BEAM_CSS}
 
 @media (forced-colors: active) {
   .backdrop { background: Canvas; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .composer, .chip, .bubble, .guide, .pill, .drawer { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .composer, .msg-body, .bubble, .guide, .pill, .drawer { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .chip { color: LinkText; }
   .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary, .why-bar::after { background: Highlight; color: HighlightText; }
   .drawer-link[aria-current="page"] { background: Highlight; color: HighlightText; }
   .orb { border: 1px solid ButtonText; }
@@ -313,6 +361,7 @@ ${BEAM_CSS}
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+  .thread { scroll-behavior: auto; }
 }
 `;
 
@@ -448,12 +497,19 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const caption = make('p', 'caption');
   caption.setAttribute('role', 'status');
   caption.setAttribute('aria-live', 'polite');
+  // The conversation. A log: what is added to it is announced, in order, once it is complete
+  // (`aria-busy` while a turn is being worked out). It opens with the greeting, which is also
+  // what names the dialog.
+  const thread = make('div', 'thread');
+  thread.setAttribute('role', 'log');
   const greeting = make('h2', 'greeting');
   greeting.id = 'nextgen-greeting';
   greeting.textContent = words.greeting;
-  const answer = make('div', 'answer');
-  answer.setAttribute('role', 'status');
-  answer.setAttribute('aria-live', 'polite');
+  const intro = make('div', 'msg assistant intro');
+  const introBody = make('div', 'msg-body');
+  introBody.append(greeting);
+  intro.append(introBody);
+  thread.append(intro);
 
   const form = make('form', 'composer');
   form.setAttribute('role', 'search');
@@ -473,7 +529,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   form.append(label, input, mic, send);
   const beam = createBeam(form, doc);
 
-  stage.append(slot, caption, greeting, answer, form);
+  screen.dataset.conversation = 'false';
+  stage.append(slot, caption, thread, form);
 
   const scrim = make('div', 'scrim');
   scrim.setAttribute('aria-hidden', 'true');
@@ -569,8 +626,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   let lastSaid = '';
   let menuOpen = false;
   let menuLinks: HTMLAnchorElement[] = [];
-  let answerLinks: HTMLAnchorElement[] = [];
-  let whySummary: HTMLElement | null = null;
+  /** Everything in the thread a keyboard can reach — each answer's options and its "Why?" — in reading order. */
+  let threadStops: HTMLElement[] = [];
+  let typing: HTMLElement | null = null;
   let guide: ResolvedStep[] = [];
   let guideAt = 0;
   let ringTarget: Element | null = null;
@@ -733,36 +791,99 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     return [details, summary];
   }
 
-  function showAnswer(question: string, shown: View, trace: TurnTrace | null): void {
+  // ------------------------------------------------------------------ thread --
+
+  /**
+   * A conversation is a page, so it is bounded: the greeting and the most recent messages. An
+   * assistant left open all day on someone else's page must not grow without limit.
+   */
+  const MAX_MESSAGES = 60;
+
+  function scrollToEnd(): void {
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  /** One message. `content` is built from `textContent` only — nothing a visitor typed is ever markup. */
+  function addMessage(kind: 'user' | 'assistant', className: string, content: readonly HTMLElement[]): HTMLElement {
+    const message = make('div', `msg ${kind}${className ? ` ${className}` : ''}`);
+    const body = make('div', 'msg-body');
+    body.append(...content);
+    message.append(body);
+    thread.append(message);
+    while (thread.children.length > MAX_MESSAGES) thread.children[1]!.remove();
+    threadStops = threadStops.filter((stop) => thread.contains(stop));
+    scrollToEnd();
+    return message;
+  }
+
+  function addVisitorMessage(text: string): void {
+    const p = make('p', 'msg-text');
+    p.textContent = text;
+    addMessage('user', '', [p]);
+  }
+
+  /** Three dots while it works out an answer. Decorative: the thread is `aria-busy` and the caption says so. */
+  function showTyping(): void {
+    dropTyping();
+    const dots = make('span', 'dots');
+    for (let i = 0; i < 3; i++) dots.append(make('span'));
+    typing = addMessage('assistant', 'typing', [dots]);
+    typing.setAttribute('aria-hidden', 'true');
+  }
+
+  function dropTyping(): void {
+    typing?.remove();
+    typing = null;
+  }
+
+  function showAnswer(shown: View, trace: TurnTrace | null): void {
+    dropTyping();
     const nodes: HTMLElement[] = [];
-    const q = make('p', 'question');
-    q.textContent = question;
     const title = make('p', 'title');
     title.textContent = shown.title;
-    nodes.push(q, title);
+    nodes.push(title);
     if (shown.body) {
       const body = make('p', 'body');
       body.textContent = shown.body;
       nodes.push(body);
     }
-    answerLinks = shown.choices.map((c) => link(c, 'chip'));
-    if (answerLinks.length > 0) {
-      const list = make('ul', 'chips');
-      list.append(...listItems(answerLinks));
-      nodes.push(list);
+    const stops: HTMLElement[] = [];
+    const [first, ...rest] = shown.choices;
+    // The likely one is offered as a card of its own — what it is, and what it is for — with the
+    // rest introduced as alternatives. It is still an ordinary link: a tap takes it, nothing else does.
+    if (shown.probable && first) {
+      const lead = link(first, 'chip lead');
+      const label = make('span', 'lead-label');
+      label.textContent = words.open(first.label);
+      const parts: HTMLElement[] = [label];
+      if (first.detail) {
+        const detail = make('span', 'lead-detail');
+        detail.textContent = first.detail;
+        parts.push(detail);
+      }
+      lead.replaceChildren(...parts);
+      stops.push(lead);
+      nodes.push(lead);
+      if (rest.length > 0) {
+        const or = make('p', 'or');
+        or.textContent = words.orElse;
+        nodes.push(or);
+      }
     }
-    whySummary = null;
+    const alternatives = (shown.probable ? rest : shown.choices).map((c) => link(c, 'chip'));
+    if (alternatives.length > 0) {
+      const list = make('ul', 'chips');
+      list.append(...listItems(alternatives));
+      nodes.push(list);
+      stops.push(...alternatives);
+    }
     if (trace) {
       const [details, summary] = whyFor(trace);
-      whySummary = summary;
+      stops.push(summary);
       nodes.push(details);
     }
-    // Replacing the answer must not drop a keyboard user who was standing on it (widget.ts, WP-45).
-    const active = root.activeElement;
-    const wasInside = active !== null && answer.contains(active);
-    answer.dataset.tone = shown.tone;
-    answer.replaceChildren(...nodes);
-    if (wasInside) input.focus();
+    threadStops.push(...stops);
+    addMessage('assistant', '', nodes).dataset.tone = shown.tone;
   }
 
   // -------------------------------------------------------------------- menu --
@@ -1185,9 +1306,16 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     busyTurn = mine;
     setBusy(true);
     try {
+      // The screen stops being a landing page and becomes a conversation; the orb moves to its
+      // smaller seat at the top, and is placed again now that the layout has changed.
+      const first = screen.dataset.conversation !== 'true';
       screen.dataset.conversation = 'true';
-      answer.setAttribute('aria-busy', 'true');
+      if (first) place();
+      addVisitorMessage(utterance);
+      input.value = '';
+      thread.setAttribute('aria-busy', 'true');
       setCaption(words.thinking);
+      showTyping();
       liquid.setState('thinking');
 
       let shown: View;
@@ -1202,10 +1330,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       }
       if (destroyed || mine !== latest) return shown;
 
-      answer.removeAttribute('aria-busy');
+      thread.removeAttribute('aria-busy');
       setCaption('');
-      input.value = '';
-      showAnswer(utterance, shown, trace);
+      showAnswer(shown, trace);
 
       if (shown.title === words.error) {
         liquid.setState('error');
@@ -1281,8 +1408,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
           menuButton,
           ...(soundButton.hidden ? [] : [soundButton]),
           closeButton,
-          ...answerLinks,
-          ...(whySummary ? [whySummary] : []),
+          ...threadStops,
           input,
           ...(mic.hidden ? [] : [mic]),
           send,

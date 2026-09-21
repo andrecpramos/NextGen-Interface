@@ -121,6 +121,100 @@ describe('present — clarify and refuse', () => {
 });
 
 /**
+ * When the router will not act but one screen is plainly ahead, a menu of equals is the wrong
+ * answer: it makes the visitor do the ranking the router already did. So the leader is offered
+ * first, as the likely one, with what the screen is for — and never executed, because a
+ * suggestion costs one tap when it is wrong and a move costs a page.
+ */
+describe('present — a clear leader', () => {
+  const clarify = (candidates: { capabilityId: string; score: number }[], path = '/', w = words) =>
+    present(trace({ outcome: 'clarify', candidates }), registry, path, w);
+
+  it('says which one it thinks you mean when one is clearly ahead, and what that screen is for', () => {
+    const view = clarify([
+      { capabilityId: 'calendar.overview', score: 0.3 },
+      { capabilityId: 'squad.search', score: 0.12 },
+    ]);
+    expect(view).toMatchObject({ tone: 'choose', probable: true, destination: null, title: 'You probably want Calendar.' });
+    expect(view.choices).toEqual([
+      { label: 'Calendar', route: '/calendar', detail: 'Training and matches by day.' },
+      { label: 'Squad', route: '/squad' },
+    ]);
+  });
+
+  it('never moves the browser, whatever the margin', () => {
+    expect(clarify([{ capabilityId: 'calendar.overview', score: 0.9 }]).destination).toBeNull();
+  });
+
+  it('keeps asking when two are close: a tie is a real question', () => {
+    const view = clarify([
+      { capabilityId: 'calendar.overview', score: 0.3 },
+      { capabilityId: 'squad.search', score: 0.25 },
+    ]);
+    expect(view.probable).toBeUndefined();
+    expect(view.title).toBe(words.whichOne);
+    expect(view.choices).toHaveLength(2);
+  });
+
+  it('keeps asking when the best is barely a match at all', () => {
+    expect(clarify([{ capabilityId: 'calendar.overview', score: 0.1 }, { capabilityId: 'squad.search', score: 0.02 }]).probable).toBeUndefined();
+  });
+
+  it('keeps asking when a declared limit is close behind: the request may be out of scope', () => {
+    const view = clarify([
+      { capabilityId: 'calendar.overview', score: 0.3 },
+      { capabilityId: 'unsupported.payments', score: 0.25 },
+    ]);
+    expect(view.probable).toBeUndefined();
+  });
+
+  it('does not call a screen the likely one when it is not the one it can offer', () => {
+    // The leader needs an item the page cannot supply, so what is offered first is not the leader.
+    const view = clarify([
+      { capabilityId: 'child.development', score: 0.4 },
+      { capabilityId: 'calendar.overview', score: 0.1 },
+    ]);
+    expect(view.probable).toBeUndefined();
+    expect(view.choices.map((c) => c.label)).toEqual(['Calendar']);
+  });
+
+  it('leaves the framing to the model when it wrote something, which wins over fixed wording', () => {
+    const view = present(
+      trace({ outcome: 'clarify', prose: 'I found a couple of things close to that.', candidates: [{ capabilityId: 'calendar.overview', score: 0.5 }, { capabilityId: 'squad.search', score: 0.1 }] }),
+      registry,
+      '/',
+      words,
+    );
+    expect(view.probable).toBeUndefined();
+    expect(view.title).toBe(words.whichOne);
+    expect(view.body).toBe('I found a couple of things close to that.');
+  });
+
+  it('a lone candidate above the floor is the likely one', () => {
+    expect(clarify([{ capabilityId: 'calendar.overview', score: 0.2 }]).probable).toBe(true);
+  });
+
+  it('gives a screen’s purpose as its first sentence only, and never an essay', () => {
+    const long = { id: 'x.long', kind: 'navigate', route: '/long', title: 'Long', explanation: 'First sentence here. A second one that must not appear.' };
+    const essay = { id: 'x.essay', kind: 'navigate', route: '/essay', title: 'Essay', explanation: `${'palavra '.repeat(40)}fim.` };
+    const bare = { id: 'x.bare', kind: 'navigate', route: '/bare', title: 'Bare' };
+    const reg = { capabilities: [long, essay, bare], byId: new Map([long, essay, bare].map((c) => [c.id, c])), boundaryIds: new Set() } as unknown as Registry;
+    const detailOf = (id: string) => present(trace({ outcome: 'clarify', candidates: [{ capabilityId: id, score: 0.4 }] }), reg, '/', words).choices[0]!;
+    expect(detailOf('x.long').detail).toBe('First sentence here.');
+    expect(detailOf('x.essay').detail!.length).toBeLessThanOrEqual(141);
+    expect(detailOf('x.essay').detail!.endsWith('…')).toBe(true);
+    expect('detail' in detailOf('x.bare')).toBe(false);
+  });
+
+  it('says it in the page’s language', () => {
+    const view = clarify([{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.search', score: 0.1 }], '/', WORDS.pt);
+    expect(view.title).toBe('Provavelmente quer Calendar.');
+    expect(WORDS.pt.orElse).toBeTruthy();
+    expect(WORDS.en.orElse).toBeTruthy();
+  });
+});
+
+/**
  * ADR-019 (WP-53). `trace.prose` is the model's answer, already checked by
  * `validateClaims` before this trace existed — `present()`'s only job is to prefer it
  * over the fixed, build-time text when it is there, exactly like every other field on a

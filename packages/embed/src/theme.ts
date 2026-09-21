@@ -353,6 +353,7 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--ng-hover-strong': css(mix(theme.surface, theme.text, 0.06)),
     '--ng-accent': css(theme.accent),
     '--ng-accent-soft': css(withAlpha(theme.accent, dark ? 0.18 : 0.12)),
+    '--ng-accent-line': css(withAlpha(theme.accent, dark ? 0.34 : 0.3)),
     '--ng-accent-text': css(theme.accentText),
     '--ng-on-accent': css(theme.onAccent),
     '--ng-shadow': dark ? 'rgb(0 0 0 / 0.6)' : 'rgb(15 23 42 / 0.16)',

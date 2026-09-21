@@ -347,7 +347,8 @@ it has not earned. (Section 1 has this pass's example.)
 | Every relative documentation link resolves | CI + `tooling/scripts/check-doc-links.mjs` | **enforced — but only from 2026-09-10; see below** |
 | A prompt never interpolates unfenced input | CI + `tooling/scripts/check-prompt-fencing.mjs` | **enforced (added 2026-09-10)**, §8 for its limits |
 | High and critical CVEs block | CI `audit` job (`pnpm audit --audit-level high`) | **enforced** |
-| The script tag stays near its measured size (40.0KB gzipped, 2026-09-21) and never imports a React entry | none — `build.mjs` prints the size and nothing fails on it; a React import would add 69KB | **none — [ADR-022](../decisions/ADR-022.md)** |
+| The installing agent runs the interview (ASK 9), does not invent answers, and does not reuse `askedAs` phrasing in the calibration set | none — nothing can check that a conversation happened. `doctor` reports how many screens `knowledge.json` covers, which is the nearest signal; tests hold the playbook's wording and the file's parsing, not its use | **convention — [ADR-023](../decisions/ADR-023.md)** |
+| The script tag stays near its measured size (41.5KB gzipped, 2026-09-21: 32.4KB before the orb's dots and the chat screen, 40.0KB after the dots) and never imports a React entry | none — `build.mjs` prints the size and nothing fails on it; a React import would add 69KB | **none — [ADR-022](../decisions/ADR-022.md)** |
 
 > ### ⚠️ This row was false for a day, and the way it was false is the point
 >

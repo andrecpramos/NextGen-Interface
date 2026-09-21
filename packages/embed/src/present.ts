@@ -23,6 +23,8 @@ export interface Choice {
   readonly label: string;
   /** A real path. Rendered as a link, so it works without the assistant (Rule 7). */
   readonly route: string;
+  /** What the screen is for — one sentence of the adopter's own words. Only on the likely one. */
+  readonly detail?: string;
 }
 
 export interface View {
@@ -32,6 +34,11 @@ export interface View {
   /** Where to move the browser now; `null` to stay where the user is. */
   readonly destination: string | null;
   readonly choices: readonly Choice[];
+  /**
+   * Set when the first of `choices` is plainly ahead of the rest: it is offered as the likely
+   * one, the others as alternatives. Never moves anything — the visitor still taps.
+   */
+  readonly probable?: boolean;
 }
 
 export interface Words {
@@ -43,6 +50,10 @@ export interface Words {
   readonly alreadyHere: (title: string) => string;
   readonly open: (title: string) => string;
   readonly whichOne: string;
+  /** One screen is plainly ahead: "You probably want X." */
+  readonly probably: (title: string) => string;
+  /** Introduces the alternatives beneath the likely one. */
+  readonly orElse: string;
   readonly limitTitle: string;
   readonly limitFallback: string;
   readonly unsure: string;
@@ -89,6 +100,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     alreadyHere: (title) => `You are already on ${title}`,
     open: (title) => `Open ${title}`,
     whichOne: 'Which of these do you mean?',
+    probably: (title) => `You probably want ${title}.`,
+    orElse: 'Or one of these:',
     limitTitle: 'That is not something I can do here',
     limitFallback: 'I can take you anywhere in this application and explain what you find there.',
     unsure: 'I did not understand that. Could you say it another way?',
@@ -135,6 +148,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     alreadyHere: (title) => `Já está em ${title}`,
     open: (title) => `Abrir ${title}`,
     whichOne: 'Qual destes procura?',
+    probably: (title) => `Provavelmente quer ${title}.`,
+    orElse: 'Ou um destes:',
     limitTitle: 'Isso não é algo que eu possa fazer aqui',
     limitFallback: 'Posso levá-lo a qualquer ecrã desta aplicação e explicar o que lá encontra.',
     unsure: 'Não percebi. Pode dizer de outra forma?',
@@ -251,6 +266,38 @@ export function suggestionsFor(registry: Registry, currentPath: string, max = 4)
   return out;
 }
 
+/**
+ * When a clarifying answer names a likely screen (2026-09-21, ADR-023).
+ *
+ * The router acts only when the leader clears `tauHigh` *and* the runner-up by `delta`, and
+ * that is calibrated for a move, which is expensive to get wrong. Offering is cheaper: a wrong
+ * suggestion costs one tap, with the alternatives directly beneath it. So a lower bar applies
+ * here, and it is the ratio that carries it, not the raw margin: on the reference app's golden
+ * set, of the 21 in-scope turns the router asked about, the leader was right in 13, and a
+ * margin rule was only 57–67% reliable, while "at least 1.5 times the runner-up" suggested 13
+ * and was right in 11. Wrong leaders arrive with a close second.
+ *
+ * Both numbers are round on purpose and were chosen before that measurement, not fitted to it —
+ * n is small. A declared limit counts as a runner-up: if the request is nearly as close to
+ * "the app cannot do that" as to a screen, it is a real question.
+ */
+const LEAD_FLOOR = 0.15;
+const LEAD_RATIO = 1.5;
+
+function clearlyLeads(candidates: TurnTrace['candidates']): boolean {
+  const [top, next] = candidates;
+  if (!top || top.score < LEAD_FLOOR) return false;
+  return !next || top.score >= LEAD_RATIO * next.score;
+}
+
+/** A screen's purpose as one short sentence: the first, cut at a word if it runs on. */
+function gist(text: string | undefined): string | null {
+  const first = (text ?? '').trim().split(/(?<=[.!?…])\s+/)[0]?.trim() ?? '';
+  if (!first) return null;
+  if (first.length <= 140) return first;
+  return `${first.slice(0, 140).replace(/\s+\S*$/, '')}…`;
+}
+
 export function present(trace: TurnTrace, registry: Registry, currentPath: string, words: Words): View {
   const patterns = registry.capabilities.map((c) => c.route).filter((r): r is string => typeof r === 'string');
   const capability = trace.capabilityId ? registry.byId.get(trace.capabilityId) : undefined;
@@ -279,18 +326,28 @@ export function present(trace: TurnTrace, registry: Registry, currentPath: strin
     // it alone — validated the same as every other branch.
     const seen = new Set<string>();
     const choices: Choice[] = [];
+    let offeredFirst: string | null = null;
     for (const candidate of trace.candidates) {
       const c = registry.byId.get(candidate.capabilityId);
       if (!c || c.kind === 'unsupported' || registry.boundaryIds.has(c.id)) continue;
       const route = fillParams(c.route, currentPath, patterns);
       if (!route || seen.has(route)) continue;
       seen.add(route);
+      offeredFirst ??= c.id;
       choices.push({ label: c.title, route });
       if (choices.length === 3) break;
     }
-    return choices.length > 0
-      ? { tone: 'choose', title: words.whichOne, body: trace.prose ?? null, destination: null, choices }
-      : unsure;
+    if (choices.length === 0) return unsure;
+
+    // Plainly ahead, and what would be offered first *is* the leader (not something further down
+    // because the leader needed an item this page cannot supply): say so, and say what it is for.
+    // When the model wrote something, its words frame the answer (ADR-019) and this stays out of it.
+    if (!trace.prose && clearlyLeads(trace.candidates) && trace.candidates[0]?.capabilityId === offeredFirst) {
+      const detail = gist(registry.byId.get(offeredFirst)?.explanation);
+      choices[0] = { ...choices[0]!, ...(detail ? { detail } : {}) };
+      return { tone: 'choose', title: words.probably(choices[0]!.label), body: trace.prose ?? null, destination: null, choices, probable: true };
+    }
+    return { tone: 'choose', title: words.whichOne, body: trace.prose ?? null, destination: null, choices };
   }
 
   const route = fillParams(capability.route, currentPath, patterns);

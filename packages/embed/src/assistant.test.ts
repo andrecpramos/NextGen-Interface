@@ -117,7 +117,7 @@ function setup(assistant: Routable, options: AssistantOptions = {}, { reloads = 
     orb: byClass('orb'),
     screen: byClass('screen'),
     caption: byClass('caption'),
-    answer: byClass('answer'),
+    thread: byClass('thread'),
     bubble: byClass('bubble'),
     menu: byClass('menu'),
     drawer: byClass('drawer'),
@@ -414,10 +414,10 @@ describe('the menu', () => {
 
 describe('a turn that resolves to a place', () => {
   it('says where it is going, flies back to the edge, moves, and says where the user landed', async () => {
-    const { mounted, answer, screen, orb, bubble, moves, storage } = setup(answering(toCalendar));
+    const { mounted, thread, screen, orb, bubble, moves, storage } = setup(answering(toCalendar));
     const done = mounted.ask('where is the calendar');
     await settle(0);
-    expect(answer.textContent).toContain('Opening Calendar');
+    expect(thread.textContent).toContain('Opening Calendar');
     expect(moves).toEqual([]);
     await settle(3000);
     await done;
@@ -548,6 +548,66 @@ describe('a clarifying turn', () => {
     expect(all('chip')[0]!.fire('click', { ctrlKey: true }).defaultPrevented).toBe(false);
     await settle(2000);
     expect(moves).toEqual([]);
+  });
+});
+
+describe('a clear leader, offered as the likely one', () => {
+  const leading = {
+    outcome: 'clarify',
+    decidedAt: 'embedding',
+    latency: { total: 5 },
+    candidates: [
+      { capabilityId: 'calendar.overview', score: 0.3 },
+      { capabilityId: 'squad.list', score: 0.1 },
+    ],
+  } as unknown as Partial<TurnTrace>;
+  const classes = (el: FakeElement): string[] => String(el.className).split(' ');
+
+  it('puts the likely one first with what it is for, and the rest beneath, introduced as alternatives', async () => {
+    const { mounted, thread, all } = setup(answering(leading));
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    const chips = all('chip');
+    expect(chips.map((a) => a.href)).toEqual(['/calendar', '/squad']);
+    expect(classes(chips[0]!)).toContain('lead');
+    expect(classes(chips[1]!)).not.toContain('lead');
+    expect(thread.textContent).toContain('You probably want Calendar.');
+    expect(thread.textContent).toContain('Open Calendar');
+    expect(thread.textContent).toContain('Training and matches by day.');
+    expect(thread.textContent).toContain('Or one of these:');
+  });
+
+  it('is still only a link: nothing moves until the visitor takes it', async () => {
+    const { mounted, all, moves } = setup(answering(leading));
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(moves).toEqual([]);
+    expect(all('lead')[0]!.fire('click', { button: 0 }).defaultPrevented).toBe(true);
+    await settle(2000);
+    expect(moves).toEqual(['/calendar']);
+  });
+
+  it('offers no alternatives label when there are none', async () => {
+    const alone = { ...leading, candidates: [{ capabilityId: 'calendar.overview', score: 0.3 }] } as unknown as Partial<TurnTrace>;
+    const { mounted, thread, all } = setup(answering(alone));
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(all('lead')).toHaveLength(1);
+    expect(thread.textContent).not.toContain('Or one of these:');
+  });
+
+  it('leaves a menu of equals exactly as it was: no likely one, no label', async () => {
+    const { mounted, thread, all } = setup(answering(clarifying));
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(all('lead')).toHaveLength(0);
+    expect(all('chip')).toHaveLength(2);
+    expect(thread.textContent).toContain('Which of these do you mean?');
+    expect(thread.textContent).not.toContain('Or one of these:');
   });
 });
 
@@ -812,12 +872,114 @@ describe('spoken commands', () => {
 describe('when routing fails', () => {
   it('says so, and moves nothing', async () => {
     const broken: Routable = { registry, route: () => Promise.reject(new Error('boom')) };
-    const { mounted, answer, moves } = setup(broken);
+    const { mounted, thread, moves } = setup(broken);
     const done = mounted.ask('anything');
     await settle(3000);
     await done;
-    expect(answer.textContent).toContain('Something went wrong');
+    expect(thread.textContent).toContain('Something went wrong');
     expect(moves).toEqual([]);
+  });
+});
+
+describe('the conversation is a chat', () => {
+  const messages = (thread: FakeElement): FakeElement[] => thread.children.filter((el) => /(^|\s)msg(\s|$)/.test(String(el.className)));
+  const who = (el: FakeElement): 'user' | 'assistant' => (/(^|\s)user(\s|$)/.test(String(el.className)) ? 'user' : 'assistant');
+  const has = (el: FakeElement, name: string): boolean => new RegExp(`(^|\\s)${name}(\\s|$)`).test(String(el.className));
+
+  it('is a log that starts with the greeting as the assistant’s first message', () => {
+    const { thread, screen, byClass } = setup(answering({}));
+    expect(thread.getAttribute('role')).toBe('log');
+    expect(messages(thread).map(who)).toEqual(['assistant']);
+    expect(byClass('greeting').textContent).toBe('Ready when you are.');
+    expect(screen.dataset.conversation).toBe('false');
+  });
+
+  it('adds the visitor’s own words, then the answer, and becomes a conversation', async () => {
+    const { mounted, thread, screen } = setup(answering(clarifying));
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(messages(thread).map(who)).toEqual(['assistant', 'user', 'assistant']);
+    expect(messages(thread)[1]!.textContent).toBe('games');
+    expect(screen.dataset.conversation).toBe('true');
+  });
+
+  it('keeps every turn, in order, with the earlier options still there to follow', async () => {
+    const { mounted, thread, all } = setup(answering(clarifying, clarifying));
+    for (const question of ['games', 'more games']) {
+      const done = mounted.ask(question);
+      await settle(2000);
+      await done;
+    }
+    expect(messages(thread).map(who)).toEqual(['assistant', 'user', 'assistant', 'user', 'assistant']);
+    expect(messages(thread).filter((m) => who(m) === 'user').map((m) => m.textContent)).toEqual(['games', 'more games']);
+    expect(all('chip')).toHaveLength(4);
+  });
+
+  it('shows that it is thinking while it works, and nothing left over once it has answered', async () => {
+    let answer!: (turn: TurnTrace) => void;
+    const slow: Routable = { registry, route: () => new Promise<TurnTrace>((resolve) => (answer = resolve)) };
+    const { mounted, thread, all } = setup(slow);
+    const done = mounted.ask('where is the calendar');
+    await settle(10);
+    expect(all('typing')).toHaveLength(1);
+    expect(messages(thread).map(who)).toEqual(['assistant', 'user', 'assistant']);
+    expect(has(messages(thread)[2]!, 'typing')).toBe(true);
+    answer(trace(clarifying));
+    await settle(3000);
+    await done;
+    expect(all('typing')).toHaveLength(0);
+    expect(messages(thread)).toHaveLength(3);
+  });
+
+  it('answers a failure as a message too, and the conversation goes on', async () => {
+    const broken: Routable = { registry, route: () => Promise.reject(new Error('boom')) };
+    const { mounted, thread, all } = setup(broken);
+    const done = mounted.ask('anything');
+    await settle(3000);
+    await done;
+    expect(messages(thread).map(who)).toEqual(['assistant', 'user', 'assistant']);
+    expect(messages(thread)[2]!.textContent).toContain('Something went wrong');
+    expect(all('typing')).toHaveLength(0);
+  });
+
+  it('shows what the visitor typed as text and never as markup', async () => {
+    const hostile = '<img src=x onerror="alert(1)"> **bold**';
+    const { mounted, thread, host } = setup(answering(clarifying));
+    const done = mounted.ask(hostile);
+    await settle(2000);
+    await done;
+    expect(messages(thread)[1]!.textContent).toBe(hostile);
+    expect(host.findAll((el) => el.tagName === 'img')).toHaveLength(0);
+  });
+
+  it('scrolls to the newest message', async () => {
+    const { mounted, thread } = setup(answering(clarifying));
+    thread.scrollHeight = 480;
+    const done = mounted.ask('games');
+    await settle(2000);
+    await done;
+    expect(thread.scrollTop).toBe(480);
+  });
+
+  it('stays a bounded page: the greeting and the latest turns, not everything ever said', async () => {
+    const { mounted, thread } = setup(answering(clarifying));
+    for (let i = 0; i < 45; i++) {
+      const done = mounted.ask(`question ${i}`);
+      await settle(2000);
+      await done;
+    }
+    const all = messages(thread);
+    expect(all.length).toBeLessThanOrEqual(60);
+    expect(all[0]!.textContent).toBe('Ready when you are.');
+    expect(all[all.length - 1]!.textContent).toContain('Which of these do you mean?');
+    expect(all[all.length - 2]!.textContent).toBe('question 44');
+  });
+
+  it('keeps the dialog named by the greeting, which is still in the page', () => {
+    const { screen, byClass } = setup(answering({}));
+    expect(screen.getAttribute('aria-labelledby')).toBe('nextgen-greeting');
+    expect(byClass('greeting').id).toBe('nextgen-greeting');
   });
 });
 

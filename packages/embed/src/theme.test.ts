@@ -185,4 +185,14 @@ describe('themeVariables', () => {
     expect(shaped['--ng-radius']).toBe('6px');
     expect(shaped['--ng-field-radius']).toBe('4px');
   });
+
+  it('gives the accent as a soft fill and as a line, both in the page’s accent and not ours', () => {
+    const amber = { ...GRAPHITE, accent: [224, 160, 74, 1] as const };
+    const vars = themeVariables(amber);
+    // Amber in, amber out: a fallback colour written into the stylesheet must never show through.
+    for (const name of ['--ng-accent-soft', '--ng-accent-line']) {
+      expect(vars[name]).toMatch(/224[, ]+160[, ]+74/);
+    }
+    expect(vars['--ng-accent-line']).not.toBe(vars['--ng-accent-soft']);
+  });
 });

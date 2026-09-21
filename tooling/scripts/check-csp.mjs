@@ -129,9 +129,10 @@ writeFileSync(
     report.minHeight = getComputedStyle(input).minHeight;
     input.value = 'onde vejo como o meu filho está a evoluir';
     root.querySelector('form').requestSubmit();
-    // .answer is the assistant layer (what the one-liner mounts), .result the chat box.
-    waitFor(function () { var r = root.querySelector('.answer, .result'); return r && r.hasAttribute('data-tone'); }, function () {
-      var result = root.querySelector('.answer, .result');
+    // An answer is an assistant message in the thread (what the one-liner mounts) carrying its tone;
+    // .result is the chat box. The greeting and the typing indicator have no tone, so neither can pass.
+    waitFor(function () { var r = root.querySelector('.msg.assistant[data-tone], .result'); return r && r.hasAttribute('data-tone'); }, function () {
+      var result = root.querySelector('.msg.assistant[data-tone], .result');
       report.tone = result.getAttribute('data-tone');
       var links = result.querySelectorAll('a');
       report.choices = links.length;
