@@ -23,7 +23,7 @@ emulated phone. What it found, all fixed and pinned by tests:
   gaps, calibration, preview, the script line), and no longer quotes ADR, WP or Rule numbers an adopter
   cannot look up — nor do `init`'s warnings, `SKIPPED.md`, `INFERRED.md` or the preview page.
 - **Attachments are off by default** (owner's decision; [ADR-024](../.claude/decisions/ADR-024.md)
-  addendum, Proposed): `data-nextgen-attach="on"` or `attach: true`. A default-on button that most apps
+  addendum, accepted): `data-nextgen-attach="on"` or `attach: true`. A default-on button that most apps
   cannot wire was a dead end for every visitor of an adopter who did not read far enough.
 - **"I don't know what to do here" was routed**, not answered as being lost (no marker word in it), and got
   two unrelated screens; the same for "não sei o que fazer aqui", "what do I do here", "o que faço". Now
