@@ -352,7 +352,7 @@ function detectFileRouter(dir: string, framework: Framework): Detection {
       `This app mentions roles (${hints.slice(0, 3).join('; ')}). A folder layout says nothing about who may open a ` +
         'screen, so every screen goes into ONE registry that every user receives, unless you list restricted ' +
         'screens in "routeRoles" by path prefix, for example { "/admin": ["ADMIN"] }. Until then, users would see ' +
-        'the names of screens they cannot open (Rule 17).',
+        'the names of screens they cannot open.',
     );
   }
 
@@ -493,7 +493,7 @@ export function detectApp(appDir: string): Detection {
         `This app mentions roles (${hints.slice(0, 3).join('; ')}), and the kit found no permissions module. ` +
           `Check the roles listed under "What it built" after you run build: if they are not this app's real ` +
           `roles, every screen goes into ONE registry that every user receives, and users would see the names ` +
-          `of screens they cannot open (Rule 17). Point permissionsFile, roleSetExport and allRolesExport at ` +
+          `of screens they cannot open. Point permissionsFile, roleSetExport and allRolesExport at ` +
           `your role table, or confirm that no screen is restricted.`,
       );
     }

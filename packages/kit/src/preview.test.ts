@@ -43,7 +43,7 @@ describe('nextgen preview', () => {
     expect(html).not.toMatch(/<script>|<style>|style="/); // nothing inline for the policy to block
     expect(html).toContain('data-app-url="http://localhost:3000/"');
     for (const role of roles) expect(html).toContain(`/?role=${encodeURIComponent(role)}`);
-    expect(html).toMatch(/serve each signed-in user only their own role's files \(Rule 17\)/);
+    expect(html).toMatch(/serve each signed-in user only their own role's files: a role's file lists the screens it can reach/);
   });
 
   it('switches role, and never writes a role this build does not have into the page', async () => {
@@ -64,7 +64,7 @@ describe('nextgen preview', () => {
   });
 
   it('refuses a folder that has not been built', async () => {
-    await expect(preview(join(mkdtempSync(join(tmpdir(), 'nextgen-empty-')), 'nextgen'), { port: 0 })).rejects.toThrow(/Run "node scan.mjs build" first/);
+    await expect(preview(join(mkdtempSync(join(tmpdir(), 'nextgen-empty-')), 'nextgen'), { port: 0 })).rejects.toThrow(/Run "node scan.mjs build \S+" first/);
   });
 });
 

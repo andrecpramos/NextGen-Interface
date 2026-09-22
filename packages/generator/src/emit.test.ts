@@ -115,8 +115,8 @@ describe('writeOutput — Rule 16', () => {
    */
   it('refuses to write anywhere inside the application it read', () => {
     const appRoot = mkdtempSync(join(tmpdir(), 'nextgen-app-'));
-    expect(() => writeOutput(join(appRoot, 'generated'), appRoot, output)).toThrow(/Rule 16/);
-    expect(() => writeOutput(appRoot, appRoot, output)).toThrow(/Rule 16/);
+    expect(() => writeOutput(join(appRoot, 'generated'), appRoot, output)).toThrow(/never writes inside your app/);
+    expect(() => writeOutput(appRoot, appRoot, output)).toThrow(/never writes inside your app/);
   });
 
   it('writes one registry per role, a master and both reports, outside the app', () => {
@@ -138,7 +138,8 @@ describe('formatSkipReport', () => {
     ]);
     expect(report).toContain('/squad/teams');
     expect(report).toContain('Legacy team list');
-    expect(report).toContain('Rule 17');
+    // Why a guard it could not read drops the route, in words an adopter can act on — not a rule number.
+    expect(report).toContain('no role is shown a screen it cannot open');
   });
 });
 
@@ -156,6 +157,8 @@ describe('formatInferredReport — ADR-020, WP-55', () => {
     expect(report).toContain('isSubmitting');
     expect(report).toContain('features/expenses/ExpensePage.tsx:5');
     expect(report).toContain('/members');
-    expect(report).toContain('ADR-020');
+    // The reason, in words: the adopter reading review/INFERRED.md has no ADRs to look up.
+    expect(report).toContain('can be wrong in a way a declared one cannot');
+    expect(report).not.toMatch(/ADR-\d/);
   });
 });

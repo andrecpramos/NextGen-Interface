@@ -21,7 +21,9 @@ describe('adapter/AGENTS.md — what an attachment is, and is not, allowed to be
     expect(AGENTS).toMatch(/can this app do anything with a file a visitor attaches/i);
     expect(AGENTS).toMatch(/never leaves their device/);
     expect(AGENTS).toMatch(/nextgen:attach/);
-    expect(AGENTS).toMatch(/data-nextgen-attach="off"/);
+    // Off by default: the agent must know it takes `on` to offer a button, and that leaving it out is honest.
+    expect(AGENTS).toMatch(/only if the script tag says\s+`data-nextgen-attach="on"`/);
+    expect(AGENTS).toMatch(/leave the attribute out\. That is the default/);
     expect(AGENTS).toMatch(/Do not wire an upload endpoint on your own initiative/);
   });
 });

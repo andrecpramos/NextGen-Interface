@@ -1,3 +1,5 @@
+import { isLocaleParam } from '@nextgen/core-capability';
+
 import type { DiscoveredRoute } from './types.ts';
 
 /**
@@ -27,9 +29,6 @@ function normalise(text: string): string {
     .replace(/^_+|_+$/g, '')
     .replace(/_{2,}/g, '_');
 }
-
-/** The parameter an i18n router puts in front of every route: next-intl's `[locale]`, `[lang]`. */
-export const LOCALE_PARAMETER = /^:(?:locale|lang|language|lng)\??$/i;
 
 /** Path segments that name a value rather than a place. */
 function isParameter(segment: string): boolean {
@@ -82,7 +81,7 @@ export function synthesiseId(route: DiscoveredRoute, taken: ReadonlySet<string>)
   const firstNamed = segments.findIndex((segment) => !isParameter(segment));
   const hasParameters =
     firstNamed === -1
-      ? segments.some((segment) => isParameter(segment) && !LOCALE_PARAMETER.test(segment))
+      ? segments.some((segment) => isParameter(segment) && !isLocaleParam(segment))
       : segments.slice(firstNamed).some(isParameter);
   const base = named.length > 0 ? named.join('_') : 'overview';
   let name = hasParameters ? `${base}_detail` : base;
