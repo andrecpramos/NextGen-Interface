@@ -3,7 +3,7 @@
 // It is written by `build` for the agent that is installing the folder, and it is the difference
 // between an agent that fills in a form and one that has an interview: every line is a question
 // about a screen this app really has, put in the words the scanner could not supply itself.
-// The answers go into `knowledge.json` (adapter/AGENTS.md, ASK 0), and the next `build` is
+// The answers go into `knowledge.json` (adapter/AGENTS.md, ASK 9), and the next `build` is
 // smarter for them.
 
 import type { KnowledgeCoverage, KnowledgeGap } from '@nextgen/generator';
@@ -17,7 +17,7 @@ const EXAMPLE = `{
     { "term": "your word", "means": "what it means here", "aliases": ["what people say instead", "another way"] }
   ],
   "cannot": [
-    { "about": "something users ask for that the app does not do", "say": "what to tell them, in your words", "askedAs": ["how they ask", "another way", "a third way"] }
+    { "about": "something users ask for that the app does not do", "say": "what to tell them, in your words", "askedAs": ["how they ask", "another way", "a third way"], "instead": ["/where/they/can/do/it/themselves"] }
   ],
   "rules": [
     "How the app works that a newcomer would not guess, as one short statement.",
@@ -36,8 +36,9 @@ const EXAMPLE = `{
 export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: KnowledgeCoverage, found: boolean): string {
   const of = (n: number): string => `${n} of ${coverage.screens}`;
   const app = gaps.filter((g) => g.kind === 'app-about-missing' || g.kind === 'limits-missing' || g.kind === 'rules-missing' || g.kind === 'role-unknown');
-  const screens = gaps.filter((g) => g.route !== undefined && g.kind !== 'knowledge-orphan');
-  const orphans = gaps.filter((g) => g.kind === 'knowledge-orphan');
+  const pointsAtNothing = (g: KnowledgeGap): boolean => g.kind === 'knowledge-orphan' || g.kind === 'instead-unknown';
+  const screens = gaps.filter((g) => g.route !== undefined && !pointsAtNothing(g));
+  const orphans = gaps.filter(pointsAtNothing);
   const lines: string[] = [
     '# What the assistant does not know yet',
     '',
@@ -47,7 +48,7 @@ export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: Know
     '',
     'This file is written by `build`, for the agent installing this folder. **Ask the developer these, one screen at a',
     'time, in their own words, and write what they say into `knowledge.json`** beside `nextgen.config.json` (AGENTS.md,',
-    'ASK 0). Then run `build` again. Do not invent answers: a wrong purpose is served to visitors as fact.',
+    'ASK 9). Then run `build` again. Do not invent answers: a wrong purpose is served to visitors as fact.',
     '',
   ];
 

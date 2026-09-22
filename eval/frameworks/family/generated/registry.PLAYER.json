@@ -313,6 +313,9 @@
         "como contacto o clube",
         "fala com a secretaria por mim",
         "message the coach"
+      ],
+      "helpAt": [
+        "/my/announcements"
       ]
     }
   ]

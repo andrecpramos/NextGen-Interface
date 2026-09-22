@@ -221,7 +221,27 @@ describe('cannot — what the app does not do, in the adopter’s words', () => 
   it('reads a declared limit: what it is about, what to say, and what people ask', () => {
     const { knowledge, problems } = parseKnowledge({ cannot: [payments] });
     expect(problems).toEqual([]);
-    expect(knowledge.cannot).toEqual([payments]);
+    expect(knowledge.cannot).toEqual([{ ...payments, instead: [] }]);
+  });
+
+  // The assistant helps, it does not act: a limit can say where the visitor can do it themselves.
+  it('reads where the visitor can help themselves, as routes, and drops anything else with a reason', () => {
+    const { knowledge, problems } = parseKnowledge({ cannot: [{ ...payments, instead: ['/my/invoices', 'the office', '/my/contacts', '/third'] }] });
+    expect(knowledge.cannot[0]!.instead).toEqual(['/my/invoices', '/my/contacts']);
+    expect(problems.map((p) => p.path)).toEqual(expect.arrayContaining(['cannot[0].instead[1]']));
+  });
+
+  it('carries it into the declared limit as helpAt, and leaves a limit without one as it was', () => {
+    const [helped] = knowledgeBoundaries(parseKnowledge({ cannot: [{ ...payments, instead: ['/my/invoices'] }] }).knowledge);
+    expect(helped!.helpAt).toEqual(['/my/invoices']);
+    const [plain] = knowledgeBoundaries(parseKnowledge({ cannot: [payments] }).knowledge);
+    expect(plain).not.toHaveProperty('helpAt');
+  });
+
+  it('names a place that is no screen of this app as a gap, rather than dropping it without a word', () => {
+    const k = parseKnowledge({ cannot: [{ ...payments, instead: ['/my/children/medical', '/nowhere'] }] }).knowledge;
+    const gaps = knowledgeGaps([medical], k).gaps.filter((g) => g.kind === 'instead-unknown');
+    expect(gaps.map((g) => g.route)).toEqual(['/nowhere']);
   });
 
   it('drops a limit with nothing to say, or too little to be recognised, and names why', () => {

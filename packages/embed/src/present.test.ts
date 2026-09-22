@@ -153,6 +153,56 @@ describe('present — clarify and refuse', () => {
 });
 
 /**
+ * The assistant helps; it does not act (2026-09-22). A refusal no longer has to end at "no": a limit can
+ * point to where the visitor can do it themselves — where the adopter said, or, for a limit about acting,
+ * the screen the request is plainly about. Nothing is performed; the visitor still taps.
+ */
+describe('present — a limit that helps', () => {
+  const settings = { id: 'settings.notifications', kind: 'navigate', route: '/settings/notifications', title: 'Notification settings', explanation: 'Choose which messages you get, and how.' };
+  const invoices = { id: 'billing.invoices', kind: 'navigate', route: '/billing', title: 'Invoices', explanation: 'Every invoice and when it is due.' };
+  const acting = { id: 'unsupported.data_changes', kind: 'unsupported', route: null, title: 'Changing records for you', refusal: 'I don’t change records myself.', refuses: 'action' };
+  const fees = { id: 'unsupported.declared.fees', kind: 'unsupported', route: null, title: 'Paying fees', refusal: 'Fees are paid at the office.', helpAt: ['/billing'] };
+  const all = [...caps, settings, invoices, acting, fees];
+  const helped = {
+    capabilities: all,
+    byId: new Map(all.map((c) => [c.id, c])),
+    boundaryIds: new Set(['unsupported.payments', acting.id, fees.id]),
+  } as unknown as Registry;
+
+  it('points to where the adopter said the visitor can get help, beneath their own refusal', () => {
+    const view = present(trace({ outcome: 'out_of_scope', capabilityId: fees.id }), helped, '/', words);
+    expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, destination: null });
+    expect(view.body).toBe(`Fees are paid at the office. ${words.limitHelpHere}`);
+    expect(view.choices).toEqual([{ label: 'Invoices', route: '/billing', detail: 'Every invoice and when it is due.' }]);
+  });
+
+  it('for a limit about acting, offers the screen the request is plainly about, to do it there themselves', () => {
+    const asked = trace({ outcome: 'out_of_scope', capabilityId: acting.id, candidates: [{ capabilityId: settings.id, score: 0.34 }, { capabilityId: 'calendar.overview', score: 0.05 }] });
+    const view = present(asked, helped, '/', words);
+    expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, destination: null });
+    expect(view.body).toBe(`I don’t change records myself. ${words.limitDoHere}`);
+    expect(view.choices.map((c) => c.route)).toEqual(['/settings/notifications']);
+  });
+
+  it('offers nothing when no screen is a plain match — a wrong "do it here" is worse than a plain refusal', () => {
+    const asked = trace({ outcome: 'out_of_scope', capabilityId: acting.id, candidates: [{ capabilityId: settings.id, score: 0.08 }] });
+    const view = present(asked, helped, '/', words);
+    expect(view).toMatchObject({ title: words.limitTitle, body: 'I don’t change records myself.', choices: [] });
+  });
+
+  it('never offers a screen for a limit about a subject from retrieval alone, however well it scores', () => {
+    const asked = trace({ outcome: 'out_of_scope', capabilityId: 'unsupported.payments', candidates: [{ capabilityId: 'calendar.overview', score: 0.6 }] });
+    expect(present(asked, helped, '/', words).choices).toEqual([]);
+  });
+
+  it('never offers another limit, nor the page the visitor is already on', () => {
+    const asked = trace({ outcome: 'out_of_scope', capabilityId: acting.id, candidates: [{ capabilityId: fees.id, score: 0.9 }, { capabilityId: settings.id, score: 0.4 }] });
+    expect(present(asked, helped, '/', words).choices.map((c) => c.route)).toEqual(['/settings/notifications']);
+    expect(present(asked, helped, '/settings/notifications', words).choices).toEqual([]);
+  });
+});
+
+/**
  * When the router will not act but one screen is plainly ahead, a menu of equals is the wrong
  * answer: it makes the visitor do the ranking the router already did. So the leader is offered
  * first, as the likely one, with what the screen is for — and never executed, because a

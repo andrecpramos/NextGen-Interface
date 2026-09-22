@@ -61,6 +61,19 @@ describe('splitByRole — Rule 17', () => {
     ]);
   });
 
+  // A limit goes to every role, but where it points is a screen: a route a role cannot open would name
+  // the admin surface in a guardian's file — and be a link to nowhere.
+  it('keeps where a limit points only where the role can open it, and drops it when none is left', () => {
+    const pointing = { ...boundary, helpAt: ['/admin/users', '/my/child'] };
+    const split = splitByRole(master, [pointing], 'A club application.', ['ADMIN', 'COACH', 'PARENT']);
+    const limitOf = (role: string) => split.get(role)!.capabilities.find((c) => c.id === 'unsupported.payments')!;
+    expect(limitOf('ADMIN').helpAt).toEqual(['/admin/users']);
+    expect(limitOf('PARENT').helpAt).toEqual(['/my/child']);
+    expect(limitOf('COACH')).not.toHaveProperty('helpAt');
+    expect(JSON.stringify(split.get('PARENT'))).not.toContain('/admin/users');
+    for (const registry of split.values()) expect(validateRegistry(registry).ok).toBe(true);
+  });
+
   it('makes an unreachable capability absent, not hidden', () => {
     const guardian = registries.get('PARENT')!;
     const admin = registries.get('ADMIN')!;

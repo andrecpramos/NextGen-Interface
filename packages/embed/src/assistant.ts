@@ -1227,7 +1227,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     }
     // An answer that was a guess ends by saying how to get a better one — say more, in your own words —
     // and a refusal by saying what can be done instead. Neither is a dead end.
-    const next = shown.tone === 'choose' ? words.notThat : shown.tone === 'limit' ? words.limitNext : null;
+    // A limit that already points to where the visitor can do it needs no "tell me what you're trying to do".
+    const next = shown.tone === 'choose' ? words.notThat : shown.tone === 'limit' && shown.choices.length === 0 ? words.limitNext : null;
     if (next) {
       const hint = make('p', 'hint');
       hint.textContent = next;

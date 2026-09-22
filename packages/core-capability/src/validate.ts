@@ -127,6 +127,20 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
     validateOne(cap, { err, warn, seenIds, triggerOwners, routeOwners, enumNames });
   }
 
+  // Where a limit sends the visitor to help themselves must be a screen of *this* registry: a limit is
+  // given to every role, and a route this role cannot open named in its file is a Rule 17 leak — and a
+  // link to nowhere.
+  const screens = new Set(registry.capabilities.filter((c) => c.kind !== 'unsupported' && c.route).map((c) => c.route!));
+  for (const cap of registry.capabilities) {
+    const helpAt = (cap as { helpAt?: unknown }).helpAt;
+    if (helpAt === undefined) continue;
+    if (cap.kind !== 'unsupported') {
+      err(cap.id, 'help-at-misplaced', `"${cap.id}" is ${cap.kind} but declares "helpAt" — only a limit points elsewhere`);
+    } else if (!Array.isArray(helpAt) || helpAt.some((route) => typeof route !== 'string' || !screens.has(route))) {
+      err(cap.id, 'help-at-reachable', `"${cap.id}" helpAt names a route that is not a screen of this registry: ${JSON.stringify(helpAt)}`);
+    }
+  }
+
   return summarise(issues);
 }
 

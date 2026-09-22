@@ -46,11 +46,20 @@ export function splitByRole(
   for (const role of roles) {
     const reachable = master.filter((capability) => capability.roles.includes(role)).map(withoutRoles);
     const context = contextFor?.(role) ?? null;
+    // A limit goes to every role, but where it points (helpAt) is a screen: kept only where this role
+    // can open it, and dropped when none is left — Rule 17, and no link to nowhere.
+    const routes = new Set(reachable.map((capability) => capability.route).filter(Boolean));
+    const limits = boundaries.map((limit): Capability => {
+      if (!limit.helpAt) return limit;
+      const { helpAt, ...rest } = limit;
+      const open = helpAt.filter((route) => routes.has(route));
+      return open.length > 0 ? { ...rest, helpAt: open } : rest;
+    });
     out.set(role, {
       schemaVersion: SCHEMA_VERSION,
       domainDescription,
       ...(context ? { context } : {}),
-      capabilities: [...reachable, ...boundaries],
+      capabilities: [...reachable, ...limits],
     });
   }
   return out;

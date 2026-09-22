@@ -163,6 +163,13 @@ export interface Capability {
    * Absent: it refuses on topic, as every limit did before (ADR-025).
    */
   readonly refuses?: 'action';
+  /**
+   * Only on `unsupported`. Where the visitor can do it themselves, or get help with it: routes of screens
+   * in this same registry, which the widget offers beneath the refusal — the assistant helps, it does not
+   * act. From the adopter's `knowledge.json` (`cannot[].instead`), kept per role: a screen the role cannot
+   * open is never named in its registry (Rule 17). Never embedded: it changes no score.
+   */
+  readonly helpAt?: readonly string[];
 }
 
 /**

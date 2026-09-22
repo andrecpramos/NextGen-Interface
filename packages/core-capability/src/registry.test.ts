@@ -190,6 +190,14 @@ describe('validateRegistry — boundary entries', () => {
     expect(rules(registryOf({ ...ok(), refuses: 'action' } as Capability))).toContain('refuses-misplaced');
   });
 
+  // A limit may say where the visitor can help themselves — but only with a screen this role can open.
+  it('accepts helpAt naming a screen of this registry, and nothing else', () => {
+    expect(rules(registryOf(ok(), b({ helpAt: ['/transactions'] } as Partial<Capability>)))).not.toContain('help-at-reachable');
+    expect(rules(registryOf(ok(), b({ helpAt: ['/admin/billing'] } as Partial<Capability>)))).toContain('help-at-reachable');
+    expect(rules(registryOf(ok(), b({ helpAt: '/transactions' } as unknown as Partial<Capability>)))).toContain('help-at-reachable');
+    expect(rules(registryOf({ ...ok(), helpAt: ['/transactions'] } as Capability))).toContain('help-at-misplaced');
+  });
+
   it('rejects a boundary entry that declares a route', () => {
     // A refusal with a route is a refusal you can navigate to.
     expect(rules(registryOf(ok(), b({ route: '/somewhere' })))).toContain('boundary-no-route');

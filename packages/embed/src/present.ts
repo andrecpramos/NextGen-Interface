@@ -96,6 +96,12 @@ export interface Words {
   /** The reply to a message that was only a photo or a file. */
   readonly attachOnly: { readonly title: string; readonly body: string };
   readonly limitTitle: string;
+  /** A limit that points somewhere: it is doing, not helping, that is refused ("I can't do that for you"). */
+  readonly limitDoTitle: string;
+  /** Leads into that screen: "You can do it yourself here:". */
+  readonly limitDoHere: string;
+  /** Leads into where the adopter said the visitor can get help instead (`helpAt`). */
+  readonly limitHelpHere: string;
   readonly limitFallback: string;
   /** Under a refusal, so it is never a dead end: what the assistant *can* do for someone who is stuck. */
   readonly limitNext: string;
@@ -188,6 +194,9 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
       body: 'I can’t read attachments, and nothing leaves your device. Tell me what you want to do with it and I’ll take you where it goes.',
     },
     limitTitle: 'I can’t help with that here',
+    limitDoTitle: 'I can’t do that for you',
+    limitDoHere: 'You can do it yourself here:',
+    limitHelpHere: 'This can help:',
     limitFallback: 'I can take you anywhere in this application and explain what you find there.',
     limitNext: 'I can help you find your way around this app. Tell me what you’re trying to do.',
     unsure: 'I did not understand that. Could you say it another way?',
@@ -275,6 +284,9 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
       body: 'Não consigo ler anexos, e nada sai do seu dispositivo. Diga-me o que quer fazer com isto e eu levo-o onde deve ir.',
     },
     limitTitle: 'Não consigo ajudar com isso aqui',
+    limitDoTitle: 'Não posso fazer isso por si',
+    limitDoHere: 'Pode fazê-lo aqui:',
+    limitHelpHere: 'Isto pode ajudar:',
     limitFallback: 'Posso levá-lo a qualquer ecrã desta aplicação e explicar o que lá encontra.',
     limitNext: 'Posso ajudá-lo a encontrar o que precisa nesta aplicação. Diga-me o que está a tentar fazer.',
     unsure: 'Não percebi. Pode dizer de outra forma?',
@@ -569,7 +581,42 @@ export function present(
   // text is the fallback it has always been.
   if (trace.outcome === 'out_of_scope' || capability?.kind === 'unsupported') {
     const refusal = capability?.kind === 'unsupported' ? (capability as { refusal?: string }).refusal : undefined;
-    return { tone: 'limit', title: words.limitTitle, body: trace.prose ?? refusal ?? words.limitFallback, destination: null, choices: [] };
+    const said = trace.prose ?? refusal ?? words.limitFallback;
+    // The assistant helps; it does not act. A limit can point to where the visitor can do it
+    // themselves, and the answer ends there rather than at "no".
+    //
+    // 1. Where the adopter said (`helpAt`, from knowledge.json): kept per role at build, so every route
+    //    is one this visitor can open.
+    const toChoice = (c: (typeof registry.capabilities)[number]): Choice | null => {
+      const route = fillParams(c.route, currentPath, patterns, hints);
+      if (!route || isSamePlace(route, currentPath)) return null;
+      const detail = gist(c.explanation);
+      return { label: c.title, route, ...(detail ? { detail } : {}) };
+    };
+    const declared = (capability?.helpAt ?? [])
+      .map((route) => registry.capabilities.find((c) => c.kind === 'navigate' && c.route === route))
+      .flatMap((c) => (c ? [toChoice(c)] : []))
+      .filter((c): c is Choice => c !== null);
+    if (declared.length > 0) {
+      // "I can't help with that here" would contradict the help beneath it: it is doing, not helping, that is refused.
+      return { tone: 'limit', title: words.limitDoTitle, body: `${said} ${words.limitHelpHere}`, destination: null, choices: declared.slice(0, OFFERED) };
+    }
+    // 2. A limit about *acting* (ADR-025) — "change my notification settings for me" — is about a thing
+    //    the app has a screen for: the one the request ranks first, when it is a plain match. The same
+    //    "barely a match" bar the likely-one offer uses, not a new number: below it, the screen is as
+    //    likely unrelated as not, and a wrong "do it here" is worse than a plain refusal.
+    if (capability?.refuses === 'action') {
+      const places = trace.candidates
+        .filter((c) => c.score >= LEAD_FLOOR && !registry.boundaryIds.has(c.capabilityId))
+        .map((c) => registry.byId.get(c.capabilityId))
+        .flatMap((c) => (c && c.kind === 'navigate' ? [toChoice(c)] : []))
+        .filter((c): c is Choice => c !== null)
+        .slice(0, OFFERED);
+      if (places.length > 0) {
+        return { tone: 'limit', title: words.limitDoTitle, body: `${said} ${words.limitDoHere}`, destination: null, choices: places };
+      }
+    }
+    return { tone: 'limit', title: words.limitTitle, body: said, destination: null, choices: [] };
   }
 
   if (trace.outcome !== 'execute' || !capability) {

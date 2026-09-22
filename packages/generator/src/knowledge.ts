@@ -8,7 +8,7 @@
 //
 // So the missing knowledge is *data*, and the person who has it is the adopter. This file is its
 // shape: a `knowledge.json` they own and commit, written with their installing agent by answering
-// open questions about the gaps `knowledgeGaps` finds (adapter/AGENTS.md, ASK 0).
+// open questions about the gaps `knowledgeGaps` finds (adapter/AGENTS.md, ASK 9).
 //
 //   app       what the application is, in the adopter's words          -> stage 3's context
 //   glossary  their terms, and the everyday words people use instead   -> vocabulary
@@ -66,6 +66,11 @@ export interface Limit {
   readonly say: string;
   /** What people say when they ask for it. At least three, so it can be recognised. */
   readonly askedAs: readonly string[];
+  /**
+   * Where the visitor can do it themselves, or get help with it — routes of this app's screens. Offered
+   * beneath the refusal, to each role only where that role can open the screen. Empty: a plain refusal.
+   */
+  readonly instead: readonly string[];
 }
 
 export interface AppKnowledge {
@@ -95,6 +100,8 @@ const MAX_ROLES = 20;
 const CONTEXT_ALIASES = 8;
 const MIN_PHRASES = 3;
 const MAX_LIST = 40;
+/** Places a refusal points to: a visitor told "not here" can weigh two, not a list. */
+const MAX_INSTEAD = 2;
 const MAX_ALIASES = 20;
 const MAX_TEXT = 300;
 const MAX_LONG = 600;
@@ -251,9 +258,17 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
     const about = text(entry.about, `${path}.about`, 80);
     const say = text(entry.say, `${path}.say`, MAX_LONG);
     const askedAs = list(entry.askedAs, `${path}.askedAs`, MAX_LIST);
+    // A route of this app, as the route table writes it; anything else is dropped with a reason.
+    const routes = list(entry.instead, `${path}.instead`, MAX_LIST).filter((route, j) => {
+      if (route.startsWith('/')) return true;
+      problem(`${path}.instead[${j}]`, 'expected a route of this app, starting with "/", ignored');
+      return false;
+    });
+    if (routes.length > MAX_INSTEAD) problem(`${path}.instead`, `too many — kept the first ${MAX_INSTEAD}`);
+    const instead = routes.slice(0, MAX_INSTEAD);
     if (!about || !say) problem(path, 'a limit needs both "about" (what it is) and "say" (what to tell the visitor), ignored');
     else if (askedAs.length < MIN_PHRASES) problem(path, `a limit needs at least ${MIN_PHRASES} things people say to ask for it, or it cannot be recognised — ignored`);
-    else cannot.push({ about, say, askedAs });
+    else cannot.push({ about, say, askedAs, instead });
   }
 
   return {
@@ -354,6 +369,8 @@ export function knowledgeBoundaries(knowledge: AppKnowledge): Capability[] {
       description: [terminated(limit.about), sentence(limit.askedAs)].filter(Boolean).join(' '),
       refusal: limit.say,
       examples: [...limit.askedAs],
+      // Every route the adopter named; `splitByRole` keeps, per role, only the ones that role can open.
+      ...(limit.instead.length > 0 ? { helpAt: [...limit.instead] } : {}),
     };
   });
 }
@@ -388,7 +405,17 @@ export function knowledgeContext(knowledge: AppKnowledge, role: string): Registr
 
 // ----------------------------------------------------------------- gaps ----
 
-export type GapKind = 'app-about-missing' | 'limits-missing' | 'rules-missing' | 'role-unknown' | 'screen-unknown' | 'purpose-missing' | 'phrasing-thin' | 'knowledge-orphan';
+export type GapKind =
+  | 'app-about-missing'
+  | 'limits-missing'
+  | 'rules-missing'
+  | 'role-unknown'
+  | 'screen-unknown'
+  | 'purpose-missing'
+  | 'phrasing-thin'
+  | 'knowledge-orphan'
+  /** A limit's `instead` names a route that is no screen of this app: it would be dropped without a word. */
+  | 'instead-unknown';
 
 export interface KnowledgeGap {
   readonly kind: GapKind;
@@ -462,6 +489,14 @@ export function knowledgeGaps(
 
   for (const key of Object.keys(knowledge.screens).sort()) {
     if (!matched.has(key)) gaps.push({ kind: 'knowledge-orphan', route: key, message: `“${key}” is in knowledge.json but matches no screen — a typo, or a page that was removed?` });
+  }
+  // Where a limit sends the visitor must be a real screen, or it is quietly dropped from every role.
+  for (const limit of knowledge.cannot) {
+    for (const route of limit.instead) {
+      if (!screens.has(route)) {
+        gaps.push({ kind: 'instead-unknown', route, message: `The limit “${limit.about.slice(0, 60)}” sends visitors to “${route}”, which is no screen of this app — a typo, or a page that was removed? It is not offered.` });
+      }
+    }
   }
 
   return { gaps, coverage: { screens: screens.size, withPurpose, withPhrasing } };
