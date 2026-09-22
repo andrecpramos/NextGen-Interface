@@ -1,8 +1,46 @@
 # Status
 
-**As of 2026-09-21, branch `feature/ui-polish-and-reasoning`, committed and unpushed.** One page. If it disagrees with the code,
+**As of 2026-09-22, branch `feature/ship-readiness-review`** (stacked on `feature/ui-polish-and-reasoning`),
+committed and unpushed. One page. If it disagrees with the code,
 the code wins and this page is the bug. The plan, the rules and the full work-package log are
 in [PLAN.md](PLAN.md); this is what you read first.
+
+## Ship-readiness review, 2026-09-22
+
+A review of the whole product as an adopter and a visitor meet it: the shipped `adapter/` run on a copy
+of judo_app (Next.js + next-intl), and the widget driven in headless Edge on a desktop, a dark host and an
+emulated phone. What it found, all fixed and pinned by tests:
+
+- **Blocker: `doctor` failed every screen of a locale-routed app.** Since 2026-09-21 the generator no longer
+  declares `[locale]` as a slot (the page fills it), but the registry validator still demanded it, so a
+  Next.js `[locale]` app got 12 `route-param-declared` errors under PROBLEMS and exit 1. `core-capability`
+  now owns one `isLocaleParam`, read by the validator, the generator and the widget.
+- **Every printed command was wrong from where the adopter stands.** "Next: node scan.mjs …" with an absolute
+  path, run from the app root where the tool is `nextgen-tool/scan.mjs`; `doctor` offered a
+  `nextgen calibrate` command that does not exist. Commands now print as they were run, relative to the
+  current folder. `build` says when a role file failed validation instead of exiting 1 silently.
+- **`doctor` ends with numbered "Next steps"** for the build's state (problems, GUESSED lines, knowledge
+  gaps, calibration, preview, the script line), and no longer quotes ADR, WP or Rule numbers an adopter
+  cannot look up — nor do `init`'s warnings, `SKIPPED.md`, `INFERRED.md` or the preview page.
+- **Attachments are off by default** (owner's decision; [ADR-024](../.claude/decisions/ADR-024.md)
+  addendum, Proposed): `data-nextgen-attach="on"` or `attach: true`. A default-on button that most apps
+  cannot wire was a dead end for every visitor of an adopter who did not read far enough.
+- **"I don't know what to do here" was routed**, not answered as being lost (no marker word in it), and got
+  two unrelated screens; the same for "não sei o que fazer aqui", "what do I do here", "o que faço". Now
+  recognised. A new test routes every golden utterance with a destination and every fixture example
+  phrase past small talk (the claim in row 14 was a one-off check until now).
+- **The landing screen said only "Ready when you are."** It now says, beneath, what the assistant is for (a
+  sentence, not suggested questions — the earlier "no pre-written questions" decision stands). The docked
+  orb says "Ask where to go" on hover or keyboard focus. The thread's scrollbar is thin and in the host's
+  colours at the screen's edge, and an opened "Why?" scrolls into view.
+- Drift: GETTING-STARTED said the adapter had no version (it has `VERSION`), called `bottom-right` the
+  default position (it is the emptier side), and never mentioned `knowledge.json` — the measured biggest
+  lever; now step 5a. The bench's role link rendered a literal `<!--ROLE-->`.
+
+Verified today: every gate in `sdlc.config.json` passes, including `adversarial-live` against a model
+server, except `router-floor`, which is non-blocking and runs against a legacy fixture registry untouched
+by this change (the HEAD scorecard comparison passed). **Not done:** a phone-sized hint (touch has no
+hover), and any of the owner items below.
 
 ## What this is
 
@@ -17,7 +55,7 @@ the adopter's is modified.
 | Runs | Where | Source | Ships as |
 |---|---|---|---|
 | **Scanner** — `init`, `build`, `doctor`, `calibrate` | once, on the adopter's machine | `kit` + `generator` | `adapter/scan.mjs` (3.6 MB, no dependencies) |
-| **Assistant** — the three-stage router and the widget | in each visitor's browser | `embed` + `core-intent` | `adapter/runtime/nextgen.js` (138 KB, 50.6 KB gzipped) |
+| **Assistant** — the three-stage router and the widget | in each visitor's browser | `embed` + `core-intent` | `adapter/runtime/nextgen.js` (140 KB, 51.2 KB gzipped) |
 
 `preview/` is a bench for judging the result and is never exported. `core-capability`,
 `core-inference` and `core-intent` are the engine both artefacts are built from, and sit below
@@ -107,7 +145,7 @@ Quoted from the repository, not re-measured today.
 | 13 | ~~Chat extras~~ — **done 2026-09-21:** start over, copy, ↑/↓ recall, and a quieter layout (one tools row, turns grouped). Not done, deliberately: shortcuts beyond ↑/↓ and Esc (browsers reserve most of the sensible ones) | done |
 | 14 | **Small talk and dead ends, done 2026-09-21 — and what it is not.** "Hi", "thanks", "who are you", "I have no idea what to do here" are answered, not routed (`embed/src/chat.ts`); being lost gets a few places to begin, taken from the page's own navigation. Two options, each with its purpose; a refusal ends with what the assistant *can* do. Recognition is by exact phrase plus a closed vocabulary, in en and pt only: a word about the app makes it a question, so a phrase it does not know is still refused, and a third language gets none of it. Checked against all 101 golden utterances and 327 registry phrases (0 intercepted), not against real visitors. **The assistant navigates and explains; it does not perform actions** ("make an appointment" takes the visitor to where it is done) — that stays until WP-48 | owner to judge on a real app |
 | 15 | ~~Coach role routes worst~~ — **not doing it.** The fixture's coach screens are thin (41% executed against 73% for parents), but most apps will not look like that, and writing more fixture knowledge to lift one role's number would be tuning the demo, not the product (owner, 2026-09-21) | dropped |
-| 16 | **Photos and files, done 2026-09-21 — and what it is not** ([ADR-024](../.claude/decisions/ADR-024.md)). A paperclip, a camera on touch-first devices, paste and drop; a tray of chips with previews (drawn on a canvas, so a strict CSP is not tripped); four files, 15 MB each, photos and common documents, judged by one function for every way in. **What is attached never leaves the device**: the router gets the words only; the page gets the files as a cancelable `nextgen:attach` event; the visitor is told which happened. Off with `data-nextgen-attach="off"`; `doctor` and ASK 5 tell the adopter and the installing agent. **Not done:** the assistant cannot *use* a file (no vision, by decision) — routing the visitor to the screen that has an upload form needs the scanner to record which screens take a file (a schema change) and a golden set; an adopter who does not wire the event gets an honest but inert button. **Not measured:** a real upload into a real app, HEIC outside Safari (falls back to an icon), the screen-reader pass on the new controls (NVDA-CHECKLIST items 18–22, added) | owner to judge on a real app |
+| 16 | **Photos and files, done 2026-09-21 — and what it is not** ([ADR-024](../.claude/decisions/ADR-024.md)). A paperclip, a camera on touch-first devices, paste and drop; a tray of chips with previews (drawn on a canvas, so a strict CSP is not tripped); four files, 15 MB each, photos and common documents, judged by one function for every way in. **What is attached never leaves the device**: the router gets the words only; the page gets the files as a cancelable `nextgen:attach` event; the visitor is told which happened. Off unless `data-nextgen-attach="on"` (since 2026-09-22, ADR-024 addendum); `doctor` and ASK 5 tell the adopter and the installing agent. **Not done:** the assistant cannot *use* a file (no vision, by decision) — routing the visitor to the screen that has an upload form needs the scanner to record which screens take a file (a schema change) and a golden set; an adopter who turns it on without wiring the event gets an honest but inert button. **Not measured:** a real upload into a real app, HEIC outside Safari (falls back to an icon), the screen-reader pass on the new controls (NVDA-CHECKLIST items 18–22, added) | owner to judge on a real app |
 
 ## Known limits, stated rather than hidden
 

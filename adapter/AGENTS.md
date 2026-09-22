@@ -30,16 +30,21 @@ Say what you are about to do before you do it.
 | `runtime/nextgen.js` | the assistant itself, already compiled, ready to serve |
 | `VERSION` | an id of the two files above. `doctor` prints it on its first line — quote it when you report a problem, so it is clear which build was copied |
 
-## The four commands
+## The commands
 
-Run them from the application's root. `<here>` is this folder.
+Run them from the application's root. `<here>` is this folder. Each one prints the next, written to
+run from where you are; `doctor` ends with a numbered "Next steps" list for the build's state.
 
 ```bash
-node <here>/scan.mjs init   .            # read the app, write nextgen/nextgen.config.json
-node <here>/scan.mjs build  nextgen      # write nextgen/bundle/ and nextgen/review/
-node <here>/scan.mjs doctor nextgen      # what it read, what it guessed, what to fix
+node <here>/scan.mjs init    .           # read the app, write nextgen/nextgen.config.json
+node <here>/scan.mjs build   nextgen     # write nextgen/bundle/ and nextgen/review/
+node <here>/scan.mjs doctor  nextgen     # what it read, what it guessed, what to fix
+node <here>/scan.mjs preview nextgen     # a local page to ask questions as each role, before wiring anything
 node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
 ```
+
+`preview` serves every role's files at once so the developer can compare them. It binds to this machine
+only, and it is never how the bundle is served for real (see "Serving it").
 
 **There is a fifth step, and it is not a command: ASK 9, an interview.** Run it after the
 first `build` and before calibration. Read from the source alone, a screen is a title and a
@@ -174,15 +179,18 @@ page? I'll need to know how a component here gets hold of a navigate function �
 prop, a global, or something else."*
 
 **Also ask, in the same breath — can this app do anything with a file a visitor attaches?** The box
-has a paperclip, and a camera on a phone. What a visitor attaches **never leaves their device**: the
-assistant does not read it, send it, or give it to a model (Rule 8, and the pilot's data is medical). It is
-handed to the *page*, as a cancelable `nextgen:attach` event carrying `{ files, utterance, route }`. So:
+can offer a paperclip, and a camera on a phone, but **only if the script tag says
+`data-nextgen-attach="on"`**; without it there is no button. What a visitor attaches
+**never leaves their device**: the assistant does not read it, send it, or give it to a model — this
+tool is used on apps whose files are medical. It is handed to the *page*, as a cancelable
+`nextgen:attach` event carrying `{ files, utterance, route }`. So:
 
-- If the app has somewhere for a file to go (an upload form, a claims inbox, a profile photo), offer to wire
-  that listener, next to the navigation one. Mention that the page must validate what it is given: a file's
-  name and type are the visitor's, and the widget's checks (type, 15 MB, four files) are a courtesy.
-- If it does not, add `data-nextgen-attach="off"` to the script tag, so the app does not offer a button that
-  goes nowhere. This is the honest default for most apps.
+- If the app has somewhere for a file to go (an upload form, a claims inbox, a profile photo), offer to add
+  `data-nextgen-attach="on"` and wire that listener, next to the navigation one. Mention that the page must
+  validate what it is given: a file's name and type are the visitor's, and the widget's checks (type, 15 MB,
+  four files) are a courtesy.
+- If it does not, leave the attribute out. That is the default, and the honest one for most apps: a button
+  that goes nowhere is a dead end. (`data-nextgen-attach="off"` says the same thing explicitly.)
 
 Tell the developer plainly which they have. Do not wire an upload endpoint on your own initiative.
 
