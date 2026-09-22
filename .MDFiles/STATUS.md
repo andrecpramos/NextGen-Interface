@@ -66,6 +66,14 @@ golden set:
   out-of-scope request said with no verb ("physio appointment for my son") is now asked about, not
   refused.
 
+- **It helps with what it will not do** (owner: *"help, not execute"*; ADR-025 items 5–7). A limit can
+  point to where the visitor can do it themselves: `knowledge.json` `cannot[].instead`, asked for in the
+  interview, kept per role. The refusal becomes "I can't do that for you", the adopter's words, and those
+  screens as links. A limit about acting offers the screen the request plainly names (≥ 0.15, the
+  likely-one bar); a limit about a subject never gets one from retrieval — "quero falar com o treinador"
+  ranks the medical screen first. On the fixture, "quero falar com o treinador" now ends with a link to
+  Anúncios, which its refusal already told visitors to read.
+
 After: 16 straight to the right screen, **2 real questions refused** ("change my password" carries a verb
 and the app declares no password screen; "what's new at the club"), 1 miss that is correct ("página
 inicial" asked on the home page). Not measured: any of it on a real app or with real visitors; the

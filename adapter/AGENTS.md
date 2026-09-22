@@ -284,6 +284,11 @@ puts your guess in their mouth:
 - **What it cannot do.** *"What do users ask for that this app cannot do — and what should
   the assistant say when they do?"* — payments, contacting a person, changing a record. At
   least three ways people ask, for each; a limit it cannot recognise protects nobody.
+  - Then, for each: *"Is there a screen where they can do it themselves, or get help with it?"*
+    The assistant never performs the task, but it can end its "I can't do that for you" with a link
+    there instead of a dead end. Up to two routes go in that limit's `instead`, exactly as the route
+    table writes them (`"/billing"`). Each role is only ever offered the ones it can open; a route
+    that is no screen of the app is listed in `KNOWLEDGE-GAPS.md`. If there is none, leave it out.
 - **How the app works.** *"How does this app work that a newcomer would not guess? What does
   someone need to know, or have done, before they can find or do things — and where do users
   usually go wrong?"* Each answer becomes one short statement in `rules`: *"Medical status is

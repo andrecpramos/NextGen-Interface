@@ -129,7 +129,8 @@ thresholds. `doctor` says both. Two things fix that, in this order.
 
 **a. Tell it what your app is for.** `build` writes `nextgen/review/KNOWLEDGE-GAPS.md`: the
 questions only you can answer — what each screen is for, the words your users say that never appear
-on a screen, and what the app cannot do. Write the answers into `nextgen/knowledge.json` (the shape is
+on a screen, and what the app cannot do (and, for each, where a visitor can do it themselves: the
+assistant never does it for them, but it points there instead of stopping at "no"). Write the answers into `nextgen/knowledge.json` (the shape is
 at the end of that file) and run `build` again. On the reference app this took the right screen from
 first place in 6 of 10 everyday questions to 9 of 10 — measured on a fixture, with answers written by
 the tool's author, so an upper bound until a real app confirms it. Write only what is true: every purpose you
