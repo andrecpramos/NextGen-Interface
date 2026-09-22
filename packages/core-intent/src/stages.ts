@@ -1,5 +1,6 @@
 import { normalize, contentTokens } from './text.ts';
 import { actionSignalApplies } from './action.ts';
+import { bridge } from './bridge.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
 // The subpath, not the package root: the root re-exports the model store, which imports
@@ -110,7 +111,8 @@ export async function stage2(
   embedder: Embedder,
   thresholds: Thresholds = THRESHOLDS,
 ): Promise<Stage2Result> {
-  const vec = await embedder.embed(utterance);
+  // Words the app does not use are bridged to ones it does (bridge.ts); words it does use are left as they are.
+  const vec = await embedder.embed(bridge(utterance, registry));
 
   const scored: Candidate[] = registry.capabilities
     .map((cap, i) => ({ capabilityId: cap.id, score: cosine(vec, registry.vectors[i]!) }))
