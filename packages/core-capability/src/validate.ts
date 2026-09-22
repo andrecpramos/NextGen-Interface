@@ -195,6 +195,13 @@ function validateOne(cap: Capability, ctx: Ctx): void {
       err(id, 'refusal-misplaced', `"${id}" is ${cap.kind} but declares a refusal message — only unsupported capabilities refuse`);
     }
   }
+  // ADR-025: a limit may be one that refuses only a request to act. Any other value is a typo that would
+  // silently leave it refusing on topic, and on anything but a limit it means nothing.
+  const refuses = (cap as { refuses?: unknown }).refuses;
+  if (refuses !== undefined) {
+    if (!isBoundary) err(id, 'refuses-misplaced', `"${id}" is ${cap.kind} but declares "refuses" — only unsupported capabilities refuse`);
+    else if (refuses !== 'action') err(id, 'refuses-known', `"${id}" declares refuses "${String(refuses)}" — the only value is "action"`);
+  }
 
   // --- prose ------------------------------------------------------------------
   if (!cap.title?.trim()) err(id, 'title-required', `"${id}" has no title`);

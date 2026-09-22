@@ -33,6 +33,12 @@ interface CatalogueEntry {
    * `null` means always — those are true of any navigation assistant.
    */
   readonly relevantWhen: RegExp | null;
+  /**
+   * `'action'` when the entry is about the assistant *doing* something, and so refuses only a request to
+   * act (ADR-025). Its examples share their topics with real screens — an injury, a son, an email — and
+   * refusing on topic alone refused "injury info for my kid" as if it were "book a physio for my son".
+   */
+  readonly refuses?: 'action';
 }
 
 const CATALOGUE: readonly CatalogueEntry[] = [
@@ -51,6 +57,7 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       'envia um email ao treinador',
     ],
     relevantWhen: null,
+    refuses: 'action',
   },
   {
     id: 'unsupported.data_changes',
@@ -67,6 +74,7 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       'altera a data disto por mim',
     ],
     relevantWhen: null,
+    refuses: 'action',
   },
   {
     id: 'unsupported.payments',
@@ -83,6 +91,7 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       'processa a minha quota',
     ],
     relevantWhen: /finance|billing|invoice|payment|payroll|fee|quota|fatura/i,
+    refuses: 'action',
   },
   {
     id: 'unsupported.other_applications',
@@ -119,6 +128,7 @@ export function synthesiseBoundaries(routes: readonly DiscoveredRoute[]): Capabi
       description: entry.description,
       refusal: entry.refusal,
       examples: [...entry.examples],
+      ...(entry.refuses ? { refuses: entry.refuses } : {}),
     }),
   );
 }

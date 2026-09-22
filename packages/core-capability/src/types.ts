@@ -156,6 +156,13 @@ export interface Capability {
   readonly examples?: readonly (string | CapabilityExample)[];
   /** Required on `unsupported`: what the user is told, and why. */
   readonly refusal?: string;
+  /**
+   * Only on `unsupported`. `'action'`: this limit is about the assistant *doing* something — acting in
+   * another system, changing a record, moving money — so it refuses only a request to act, never a
+   * question that merely shares its topic ("injury info for my kid" is not "book a physio for my son").
+   * Absent: it refuses on topic, as every limit did before (ADR-025).
+   */
+  readonly refuses?: 'action';
 }
 
 /**

@@ -253,7 +253,8 @@
         "schedule a doctor’s visit for this injury",
         "marca uma consulta para o meu filho",
         "envia um email ao treinador"
-      ]
+      ],
+      "refuses": "action"
     },
     {
       "id": "unsupported.data_changes",
@@ -268,7 +269,8 @@
         "fill in this form for me",
         "apaga este registo por mim",
         "altera a data disto por mim"
-      ]
+      ],
+      "refuses": "action"
     },
     {
       "id": "unsupported.other_applications",

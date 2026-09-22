@@ -182,6 +182,14 @@ describe('validateRegistry — boundary entries', () => {
     expect(rules(registryOf(ok(), noRefusal))).toContain('boundary-refusal');
   });
 
+  // ADR-025: a limit about acting refuses only a request to act. A typo would quietly leave it refusing
+  // on topic; on a screen it would mean nothing.
+  it('accepts refuses: "action" on a limit, and nothing else anywhere', () => {
+    expect(rules(registryOf(ok(), b({ refuses: 'action' } as Partial<Capability>)))).not.toContain('refuses-known');
+    expect(rules(registryOf(ok(), b({ refuses: 'actions' } as unknown as Partial<Capability>)))).toContain('refuses-known');
+    expect(rules(registryOf({ ...ok(), refuses: 'action' } as Capability))).toContain('refuses-misplaced');
+  });
+
   it('rejects a boundary entry that declares a route', () => {
     // A refusal with a route is a refusal you can navigate to.
     expect(rules(registryOf(ok(), b({ route: '/somewhere' })))).toContain('boundary-no-route');

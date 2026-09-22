@@ -1,5 +1,5 @@
 import { normalize, contentTokens } from './text.ts';
-import { actionSignalApplies } from './action.ts';
+import { actionSignalApplies, isActionRequest } from './action.ts';
 import { bridge } from './bridge.ts';
 import { cosine } from './embedder.ts';
 import { THRESHOLDS, type Thresholds } from './config.ts';
@@ -123,7 +123,14 @@ export async function stage2(
   // answer different questions: "which capability is this?" and "is this
   // something the application does at all?" (ADR-009).
   const supported = scored.filter((c) => !registry.boundaryIds.has(c.capabilityId));
-  const boundary = scored.filter((c) => registry.boundaryIds.has(c.capabilityId));
+  // ADR-025. A limit about the assistant *acting* (refuses: 'action') is a candidate only for a request
+  // to act. Its examples share their topics with real screens, so on topic alone it refused questions
+  // like "injury info for my kid". A limit about a subject — the adopter's own, from knowledge.json —
+  // still refuses on topic, exactly as before.
+  const asking = isActionRequest(utterance);
+  const boundary = scored.filter(
+    (c) => registry.boundaryIds.has(c.capabilityId) && (asking || registry.byId.get(c.capabilityId)?.refuses !== 'action'),
+  );
 
   const top = supported[0] ?? scored[0]!;
   const runnerUp = supported[1] ?? { capabilityId: '', score: 0 };

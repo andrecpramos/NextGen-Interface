@@ -30,7 +30,8 @@
 // once already: a constraint that silently matches nothing reports success.
 
 import { cosine } from './embedder.ts';
-import { actionSignalApplies } from './action.ts';
+import { actionSignalApplies, isActionRequest } from './action.ts';
+import { bridge } from './bridge.ts';
 import type { Embedder, Registry } from './types.ts';
 import type { Thresholds } from './config.ts';
 
@@ -96,18 +97,22 @@ export async function scoreTurns(
   const scored: ScoredTurn[] = [];
   for (const entry of entries) {
     const { registry, embedder } = scorerFor(entry.registryKey);
-    const vector = await embedder.embed(entry.utterance);
+    // Exactly as stage 2 scores it, or the thresholds are calibrated for a router that does not ship:
+    // the bridged question (bridge.ts), and an acting limit only for a request to act (ADR-025).
+    const vector = await embedder.embed(bridge(entry.utterance, registry));
+    const asking = isActionRequest(entry.utterance);
     const all = registry.capabilities
       .map((capability, index) => ({
         id: capability.id,
         route: capability.route ?? null,
         isBoundary: registry.boundaryIds.has(capability.id),
+        acting: capability.refuses === 'action',
         score: cosine(vector, registry.vectors[index]!),
       }))
       .sort((a, b) => b.score - a.score);
 
     const supported = all.filter((c) => !c.isBoundary);
-    const boundaries = all.filter((c) => c.isBoundary);
+    const boundaries = all.filter((c) => c.isBoundary && (asking || !c.acting));
 
     // ADR-015, with its guard: the verb is only evidence about scope when the
     // application does not itself offer the action. Read from the capability the
