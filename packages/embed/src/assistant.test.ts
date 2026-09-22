@@ -861,6 +861,24 @@ describe('attachments — a photo or a file, kept on the device', () => {
     expect(opened).toBe(1);
   });
 
+  // Found reading the tab trap for the NVDA pass, 2026-09-22: the trap lists its stops, the paperclip was
+  // not among them, and "at <= 0" took an unlisted control for the first one — so Shift+Tab from the
+  // paperclip jumped to Send, the far end of the screen.
+  it('lets Shift+Tab step back from the paperclip, not throw focus to the far end', async () => {
+    const { orb, screen, doc, byClass, input } = setup(answering({}), {}, { page: fitted(true).page });
+    orb.fire('click');
+    await settle(50);
+    const paperclip = byClass('attach');
+    paperclip.focus();
+    expect(screen.fire('keydown', { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(false);
+    expect(doc.activeElement).toBe(paperclip);
+    // …and it is a stop of the screen's own, so Tab from the camera reaches the box as the page draws it.
+    byClass('camera').focus();
+    expect(screen.fire('keydown', { key: 'Tab' }).defaultPrevented).toBe(false);
+    input.focus();
+    expect(doc.activeElement).toBe(input);
+  });
+
   it('is off unless the adopter turns it on — a button that goes nowhere is a dead end', () => {
     const { byClass } = baseSetup(answering(toCalendar), {}, { page: fitted(true).page });
     expect(byClass('attach').hidden).toBe(true);

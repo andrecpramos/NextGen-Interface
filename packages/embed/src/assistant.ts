@@ -1942,12 +1942,16 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
           ...(soundButton.hidden ? [] : [soundButton]),
           closeButton,
           ...threadStops,
+          ...(attachButton.hidden ? [] : [attachButton]),
+          ...(cameraButton.hidden ? [] : [cameraButton]),
           input,
           ...(mic.hidden ? [] : [mic]),
           send,
         ];
+    // Only the two ends wrap. A control this list does not name (a file chip's remove button) is -1,
+    // and is left to the browser's own order — `<= 0` once sent Shift+Tab from the paperclip to Send.
     const at = stops.indexOf(root.activeElement as HTMLElement);
-    if (e.shiftKey && at <= 0) {
+    if (e.shiftKey && at === 0) {
       e.preventDefault();
       stops[stops.length - 1]!.focus();
     } else if (!e.shiftKey && at === stops.length - 1) {
