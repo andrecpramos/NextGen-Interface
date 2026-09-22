@@ -15,6 +15,7 @@
 //    only from the page the user is already on, the one value the user has
 //    already chosen for themselves. Otherwise the widget explains and stays put.
 
+import { isLocaleParam } from '@nextgen/core-capability';
 import { isActionRequest, type Registry, type TurnTrace } from '@nextgen/core-intent/browser';
 
 import type { Smalltalk } from './chat.ts';
@@ -96,6 +97,8 @@ export interface Words {
   readonly needsItem: string;
   readonly error: string;
   readonly greeting: string;
+  /** Under the greeting, before anything is asked: what this is for, to someone who has never seen it. */
+  readonly greetingHint: string;
   readonly composer: string;
   /** The same, for a phone, where the box shares its row with four buttons. */
   readonly composerShort: string;
@@ -179,6 +182,7 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     needsItem: 'This page is about one specific item. Open that item in the application, then ask again.',
     error: 'Something went wrong. Nothing was changed.',
     greeting: 'Ready when you are.',
+    greetingHint: 'Say what you want to do, in your own words, and I’ll take you to the right screen.',
     composer: 'Ask anything about this app',
     composerShort: 'Ask anything',
     openAssistant: 'Open the assistant',
@@ -260,6 +264,7 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     needsItem: 'Esta página é sobre um item concreto. Abra-o na aplicação e pergunte de novo.',
     error: 'Algo correu mal. Nada foi alterado.',
     greeting: 'Pronto quando quiser.',
+    greetingHint: 'Diga o que quer fazer, por palavras suas, e eu levo-o ao ecrã certo.',
     composer: 'Pergunte algo sobre esta aplicação',
     composerShort: 'Pergunte algo',
     openAssistant: 'Abrir o assistente',
@@ -309,9 +314,6 @@ const strip = (path: string): string => path.replace(/[?#].*$/, '').replace(/\/+
 export interface ParamHints {
   readonly locale?: string | undefined;
 }
-
-/** The parameter an i18n router puts in front of every route: next-intl's `[locale]`, `[lang]`. */
-const LOCALE_NAME = /^(?:locale|lang|language|lng)$/i;
 
 /** Moving to where you already are only breaks the back button. */
 export function isSamePlace(destination: string, currentPath: string): boolean {
@@ -369,7 +371,7 @@ export function fillParams(
     }
     const optional = segment.endsWith('?');
     const name = segment.slice(1).replace(/\?$/, '');
-    const value = known.get(name) ?? (LOCALE_NAME.test(name) ? hints.locale : undefined);
+    const value = known.get(name) ?? (isLocaleParam(name) ? hints.locale : undefined);
     if (value !== undefined) filled.push(value);
     else if (!optional) return null;
   }

@@ -68,9 +68,10 @@ export interface AssistantOptions extends MountOptions {
   /** Offer voice at all. Default `true`; it only appears where the browser supports it. */
   readonly voice?: boolean;
   /**
-   * Offer to attach a photo or a file. Default `true`. What is attached never leaves the visitor's
-   * device: it goes to the page as a `nextgen:attach` event, and to nothing else. An app with nowhere
-   * to send a file should say `false`, so it does not offer one.
+   * Offer to attach a photo or a file. Default `false`: most apps have nowhere to send one, and a
+   * button that goes nowhere is a dead end (ADR-024 addendum). What is attached never leaves the
+   * visitor's device: it goes to the page as a `nextgen:attach` event, and to nothing else. Say `true`
+   * only once the page listens for that event and does something with the files.
    */
   readonly attach?: boolean;
   /** The browser's voice APIs. A seam for tests; the default reads them from the page. */
@@ -175,9 +176,13 @@ const CSS = `
 .thread {
   width: min(720px, 100%); display: flex; flex-direction: column; gap: 6px;
   overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth;
+  /* A thin scrollbar in the host's colours, not the platform's grey slab across the glass. */
+  scrollbar-width: thin; scrollbar-color: var(--ng-border, rgb(255 255 255 / .16)) transparent;
 }
+/* In a conversation the thread spans the screen and centres its column with padding, so the scrollbar
+   sits at the screen's edge rather than floating beside the messages. */
 .screen[data-conversation="true"] .thread {
-  flex: 1 1 auto; min-height: 0; padding: 18px 2px 12px;
+  flex: 1 1 auto; min-height: 0; width: 100%; padding: 18px max(2px, calc((100% - 720px) / 2)) 12px;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
   mask-image: linear-gradient(to bottom, transparent 0, #000 18px);
 }
@@ -201,6 +206,9 @@ const CSS = `
 .msg-text { margin: 0; }
 
 .greeting { margin: 0; font-size: .9375rem; font-weight: 500; }
+.greeting-hint { margin: 8px auto 0; max-width: 30rem; font-size: .9375rem; color: var(--ng-muted, #9aa3af); text-wrap: balance; }
+/* Once a conversation has started, the hint has done its job: the greeting stays as a short bubble. */
+.screen[data-conversation="true"] .greeting-hint { display: none; }
 .msg.intro { justify-content: center; }
 .screen[data-conversation="true"] .msg.intro { justify-content: flex-start; }
 .screen[data-conversation="false"] .msg.intro .msg-body { background: none; border: 0; box-shadow: none; padding: 0; max-width: none; text-align: center; }
@@ -387,7 +395,10 @@ ${BEAM_CSS}
 .drawer[data-open="true"] { transform: none; visibility: visible; transition-delay: 0s; }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 8px 4px 20px; }
 .drawer-title { margin: 0; font-size: .6875rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ng-muted, #7a838f); }
-.drawer-list { list-style: none; margin: 0; padding: 4px 8px 16px; display: grid; gap: 2px; overflow-y: auto; }
+.drawer-list {
+  list-style: none; margin: 0; padding: 4px 8px 16px; display: grid; gap: 2px; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: var(--ng-border, rgb(255 255 255 / .16)) transparent;
+}
 .drawer-link {
   display: flex; align-items: center; min-height: 48px; padding: 0 12px; border-radius: var(--ng-radius, 10px);
   color: var(--ng-text, #e6e9ee); text-decoration: none; transition: background-color 160ms ease;
@@ -607,6 +618,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   screen.setAttribute('role', 'dialog');
   screen.setAttribute('aria-modal', 'true');
   screen.setAttribute('aria-labelledby', 'nextgen-greeting');
+  screen.setAttribute('aria-describedby', 'nextgen-greeting-hint');
   screen.setAttribute('inert', '');
   screen.dataset.open = 'false';
   const backdrop = make('div', 'backdrop');
@@ -639,9 +651,13 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const greeting = make('h2', 'greeting');
   greeting.id = 'nextgen-greeting';
   greeting.textContent = words.greeting;
+  // "Ready when you are" says nothing to someone who has never seen this: one line on what it is for.
+  const greetingHint = make('p', 'greeting-hint');
+  greetingHint.id = 'nextgen-greeting-hint';
+  greetingHint.textContent = words.greetingHint;
   const intro = make('div', 'msg assistant intro');
   const introBody = make('div', 'msg-body');
-  introBody.append(greeting);
+  introBody.append(greeting, greetingHint);
   intro.append(introBody);
   thread.append(intro);
 
@@ -664,7 +680,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   // touch-first: on a laptop the paperclip already opens a picker that can take a file from anywhere.
   const attachButton = iconButton('attach', words.attach, ICON_ATTACH);
   const cameraButton = iconButton('camera', words.attachCamera, ICON_CAMERA);
-  const canAttach = options.attach !== false;
+  const canAttach = options.attach === true;
   const coarse = Boolean(view?.matchMedia?.('(pointer: coarse)').matches);
   attachButton.hidden = !canAttach;
   cameraButton.hidden = !canAttach || !coarse;
@@ -724,6 +740,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   bubble.setAttribute('role', 'status');
   bubble.setAttribute('aria-live', 'polite');
   bubble.dataset.show = 'false';
+  /** The bubble is showing the orb's name on hover or focus, not something it said (`hint`, below). */
+  let hinting = false;
 
   const guidePanel = make('section', 'guide');
   guidePanel.setAttribute('aria-label', words.guideLabel);
@@ -963,6 +981,11 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       removed.textContent = words.whyRemoved(trace.proseRemoved.length);
       details.append(removed);
     }
+
+    // Opened on the last answer, the explanation grows below the fold: the click seemed to do nothing.
+    details.addEventListener('toggle', () => {
+      if (details.open) (details as Partial<Pick<HTMLElement, 'scrollIntoView'>>).scrollIntoView?.({ block: 'nearest' });
+    });
 
     return [details, summary];
   }
@@ -1325,6 +1348,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   function open(fromTap = false): void {
     if (destroyed || mode === 'stage') return;
     applyTheme();
+    hinting = false;
+    bubble.removeAttribute('aria-hidden');
     bubble.dataset.show = 'false';
     endGuide();
     mode = 'stage';
@@ -1402,6 +1427,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     forget();
     const steps = arrival.capabilityId ? (assistant.registry.byId.get(arrival.capabilityId)?.steps ?? []) : [];
     if (steps.length > 0) return startGuide(steps, arrival.title);
+    // What it says on arrival is news, and is announced: never left marked as a hover hint.
+    hinting = false;
+    bubble.removeAttribute('aria-hidden');
     bubble.textContent = words.here(arrival.title);
     bubble.dataset.show = 'true';
     liquid.setState('speaking');
@@ -1794,6 +1822,30 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     if (mode === 'docked') open(true);
     else toggleVoice();
   });
+  // A stranger sees a globe in a corner and nothing saying what it is. Pointed at, or reached by keyboard,
+  // the docked orb says it in the bubble it already speaks in — unless that bubble is saying something
+  // else. Hidden from screen readers while it does: the orb's own name already says it to them.
+  const hint = (show: boolean): void => {
+    if (show) {
+      if (mode !== 'docked' || bubble.dataset.show === 'true') return;
+      hinting = true;
+      bubble.textContent = words.label;
+      bubble.setAttribute('aria-hidden', 'true');
+      bubble.dataset.show = 'true';
+    } else if (hinting) {
+      hinting = false;
+      bubble.dataset.show = 'false';
+      bubble.removeAttribute('aria-hidden');
+    }
+  };
+  orb.addEventListener('pointerenter', (event) => {
+    if ((event as PointerEvent).pointerType !== 'touch') hint(true);
+  });
+  orb.addEventListener('pointerleave', () => hint(false));
+  orb.addEventListener('focus', () => {
+    if (orb.matches?.(':focus-visible') !== false) hint(true);
+  });
+  orb.addEventListener('blur', () => hint(false));
   menuButton.addEventListener('click', () => {
     if (menuOpen) closeMenu(true);
     else openMenu();

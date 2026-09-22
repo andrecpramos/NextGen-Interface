@@ -186,6 +186,8 @@ say('\n  the assistant layer — orb, screen, answer\n');
     storage: null,
     preferences: null,
     voice: false,
+    // Off by default; audited on, since that is when there are more controls to get wrong.
+    attach: true,
   });
   const root = mounted.host.shadowRoot;
   const orb = root.querySelector('.orb');

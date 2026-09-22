@@ -15,7 +15,15 @@
 const role = document.body.dataset.role;
 const keepRole = (to) => (to.includes('?') ? to : `${to}?role=${encodeURIComponent(role)}`);
 
+// The mock app "takes" what is attached, as an adopter's upload form would, so the bench shows
+// the whole path: attachments are off unless a page opts in and handles the event.
+window.addEventListener('nextgen:attach', (event) => {
+  event.preventDefault();
+  console.info('[bench] attached:', event.detail.files.map((file) => file.name).join(', '));
+});
+
 NextGen.start('/nextgen', role, {
+  attach: true,
   // Without this every navigation drops `?role=`, and the next page renders as the
   // default role — the assistant would appear to change what it can reach mid-session.
   navigate: (to) => {

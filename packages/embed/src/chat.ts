@@ -105,6 +105,12 @@ const GREETINGS: readonly (readonly string[])[] = [...EN.greeting, ...PT.greetin
 interface Vocabulary {
   readonly marks: ReadonlySet<string>;
   readonly filler: ReadonlySet<string>;
+  /**
+   * Marks that are phrases of generic words, none a mark alone: "don't know", "what do I do". "I don't
+   * know what to do here" is the plainest way to be lost, and until 2026-09-22 it had no marker word in
+   * it, so it went to the router and got two unrelated screens. Matched as whole words.
+   */
+  readonly phrases?: readonly string[];
 }
 
 const words = (list: string): ReadonlySet<string> => new Set(list.split(/\s+/).filter(Boolean).map(fold));
@@ -119,7 +125,12 @@ const LOST: Vocabulary = {
     doing s ll ve d
     eu sou nao sei o os as que fazer faco aqui isto isso esta este estou tenho nenhuma nem um uma de do da por onde como devo
     posso podes pode preciso favor muito mesmo e ou mas novo nova aplicacao pagina sistema plataforma usar uso funciona funcionar
-    ter ando estar sem coisa coisas tudo nada ja agora ainda em no na para com se perceber percebo entender entendo`),
+    ter ando estar sem coisa coisas tudo nada ja agora ainda em no na para com se perceber percebo entender entendo
+    disto disso daqui nisto nisso`),
+  phrases: [
+    'don t know', 'dont know', 'do not know', 'not sure', 'what do i do', 'what can i do', 'what am i doing',
+    'nao sei', 'o que faco', 'o que devo fazer', 'o que posso fazer', 'nao percebo', 'nao entendo',
+  ].map(fold),
 };
 
 const THANKS: Vocabulary = {
@@ -131,7 +142,9 @@ const THANKS: Vocabulary = {
 function madeOf(said: string, vocabulary: Vocabulary): boolean {
   const tokens = said.split(' ');
   if (tokens.length > MAX_VOCABULARY_WORDS) return false;
-  return tokens.some((t) => vocabulary.marks.has(t)) && tokens.every((t) => vocabulary.marks.has(t) || vocabulary.filler.has(t));
+  const padded = ` ${said} `;
+  const marked = tokens.some((t) => vocabulary.marks.has(t)) || (vocabulary.phrases ?? []).some((p) => padded.includes(` ${p} `));
+  return marked && tokens.every((t) => vocabulary.marks.has(t) || vocabulary.filler.has(t));
 }
 
 function lookup(said: string, lang: string | null | undefined): Smalltalk | null {

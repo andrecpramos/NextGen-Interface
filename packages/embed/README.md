@@ -23,6 +23,7 @@ Content-Security-Policy — checked in a real browser by `tooling/scripts/check-
 | `data-nextgen-target` | a CSS selector to mount inside, instead of the page's body. The assistant still covers the page |
 | `data-nextgen-position` | which side the orb rests on: `bottom-right` or `top-right` dock it right, `bottom-left` or `top-left` left, at the bottom either way. Default: the emptier side. Anything else is ignored with a warning, and never becomes CSS |
 | `data-nextgen-lang` | the assistant's language. Default: `<html lang>` |
+| `data-nextgen-attach` | `on` offers a paperclip (and a camera on a phone) and hands files to the page as `nextgen:attach`. Default: off — see "Photos and files" |
 
 If it cannot start — a missing file, a target that matches nothing — it says so with
 `console.warn` and throws nothing, because a script tag has no caller to catch it.
@@ -180,7 +181,9 @@ the page's own navigation, in its own words, where the assistant can say what ea
 have no `TurnTrace` — Rule 9 covers routed turns — and so no "Why?". A language other than these two gets
 none of this: the visitor is routed, as before.
 
-**Photos and files** ([ADR-024](../../.claude/decisions/ADR-024.md), `attach.ts`). The box has a paperclip, and
+**Photos and files** ([ADR-024](../../.claude/decisions/ADR-024.md), `attach.ts`). **Off unless the page turns
+them on** — `data-nextgen-attach="on"`, or `attach: true` — because most apps have nowhere to send a file and a
+button that goes nowhere is a dead end (ADR-024's addendum). Turned on, the box has a paperclip, and
 on a touch-first device a camera that opens the rear camera; a photo can also be pasted into the box and a
 file dropped on the screen (desktop). What is attached waits in a tray of small chips, each with a way out,
 and appears in the visitor's own message. **It never leaves the device**: the router is handed the words and
@@ -200,8 +203,8 @@ can add it on that page" — and their words are routed as usual. A message that
 ("Thanks — I've got it … tell me what you want to do with it"), never refused. Limits are declared: four
 files, 15 MB each, photos and common documents; SVG, HTML, scripts, archives and executables are turned away
 by name and by type — and because `accept` is only a hint, a paste or a drop is judged by the same function.
-**The page must still validate what it is given.** An app with nowhere to send a file turns the buttons off
-with `data-nextgen-attach="off"` (or `attach: false`).
+**The page must still validate what it is given.** An app with nowhere to send a file leaves the attribute
+out; `data-nextgen-attach="off"` (or `attach: false`) says the same explicitly.
 
 **The look** is glass, metal and light, in CSS — no WebGL, no dependency, no React — and derived from the host:
 the host's raised surface made translucent with a lit top-left edge; the host's accent as a metal (lit above,

@@ -1,3 +1,7 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { smalltalkFor, type Smalltalk } from './chat.ts';
@@ -74,6 +78,24 @@ describe('smalltalkFor — being lost, said any way', () => {
     }
   });
 
+  // Seen in the bench, 2026-09-22: each of these has no marker *word* ("know", "sure", "do" are generic
+  // on their own), so they were routed, and a visitor who said they were lost got two unrelated screens.
+  it('recognises being lost with no marker word in it', () => {
+    for (const q of ["I don't know what to do here", 'i do not know what to do', "I'm not sure what to do here", 'what do I do here?', 'what can i do here']) {
+      expect(kind(q), q).toBe('help');
+    }
+    for (const q of ['não sei o que fazer aqui', 'o que faço aqui?', 'o que devo fazer?', 'não percebo isto', 'não entendo nada disto']) {
+      expect(kind(q, 'pt'), q).toBe('help');
+    }
+  });
+
+  it('is still a question once a word is about the app, however lost it sounds', () => {
+    for (const q of ["i don't know where the calendar is", 'what do i do about the fees', "i'm not sure how to book an appointment"]) expect(kind(q), q).toBeNull();
+    for (const q of ['não sei onde estão as quotas', 'o que faço para marcar uma consulta']) expect(kind(q, 'pt'), q).toBeNull();
+    // A phrase of generic words that is not about being lost is not taken for it.
+    expect(kind('i know')).toBeNull();
+  });
+
   it('the moment a word is about the app, it is a question for the router', () => {
     for (const q of [
       'i have no idea where the calendar is', 'help me book an appointment', "i don't know what to do about my child's fees",
@@ -148,5 +170,59 @@ describe('smalltalkFor — what it must leave alone', () => {
     const started = performance.now();
     for (let i = 0; i < 200; i++) smalltalkFor('help '.repeat(400), 'en');
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+/**
+ * Small talk is matched *before* the router, so a phrase it wrongly claims never reaches a screen.
+ * Every question the repository knows is a real one — each golden utterance with a destination, and
+ * every example phrase the fixture's registries were generated with — must reach the router. This was
+ * a one-off check when chat.ts was written; it is a test so that widening the vocabulary cannot
+ * quietly swallow a question.
+ */
+describe('smalltalkFor — never takes a known real question', () => {
+  const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+  const golden = [
+    'eval/frameworks/family/golden-set.jsonl',
+    'eval/bulletproof-react/golden-set.jsonl',
+    'packages/core-intent/eval/golden-set.jsonl',
+  ].flatMap((file) =>
+    readFileSync(join(ROOT, file), 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.trim())
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            utterance: string;
+            language?: string;
+            route?: string | null;
+            expect?: { route?: string | null; capability?: string | null };
+          },
+      )
+      // Three shapes: a destination as `route`, as `expect.route`, or as `expect.capability`.
+      .filter((entry) => entry.route || entry.expect?.route || entry.expect?.capability),
+  );
+  const generated = join(ROOT, 'eval', 'frameworks', 'family', 'generated');
+  const examples = readdirSync(generated)
+    .filter((file) => /^registry\..+\.json$/.test(file))
+    .flatMap((file) => (JSON.parse(readFileSync(join(generated, file), 'utf8')) as { capabilities: { examples?: string[] }[] }).capabilities)
+    .flatMap((capability) => capability.examples ?? []);
+
+  it('routes every golden question that has a destination', () => {
+    expect(golden.length).toBeGreaterThan(100);
+    for (const { utterance, language } of golden) {
+      const said = smalltalkFor(utterance, language ?? 'en');
+      expect(said === null || said.rest !== '', utterance).toBe(true);
+    }
+  });
+
+  it('routes every example phrase the fixture registries carry', () => {
+    expect(examples.length).toBeGreaterThan(50);
+    for (const phrase of examples) {
+      for (const lang of ['en', 'pt']) {
+        const said = smalltalkFor(phrase, lang);
+        expect(said === null || said.rest !== '', phrase).toBe(true);
+      }
+    }
   });
 });

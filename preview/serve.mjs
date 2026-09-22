@@ -122,7 +122,8 @@ async function appPage(pathname, role) {
     .replaceAll('<!--TITLE-->', escape(here?.title ?? pathname))
     .replace('<!--PATH-->', escape(pathname))
     .replace('<!--NAV-->', nav)
-    .replace('<!--ROLE-->', escape(role))
+    // Twice in the page (the body's role and the link back to the bench): `replace` filled only the first.
+    .replaceAll('<!--ROLE-->', escape(role))
     .replace('<!--ROLES-->', roleLinks(role, pathname))
     .replace('<!--APP-->', escape(APP));
 }
