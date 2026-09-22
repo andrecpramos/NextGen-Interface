@@ -19,6 +19,7 @@ import { isLocaleParam } from '@nextgen/core-capability';
 import { isActionRequest, type Registry, type TurnTrace } from '@nextgen/core-intent/browser';
 
 import type { Smalltalk } from './chat.ts';
+import type { FollowUp } from './followup.ts';
 
 export type Tone = 'go' | 'explain' | 'choose' | 'limit' | 'unsure' | 'chat';
 
@@ -71,6 +72,13 @@ export interface Words {
   readonly talk: Readonly<Record<Smalltalk, { readonly title: string; readonly body: string }>>;
   /** Follows the `help` body when there are real places to begin. */
   readonly helpStart: string;
+  /** A reply to what was just offered (followup.ts). */
+  readonly followUp: {
+    /** "Yes" to two places, neither of them the likely one. */
+    readonly which: string;
+    /** "Neither": the way on is to say more. */
+    readonly neither: { readonly title: string; readonly body: string };
+  };
   /** Attaching a photo or a file. Nothing attached is ever sent anywhere by the assistant. */
   readonly attach: string;
   readonly attachCamera: string;
@@ -158,8 +166,13 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
       identity: { title: 'I’m this app’s assistant.', body: 'I can take you to any screen and tell you what it’s for. I don’t change anything myself.' },
       help: { title: 'Here’s how I can help.', body: 'Say what you want to do, in your own words, and I’ll take you to the right screen and explain what to do there.' },
       ok: { title: 'Okay.', body: 'Tell me what you’d like to do whenever you’re ready.' },
+      thisPage: { title: 'About this page', body: 'I don’t have a description of this page, but I can take you anywhere in the app. Tell me what you want to do.' },
     },
     helpStart: 'Not sure where to start? Try one of these:',
+    followUp: {
+      which: 'Which one? Say “the first” or “the second”, or tap it.',
+      neither: { title: 'No problem.', body: 'Tell me a bit more about what you want to do, in your own words.' },
+    },
     attach: 'Attach a photo or file',
     attachCamera: 'Take a photo',
     removeFile: (name) => `Remove ${name}`,
@@ -240,8 +253,13 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
       identity: { title: 'Sou o assistente desta aplicação.', body: 'Levo-o a qualquer ecrã e explico para que serve. Não altero nada por conta própria.' },
       help: { title: 'Posso ajudar assim.', body: 'Diga o que quer fazer, por palavras suas, e eu levo-o ao ecrã certo e explico o que fazer lá.' },
       ok: { title: 'Certo.', body: 'Diga-me o que quer fazer quando quiser.' },
+      thisPage: { title: 'Sobre esta página', body: 'Não tenho uma descrição desta página, mas posso levá-lo a qualquer ecrã da aplicação. Diga-me o que quer fazer.' },
     },
     helpStart: 'Sem saber por onde começar? Experimente um destes:',
+    followUp: {
+      which: 'Qual deles? Diga «o primeiro» ou «o segundo», ou toque nele.',
+      neither: { title: 'Sem problema.', body: 'Diga-me um pouco mais sobre o que quer fazer, por palavras suas.' },
+    },
     attach: 'Anexar uma foto ou ficheiro',
     attachCamera: 'Tirar uma fotografia',
     removeFile: (name) => `Remover ${name}`,
@@ -458,6 +476,19 @@ export function smalltalkView(
   hints: ParamHints = {},
 ): View {
   const say = words.talk[kind];
+  if (kind === 'thisPage') {
+    // Where the visitor is standing, in the app's own words: the screen whose route is this path.
+    const patterns = registry.capabilities.map((c) => c.route).filter((r): r is string => typeof r === 'string');
+    const here = registry.capabilities.find((c) => {
+      if (c.kind === 'unsupported' || registry.boundaryIds.has(c.id)) return false;
+      const route = fillParams(c.route, currentPath, patterns, hints);
+      return route !== null && isSamePlace(route, currentPath);
+    });
+    if (here) return { tone: 'explain', title: words.here(here.title), body: here.explanation ?? here.description ?? null, destination: null, choices: [] };
+    // A page the registry does not know: say so, and offer places to go rather than guess.
+    const choices = starts.length > 0 ? starts.slice(0, 3) : suggestionsFor(registry, currentPath, 3, hints);
+    return { tone: 'chat', title: say.title, body: say.body, destination: null, choices };
+  }
   if (kind !== 'help') return { tone: 'chat', title: say.title, body: say.body, destination: null, choices: [] };
   const choices = starts.length > 0 ? starts.slice(0, 3) : suggestionsFor(registry, currentPath, 3, hints);
   return {
@@ -467,6 +498,36 @@ export function smalltalkView(
     destination: null,
     choices,
   };
+}
+
+/**
+ * The answer to a reply about what was just offered (followup.ts): take the one they named, ask which
+ * when "yes" could mean either, or hear "neither". `null` when the reply names a place that was not
+ * offered ("the third" of two) — then the message is routed like any other.
+ *
+ * Not a routed turn: the choice was the router's, a turn ago, and that turn has its trace.
+ */
+export function followUpView(
+  reply: FollowUp,
+  offer: { readonly choices: readonly Choice[]; readonly probable: boolean },
+  words: Words,
+): View | null {
+  const { choices } = offer;
+  if (reply.kind === 'reject') {
+    return { tone: 'chat', title: words.followUp.neither.title, body: words.followUp.neither.body, destination: null, choices: [] };
+  }
+  let index: number;
+  if (reply.kind === 'pick') {
+    index = reply.index < 0 ? choices.length + reply.index : reply.index;
+  } else if (offer.probable || choices.length === 1) {
+    index = 0;
+  } else {
+    // Two places, neither the likely one: "yes" is not an answer to which.
+    return { tone: 'choose', title: words.followUp.which, body: null, destination: null, choices };
+  }
+  const chosen = choices[index];
+  if (!chosen) return null;
+  return { tone: 'go', title: words.going(chosen.label), body: chosen.detail ?? null, destination: chosen.route, choices: [] };
 }
 
 /**

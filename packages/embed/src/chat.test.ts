@@ -81,12 +81,25 @@ describe('smalltalkFor — being lost, said any way', () => {
   // Seen in the bench, 2026-09-22: each of these has no marker *word* ("know", "sure", "do" are generic
   // on their own), so they were routed, and a visitor who said they were lost got two unrelated screens.
   it('recognises being lost with no marker word in it', () => {
-    for (const q of ["I don't know what to do here", 'i do not know what to do', "I'm not sure what to do here", 'what do I do here?', 'what can i do here']) {
+    for (const q of ["I don't know what to do here", 'i do not know what to do', "I'm not sure what to do here", 'what do I do here?']) {
       expect(kind(q), q).toBe('help');
     }
     for (const q of ['não sei o que fazer aqui', 'o que faço aqui?', 'o que devo fazer?', 'não percebo isto', 'não entendo nada disto']) {
       expect(kind(q, 'pt'), q).toBe('help');
     }
+  });
+
+  // Routed, "o que é esta página?" scored every screen alike and offered two. It asks where the visitor is.
+  it('takes a question about the page the visitor is on as that, not as a search', () => {
+    for (const q of ['What is this page?', "what's this page for", 'what can I do here?', 'where am I', 'explain this screen']) {
+      expect(kind(q), q).toBe('thisPage');
+    }
+    for (const q of ['O que é esta página?', 'para que serve este ecrã', 'o que posso fazer aqui?', 'onde estou?']) {
+      expect(kind(q, 'pt'), q).toBe('thisPage');
+    }
+    // …and a question about a page by name is still a question for the router.
+    expect(kind('what is the medical page')).toBeNull();
+    expect(kind('o que é a página de notificações', 'pt')).toBeNull();
   });
 
   it('is still a question once a word is about the app, however lost it sounds', () => {

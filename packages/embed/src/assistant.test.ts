@@ -579,6 +579,106 @@ describe('a clarifying turn', () => {
   });
 });
 
+/**
+ * A conversation remembers what it just said (followup.ts, 2026-09-22). Before this, "yes" after "You
+ * probably want Calendar" was answered as small talk, "the second one" was routed as a search for a
+ * screen called that, and a detail added to a question the router asked about was read on its own.
+ */
+describe('the conversation remembers what it offered', () => {
+  const leads = {
+    outcome: 'clarify',
+    decidedAt: 'embedding',
+    latency: { total: 5 },
+    candidates: [
+      { capabilityId: 'calendar.overview', score: 0.3 },
+      { capabilityId: 'squad.list', score: 0.1 },
+    ],
+  } as unknown as Partial<TurnTrace>;
+  const even = { ...leads, candidates: [{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.list', score: 0.28 }] } as unknown as Partial<TurnTrace>;
+  const text = (el: FakeElement): string => String(el.textContent);
+  // An answer is "spoken" for up to 2.2 s without a voice, and a move includes the orb's flight.
+  const say = async (mounted: { ask(q: string): Promise<unknown> }, q: string) => {
+    const done = mounted.ask(q);
+    await vi.advanceTimersByTimeAsync(6000);
+    await done;
+  };
+
+  it('takes "yes" as the likely one, and goes there without asking the router again', async () => {
+    const routed = answering(leads);
+    const { mounted, moves, thread } = setup(routed);
+    await say(mounted, 'games');
+    await say(mounted, 'yes');
+    expect(routed.asked).toEqual(['games']);
+    expect(moves).toEqual(['/calendar']);
+    expect(text(thread)).toContain('Opening Calendar');
+    expect(text(thread)).not.toContain('Okay.');
+  });
+
+  it('takes a position — "the second one", "o segundo", "2" — as that place', async () => {
+    for (const reply of ['the second one', 'o segundo', '2']) {
+      const routed = answering(even);
+      const { mounted, moves } = setup(routed);
+      await say(mounted, 'games');
+      await say(mounted, reply);
+      expect(moves, reply).toEqual(['/squad']);
+      expect(routed.asked, reply).toEqual(['games']);
+    }
+  });
+
+  it('asks which, when "yes" could mean either of two equals', async () => {
+    const { mounted, moves, thread, all } = setup(answering(even));
+    await say(mounted, 'games');
+    await say(mounted, 'yes');
+    expect(moves).toEqual([]);
+    expect(text(thread)).toContain('Which one?');
+    // …and both are offered again, so a tap still works.
+    expect(all('chip').slice(-2).map((a) => a.href)).toEqual(['/calendar', '/squad']);
+  });
+
+  it('hears "neither", and asks for more rather than repeating itself', async () => {
+    const routed = answering(leads);
+    const { mounted, moves, thread } = setup(routed);
+    await say(mounted, 'games');
+    await say(mounted, 'neither');
+    expect(moves).toEqual([]);
+    expect(routed.asked).toEqual(['games']);
+    expect(text(thread)).toContain('No problem.');
+  });
+
+  it('reads a short detail together with the question it adds to, and keeps that reading only if it settles it', async () => {
+    // First "games" clarifies; then "on saturday" alone clarifies; the two together settle on Calendar.
+    const routed = answering(leads, leads, toCalendar);
+    const { mounted, moves } = setup(routed);
+    await say(mounted, 'games');
+    await say(mounted, 'on saturday');
+    expect(routed.asked).toEqual(['games', 'on saturday', 'games on saturday']);
+    expect(moves).toEqual(['/calendar']);
+  });
+
+  it('never turns a refusal into a move, and forgets the open question once somewhere was chosen', async () => {
+    const refused = { outcome: 'out_of_scope', decidedAt: 'embedding', candidates: [{ capabilityId: 'unsupported.payments', score: 0.4 }] } as unknown as Partial<TurnTrace>;
+    const routed = answering(leads, refused, leads);
+    const { mounted, moves } = setup(routed);
+    await say(mounted, 'games');
+    await say(mounted, 'pay the fees');
+    // A refusal is not read together with what came before.
+    expect(routed.asked).toEqual(['games', 'pay the fees']);
+    expect(moves).toEqual([]);
+    // Nothing was offered by the refusal, so "yes" now is small talk, not a move.
+    await say(mounted, 'yes');
+    expect(moves).toEqual([]);
+  });
+
+  it('answers "what is this page?" from the screen the visitor is on', async () => {
+    const routed = answering(toCalendar);
+    const { mounted, thread } = setup(routed, {}, { path: '/calendar' });
+    await say(mounted, 'what is this page?');
+    expect(routed.asked).toEqual([]);
+    expect(text(thread)).toContain('You are on Calendar');
+    expect(text(thread)).toContain('Training and matches by day.');
+  });
+});
+
 describe('a clear leader, offered as the likely one', () => {
   const leading = {
     outcome: 'clarify',

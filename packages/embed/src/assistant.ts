@@ -31,11 +31,12 @@ import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 import { ACCEPT, checkAttachment, kindOf, LIMITS, offerFiles, safeName, sizeText, thumbnail, type Rejection } from './attach.ts';
 import { smalltalkFor } from './chat.ts';
 import { commandFor, type Command } from './commands.ts';
+import { followUpFor } from './followup.ts';
 import { BEAM_CSS, beamVariables, createBeam } from './beam.ts';
 import { chooseDockSide, type DockSide } from './dock.ts';
 import { createLiquid } from './liquid.ts';
 import { adopterNav, type NavLink, type NavRoot } from './nav.ts';
-import { attachmentView, fillParams, gist, isSamePlace, present, smalltalkView, suggestionsFor, wordsFor, type Choice, type ParamHints, type View, type Words } from './present.ts';
+import { attachmentView, fillParams, followUpView, gist, isSamePlace, present, smalltalkView, suggestionsFor, wordsFor, type Choice, type ParamHints, type View, type Words } from './present.ts';
 import { css, GRAPHITE, pageThemeSource, readTheme, themeVariables, type Theme } from './theme.ts';
 import {
   converse,
@@ -102,6 +103,12 @@ const EDGE = 20;
 const FLIGHT_MS = 780;
 const ARRIVAL_KEY = 'nextgen:arrival';
 const ARRIVAL_TTL_MS = 15_000;
+/**
+ * A reply this short, after a question the router asked about, is read together with that question too
+ * ("no treino", "the injury one"). Longer is a new question. A choice of when to try a second reading,
+ * not a router threshold: the second reading is kept only when the router itself settles it.
+ */
+const SHORT_REPLY_WORDS = 4;
 const HANDS_FREE_KEY = 'nextgen:hands-free';
 const READ_ALOUD_KEY = 'nextgen:read-aloud';
 
@@ -803,6 +810,13 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   let transcription: Transcription = 'unavailable';
   let detection: Promise<Transcription> | null = null;
   let lastSaid = '';
+  /** What the last answer offered, so "yes" or "the second one" can be read as a reply to it (followup.ts). */
+  let offered: { readonly choices: readonly Choice[]; readonly probable: boolean } | null = null;
+  /**
+   * The last question the router could not settle — it asked instead — so a short reply that adds a
+   * detail ("in training", "the injury one") can be read together with it.
+   */
+  let unsettled: string | null = null;
   let menuOpen = false;
   let menuLinks: HTMLAnchorElement[] = [];
   /** Everything in the thread a keyboard can reach — each answer's options and its "Why?" — in reading order. */
@@ -1270,6 +1284,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     clearAttached();
     asked.length = 0;
     recalling = -1;
+    offered = null;
+    unsettled = null;
     screen.dataset.conversation = 'false';
     restartButton.hidden = true;
     liquid.setState('idle');
@@ -1728,10 +1744,14 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     // Small talk is answered, not routed (chat.ts): a router handed "hi" refuses it, and a visitor greeted
     // with a refusal has learned the assistant is not for them. A leading greeting is let go, and what
     // follows it is the question.
-    const talk = utterance ? smalltalkFor(utterance, pageLang) : null;
+    // …but first, a reply to what the last answer offered ("yes", "the second one", "neither") is read as
+    // that (followup.ts). "Yes" on its own is small talk, and was answered as such.
+    const replied = utterance && sending.length === 0 && offered ? followUpFor(utterance) : null;
+    const reply = replied && offered ? followUpView(replied, offered, words) : null;
+    const talk = utterance && !reply ? smalltalkFor(utterance, pageLang) : null;
     const chatty = talk !== null && talk.rest === '';
     // Nothing to wait for when there is nothing to work out.
-    const instant = chatty || filesOnly;
+    const instant = chatty || filesOnly || reply !== null;
     open();
     closeMenu(false);
     stopSpeaking();
@@ -1772,10 +1792,23 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
         const where = currentPath();
         if (filesOnly) {
           shown = attachmentView(handed, words);
+        } else if (reply) {
+          shown = reply;
         } else if (talk && chatty) {
-          shown = smalltalkView(talk.kind, assistant.registry, where, words, talk.kind === 'help' ? startingPoints() : [], hints);
+          const starts = talk.kind === 'help' || talk.kind === 'thisPage' ? startingPoints() : [];
+          shown = smalltalkView(talk.kind, assistant.registry, where, words, starts, hints);
         } else {
-          trace = await assistant.route(talk ? talk.rest : utterance, { route: where });
+          const question = talk ? talk.rest : utterance;
+          trace = await assistant.route(question, { route: where });
+          // A short reply to a question the router asked about is most likely a detail of that question
+          // ("the injury one", "no treino"). Read the two together, and take that reading only when it
+          // settles what neither did alone. A refusal is never overturned this way: a new request for
+          // something the app cannot do stays refused, whatever came before it.
+          if (unsettled && trace.outcome === 'clarify' && question.split(/\s+/).length <= SHORT_REPLY_WORDS) {
+            const together = await assistant.route(`${unsettled} ${question}`, { route: where });
+            if (together.outcome === 'execute') trace = together;
+          }
+          if (mine === latest) unsettled = trace.outcome === 'clarify' ? trace.utterance || question : null;
           // Where to begin is only needed when nothing matched, so the page's navigation is read only then.
           const nothingMatched = trace.outcome === 'clarify' && trace.candidates.every((c) => c.score <= 0);
           shown = present(trace, assistant.registry, where, words, nothingMatched ? startingPoints() : [], hints);
@@ -1791,6 +1824,10 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       thread.removeAttribute('aria-busy');
       setCaption('');
       showAnswer(shown, trace);
+      // What this answer offered is what a "yes" or "the second one" next would mean. Going somewhere, or
+      // talking about something else, ends the question that was open; "neither" keeps it open.
+      offered = !shown.destination && shown.choices.length > 0 ? { choices: shown.choices, probable: shown.probable === true } : null;
+      if (shown.destination || (chatty && !reply) || filesOnly) unsettled = null;
 
       if (shown.title === words.error) {
         liquid.setState('error');
@@ -1805,7 +1842,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       await say(lastSaid, readAloud);
       if (destroyed || mine !== latest) return shown;
       if (shown.destination) {
-        const destination = trace?.capabilityId ? assistant.registry.byId.get(trace.capabilityId) : undefined;
+        // A reply ("yes", "the second one") has no trace of its own: the place it chose names itself.
+        const destination = trace?.capabilityId ? assistant.registry.byId.get(trace.capabilityId) : capabilityAt(shown.destination);
         await travel(shown.destination, destination?.title ?? shown.title, destination?.id ?? null);
       } else {
         liquid.setState('idle');
