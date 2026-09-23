@@ -248,6 +248,12 @@ uncalibrated for now and revisit once you have some?"*
 There is deliberately **no** option to calibrate from the tool's own example questions.
 Measured on a real application, that made routing worse, not better.
 
+**A calibration made before 2026-09-23 is out of date.** The way a question is scored changed then
+(each screen is now compared with all of it *and* with its closest example; ADR-032). It understands
+more questions outright: 48 → 55 of 69 on the test app, with none wrongly refused. But thresholds
+swept under the old score no longer fit. If `nextgen/calibration.json` exists, run `calibrate` again
+with the same questions.
+
 ## ASK 8 — Turn on model-backed answers?
 
 Today, a question the router cannot settle from the registry alone gets a clarifying
@@ -332,6 +338,13 @@ puts your guess in their mouth:
     role's features. `"roles": ["ADMIN"]` keeps it out of everyone else's file entirely.
 - **What only they know.** *"Which three screens do your users most often fail to find? Is
   there something about how they talk, or what they get wrong, I should know?"*
+- **What starts a task on each screen.** *"On this screen, which buttons only open a form, a dialog
+  or a panel — and do nothing else until the user saves?"* ("Novo evento", "New event", "Filtros").
+  Each goes in that screen's `opens`, **as the button reads, in every language the app shows**. A
+  visitor who says *"quero marcar um evento"* is then taken there **with that form already open**.
+  **Never list a button that saves, sends, pays, or creates a record the moment it is pressed**: ask
+  about each one. When unsure, leave it out. The assistant then points at the button and lets the
+  visitor press it, which is still a help.
 
 Write what they say into `nextgen/knowledge.json`, beside `nextgen.config.json`. The shape
 is at the end of `KNOWLEDGE-GAPS.md`. Run `build` again, then `doctor` and read the coverage
@@ -399,6 +412,22 @@ Two rules, and the first one is a security property rather than a preference.
 
 `nextgen.js` and `thresholds.hashing.json` go to everyone. The script tag uses no inline script or style, so a strict Content-Security-Policy is fine.
 
+**What it refuses, whatever it is given** (so a mistake in a file or an option cannot become a hole in
+the app):
+
+- **It moves only to paths on this site.** A route must start with one `/`: `javascript:…`, `//host`,
+  `/\host` and full URLs are never followed or linked. A hash-router app (`#/players`) is not supported
+  yet. Say so to the developer, rather than rewriting routes to get round it.
+- **It loads its files only from this site.** `data-nextgen-base` on another origin, such as a CDN, is
+  refused and nothing is fetched. To serve from another host, the developer calls `NextGen.load()` with
+  their own `fetch`, and with it takes that decision knowingly.
+- **`companion.hide` takes plain selectors.** No `{ } ; @ <`, no comments, no backslash escapes, at most
+  200 characters. A refused selector hides nothing; use an id, class or attribute instead.
+- **A question is at most 500 characters.**
+
+It is also light at rest. The orb is drawn at the size it is shown and goes still after 12 s idle.
+Nothing animates while the panel is closed, and the start-up work waits until the browser is idle.
+
 **The role must come from the session, never from the request** — a role in a query string
 or a header is a role the visitor chooses. A user who holds several roles is served each of
 their roles' files, and the script tag names them all: `data-nextgen-role="COACH PARENT"`.
@@ -463,10 +492,11 @@ const assistant = await window.NextGen.start('/api/assistant/navigation-bundle',
   navigate: (route) => router.navigate(route),   // the app's own router: no page reloads
   home: ['/dashboard'],                           // where the panel opens by itself; never a public '/'
   decide: 'balanced',                             // or 'confirm' / 'eager' — "Make it smarter, or more careful"
+  act: 'open',                                    // or 'point' / 'off' — opening the form a visitor asked for
   search: '/search?q={query}',                    // only if the app has a search page
   onLearn: (lesson) => lessonsLog.push(lesson),   // what visitors taught it, for `scan.mjs teach`
   inset: { x: 20, y: 144 },                       // clear of the app's own corner UI (ASK 6)
-  lang: 'pt-PT',
+  // lang: 'pt-PT',   // leave it out: <html lang> is followed, live. Set it only if the app's <html lang> is wrong
   // Only when the developer said yes in ASK 6:
   companion: {
     name: 'Club assistant',
@@ -485,7 +515,45 @@ The handle it resolves to is the whole API:
 | `open()` / `open({ expanded: true })` | open the corner panel, or the full screen. Bind it to the app's own launcher, its command palette, or a keyboard shortcut |
 | `close()` | close it |
 | `ask(text)` | ask programmatically; resolves to what was shown |
+| `setLanguage(tag)` | the app switched language without changing `<html lang>`: follow it (`'en'`, `'pt-PT'`) |
 | `destroy()` | remove it — **call this on sign-out** |
+
+**One language on screen.** The visitor reads the page's language only — the assistant's words and the
+app's screen names and descriptions alike. For that, list **every** language the app ships in
+`nextgen.config.json` (`"languages": ["pt-PT", "en"]`, the main one first): the registry is written in the
+first and carries the others. A page in a language not listed gets English if it is listed, otherwise
+the first. The assistant itself speaks English (the default) and Portuguese.
+
+**It uses the app as a user would** (ADR-031). Asked to *start* something — *"I want to schedule an
+event"*, *"quero adicionar um jogador"* — it goes to the right screen, finds the control that starts
+it by what the page shows (its accessible name, like a screen reader does), and:
+
+- **opens it** when the control can only open something: a link on this site, a tab, a control
+  that says it opens something (`aria-haspopup`, `aria-expanded`, `aria-controls`), or one listed in
+  the screen's `opens`. The scan reads these from the page's source: React
+  `onClick={() => setOpen(true)}` or a `DialogTrigger`; Vue `@click="open = true"`; Svelte
+  `on:click={() => (open = true)}`; Angular `(click)="openDialog()"`. You can also list them in
+  `knowledge.json`, for anything the scan cannot read;
+- **points at it** otherwise, with a ring and *"Tap «New event» to start"*. A plain button might
+  create a record the moment it is pressed, so that press stays the visitor's;
+- **never** presses anything that saves, sends, pays, deletes or signs out, never touches a control
+  inside a form, never types, and does nothing when two controls are equally likely.
+
+It finds the control from the visitor's words, the screen's name in each of the app's languages
+(so English words find a Portuguese "Novo anúncio"), and the glossary's everyday words. Each opener's
+label also teaches the router the task: "Novo anúncio" makes "quero criar um anúncio" land on that
+screen. Run `calibrate` again after a build that found new openers.
+
+It works on any app, whatever it is built with, because it reads the rendered page. It works best
+when the app's buttons have real names (visible text or `aria-label`) and its dialog buttons say
+they open something, which accessible UI libraries (Radix, shadcn, Headless UI, MUI's menus) already
+do. `act: 'point'` makes it only point; `act: 'off'` turns it off.
+
+**Why it did that — for you, not the visitor.** Answers show no mechanics. Each routed turn's record goes
+to the page as `nextgen:turn` (`{ trace }`: how it decided, what it weighed, the scores). Log it while you
+tune — `window.addEventListener('nextgen:turn', (e) => console.debug(e.detail.trace))` — or build your
+own "why" for staff from it. It holds the visitor's own question: do not forward it to analytics or any
+third party without the app's privacy terms allowing it.
 | `host` | the element it lives in |
 
 `start()` rejects with a `StartError` (`reason`: `bundle-unavailable`, `bundle-invalid` or
@@ -501,7 +569,7 @@ each role's index is its own vector space, and a concatenated one routes confide
 screens. A phrase two roles' screens both claim ("nutrição") names neither; the assistant asks.
 
 **Types.** `runtime/nextgen.d.ts` types `window.NextGen`, the options above, the handle, and the
-`nextgen:error`, `nextgen:learn`, `nextgen:navigate` and `nextgen:attach` events. Copy it beside the
+`nextgen:error`, `nextgen:learn`, `nextgen:turn`, `nextgen:navigate` and `nextgen:attach` events. Copy it beside the
 app's code if it uses TypeScript.
 
 ## Make it smarter, or more careful — step by step
