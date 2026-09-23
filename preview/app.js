@@ -13,7 +13,10 @@
 //   ?menu        open the menu
 
 const role = document.body.dataset.role;
-const keepRole = (to) => (to.includes('?') ? to : `${to}?role=${encodeURIComponent(role)}`);
+// The page language rides along with the role, so it survives a move (English is the default and is left out).
+const lang = new URLSearchParams(location.search).get('lang');
+const keepRole = (to) =>
+  to.includes('?') ? to : `${to}?role=${encodeURIComponent(role)}${lang ? `&lang=${encodeURIComponent(lang)}` : ''}`;
 
 // The mock app "takes" what is attached, as an adopter's upload form would, so the bench shows
 // the whole path: attachments are off unless a page opts in and handles the event.

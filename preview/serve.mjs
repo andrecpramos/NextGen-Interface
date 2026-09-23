@@ -99,32 +99,49 @@ async function pagesFor(role) {
   );
 }
 
-const roleLinks = (current, path) =>
+/**
+ * The mock app's page language, which is the widget's: it speaks English and Portuguese, and English for
+ * anything else. English by default (2026-09-22), `?lang=pt` to see the Portuguese; the fixture's own
+ * content stays Portuguese test data either way.
+ */
+const LANGS = { en: 'en', pt: 'pt-PT' };
+
+/** `?role=…`, and `&lang=…` unless it is the default. */
+const query = (role, lang) => `?role=${encodeURIComponent(role)}${lang === 'en' ? '' : `&lang=${lang}`}`;
+
+const roleLinks = (current, path, lang = 'en') =>
   roles
     .map(
       (r) =>
-        `<a href="${escape(path)}?role=${encodeURIComponent(r)}"${r === current ? ' aria-current="page"' : ''}>${escape(r)}</a>`,
+        `<a href="${escape(path)}${query(r, lang)}"${r === current ? ' aria-current="page"' : ''}>${escape(r)}</a>`,
     )
     .join('');
 
+const langLinks = (role, path, current) =>
+  Object.keys(LANGS)
+    .map((l) => `<a href="${escape(path)}${query(role, l)}" lang="${LANGS[l]}"${l === current ? ' aria-current="page"' : ''}>${l}</a>`)
+    .join('');
+
 /** The mock application shell — where the assistant lands when it navigates. */
-async function appPage(pathname, role) {
+async function appPage(pathname, role, lang = 'en') {
   const shell = await readFile(fileURLToPath(new URL('app.html', HERE)), 'utf8');
   const pages = await pagesFor(role);
   const here = pages.find((p) => p.route === pathname);
   const nav = pages
     .map(
       (p) =>
-        `<a href="${escape(p.route)}?role=${encodeURIComponent(role)}"${p.route === pathname ? ' aria-current="page"' : ''}>${escape(p.title)}</a>`,
+        `<a href="${escape(p.route)}${query(role, lang)}"${p.route === pathname ? ' aria-current="page"' : ''}>${escape(p.title)}</a>`,
     )
     .join('\n      ');
   return shell
+    .replace('<!--LANG-->', LANGS[lang])
     .replaceAll('<!--TITLE-->', escape(here?.title ?? pathname))
     .replace('<!--PATH-->', escape(pathname))
     .replace('<!--NAV-->', nav)
     // Twice in the page (the body's role and the link back to the bench): `replace` filled only the first.
     .replaceAll('<!--ROLE-->', escape(role))
-    .replace('<!--ROLES-->', roleLinks(role, pathname))
+    .replace('<!--ROLES-->', roleLinks(role, pathname, lang))
+    .replace('<!--LANGS-->', langLinks(role, pathname, lang))
     .replace('<!--APP-->', escape(APP));
 }
 
@@ -157,6 +174,8 @@ const server = createServer(async (req, res) => {
   }
   const pathname = decodeURIComponent(url.pathname);
   const role = roles.includes(url.searchParams.get('role') ?? '') ? url.searchParams.get('role') : roles[0];
+  // An allow-list: anything else is the default, and never reaches the page.
+  const lang = Object.hasOwn(LANGS, url.searchParams.get('lang') ?? '') ? url.searchParams.get('lang') : 'en';
 
   for (const [pattern, resolve] of STATIC) {
     const match = pattern.exec(pathname);
@@ -195,7 +214,7 @@ const server = createServer(async (req, res) => {
     return html(shell.replace('<!--APPLINK-->', `${first}?role=${encodeURIComponent(role)}`));
   }
   if (pathname === '/alive') return html(await readFile(fileURLToPath(new URL('alive.html', HERE)), 'utf8'));
-  if (!extname(pathname)) return html(await appPage(pathname, role));
+  if (!extname(pathname)) return html(await appPage(pathname, role, lang));
 
   res.writeHead(404).end('Not found');
 });

@@ -30,7 +30,7 @@ It binds to `127.0.0.1`, and every page says so.
 | | |
 |---|---|
 | `/bench` | Ask, and see the whole trace. The instrument. |
-| `/` and any route | The mock application — every route in the registry is a real page, with the **real widget** mounted. Where to judge how it looks and behaves. |
+| `/` and any route | The mock application — every route in the registry is a real page, with the **real widget** mounted. Where to judge how it looks and behaves. The page is English by default, so the widget speaks English; `?lang=pt` (or the switch under the roles) shows it in Portuguese. The fixture's own screens stay Portuguese either way — they are its test data. |
 | `/hosts` | The same widget on host pages of other shapes: no CSS, themed left nav, themed right nav, a phone frame. |
 | `/alive` | The orb and the composer's light in every state, side by side, on a dark or a light page and any accent, with or without the dotted mind; then the React originals (`border-beam`, `voice-glow`, `liquid-gooey`, `metal-fx`, `img-fx`) running as published, so you can judge what an adopter with React could add. Built from the widget's own source by `preview/build.mjs`, so it shows what ships. Options are linkable: `/alive?theme=light&accent=8b7cf6&mind=off`, `?extras=metal-fx` for one demo. |
 
