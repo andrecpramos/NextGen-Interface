@@ -143,6 +143,40 @@ describe('createLiquid', () => {
     expect(frames).toHaveLength(1);
   });
 
+  /**
+   * It runs on someone else's page, on every page, whether anyone looks at the corner or not. At rest it
+   * goes still — no frame requested at all — and moves again when something happens.
+   */
+  it('goes still at rest, docked, and wakes when something changes', () => {
+    const { canvas } = fakeCanvas();
+    const { view, frames } = fakeView();
+    const liquid = createLiquid(canvas, { size: 320, palette: () => ({ accent: null, scheme: 'dark', bead: null }), reducedMotion: false, view });
+    // Run frames 50 ms apart (the loop caps a step at 50 ms) until it stops asking for more.
+    let now = 0;
+    let ran = 0;
+    while (frames.length > 0 && ran < 2000) {
+      const next = frames.shift() as (t: number) => void;
+      next((now += 50));
+      ran++;
+    }
+    expect(frames).toHaveLength(0);
+    expect(ran * 50).toBeGreaterThanOrEqual(12_000);
+    expect(ran * 50).toBeLessThan(13_000);
+    liquid.setState('thinking');
+    expect(frames).toHaveLength(1);
+  });
+
+  it('draws at the size it is shown, growing at once', () => {
+    const { canvas } = fakeCanvas();
+    const liquid = createLiquid(canvas, { size: 320, palette: () => ({ accent: null, scheme: 'dark', bead: null }), reducedMotion: false, view: { ...fakeView().view, setTimeout: (fn: () => void) => (fn(), 1), clearTimeout: () => undefined } as unknown as Window });
+    liquid.setResolution(92);
+    expect(canvas.width).toBe(184);
+    liquid.setResolution(320);
+    expect(canvas.width).toBe(640);
+    liquid.setResolution(9999);
+    expect(canvas.width).toBe(640);
+  });
+
   it('under reduced motion draws still frames and never starts a loop', () => {
     const { canvas, calls } = fakeCanvas();
     const { view, frames } = fakeView();

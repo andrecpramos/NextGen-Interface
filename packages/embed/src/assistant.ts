@@ -30,7 +30,8 @@
 import type { GuidedStep } from '@nextgen/core-capability';
 import type { TurnTrace } from '@nextgen/core-intent/browser';
 
-import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
+import { planAct, taskOf, type ActNode, type ActRoot, type Task } from './act.ts';
+import { resolveSteps, type AnchorNode, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 import { ACCEPT, checkAttachment, kindOf, LIMITS, offerFiles, safeName, sizeText, thumbnail, type Rejection } from './attach.ts';
 import { smalltalkFor } from './chat.ts';
 import { commandFor, type Command } from './commands.ts';
@@ -39,7 +40,7 @@ import { BEAM_CSS, beamVariables, createBeam } from './beam.ts';
 import { chooseDockSide, type DockSide } from './dock.ts';
 import { createLiquid } from './liquid.ts';
 import { adopterNav, navFrame, type FrameRoot, type NavRoot } from './nav.ts';
-import { attachmentView, barelyMatched, DECIDE, fillParams, followUpView, gist, isSamePlace, present, searchChoice, smalltalkView, wordsFor, type Choice, type Decide, type ParamHints, type View, type Words } from './present.ts';
+import { attachmentView, barelyMatched, DECIDE, displayLanguage, fillParams, inLanguage, safeRoute, followUpView, gist, isSamePlace, present, searchChoice, smalltalkView, wordsFor, type Choice, type Decide, type ParamHints, type View, type Words } from './present.ts';
 import { css, GRAPHITE, pageThemeSource, readTheme, themeVariables, type Theme } from './theme.ts';
 import {
   converse,
@@ -78,6 +79,12 @@ export interface AssistantOptions extends MountOptions {
    */
   readonly decide?: Decide;
   /**
+   * Once there, what it does with the control that starts what was asked (ADR-031): `'open'` (default)
+   * presses it when it can only open something and points at it otherwise; `'point'` only points; `'off'`
+   * does neither. It never types, and never presses anything that commits, removes or pays.
+   */
+  readonly act?: 'open' | 'point' | 'off';
+  /**
    * The app's own search, for what no screen matches: a path with `{query}` where the words go —
    * `'/search?q={query}'`. Offered first when nothing matched. Must be a path on this app.
    */
@@ -112,6 +119,9 @@ export interface AssistantOptions extends MountOptions {
 
 /** The event a page listens for to learn what visitors taught the assistant (ADR-027). */
 export const LEARN_EVENT = 'nextgen:learn';
+
+/** Each routed turn's record, `{ trace }`, for the adopter: why it did what it did (ADR-030, Rule 9). */
+export const TURN_EVENT = 'nextgen:turn';
 
 /**
  * One thing a visitor taught the assistant: a question it could not settle, and how it was settled.
@@ -172,6 +182,11 @@ export interface MountedAssistant {
   close(): void;
   /** Ask programmatically; resolves to what was shown. */
   ask(utterance: string): Promise<View | null>;
+  /**
+   * The app switched language without a reload, and does not say so on `<html lang>`: tell it here
+   * (`"en"`, `"pt-PT"`). With no `lang` option, `<html lang>` is followed without being asked.
+   */
+  setLanguage(lang: string): void;
   destroy(): void;
 }
 
@@ -187,7 +202,12 @@ interface Arrival {
   readonly side: DockSide;
   readonly at: number;
   readonly capabilityId: string | null;
+  /** What to start there (ADR-031): the question's content words, never the question itself. */
+  readonly task?: Task;
 }
+
+/** How long a page that is still drawing is given to show the control a task needs (act.ts): ~3 s in all. */
+const ACT_RETRIES_MS = [250, 500, 900, 1500];
 
 const STAGE = 320;
 /** The canvas is wider than the liquid in it — the glow spills past the slot the layout reserves. */
@@ -227,6 +247,8 @@ const CSS = `
   transition: opacity 320ms cubic-bezier(.32,.72,0,1), transform 420ms cubic-bezier(.22,1,.36,1), visibility 0s linear 320ms;
 }
 .screen[data-open="true"] { opacity: 1; visibility: visible; transition-delay: 0s; }
+/* Closed, nothing in it animates: the composer's breathing light would otherwise run all day, unseen. */
+.screen[data-open="false"] *, .screen[data-open="false"] *::before, .screen[data-open="false"] *::after { animation-play-state: paused !important; }
 /* The panel: a chat in the orb's corner, the page beside it still in view and still usable. */
 .screen[data-size="compact"] {
   right: var(--ng-inset-x, 20px); bottom: var(--ng-inset-y, 20px);
@@ -358,7 +380,8 @@ const CSS = `
 
 .title { margin: 0; font-size: .9375rem; font-weight: 600; letter-spacing: -.005em; }
 .body { margin: 4px 0 0; font-size: .875rem; color: var(--ng-muted, #9aa3af); }
-.chips { list-style: none; margin: 12px -8px -6px; padding: 6px 0 0; display: grid; gap: 2px; border-top: 1px solid var(--ng-border, rgb(255 255 255 / .09)); }
+.chips { list-style: none; margin: 12px -8px -6px; padding: 6px 0 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; border-top: 1px solid var(--ng-border, rgb(255 255 255 / .09)); }
+.chips > li { min-width: 0; }
 .chip {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 0 12px;
   border-radius: 12px; color: var(--ng-accent-text, #79c0ce); font-weight: 500; text-decoration: none;
@@ -381,7 +404,7 @@ const CSS = `
 .lead-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
 .lead-label::after { content: "→"; content: "→" / ""; transition: transform 180ms ease; }
 .chip.lead:hover .lead-label::after { transform: translateX(3px); }
-.lead-detail { font-size: .8125rem; font-weight: 400; color: var(--ng-muted, #9aa3af); }
+.lead-detail { font-size: .8125rem; font-weight: 400; color: var(--ng-muted, #9aa3af); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Any other place that says what it is for: the same two lines, quieter. */
 .chip.card {
   flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; min-height: 0; padding: 10px 12px;
@@ -390,33 +413,17 @@ const CSS = `
 .chip.card:hover { box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)); }
 .chip.card::after { content: none; }
 .chip.card:hover .lead-label::after { transform: translateX(3px); }
-/* After a guess: the way out is to say more. */
+/* What became of an attachment. */
 .hint { margin: 14px 0 0; font-size: .75rem; color: var(--ng-muted, #848d99); }
 
-/* What can be done with an answer: copy it, see why it was given. One quiet row, not a row each. */
+/* Beneath an answer only what a visitor is owed: who wrote it, when it was not this assistant. */
 .msg-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px; margin: 6px -10px -8px; }
-.copy { order: 0; }
-.why { order: 1; flex: 0 1 auto; margin: 0; color: var(--ng-muted, #9aa3af); font-size: .8125rem; }
-.why[open] { flex-basis: 100%; }
-.why > :not(summary) { text-align: left; }
-.tool, .why summary {
+.tool {
   display: inline-flex; align-items: center; min-height: 44px; margin: 0; padding: 0 12px; border: 0; border-radius: 12px; background: transparent;
-  color: var(--ng-muted, #9aa3af); font: inherit; font-size: .75rem; cursor: pointer; list-style: none;
+  color: var(--ng-muted, #9aa3af); font: inherit; font-size: .75rem; cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;
 }
 .tool:hover { color: var(--ng-text, #e6e9ee); background: var(--ng-hover, rgb(255 255 255 / .06)); }
-.why summary::-webkit-details-marker { display: none; }
-.why summary:hover, .why[open] summary { color: var(--ng-text, #e6e9ee); background: var(--ng-hover, rgb(255 255 255 / .045)); }
-.why-how { margin: 6px 16px 12px; }
-.why-heading { margin: 0 16px 8px; font-size: .6875rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ng-muted, #848d99); }
-.why-list { list-style: none; margin: 0; padding: 0 16px; display: grid; gap: 10px; }
-.why-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
-.why-name { color: var(--ng-text, #c9ced6); }
-.why-list li[data-chosen="true"] .why-name { font-weight: 600; }
-.why-score { font: .75rem/1.4 ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
-.why-bar { grid-column: 1 / -1; position: relative; height: 3px; border-radius: 2px; background: var(--ng-border, rgb(255 255 255 / .08)); overflow: hidden; }
-.why-bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); border-radius: inherit; background: var(--ng-accent, #79c0ce); }
-.why-removed { margin: 10px 16px 12px; font-size: .75rem; color: var(--ng-muted, #848d99); }
 
 .composer {
   width: min(720px, 100%); display: flex; align-items: center; gap: 2px; margin: 6px 0 0;
@@ -592,7 +599,7 @@ ${BEAM_CSS}
   .composer, .msg-body, .guide, .pill, .controls .icon, .attach-item { background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .chip, .chip.lead, .chip.card { color: LinkText; box-shadow: none; }
   .send .glyph::before, .mic .glyph::before, .pill.primary::before { display: none; }
-  .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary, .why-bar::after { background: Highlight; color: HighlightText; box-shadow: none; }
+  .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary { background: Highlight; color: HighlightText; box-shadow: none; }
   .orb { border: 1px solid ButtonText; }
   .ring { border-color: Highlight; }
 }
@@ -629,12 +636,17 @@ function browserStore(view: Window | null, which: 'sessionStorage' | 'localStora
 export function mountAssistant(target: Element, assistant: Routable, options: AssistantOptions = {}): MountedAssistant {
   const doc = target.ownerDocument;
   const view = doc.defaultView;
-  const pageLang = options.lang ?? doc.documentElement?.getAttribute('lang');
-  const words: Words = { ...wordsFor(pageLang), ...options.words };
+  // One language on screen, the page's (ADR-030): the assistant's words and the app's, both in it. An
+  // adopter's `lang` wins; otherwise `<html lang>`, followed as it changes (`setLanguage`, below).
+  let pageLang = options.lang ?? doc.documentElement?.getAttribute('lang');
+  let shownIn = displayLanguage(pageLang, assistant.registry);
+  let words: Words = { ...wordsFor(shownIn), ...options.words };
+  /** The registry as the visitor reads it: its names and descriptions in `shownIn`. The router keeps its own. */
+  let seen = inLanguage(assistant.registry, shownIn);
   // What the page knows that its URL may not say: the locale an i18n router prefixes routes with, for the
   // pages of its default language (`localePrefix: 'as-needed'`). Only ever a fallback (fillParams).
-  const hints: ParamHints = { locale: pageLang ?? undefined };
-  const lang = speechLang(pageLang);
+  let hints: ParamHints = { locale: pageLang ?? undefined };
+  let lang = speechLang(shownIn);
   const currentPath = options.currentPath ?? (() => view?.location.pathname ?? '/');
   /**
    * Move the browser: the adopter's router, else the page if it takes `nextgen:navigate`
@@ -642,6 +654,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
    * else `location.assign`. True when the move happened without unloading this page.
    */
   const go = (route: string): boolean => {
+    // The last gate before the browser moves: only a path on this site (present.ts `safeRoute`).
+    if (!safeRoute(route)) return true;
     if (options.navigate) {
       options.navigate(route);
       return true;
@@ -652,12 +666,13 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   };
   const storage = options.storage !== undefined ? options.storage : browserStore(view, 'sessionStorage');
   const preferences = options.preferences !== undefined ? options.preferences : browserStore(view, 'localStorage');
-  const homes = options.home ?? ['/'];
+  const homes = (options.home ?? ['/']).filter((route) => safeRoute(route) !== null);
   const insetX = Math.max(0, options.inset?.x ?? EDGE);
   const insetY = Math.max(0, options.inset?.y ?? EDGE);
   const companion = options.companion ?? null;
   const companionName = companion?.name?.trim() || words.companion;
   const decide: Decide = options.decide && DECIDE.includes(options.decide) ? options.decide : 'balanced';
+  const acting = options.act === 'point' || options.act === 'off' ? options.act : 'open';
   const navigation = options.navigation?.trim() || null;
   const reducedMotion = Boolean(view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const env = options.voice === false ? null : options.voiceEnv !== undefined ? options.voiceEnv : view ? voiceEnv(view) : null;
@@ -793,6 +808,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   input.id = 'nextgen-ask';
   input.type = 'text';
   input.autocomplete = 'off';
+  // A question, not a document (index.ts `MAX_QUESTION`): the box stops where the router would.
+  input.maxLength = 500;
   input.placeholder = words.composer;
   input.setAttribute('enterkeyhint', 'go');
   const mic = iconButton('mic', words.listen, ICON_MIC);
@@ -900,9 +917,12 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   // on the page, so it also covers a launcher the app renders later, and survives a strict `style-src`;
   // only well-formed selectors are kept, so one typo cannot hide the whole page or throw.
   const hidden = (companion?.hide ?? []).filter((selector) => {
+    // A selector, and nothing a stylesheet would read as more than one: a brace, a semicolon, an at-rule
+    // or a comment would let one entry write any CSS into the adopter's page (ADR-029).
+    if (typeof selector !== 'string' || selector.trim() === '' || selector.length > 200 || /[{};@<]|\/\*|\\/.test(selector)) return false;
     try {
       if (typeof doc.querySelector === 'function') doc.querySelector(selector);
-      return selector.trim() !== '';
+      return true;
     } catch {
       return false;
     }
@@ -995,6 +1015,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     orb.style.setProperty('--x', `${(x - size / 2).toFixed(1)}px`);
     orb.style.setProperty('--y', `${(y - size / 2).toFixed(1)}px`);
     orb.style.setProperty('--s', (size / STAGE).toFixed(4));
+    // Drawn at the size it is shown: docked, a twelfth of the pixels (liquid.ts `setResolution`).
+    liquid.setResolution(size);
     orb.dataset.mode = mode;
     orb.dataset.side = side;
     screen.dataset.side = side;
@@ -1065,7 +1087,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   function capabilityAt(route: string) {
     const here = currentPath();
     const path = route.replace(/[?#].*$/, '');
-    return assistant.registry.capabilities.find(
+    return seen.capabilities.find(
       (c) => c.kind !== 'unsupported' && fillParams(c.route, here, patterns, hints) === path,
     );
   }
@@ -1093,7 +1115,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
    */
   function link(choice: Choice, className: string, asked: Asked | null = null): HTMLAnchorElement {
     const a = make('a', className);
-    a.href = choice.route;
+    // Only a path on this site becomes an href (answers are filtered before this; this is the backstop).
+    a.href = safeRoute(choice.route) ?? '#';
     a.textContent = choice.label;
     a.addEventListener('click', (event) => {
       const e = event as MouseEvent;
@@ -1101,10 +1124,16 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       // A modified click keeps its ordinary meaning: a new tab, a new window.
       if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
-      // Already there: the page is right behind the screen.
-      if (isSamePlace(choice.route, currentPath())) return dock(true);
       const capability = capabilityAt(choice.route);
-      void travel(choice.route, capability?.title ?? choice.label, capability?.id ?? null);
+      const title = capability?.title ?? choice.label;
+      // What the question asked to start comes along: the place was chosen for it (ADR-031).
+      const task = asked ? taskFor(asked.question, capability?.id, title) : null;
+      // Already there: the page is right behind the screen.
+      if (isSamePlace(choice.route, currentPath())) {
+        if (task && perform(task, capability?.id ?? null)) return;
+        return dock(true);
+      }
+      void travel(choice.route, title, capability?.id ?? null, task);
     });
     return a;
   }
@@ -1133,61 +1162,20 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   }
 
   /**
-   * "Why?" — the turn's own record, rendered.
-   *
-   * Rule 9, restated by ADR-019 rather than weakened by it: this panel is still never
-   * model narration. `decidedAt`, the candidates and their scores are mechanics the
-   * cascade recorded, not the model describing its own reasoning — that stays true even
-   * now that the model may write the visitor an answer (WP-53), because that answer
-   * renders as the answer (`present.ts`'s `body`), never in here. What this panel adds
-   * for a prose turn is `whyRemoved` below, and that text is OURS: a count and a reason
-   * code the validator produced, never the removed sentence itself — showing a visitor
-   * the very thing that was judged unsafe to show them would defeat the point of removing
-   * it.
+   * Why it did what it did — for the adopter, not the visitor (ADR-030). Rule 9 still holds: every routed
+   * turn has its record, and "why" is answered from it, never from a model narrating itself. What changed
+   * is who reads it. The visitor wanted the answer, not its mechanics, so the record goes to the page as
+   * `nextgen:turn` — `decidedAt`, the candidates and their scores, what the validator removed — where the
+   * adopter can log it, inspect it, or build their own "why". Nothing reaches the page it did not have:
+   * the question is what the visitor typed into it.
    */
-  function whyFor(trace: TurnTrace): [HTMLDetailsElement, HTMLElement] {
-    const details = make('details', 'why');
-    const summary = make('summary');
-    summary.textContent = words.why;
-    const how = make('p', 'why-how');
-    const total = trace.latency?.total;
-    how.textContent = words.whyHow(trace.decidedAt, typeof total === 'number' ? Math.round(total) : null);
-    details.append(summary, how);
-
-    const weighed = trace.candidates.slice(0, 3);
-    if (weighed.length > 0) {
-      const heading = make('p', 'why-heading');
-      heading.textContent = words.whyConsidered;
-      const list = make('ul', 'why-list');
-      for (const candidate of weighed) {
-        const chosen = candidate.capabilityId === trace.capabilityId;
-        const item = make('li');
-        if (chosen) item.dataset.chosen = 'true';
-        const name = make('span', 'why-name');
-        name.textContent = assistant.registry.byId.get(candidate.capabilityId)?.title ?? candidate.capabilityId;
-        const score = make('span', 'why-score');
-        score.textContent = `${candidate.score.toFixed(2)}${chosen ? ` · ${words.whyChosen}` : ''}`;
-        const bar = make('span', 'why-bar');
-        bar.setAttribute('aria-hidden', 'true');
-        bar.style.setProperty('--w', `${Math.round(Math.max(0, Math.min(1, candidate.score)) * 100)}%`);
-        item.append(name, score, bar);
-        list.append(item);
-      }
-      details.append(heading, list);
+  function record(trace: TurnTrace): void {
+    if (!view) return;
+    try {
+      view.dispatchEvent(new (view as Window & typeof globalThis).CustomEvent(TURN_EVENT, { detail: { trace } }));
+    } catch {
+      // a page that cannot take the event loses nothing the visitor sees
     }
-
-    if ((trace.proseRemoved ?? []).length > 0) {
-      const removed = make('p', 'why-removed');
-      removed.textContent = words.whyRemoved(trace.proseRemoved.length);
-      details.append(removed);
-    }
-
-    // Opened on the last answer, the explanation grows below the fold: the click seemed to do nothing.
-    details.addEventListener('toggle', () => {
-      if (details.open) (details as Partial<Pick<HTMLElement, 'scrollIntoView'>>).scrollIntoView?.({ block: 'nearest' });
-    });
-
-    return [details, summary];
   }
 
   // ------------------------------------------------------------------ thread --
@@ -1410,39 +1398,38 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       note.textContent = shown.note;
       nodes.push(note);
     }
-    // An answer that was a guess ends by saying how to get a better one — say more, in your own words —
-    // and a refusal by saying what can be done instead. Neither is a dead end.
-    // A limit that already points to where the visitor can do it needs no "tell me what you're trying to do".
-    const next = shown.tone === 'choose' ? words.notThat : shown.tone === 'limit' && shown.choices.length === 0 ? words.limitNext : null;
-    if (next) {
+    // A refusal that points nowhere still ends with a way on: never a dead end. One short line — and it
+    // is the only hint left (ADR-030): no "not what you meant?", no "why?".
+    if (shown.tone === 'limit' && shown.choices.length === 0 && shown.body !== words.limitFallback) {
       const hint = make('p', 'hint');
-      hint.textContent = next;
+      hint.textContent = words.limitNext;
       nodes.push(hint);
     }
-    // One quiet row of what can be done with the answer: copy it, and see why it was given. Both stay
-    // reachable by keyboard; neither is a row of its own, which is what made every answer tall.
     const tools = make('div', 'msg-tools');
-    if (canCopy) {
+    // Words someone else's assistant wrote may be worth keeping; "Opening Calendar" is not.
+    if (canCopy && shown.from) {
       const copy = make('button', 'tool copy');
       copy.type = 'button';
       copy.textContent = words.copy;
-      const text = [shown.title, shown.body, ...shown.choices.map((c) => `${c.label} — ${c.route}`)].filter(Boolean).join('\n');
+      const text = [shown.title, shown.body].filter(Boolean).join('\n');
       copy.addEventListener('click', () => void copyText(text));
       tools.append(copy);
       stops.push(copy);
     }
-    if (trace) {
-      const [details, summary] = whyFor(trace);
-      tools.append(details);
-      stops.push(summary);
-    }
-    // Not "Why?": this assistant did not decide it, and cannot explain it (Rule 9). It says who did.
+    // This assistant did not decide it, and cannot explain it (Rule 9). It says who did.
     if (shown.from) {
       const from = make('p', 'from');
       from.textContent = words.answeredBy(shown.from);
       tools.append(from);
     }
+    // A model decided or wrote it: the visitor is told, in one line (ADR-017).
+    if (trace && (trace.decidedAt === 'llm' || trace.prose)) {
+      const from = make('p', 'from');
+      from.textContent = words.byModel;
+      tools.append(from);
+    }
     if (tools.children.length > 0) nodes.push(tools);
+    if (trace) record(trace);
     threadStops.push(...stops);
     addMessage('assistant', '', nodes).dataset.tone = shown.tone;
   }
@@ -1583,11 +1570,20 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       const a = JSON.parse(raw) as Partial<Arrival>;
       const age = typeof a.at === 'number' ? Date.now() - a.at : Infinity;
       if (typeof a.title === 'string' && (a.side === 'left' || a.side === 'right') && age >= 0 && age < ARRIVAL_TTL_MS) {
+        // Read back from storage: a task is only ever a few short words, or it is not a task.
+        const t = a.task as Partial<Task> | undefined;
+        const few = (list: unknown): list is string[] =>
+          Array.isArray(list) && list.length <= 12 && list.every((w) => typeof w === 'string' && w.length <= 40);
+        const task =
+          t && typeof t.start === 'boolean' && few(t.words) && (t.place === undefined || few(t.place))
+            ? { words: t.words, start: t.start, ...(t.place ? { place: t.place } : {}) }
+            : null;
         return {
           title: a.title,
           side: a.side,
           at: a.at as number,
           capabilityId: typeof a.capabilityId === 'string' ? a.capabilityId : null,
+          ...(task ? { task } : {}),
         };
       }
       forget();
@@ -1599,7 +1595,10 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
 
   function arrive(arrival: Arrival): void {
     forget();
-    const steps = arrival.capabilityId ? (assistant.registry.byId.get(arrival.capabilityId)?.steps ?? []) : [];
+    // Brought here to start something: open it, or point at it (ADR-031). The page may still be drawing.
+    if (arrival.task && perform(arrival.task, arrival.capabilityId)) return;
+    // Steps are written in the app's first language only: read in another, there are none (ADR-030).
+    const steps = arrival.capabilityId && seen === assistant.registry ? (assistant.registry.byId.get(arrival.capabilityId)?.steps ?? []) : [];
     if (steps.length > 0) {
       // The guide points at the page, so the panel makes way for it.
       dock(false);
@@ -1626,12 +1625,13 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
    * beside the new page — the corner panel, if it was expanded, so the page can be seen — and the
    * conversation carries on there.
    */
-  function travel(route: string, title: string, capabilityId: string | null): void {
-    if (destroyed) return;
+  function travel(route: string, title: string, capabilityId: string | null, task: Task | null = null): void {
+    if (destroyed || !safeRoute(route)) return;
     if (mode === 'stage' && expanded) setExpanded(false);
     const to = mode === 'stage' ? side : resolveSide();
     try {
-      storage?.setItem(ARRIVAL_KEY, JSON.stringify({ title, side: to, at: Date.now(), capabilityId } satisfies Arrival));
+      const note: Arrival = { title, side: to, at: Date.now(), capabilityId, ...(task && acting !== 'off' ? { task } : {}) };
+      storage?.setItem(ARRIVAL_KEY, JSON.stringify(note));
     } catch {
       // storage refused: the next page simply will not greet
     }
@@ -1649,6 +1649,68 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     }
   }
 
+  // --------------------------------------------------------------------- act --
+
+  /**
+   * The task in a question, for the screen it leads to (ADR-031): that screen by every name the app gives
+   * it — its own, and each translation (ADR-030) — so "announcement" finds "Novo anúncio"; and the app's
+   * glossary, so what people say finds what the app calls it.
+   */
+  function taskFor(question: string, capabilityId: string | null | undefined, fallback: string): Task {
+    const capability = capabilityId ? assistant.registry.byId.get(capabilityId) : undefined;
+    const names = capability ? [capability.title, ...Object.values(capability.translations ?? {}).map((t) => t.title)] : [fallback];
+    return taskOf(question, names, assistant.registry.context?.glossary ?? []);
+  }
+
+  /** On screen: a real page reports boxes for it. A page that cannot say (a test's) counts it as shown. */
+  const shownOnPage = (el: ActNode): boolean => {
+    const rects = (el as unknown as { getClientRects?: () => ArrayLike<unknown> }).getClientRects;
+    return typeof rects !== 'function' || rects.call(el).length > 0;
+  };
+
+  /**
+   * Start what was asked, on this page (ADR-031, act.ts): press the control that opens it when it can only
+   * open something, or point at it when it might do something. The panel makes way either way, so what
+   * opens can be seen. True when there is something to do here — at once, or once the page has drawn it.
+   */
+  function perform(task: Task, capabilityId: string | null, attempt = 0): boolean {
+    if (destroyed || acting === 'off') return false;
+    const declared = capabilityId ? (assistant.registry.byId.get(capabilityId)?.opens ?? []) : [];
+    const plan = planAct(task, doc as unknown as ActRoot, declared, shownOnPage);
+    if (plan.act === 'none') {
+      // A single-page app draws after it moves: look again, briefly, before giving up quietly.
+      if (plan.reason === 'nothing' && attempt < ACT_RETRIES_MS.length) {
+        later(() => void perform(task, capabilityId, attempt + 1), ACT_RETRIES_MS[attempt]!);
+      }
+      return attempt > 0;
+    }
+    const element = plan.control.element as unknown as HTMLElement;
+    endGuide();
+    dock(false);
+    if (plan.act === 'press' && acting === 'open') {
+      element.click();
+      bubble.textContent = words.opened(plan.control.name);
+      // A tab was only the way in: what to start may be inside it.
+      if (plan.control.evidence === 'tab' && task.start) later(() => void perform(task, capabilityId, ACT_RETRIES_MS.length - 1), 350);
+      return true;
+    }
+    point(element, plan.control.name);
+    return true;
+  }
+
+  /** Show the visitor the control to press, and say so: the guide's ring and card, one step. */
+  function point(element: HTMLElement, name: string): void {
+    endGuide();
+    guide = [{ text: words.tapToStart(name), element: element as unknown as AnchorNode, result: { status: 'matched', element: element as unknown as AnchorNode, via: 'label' } }];
+    guideAt = 0;
+    guideTitle.textContent = name;
+    guidePanel.dataset.side = side;
+    guidePanel.hidden = false;
+    showStep();
+    // Pressed: the pointing is done.
+    element.addEventListener?.('click', () => endGuide(), { once: true });
+  }
+
   // ------------------------------------------------------------------- guide --
 
   function startGuide(steps: readonly GuidedStep[], title: string): void {
@@ -1664,7 +1726,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     const step = guide[guideAt];
     if (!step) return endGuide();
     const last = guideAt === guide.length - 1;
-    guideCount.textContent = words.guideStep(guideAt + 1, guide.length);
+    // One step is not a sequence: no "Step 1 of 1".
+    guideCount.textContent = guide.length > 1 ? words.guideStep(guideAt + 1, guide.length) : '';
     guideText.textContent = step.text;
     guideBack.hidden = guideAt === 0;
     guideNext.hidden = last;
@@ -1987,6 +2050,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       let trace: TurnTrace | null = null;
       /** The question this answer's places are for, when the router could not settle it (`learn`). */
       let unsettledHere: Asked | null = null;
+      /** What was asked to be done, for the page it leads to (ADR-031): this question, or the one a reply answers. */
+      let taskFrom: string | null = null;
       try {
         const where = currentPath();
         const companionAnswer = filesToCompanion ? await consult(utterance, files, where) : null;
@@ -2005,14 +2070,16 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
           // The visitor settled a question the router could not: that is a lesson (ADR-027). "Which one?"
           // settles nothing yet, and keeps the question open for the next reply.
           const was = offered?.asked ?? null;
+          taskFrom = was?.question ?? null;
           if (was && reply.destination) learn({ question: was.question, route: reply.destination, how: 'chose', from: was.from, offered: was.offered });
           else if (was && replied?.kind === 'reject') learn({ question: was.question, route: null, how: 'rejected', from: was.from, offered: was.offered });
           else if (was) unsettledHere = was;
         } else if (talk && chatty) {
           const starts = talk.kind === 'help' || talk.kind === 'thisPage' ? startingPoints() : [];
-          shown = smalltalkView(talk.kind, assistant.registry, where, words, starts, hints);
+          shown = smalltalkView(talk.kind, seen, where, words, starts, hints);
         } else {
           const question = talk ? talk.rest : utterance;
+          taskFrom = question;
           trace = await assistant.route(question, { route: where });
           // A short reply to a question the router asked about is most likely a detail of that question
           // ("the injury one", "no treino"). Read the two together, and take that reading only when it
@@ -2028,7 +2095,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
           // What this assistant cannot place goes to the app's own, when there is one; the answer below
           // stands if it declines (ADR-026).
           const placed = forCompanion(trace) ? await consult(question, [], where) : null;
-          shown = placed ?? present(trace, assistant.registry, where, words, nothingMatched ? startingPoints() : [], hints, decide);
+          shown = placed ?? present(trace, seen, where, words, nothingMatched ? startingPoints() : [], hints, decide);
           const unplaced = nothingPlaced(trace);
           // What no screen matched may be content — a person, a post, a product — and the app's own search
           // is the honest answer to that (ADR-027). Offered first, before any place to begin.
@@ -2054,6 +2121,28 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       }
       if (destroyed || mine !== latest) return shown;
 
+      // The likely place is this very page, and the question asked to start something that is on it: not
+      // "Open Announcements?" to someone already there — start it here (ADR-031).
+      let startHere: { task: Task; capabilityId: string | null } | null = null;
+      const likely = shown.probable && shown.choices.length === 1 ? shown.choices[0] : undefined;
+      if (likely && taskFrom && acting !== 'off' && isSamePlace(likely.route, currentPath())) {
+        const capability = capabilityAt(likely.route);
+        const task = taskFor(taskFrom, capability?.id, likely.label);
+        const declared = capability ? (assistant.registry.byId.get(capability.id)?.opens ?? []) : [];
+        if (task.start && planAct(task, doc as unknown as ActRoot, declared, shownOnPage).act !== 'none') {
+          startHere = { task, capabilityId: capability?.id ?? null };
+          shown = { tone: 'explain', title: words.alreadyHere(capability?.title ?? likely.label), body: null, destination: null, choices: [] };
+        }
+      }
+
+      // Every place it offers, and the one it moves to, is a path on this site — whatever the registry,
+      // the URL or an option said (present.ts `safeRoute`). A place that is not is simply not offered.
+      shown = {
+        ...shown,
+        choices: shown.choices.filter((c) => safeRoute(c.route) !== null),
+        destination: shown.destination && safeRoute(shown.destination),
+      };
+
       thread.removeAttribute('aria-busy');
       setCaption('');
       showAnswer(shown, trace, unsettledHere);
@@ -2077,8 +2166,16 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       if (shown.destination) {
         // At once: the move never waits for the answer to be read out (travel).
         // A reply ("yes", "the second one") has no trace of its own: the place it chose names itself.
-        const destination = trace?.capabilityId ? assistant.registry.byId.get(trace.capabilityId) : capabilityAt(shown.destination);
-        travel(shown.destination, destination?.title ?? shown.title, destination?.id ?? null);
+        const destination = trace?.capabilityId ? seen.byId.get(trace.capabilityId) : capabilityAt(shown.destination);
+        const title = destination?.title ?? shown.title;
+        travel(shown.destination, title, destination?.id ?? null, taskFrom ? taskFor(taskFrom, destination?.id, title) : null);
+      } else if (startHere) {
+        perform(startHere.task, startHere.capabilityId);
+      } else if (trace && taskFrom && !trace.explanationRequest && trace.outcome === 'execute') {
+        // Already on the screen it is about: start it here (ADR-031).
+        const here = trace.capabilityId ? seen.byId.get(trace.capabilityId) : undefined;
+        const at = here?.route ? fillParams(here.route, currentPath(), patterns, hints) : null;
+        if (here && at && isSamePlace(at, currentPath())) perform(taskFor(taskFrom, here.id, here.title), here.id);
       }
       // Still busy while it speaks, so a hands-free microphone never hears it.
       await speech;
@@ -2095,6 +2192,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     if (mode === 'docked') open(true);
     else toggleVoice();
   });
+  // Gone still at rest (liquid.ts), it moves again the moment someone reaches for it.
+  orb.addEventListener('pointerenter', () => liquid.wake());
+  orb.addEventListener('focus', () => liquid.wake());
   expandButton.addEventListener('click', () => setExpanded(!expanded));
   companionButton.addEventListener('click', () => {
     // Theirs, whole. This panel steps aside rather than sit on top of it.
@@ -2261,14 +2361,67 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     }
   }, 50);
 
+  // --------------------------------------------------------------- language --
+
+  /** Every label set once at build, in the language shown now: again when that language changes. */
+  function relabel(): void {
+    const name = (button: HTMLElement, text: string): void => {
+      // Its first child is the screen-reader name (`iconButton`).
+      button.children[0]!.textContent = text;
+    };
+    name(companionButton, words.openCompanion(companionName));
+    name(soundButton, words.readAloud);
+    name(closeButton, words.close);
+    name(restartButton, words.startOver);
+    name(mic, words.listen);
+    name(send, words.submit);
+    name(attachButton, words.attach);
+    name(cameraButton, words.attachCamera);
+    greeting.textContent = words.greeting;
+    greetingHint.textContent = words.greetingHint;
+    label.textContent = words.label;
+    tray.setAttribute('aria-label', words.attach);
+    orb.setAttribute('aria-label', words.openAssistant);
+    guidePanel.setAttribute('aria-label', words.guideLabel);
+    guideBack.textContent = words.guideBack;
+    guideNext.textContent = words.guideNext;
+    guideDone.textContent = words.guideDone;
+    setExpanded(expanded);
+  }
+
+  /**
+   * The app switched language (ADR-030): the assistant follows, labels and all. What is already in the
+   * thread stays as it was said; everything from here on is in the new language.
+   */
+  function setLanguage(next: string | null | undefined): void {
+    if (destroyed || !next || next === pageLang) return;
+    pageLang = next;
+    shownIn = displayLanguage(pageLang, assistant.registry);
+    words = { ...wordsFor(shownIn), ...options.words };
+    seen = inLanguage(assistant.registry, shownIn);
+    hints = { locale: pageLang };
+    lang = speechLang(shownIn);
+    relabel();
+  }
+
+  // An adopter who set `lang` decides it (and calls `setLanguage`); otherwise `<html lang>` does, live.
+  const MutationObserverCtor = (view as (Window & typeof globalThis) | null)?.MutationObserver;
+  const langWatch =
+    options.lang === undefined && MutationObserverCtor && doc.documentElement
+      ? new MutationObserverCtor(() => setLanguage(doc.documentElement.getAttribute('lang')))
+      : null;
+  langWatch?.observe(doc.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
   return {
     host,
     open: (how) => open(false, how?.expanded === true),
     close,
     ask: (utterance) => ask(utterance),
+    setLanguage,
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      langWatch?.disconnect();
       stopConversation();
       stopSpeaking();
       guide = [];

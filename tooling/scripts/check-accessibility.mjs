@@ -242,7 +242,9 @@ say('\n  the assistant layer — orb, screen, answer\n');
   const backToPanel = screen.getAttribute('aria-modal') === 'false' && expandButton.getAttribute('aria-pressed') === 'false';
   const noOwnMenu = root.querySelectorAll('.menu, .drawer').length === 0;
 
-  // The same clarifying question the chat box is audited with above.
+  // The same clarifying question the chat box is audited with above. Its record goes to the page (ADR-030).
+  const turns = [];
+  window.addEventListener('nextgen:turn', (event) => turns.push(event.detail?.trace));
   const answered = await mounted.ask('onde vejo as lesões do meu filho');
   layerStates.push([`screen answered (${answered.choices.length} links)`, await audit(window, mounted.host)]);
 
@@ -283,11 +285,12 @@ say('\n  the assistant layer — orb, screen, answer\n');
 
   note(noSuggestions, 'the screen offers no pre-written questions or places',
     noSuggestions ? 'greeting and composer only' : 'a suggestion list is rendered');
-  const why = root.querySelector('.why summary');
-  const weighed = root.querySelectorAll('.why-list li').length;
-  note(Boolean(why?.textContent.trim()) && weighed > 0,
-    'an answer explains itself from its own record — a native "Why?" disclosure',
-    `"${why?.textContent}" · ${weighed} candidate(s)`);
+  // ADR-030: the visitor reads the answer, not its mechanics; the adopter gets the record, from which
+  // "why" is answered (Rule 9).
+  const weighed = turns.at(-1)?.candidates?.length ?? 0;
+  note(root.querySelectorAll('details, .why').length === 0 && weighed > 0,
+    'an answer shows no mechanics, and its record reaches the page as nextgen:turn',
+    `${turns.length} turn(s) announced · ${weighed} candidate(s) in the last`);
 
   screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   note(

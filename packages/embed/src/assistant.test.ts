@@ -327,7 +327,7 @@ describe('opening the panel', () => {
     expect(doc.activeElement).toBe(input);
     expect(overflow(doc)).toBe('');
     expect(orb.getAttribute('aria-hidden')).toBe('true');
-    expect(byClass('greeting').textContent).toBe('Ready when you are.');
+    expect(byClass('greeting').textContent).toBe('What do you need?');
     // …and, beneath it, what this is for — to someone who has never seen it. A sentence, not a question.
     expect(byClass('greeting-hint').textContent).toBe(WORDS.en.greetingHint);
     expect(screen.getAttribute('aria-describedby')).toBe('nextgen-greeting-hint');
@@ -674,7 +674,7 @@ describe('the conversation remembers what it offered', () => {
     await say(mounted, 'neither');
     expect(moves).toEqual([]);
     expect(routed.asked).toEqual(['games']);
-    expect(text(thread)).toContain('No problem.');
+    expect(text(thread)).toContain('Tell me more.');
   });
 
   it('reads a short detail together with the question it adds to, and keeps that reading only if it settles it', async () => {
@@ -731,7 +731,7 @@ describe('a clear leader, asked about as the likely one', () => {
     const chips = all('chip');
     expect(chips.map((a) => a.href)).toEqual(['/calendar']);
     expect(classes(chips[0]!)).toContain('lead');
-    expect(thread.textContent).toContain('Are you looking for Calendar?');
+    expect(thread.textContent).toContain('Looking for Calendar?');
     expect(thread.textContent).toContain('Open Calendar');
     expect(thread.textContent).toContain('Training and matches by day.');
   });
@@ -754,7 +754,7 @@ describe('a clear leader, asked about as the likely one', () => {
     await done;
     expect(all('lead')).toHaveLength(0);
     expect(all('chip')).toHaveLength(2);
-    expect(thread.textContent).toContain('Do you mean Calendar, or Squad?');
+    expect(thread.textContent).toContain('Calendar or Squad?');
   });
 });
 
@@ -775,7 +775,7 @@ describe('a visitor who knows nothing about the app', () => {
     await settle(2000);
     await done;
     expect(routed.asked).toEqual([]);
-    expect(text(thread)).toContain('Hi! How can I help?');
+    expect(text(thread)).toContain('Hi. What do you need?');
     expect(text(thread)).not.toContain('can’t help with that');
     expect(all('user').map(text)).toEqual(['hi']);
     expect(moves).toEqual([]);
@@ -784,7 +784,7 @@ describe('a visitor who knows nothing about the app', () => {
   it('says thanks, goodbye and who it is just as kindly', async () => {
     const routed = answering(toCalendar);
     const { mounted, thread } = setup(routed);
-    for (const [said, reply] of [['thanks!', 'You’re welcome!'], ['bye', 'Bye for now!'], ['who are you?', 'I’m this app’s assistant.']] as const) {
+    for (const [said, reply] of [['thanks!', 'You’re welcome.'], ['bye', 'Bye.'], ['who are you?', 'I’m this app’s assistant.']] as const) {
       const done = mounted.ask(said);
       await settle(2000);
       await done;
@@ -814,7 +814,7 @@ describe('a visitor who knows nothing about the app', () => {
     expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/squad', '/competition/standings']);
     expect(text(thread)).toContain('Training and matches by day.');
     expect(text(thread)).toContain('The league table.');
-    expect(text(thread)).toContain('Not sure where to start?');
+    expect(text(thread)).toContain('Start here:');
   });
 
   it('is started from the app’s own main navigation, in its own words, where the assistant knows what a place is for', async () => {
@@ -826,7 +826,7 @@ describe('a visitor who knows nothing about the app', () => {
     // Home is the page they are on, Shop is somewhere else, and neither is a place it can describe.
     expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/competition/standings']);
     expect(all('chip').map((a) => text(a))).toEqual(['CalendarTraining and matches by day.', 'StandingsThe league table.']);
-    expect(text(thread)).toContain('Not sure where to start?');
+    expect(text(thread)).toContain('Start here:');
   });
 
   it('is given two places for a task, not three, each said in the adopter’s words', async () => {
@@ -851,26 +851,14 @@ describe('a visitor who knows nothing about the app', () => {
     expect(text(thread)).not.toContain('The league table.');
   });
 
-  it('is told how to be understood better, and only when the answer was a guess', async () => {
-    const guess = answering(clarifying);
-    const a = setup(guess);
-    const asking = a.mounted.ask('games');
-    await settle(2000);
-    await asking;
-    expect(text(a.thread)).toContain('Not what you meant?');
-
-    for (const other of [answering(toCalendar), answering({ outcome: 'out_of_scope' })]) {
-      const b = setup(other);
-      const done = b.mounted.ask('games');
+  it('asks its question and stops: no "not what you meant?" under it, and no hint under a move (ADR-030)', async () => {
+    for (const routed of [answering(clarifying), answering(toCalendar)]) {
+      const a = setup(routed);
+      const asking = a.mounted.ask('games');
       await settle(2000);
-      await done;
-      expect(text(b.thread)).not.toContain('Not what you meant?');
+      await asking;
+      expect(a.all('hint')).toEqual([]);
     }
-    const c = setup(answering(toCalendar));
-    const hello = c.mounted.ask('hello');
-    await settle(2000);
-    await hello;
-    expect(text(c.thread)).not.toContain('Not what you meant?');
   });
 
   it('is not handed two arbitrary screens when nothing they said matched anything: it says so, and offers places to begin', async () => {
@@ -879,7 +867,7 @@ describe('a visitor who knows nothing about the app', () => {
     const done = mounted.ask('quero falar com alguém');
     await settle(2000);
     await done;
-    expect(text(thread)).toContain('not sure what you’re after');
+    expect(text(thread)).toContain('Not sure what you need');
     expect(text(thread)).not.toContain('Two places could help with that:');
     expect(all('chip').map((a) => a.href)).toEqual(['/calendar', '/competition/standings']);
   });
@@ -889,9 +877,9 @@ describe('a visitor who knows nothing about the app', () => {
     const done = mounted.ask('pay my invoice');
     await settle(2000);
     await done;
-    expect(text(thread)).toContain('I can’t help with that here');
+    expect(text(thread)).toContain('I can’t help with that.');
     expect(text(thread)).toContain('I cannot move money.');
-    expect(text(thread)).toContain('I can help you find your way around this app');
+    expect(text(thread)).toContain('Ask me where to find something else.');
   });
 });
 
@@ -938,6 +926,8 @@ describe('attachments — a photo or a file, kept on the device', () => {
           }
         };
         view.dispatchEvent = (event: { type: string; detail: unknown; defaultPrevented: boolean; preventDefault(): void }) => {
+          // What is attached, only: each turn's record (`nextgen:turn`) goes to the page too, and is tested below.
+          if (event.type === 'nextgen:turn') return true;
           sent.events.push({ type: event.type, detail: event.detail as Fitted['events'][number]['detail'] });
           if (sent.handle.take) event.preventDefault();
           return !event.defaultPrevented;
@@ -1123,7 +1113,7 @@ describe('attachments — a photo or a file, kept on the device', () => {
     await settle(2000);
     await first;
     expect(text(a.thread)).toContain('stays on this device');
-    expect(text(a.thread)).not.toContain('passed your attachment');
+    expect(text(a.thread)).not.toContain('File sent to the app');
 
     const taken = fitted();
     taken.sent.handle.take = true;
@@ -1132,7 +1122,7 @@ describe('attachments — a photo or a file, kept on the device', () => {
     const second = b.mounted.ask('where does this go?');
     await settle(2000);
     await second;
-    expect(text(b.thread)).toContain('passed your attachment to the app');
+    expect(text(b.thread)).toContain('File sent to the app');
     expect(text(b.thread)).not.toContain('stays on this device');
   });
 
@@ -1145,7 +1135,7 @@ describe('attachments — a photo or a file, kept on the device', () => {
     await settle(2000);
     await done;
     expect(routed.asked).toEqual([]);
-    expect(text(thread)).toContain('Thanks — I’ve got it.');
+    expect(text(thread)).toContain('Got it.');
     expect(text(thread)).toContain('nothing leaves your device');
     expect(text(thread)).not.toContain('can’t help with that');
     expect(sent.events).toHaveLength(1);
@@ -1187,60 +1177,70 @@ describe('attachments — a photo or a file, kept on the device', () => {
   });
 });
 
-describe('"Why?"', () => {
-  it('every answer carries its own reasons: how it was decided, how long it took, what it weighed', async () => {
-    const { mounted, host, byClass, all } = setup(answering(clarifying));
+/**
+ * ADR-030. A visitor wants the answer, not its mechanics: no "Why?" under it. Rule 9 still holds — every
+ * routed turn has its record, and "why" is answered from it — but it is the adopter who reads it, from
+ * `nextgen:turn`. The one thing a visitor is still told is ADR-017's: a model decided or wrote this.
+ */
+describe('why it did that — for the adopter, not the visitor', () => {
+  const text = (el: FakeElement): string => String(el.textContent);
+  const listening = () => {
+    const turns: { type: string; detail: { trace: TurnTrace } }[] = [];
+    const page = (doc: FakeDocument) => {
+      const view = doc.defaultView as unknown as Record<string, unknown>;
+      view.CustomEvent = class {
+        type: string;
+        detail: unknown;
+        constructor(type: string, init: { detail?: unknown } = {}) {
+          this.type = type;
+          this.detail = init.detail;
+        }
+      };
+      view.dispatchEvent = (event: { type: string; detail: { trace: TurnTrace } }) => {
+        turns.push(event);
+        return true;
+      };
+    };
+    return { turns, page };
+  };
+
+  it('shows the visitor no mechanics, and hands the page the whole record', async () => {
+    const { turns, page } = listening();
+    const { mounted, host, thread } = setup(answering(clarifying), {}, { page });
     const done = mounted.ask('games');
     await settle(2000);
     await done;
-    const details = host.find((el) => el.tagName === 'details')!;
-    expect(details.find((el) => el.tagName === 'summary')!.textContent).toBe('Why?');
-    expect(byClass('why-how').textContent).toBe('Decided by similarity to what this app declares in 12 ms, with no model call.');
-    expect(all('why-name').map((el) => el.textContent)).toEqual(['Calendar', 'Squad']);
-    expect(all('why-score').map((el) => el.textContent)).toEqual(['0.50', '0.40']);
+    expect(host.findAll((el) => el.tagName === 'details' || /(^|\s)why(\s|$)/.test(String(el.className ?? '')))).toEqual([]);
+    expect(text(thread)).not.toMatch(/0\.50|similarity|Why\?/);
+    const record = turns.filter((t) => t.type === 'nextgen:turn');
+    expect(record).toHaveLength(1);
+    expect(record[0]!.detail.trace.candidates.map((c) => [c.capabilityId, c.score])).toEqual([['calendar.overview', 0.5], ['squad.list', 0.4]]);
   });
 
-  /**
-   * ADR-019 (WP-53). A count, never the removed sentence itself — that stayed unsafe or
-   * unverifiable to show, and this panel is not a back door around that.
-   */
-  it('discloses that part of a written answer was left out, without repeating what was removed', async () => {
-    const { mounted, byClass } = setup(
-      answering({
-        ...clarifying,
-        prose: null,
-        proseRemoved: [{ sentence: 'Try /admin/billing for that too.', reason: 'unknown-reference' }],
-      }),
-    );
-    const done = mounted.ask('games');
+  it('tells the visitor in one line when a model decided it — and only then (ADR-017)', async () => {
+    const byModel = setup(answering({ ...toCalendar, decidedAt: 'llm' }));
+    const a = byModel.mounted.ask('games');
     await settle(2000);
-    await done;
-    expect(byClass('why-removed').textContent).toBe('Part of the answer was left out because it could not be checked.');
-    expect(byClass('why-removed').textContent).not.toContain('/admin/billing');
+    await a;
+    expect(text(byModel.thread)).toContain(WORDS.en.byModel);
+
+    const plain = setup(answering(toCalendar));
+    const b = plain.mounted.ask('games');
+    await settle(2000);
+    await b;
+    expect(text(plain.thread)).not.toContain(WORDS.en.byModel);
   });
 
-  it('says nothing extra when nothing was removed', async () => {
-    const { mounted, byClass } = setup(answering(clarifying));
+  /** ADR-019: what the validator removed is never shown — not even as a count, now. The page has the record. */
+  it('never shows what was left out of a written answer; the page’s record holds it', async () => {
+    const { turns, page } = listening();
+    const removed = [{ sentence: 'Try /admin/billing for that too.', reason: 'unknown-reference' }] as unknown as TurnTrace['proseRemoved'];
+    const { mounted, thread } = setup(answering({ ...clarifying, prose: null, proseRemoved: removed }), {}, { page });
     const done = mounted.ask('games');
     await settle(2000);
     await done;
-    expect(byClass('why-removed')).toBeUndefined();
-  });
-
-  it('pluralises the count of removed parts', async () => {
-    const { mounted, byClass } = setup(
-      answering({
-        ...clarifying,
-        proseRemoved: [
-          { sentence: 'a', reason: 'unknown-reference' },
-          { sentence: 'b', reason: 'action-claim' },
-        ],
-      }),
-    );
-    const done = mounted.ask('games');
-    await settle(2000);
-    await done;
-    expect(byClass('why-removed').textContent).toBe('2 parts of the answer were left out because they could not be checked.');
+    expect(text(thread)).not.toContain('/admin/billing');
+    expect(turns.find((t) => t.type === 'nextgen:turn')!.detail.trace.proseRemoved).toEqual(removed);
   });
 });
 
@@ -1292,7 +1292,7 @@ describe('reading answers aloud', () => {
     const first = mounted.ask('games');
     await settle(0);
     expect(spoken).toHaveLength(1);
-    expect(spoken[0]!.text.startsWith('Do you mean Calendar, or Squad?')).toBe(true);
+    expect(spoken[0]!.text.startsWith('Calendar or Squad?')).toBe(true);
     expect(spoken[0]!.voice).toBe(local);
     spoken[0]!.onend!();
     await settle(0);
@@ -1319,10 +1319,10 @@ describe('reading answers aloud', () => {
     const preferences = new MemoryStorage();
     preferences.setItem('nextgen:read-aloud', 'on');
     const { mounted } = setup(answering(toCalendar), { voiceEnv: env, preferences });
-    const asking = mounted.ask('hi');
+    const asking = mounted.ask('who are you?');
     await settle(0);
     expect(spoken).toHaveLength(1);
-    expect(spoken[0]!.text).toBe('Hi! How can I help? Tell me what you want to do, in your own words, and I’ll take you there.');
+    expect(spoken[0]!.text).toBe('I’m this app’s assistant. I take you to the right screen. I don’t change anything.');
     spoken[0]!.onend!();
     await settle(0);
     await asking;
@@ -1517,7 +1517,7 @@ describe('the conversation is a chat', () => {
     const { thread, screen, byClass } = setup(answering({}));
     expect(thread.getAttribute('role')).toBe('log');
     expect(messages(thread).map(who)).toEqual(['assistant']);
-    expect(byClass('greeting').textContent).toBe('Ready when you are.');
+    expect(byClass('greeting').textContent).toBe('What do you need?');
     expect(screen.dataset.conversation).toBe('false');
   });
 
@@ -1598,8 +1598,8 @@ describe('the conversation is a chat', () => {
     }
     const all = messages(thread);
     expect(all.length).toBeLessThanOrEqual(60);
-    expect(all[0]!.textContent).toMatch(/^Ready when you are\./);
-    expect(all[all.length - 1]!.textContent).toContain('Do you mean Calendar, or Squad?');
+    expect(all[0]!.textContent).toMatch(/^What do you need\?/);
+    expect(all[all.length - 1]!.textContent).toContain('Calendar or Squad?');
     expect(all[all.length - 2]!.textContent).toBe('question 44');
   });
 
@@ -1635,7 +1635,7 @@ describe('chat extras — start over, copy, recall', () => {
     expect(messages(thread)).toHaveLength(3);
     byClass('restart').fire('click');
     await settle(10);
-    expect(messages(thread).map((m) => m.textContent)).toEqual([`Ready when you are.${WORDS.en.greetingHint}`]);
+    expect(messages(thread).map((m) => m.textContent)).toEqual([`${WORDS.en.greeting}${WORDS.en.greetingHint}`]);
     expect(screen.dataset.conversation).toBe('false');
     expect(all('chip')).toHaveLength(0);
     expect(doc.activeElement).toBe(input);
@@ -1656,42 +1656,41 @@ describe('chat extras — start over, copy, recall', () => {
     expect(all('chip')).toHaveLength(0);
   });
 
-  it('copies an answer as plain text, says so, and stops saying so', async () => {
+  // Copy is for words worth keeping: what the app's own assistant wrote (ADR-030). "Opening Calendar" is not.
+  const unplaced = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0 }] } as unknown as Partial<TurnTrace>;
+  const club = { name: 'Club assistant', ask: async () => 'Three players are injured this week.' };
+
+  it('copies what the app’s own assistant wrote, as plain text, says so, and stops saying so', async () => {
     const copied: string[] = [];
-    const { mounted, all, caption } = setup(answering(clarifying), {}, { page: withClipboard(async (text) => void copied.push(text)) });
-    await answer(mounted, 'games');
+    const { mounted, all, caption } = setup(answering(unplaced), { companion: club }, { page: withClipboard(async (text) => void copied.push(text)) });
+    await answer(mounted, 'how many are injured');
     all('copy')[0]!.fire('click');
     await settle(10);
-    expect(copied).toHaveLength(1);
-    expect(copied[0]).toContain('Do you mean Calendar, or Squad?');
-    expect(copied[0]).toContain('Calendar');
-    expect(copied[0]).toContain('/calendar');
+    expect(copied).toEqual(['Three players are injured this week.']);
     expect(caption.textContent).toBe('Copied');
     await settle(2500);
     expect(caption.textContent).toBe('');
   });
 
   it('says so when the browser will not let it copy, rather than pretending it did', async () => {
-    const { mounted, all, caption } = setup(answering(clarifying), {}, { page: withClipboard(() => Promise.reject(new Error('denied'))) });
-    await answer(mounted, 'games');
+    const { mounted, all, caption } = setup(answering(unplaced), { companion: club }, { page: withClipboard(() => Promise.reject(new Error('denied'))) });
+    await answer(mounted, 'how many are injured');
     all('copy')[0]!.fire('click');
     await settle(10);
     expect(caption.textContent).toBe('Could not copy');
   });
 
   it('offers no copy where the browser has no clipboard to offer', async () => {
-    const { mounted, all } = setup(answering(clarifying));
-    await answer(mounted, 'games');
+    const { mounted, all } = setup(answering(unplaced), { companion: club });
+    await answer(mounted, 'how many are injured');
     expect(all('copy')).toHaveLength(0);
   });
 
-  it('keeps "Why?" and Copy together in one quiet row under the answer', async () => {
+  it('offers no copy, and nothing else, under its own answers', async () => {
     const { mounted, all } = setup(answering(clarifying), {}, { page: withClipboard(async () => undefined) });
     await answer(mounted, 'games');
-    const tools = all('msg-tools');
-    expect(tools).toHaveLength(1);
-    expect(tools[0]!.findAll((el) => /(^|\s)copy(\s|$)/.test(String(el.className)))).toHaveLength(1);
-    expect(tools[0]!.findAll((el) => /(^|\s)why(\s|$)/.test(String(el.className)))).toHaveLength(1);
+    expect(all('copy')).toHaveLength(0);
+    expect(all('msg-tools')).toHaveLength(0);
   });
 
   it('recalls what was asked with the arrow keys, as any chat does — and never over what is being typed', async () => {
@@ -1818,7 +1817,7 @@ describe('the app’s own assistant, merged in', () => {
       const { companion } = companionOf(answer);
       const { mounted, thread } = setup(answering(nothing), { companion });
       await run(mounted, 'quero falar com alguém');
-      expect(text(thread), String(answer)).toContain('not sure what you’re after');
+      expect(text(thread), String(answer)).toContain('Not sure what you need');
       expect(text(thread)).not.toContain('Answered by');
     }
   });
@@ -1916,7 +1915,7 @@ describe('the adopter’s dial — how readily it moves', () => {
     const { mounted, moves, thread } = setup(answering(toCalendar), { decide: 'confirm' });
     await run(mounted, 'calendar');
     expect(moves).toEqual([]);
-    expect(String(thread.textContent)).toContain('Shall I open Calendar?');
+    expect(String(thread.textContent)).toContain('Open Calendar?');
     await run(mounted, 'yes');
     expect(moves).toEqual(['/calendar']);
   });
@@ -1961,8 +1960,8 @@ describe('the app’s own search, for what no screen matches', () => {
     await settle(3000);
     await done;
     expect(all('chip')[0]!.href).toBe('/search?q=fotos%20de%20Ana%20en%20Oporto');
-    expect(String(thread.textContent)).toContain('not sure what you’re after');
-    expect(String(thread.textContent)).not.toContain('Do you mean');
+    expect(String(thread.textContent)).toContain('Not sure what you need');
+    expect(String(thread.textContent)).not.toMatch(/Calendar or Squad\?/);
 
     // …and the app's own assistant is asked about it too, as about anything else this one cannot place.
     const asked: string[] = [];
@@ -2078,6 +2077,61 @@ describe('a navigation that is not a <nav>', () => {
   });
 });
 
+/**
+ * ADR-029. The widget is a guest on someone else's page: nothing it is given — a registry, a URL, an
+ * option — may turn it into a way to send a visitor elsewhere or to rewrite the page's styles.
+ */
+describe('security — what it will not do, whatever it is given', () => {
+  const evilCaps = [
+    ...caps,
+    { id: 'evil.redirect', kind: 'navigate', route: '/\\evil.example', title: 'Redirect', explanation: 'x' },
+    { id: 'evil.script', kind: 'navigate', route: 'javascript:alert(1)', title: 'Script', explanation: 'x' },
+  ];
+  const evil = { ...registry, capabilities: evilCaps, byId: new Map(evilCaps.map((c) => [c.id, c])) } as unknown as Registry;
+  const routable = (over: Partial<TurnTrace>): Routable => ({ registry: evil, route: async () => trace(over) });
+
+  it('never moves the browser to a route that is not a path on this site', async () => {
+    for (const id of ['evil.redirect', 'evil.script']) {
+      const { mounted, moves, doc } = setup(routable({ capabilityId: id }));
+      const done = mounted.ask('take me there');
+      await settle(3000);
+      await done;
+      expect(moves, id).toEqual([]);
+      expect(doc.defaultView!.moved, id).toEqual([]);
+    }
+  });
+
+  it('never links to one either, even when the router offers it', async () => {
+    const { mounted, all } = setup(routable({ outcome: 'clarify', candidates: [{ capabilityId: 'evil.redirect', score: 0.5 }, { capabilityId: 'calendar.overview', score: 0.45 }] } as never));
+    const done = mounted.ask('games');
+    await settle(3000);
+    await done;
+    expect(all('chip').map((a) => a.href)).toEqual(['/calendar']);
+  });
+
+  it('ignores a home route that is not a path on this site', async () => {
+    const { screen } = setup(answering({}), { home: ['//evil.example', '/\\evil.example'] }, { path: '//evil.example' });
+    await settle(100);
+    expect(screen.dataset.open).toBe('false');
+  });
+
+  it('refuses a hide selector that would write more than a selector into the page’s styles', () => {
+    let head: FakeElement | null = null;
+    setup(answering({}), { companion: { hide: ['#chat', 'a{} body{display:none}', '#x;color:red', '@import url(x)', '#y/*', 'nav > button'] } }, {
+      page: (doc) => {
+        head = doc.createElement('head');
+        (doc as unknown as { head: FakeElement }).head = head;
+      },
+    });
+    expect(head!.children[0]!.textContent).toBe('#chat, nav > button { display: none !important; }');
+  });
+
+  it('caps what a visitor can type at the length the router reads', () => {
+    const { input } = setup(answering({}));
+    expect(input.maxLength).toBe(500);
+  });
+});
+
 describe('where it sits', () => {
   it('keeps the distance from the corner the adopter asks for, so it clears the app’s own buttons', () => {
     const { host, orb } = setup(answering({}), { inset: { x: 24, y: 144 } });
@@ -2100,5 +2154,165 @@ describe('destroy', () => {
     mounted.destroy();
     expect(doc.body.children.some((el) => el.hasAttribute('data-nextgen-assistant'))).toBe(false);
     expect(overflow(doc)).toBe('');
+  });
+});
+
+/**
+ * ADR-030: one language on screen, the page's, for the assistant's words and the app's alike — and it
+ * follows the app when the visitor switches language, without a reload.
+ */
+describe('one language, and it follows the app', () => {
+  const bilingual = caps.map((c) => (c.id === 'calendar.overview' ? { ...c, translations: { 'pt-PT': { title: 'Calendário', explanation: 'Treinos e jogos por dia.' } } } : c));
+  const reg = { ...registry, language: 'en', capabilities: bilingual, byId: new Map(bilingual.map((c) => [c.id, c])) } as unknown as Registry;
+  const routed = (): Routable => ({ registry: reg, route: async () => trace(toCalendar) });
+  const run = async (mounted: { ask(q: string): Promise<unknown> }, q: string) => {
+    const done = mounted.ask(q);
+    await settle(2000);
+    return done;
+  };
+
+  it('answers in the page’s language, the app’s names included', async () => {
+    const { mounted, thread } = setup(routed(), { lang: 'pt-PT' });
+    await run(mounted, 'calendário');
+    expect(String(thread.textContent)).toContain('A abrir Calendário');
+    expect(String(thread.textContent)).not.toContain('Opening');
+  });
+
+  it('switches everything it says from then on when the app switches language', async () => {
+    const explaining: Routable = { registry: reg, route: async () => trace({ ...toCalendar, explanationRequest: true }) };
+    const { mounted, thread, byClass } = setup(explaining, { lang: 'en' });
+    expect(byClass('greeting').textContent).toBe('What do you need?');
+    await run(mounted, 'what is the calendar?');
+    expect(String(thread.textContent)).toContain('Training and matches by day.');
+    mounted.setLanguage('pt-PT');
+    expect(byClass('greeting').textContent).toBe('Do que precisa?');
+    expect(byClass('close').children[0]!.textContent).toBe('Fechar');
+    await run(mounted, 'o que é o calendário?');
+    expect(String(thread.textContent)).toContain('Treinos e jogos por dia.');
+    expect(String(thread.textContent)).toContain('Abrir Calendário');
+  });
+});
+
+/**
+ * ADR-031. "I want to schedule an event": not only the calendar, but its "New event" form, open — the way a
+ * person would do it, pressing the control on the page. Pressed only when it can only open something;
+ * pointed at when it might do something; never anything that commits, and never a word typed.
+ */
+describe('using the app — starting what was asked', () => {
+  const control = (doc: FakeDocument, text: string, attrs: Record<string, string> = { 'aria-haspopup': 'dialog' }) => {
+    const button = doc.createElement('button');
+    button.textContent = text;
+    for (const [k, v] of Object.entries(attrs)) button.setAttribute(k, v);
+    let presses = 0;
+    button.addEventListener('click', () => void presses++);
+    doc.body.append(button);
+    return { button, presses: () => presses };
+  };
+  const run = async (mounted: { ask(q: string): Promise<unknown> }, q: string, ms = 3500) => {
+    const done = mounted.ask(q);
+    await settle(ms);
+    await done;
+  };
+
+  it('already on the page: presses what opens it, makes way for it, and says so', async () => {
+    let made!: ReturnType<typeof control>;
+    const { mounted, screen, bubble } = setup(answering(toCalendar), {}, { path: '/calendar', page: (doc) => void (made = control(doc, 'New event')) });
+    await run(mounted, 'I want to schedule an event');
+    expect(made.presses()).toBe(1);
+    expect(screen.dataset.open).toBe('false');
+    expect(bubble.textContent).toBe('Opened “New event”.');
+  });
+
+  it('moves there first, and waits for the new page to draw it', async () => {
+    const { mounted, moves, doc } = setup(answering(toCalendar));
+    const done = mounted.ask('schedule an event');
+    await settle(400);
+    expect(moves).toEqual(['/calendar']);
+    // A single-page app draws the new page a moment after it moves.
+    const made = control(doc, 'Novo evento', { 'aria-expanded': 'false' });
+    await settle(3500);
+    await done;
+    expect(made.presses()).toBe(1);
+  });
+
+  it('after a full page load, carries the task — a few words, never the question — and opens it there', async () => {
+    const first = setup(answering(toCalendar), {}, { reloads: true });
+    await run(first.mounted, 'I want to schedule an event');
+    const note = JSON.parse(first.storage.getItem('nextgen:arrival')!);
+    expect(note.task).toEqual({ words: ['schedule', 'event'], place: ['calendar'], start: true });
+    expect(JSON.stringify(note)).not.toContain('I want to');
+
+    let made!: ReturnType<typeof control>;
+    setup(answering({}), { storage: first.storage }, { path: '/calendar', page: (doc) => void (made = control(doc, 'New event')) });
+    await settle(3500);
+    expect(made.presses()).toBe(1);
+  });
+
+  it('points at a plain button that might do something, and leaves the press to the visitor', async () => {
+    let made!: ReturnType<typeof control>;
+    const { mounted, guide, byClass } = setup(answering(toCalendar), {}, { path: '/calendar', page: (doc) => void (made = control(doc, 'New event', {})) });
+    await run(mounted, 'schedule an event');
+    expect(made.presses()).toBe(0);
+    expect(guide.hidden).toBe(false);
+    expect(byClass('guide-text').textContent).toBe('Tap “New event” to start.');
+    made.button.click();
+    expect(guide.hidden).toBe(true);
+  });
+
+  it('presses a plain button the registry declares as an opener', async () => {
+    const declaring = caps.map((c) => (c.id === 'calendar.overview' ? { ...c, opens: ['New event'] } : c));
+    const reg = { ...registry, capabilities: declaring, byId: new Map(declaring.map((c) => [c.id, c])) } as unknown as Registry;
+    let made!: ReturnType<typeof control>;
+    const { mounted } = setup({ registry: reg, route: async () => trace(toCalendar) }, {}, { path: '/calendar', page: (doc) => void (made = control(doc, 'New event', {})) });
+    await run(mounted, 'schedule an event');
+    expect(made.presses()).toBe(1);
+  });
+
+  it('never presses what commits, and does nothing for a question that starts nothing', async () => {
+    let save!: ReturnType<typeof control>;
+    let make!: ReturnType<typeof control>;
+    const a = setup(answering(toCalendar), {}, { path: '/calendar', page: (doc) => void (save = control(doc, 'Save event')) });
+    await run(a.mounted, 'save an event');
+    expect(save.presses()).toBe(0);
+    const b = setup(answering(toCalendar), {}, { path: '/calendar', page: (doc) => void (make = control(doc, 'New event')) });
+    await run(b.mounted, 'where is the calendar?');
+    expect(make.presses()).toBe(0);
+  });
+
+  it('does as the adopter says: only point, or nothing at all', async () => {
+    let pointed!: ReturnType<typeof control>;
+    const a = setup(answering(toCalendar), { act: 'point' }, { path: '/calendar', page: (doc) => void (pointed = control(doc, 'New event')) });
+    await run(a.mounted, 'schedule an event');
+    expect(pointed.presses()).toBe(0);
+    expect(a.guide.hidden).toBe(false);
+
+    let off!: ReturnType<typeof control>;
+    const b = setup(answering(toCalendar), { act: 'off' }, { path: '/calendar', page: (doc) => void (off = control(doc, 'New event')) });
+    await run(b.mounted, 'schedule an event');
+    expect(off.presses()).toBe(0);
+    expect(b.guide.hidden).toBe(true);
+  });
+});
+
+describe('using the app — when the likely place is where the visitor already is', () => {
+  it('starts it here instead of offering to open the page they are on', async () => {
+    const likely = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0.4 }, { capabilityId: 'squad.list', score: 0.1 }] } as unknown as Partial<TurnTrace>;
+    let presses = 0;
+    const { mounted, thread, all } = setup(answering(likely), {}, {
+      path: '/calendar',
+      page: (doc) => {
+        const button = doc.createElement('button');
+        button.textContent = 'New event';
+        button.setAttribute('aria-haspopup', 'dialog');
+        button.addEventListener('click', () => void presses++);
+        doc.body.append(button);
+      },
+    });
+    const done = mounted.ask('I want to create an event');
+    await settle(3000);
+    await done;
+    expect(presses).toBe(1);
+    expect(String(thread.textContent)).toContain('You’re on Calendar');
+    expect(all('chip')).toEqual([]);
   });
 });

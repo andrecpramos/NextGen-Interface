@@ -188,6 +188,17 @@ describe('the script tag starts itself from its own attributes', () => {
     expect((bad.window.document.querySelector('[data-nextgen]') as HTMLElement).style.getPropertyValue('--ng-inset-y')).toBe('20px');
   });
 
+  it('refuses to load the bundle from another site, and fetches nothing', async () => {
+    const events: { reason: string; message: string }[] = [];
+    const { fetched, warnings } = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': 'https://cdn.elsewhere.test/nextgen' }, {
+      beforeScript: (window) => window.addEventListener('nextgen:error', (event) => void events.push((event as CustomEvent).detail)),
+    });
+    await settle(() => events.length > 0);
+    expect(fetched).toEqual([]);
+    expect(events[0]?.message).toMatch(/must be served from this site/);
+    expect(warnings.join('\n')).toMatch(/did not start/);
+  });
+
   it('serves a user with several roles from each role’s registry, merged, with no index to fetch', async () => {
     const { window, fetched } = page({ 'data-nextgen-role': 'COACH PARENT', 'data-nextgen-base': '/nextgen' });
     await settle(() => window.document.querySelector('[data-nextgen]') !== null);
@@ -199,11 +210,11 @@ describe('the script tag starts itself from its own attributes', () => {
     const greeting = (w: Page['window']) => w.document.querySelector('[data-nextgen]')!.shadowRoot!.querySelector('.greeting')!.textContent;
     const pt = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' }, { lang: 'pt-PT' });
     await settle(() => pt.window.document.querySelector('[data-nextgen]') !== null);
-    expect(greeting(pt.window)).toBe('Pronto quando quiser.');
+    expect(greeting(pt.window)).toBe('Do que precisa?');
 
     const es = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' }, { lang: 'es-ES' });
     await settle(() => es.window.document.querySelector('[data-nextgen]') !== null);
-    expect(greeting(es.window)).toBe('Ready when you are.');
+    expect(greeting(es.window)).toBe('What do you need?');
     expect(es.fetched.every((url) => !url.includes('words'))).toBe(true);
   });
 

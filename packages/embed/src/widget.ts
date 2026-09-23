@@ -22,7 +22,7 @@
 
 import type { Registry, TurnTrace } from '@nextgen/core-intent/browser';
 
-import { present, wordsFor, type View, type Words } from './present.ts';
+import { displayLanguage, inLanguage, present, safeRoute, wordsFor, type View, type Words } from './present.ts';
 
 /** What the widget needs from an assistant: to route a turn, and the registry it routed against. */
 export interface Routable {
@@ -134,16 +134,24 @@ export function offerMove(view: Window & typeof globalThis, route: string): bool
 export function mount(target: Element, assistant: Routable, options: MountOptions = {}): Mounted {
   const doc = target.ownerDocument;
   const view = doc.defaultView;
-  const words: Words = { ...wordsFor(options.lang ?? doc.documentElement?.getAttribute('lang')), ...options.words };
+  // One language on screen (ADR-030): the page's, where the registry has the app's words in it.
+  const shownIn = displayLanguage(options.lang ?? doc.documentElement?.getAttribute('lang'), assistant.registry);
+  const words: Words = { ...wordsFor(shownIn), ...options.words };
+  const seen = inLanguage(assistant.registry, shownIn);
   const currentPath = options.currentPath ?? (() => view?.location.pathname ?? '/');
 
   /** Offer the move to the page first. True when the page took it. */
   const offered = (route: string): boolean => (view ? offerMove(view, route) : false);
-  const navigate =
+  const move =
     options.navigate ??
     ((route: string) => {
       if (!offered(route)) view?.location.assign(route);
     });
+  // Only a path on this site ever moves the browser (present.ts `safeRoute`).
+  const navigate = (route: string): void => {
+    const safe = safeRoute(route);
+    if (safe) move(safe);
+  };
 
   const host = doc.createElement('div');
   host.setAttribute('data-nextgen', '');
@@ -207,6 +215,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
     if (shown.choices.length > 0) {
       const list = doc.createElement('ul');
       for (const choice of shown.choices) {
+        if (!safeRoute(choice.route)) continue;
         const item = doc.createElement('li');
         const a = doc.createElement('a');
         a.href = choice.route;
@@ -251,7 +260,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
     try {
       const where = currentPath();
       const trace = await assistant.route(utterance, { route: where });
-      shown = present(trace, assistant.registry, where, words);
+      shown = present(trace, seen, where, words);
     } catch {
       shown = { tone: 'unsure', title: words.error, body: null, destination: null, choices: [] };
     }

@@ -160,8 +160,25 @@ export interface Liquid {
   /** 0..1 — the bead behind the liquid, for when it sits on someone else's page. */
   setBacking(amount: number): void;
   refresh(): void;
+  /**
+   * The size it is shown at, in CSS pixels: the canvas is drawn at that resolution rather than its full
+   * size. Docked at 92 px, a 320 px canvas at 2x was 12 times the pixels anyone could see, redrawn every
+   * frame on the adopter's page. Growing applies at once; shrinking waits for the flight to finish.
+   */
+  setResolution(cssPixels: number): void;
+  /** Start moving again after it went still at rest — the visitor pointed at it, or something changed. */
+  wake(): void;
   destroy(): void;
 }
+
+/**
+ * How long it keeps moving at rest, docked, before it goes still: one last frame, and no work at all on
+ * the adopter's page until something wakes it. It is a guest there, and a loop that never stops costs
+ * every visitor battery on every page, whether anyone looks at the corner or not.
+ */
+const REST_MS = 12_000;
+/** At rest, docked, one frame in this many is drawn: a slow turn needs no more. */
+const REST_STRIDE = 4;
 
 export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions): Liquid {
   const { size, view, reducedMotion } = options;
@@ -179,21 +196,30 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
   let t = 0;
   let last = 0;
   let raf = 0;
-  let skip = false;
+  let frame = 0;
+  let restedMs = 0;
+  let asleep = false;
   let destroyed = false;
   let reported = 0;
+  let resolution = size;
+  let shrink = 0;
 
   const mind = options.mind === false ? null : createMind();
 
   const xs = new Float64Array(POINTS);
   const ys = new Float64Array(POINTS);
 
-  if (ctx) {
+  /** Draw at `px` CSS pixels: the backing store shrinks, and drawing, still in `size` units, is scaled to it. */
+  function resize(px: number): void {
+    if (!ctx) return;
+    resolution = px;
     const dpr = Math.min(2, view?.devicePixelRatio || 1);
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const backing = Math.max(1, Math.round(px * dpr));
+    canvas.width = backing;
+    canvas.height = backing;
+    ctx.setTransform(backing / size, 0, 0, backing / size, 0, 0);
   }
+  resize(size);
 
   function readPalette(): void {
     const palette = options.palette();
@@ -336,17 +362,33 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     backing += (targetBacking - backing) * k;
     mind?.step(dt, level);
     report();
-    // Docked and at rest, half the frames are plenty — this runs on someone else's page.
-    const resting = target === STATE_PARAMS.idle && targetBacking > 0.5 && level < 0.01;
-    skip = resting ? !skip : false;
-    if (!skip) draw();
+    // At rest — this runs on someone else's page — it goes still after a while (`REST_MS` docked, longer
+    // with the panel open and someone perhaps reading it), and docked it turns at a quarter of the frames.
+    const idle = target === STATE_PARAMS.idle && level < 0.01 && targetLevel === 0;
+    const docked = targetBacking > 0.5;
+    restedMs = idle ? restedMs + dt * 1000 : 0;
+    frame = idle && docked ? frame + 1 : 0;
+    if (!(idle && docked) || frame % REST_STRIDE === 0) draw();
+    if (idle && restedMs >= (docked ? REST_MS : REST_MS * 5)) {
+      draw();
+      asleep = true;
+      return;
+    }
     schedule();
   }
 
   function schedule(): void {
-    if (!ctx || reducedMotion || destroyed || raf || !view?.requestAnimationFrame) return;
+    if (!ctx || reducedMotion || destroyed || raf || asleep || !view?.requestAnimationFrame) return;
     if (view.document?.hidden) return;
     raf = view.requestAnimationFrame(tick);
+  }
+
+  function wake(): void {
+    restedMs = 0;
+    if (!asleep) return schedule();
+    asleep = false;
+    last = 0;
+    schedule();
   }
 
   const onVisibility = (): void => {
@@ -374,21 +416,44 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
       mind?.setState(state);
       options.onState?.(state);
       still();
+      wake();
     },
     setLevel(value) {
       targetLevel = clamp01(value);
+      if (targetLevel > 0) wake();
     },
     setBacking(amount) {
       targetBacking = clamp01(amount);
       still();
+      wake();
     },
     refresh() {
       readPalette();
       draw();
     },
+    setResolution(cssPixels) {
+      const px = Math.max(16, Math.min(size, Math.round(cssPixels)));
+      if (px === resolution) return;
+      if (shrink) view?.clearTimeout?.(shrink);
+      shrink = 0;
+      // Growing now, so it is never drawn blurred; shrinking once it has finished shrinking on screen.
+      if (px > resolution || !view?.setTimeout) {
+        resize(px);
+        draw();
+        return;
+      }
+      shrink = view.setTimeout(() => {
+        shrink = 0;
+        if (destroyed) return;
+        resize(px);
+        draw();
+      }, 820);
+    },
+    wake,
     destroy() {
       destroyed = true;
       if (raf) view?.cancelAnimationFrame?.(raf);
+      if (shrink) view?.clearTimeout?.(shrink);
       raf = 0;
       view?.document?.removeEventListener?.('visibilitychange', onVisibility);
     },

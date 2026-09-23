@@ -22,7 +22,7 @@
 // This file adds no routing behaviour of its own, on purpose — a second
 // implementation would be a second thing to keep in step.
 
-import { indexFor, makeEmbedder, mergeRegistryFiles, registryFromIndex, route as routeTurn } from '@nextgen/core-intent/browser';
+import { HashingEmbedder, indexFor, mergeRegistryFiles, registryFromIndex, route as routeTurn } from '@nextgen/core-intent/browser';
 import type { Registry, RegistryFile, ShippedIndex, Thresholds, TurnTrace } from '@nextgen/core-intent/browser';
 import type { GuidedStep } from '@nextgen/core-capability';
 
@@ -66,14 +66,29 @@ export interface Assistant {
   readonly registry: Registry;
 }
 
+/** The most of a question the router reads. The composer stops at this too. */
+export const MAX_QUESTION = 500;
+
 /** Build an assistant from a bundle already in memory. No I/O at all. */
 export function create(bundle: Bundle): Assistant {
   const registry: Registry = registryFromIndex(bundle.registry, bundle.index ?? indexFor(bundle.registry));
 
   // One encoder, fitted to THIS registry's documents and shared with nothing —
-  // lessons.md L10 is what a shared, re-fitted encoder cost this project once.
-  const embedder = makeEmbedder('hashing');
-  embedder.fit?.(registry.documents);
+  // lessons.md L10 is what a shared, re-fitted encoder cost this project once. The hashing encoder
+  // directly, not `makeEmbedder`: that pulls a model server's client into a script tag that never uses one.
+  //
+  // Fitted when the page is idle, or at the first question if that comes sooner — never while the
+  // adopter's page is still loading (ADR-029). On a large app the fit is the one piece of start-up work
+  // that grows with the number of screens.
+  const embedder = new HashingEmbedder();
+  let fitted = false;
+  const fit = (): void => {
+    if (fitted) return;
+    fitted = true;
+    embedder.fit(registry.documents);
+  };
+  const idle = (globalThis as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+  if (typeof idle === 'function') idle(fit, { timeout: 3000 });
 
   // Constructed once, not per turn: `SameOriginLlmRuntime`'s constructor is where the
   // origin check happens, and it never throws — a bad or off-origin config makes this
@@ -87,8 +102,11 @@ export function create(bundle: Bundle): Assistant {
     capabilities: registry.capabilities.length,
     registry,
     route(utterance, context = {}) {
+      fit();
       return routeTurn(
-        utterance,
+        // A question is a sentence, not a document: whatever is pasted, the router reads a bounded part
+        // of it, so no input can make a turn slow on the adopter's page.
+        utterance.slice(0, MAX_QUESTION),
         {
           route: context.route ?? '/',
           today: context.today ?? new Date().toISOString().slice(0, 10),
@@ -125,6 +143,19 @@ export function create(bundle: Bundle): Assistant {
  */
 export async function load(basePath: string, role: string | readonly string[], options: LoadOptions = {}): Promise<Assistant> {
   const base = basePath.replace(/\/+$/, '');
+  // The registry decides what visitors are shown and where they are sent, so it comes from this site or
+  // not at all (Rule 8, ADR-029) — unless the adopter hands in their own `fetch`, and with it the choice.
+  if (!options.fetch && typeof location !== 'undefined') {
+    let origin: string | null = null;
+    try {
+      origin = new URL(`${base}/`, location.href).origin;
+    } catch {
+      origin = null;
+    }
+    if (origin !== location.origin) {
+      throw new StartError('bundle-unavailable', `refusing to load the bundle from ${base}: it must be served from this site (${location.origin})`);
+    }
+  }
   const fetchFile = options.fetch ?? ((url: string) => fetch(url));
   const get = async <T>(file: string): Promise<T> => {
     let response: Response;
@@ -180,7 +211,7 @@ export interface LoadOptions {
 
 export { present, wordsFor, fillParams, isSamePlace, searchChoice, DECIDE, WORDS, type Choice, type Decide, type Tone, type View, type Words } from './present.ts';
 export { mount, adoptStyles, offerMove, NAVIGATE_EVENT, type MountOptions, type Mounted, type NavigateDetail, type Routable } from './widget.ts';
-export { mountAssistant, LEARN_EVENT, type AssistantOptions, type Companion, type CompanionRequest, type Lesson, type MountedAssistant } from './assistant.ts';
+export { mountAssistant, LEARN_EVENT, TURN_EVENT, type AssistantOptions, type Companion, type CompanionRequest, type Lesson, type MountedAssistant } from './assistant.ts';
 
 /** A corner named by `data-nextgen-position`. Only its side is used: the orb rests at the bottom. */
 export type Corner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';

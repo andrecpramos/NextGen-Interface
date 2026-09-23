@@ -28,6 +28,20 @@ export declare class StartError extends Error {
 export declare const ERROR_EVENT: 'nextgen:error';
 /** `'nextgen:learn'` — announced on `window` for each `Lesson`. */
 export declare const LEARN_EVENT: 'nextgen:learn';
+/**
+ * `'nextgen:turn'` — announced on `window` for each routed turn, `{ trace }`: how it was decided, what it
+ * weighed and with what scores. The visitor is not shown this; the adopter can log it or build their own "why".
+ */
+export declare const TURN_EVENT: 'nextgen:turn';
+
+/** A turn's record, as `nextgen:turn` carries it. The fields most worth reading; the object has more. */
+export interface TurnRecord {
+  readonly utterance?: string;
+  readonly outcome: string;
+  readonly capabilityId: string | null;
+  readonly decidedAt: string;
+  readonly candidates: readonly { readonly capabilityId: string; readonly score: number }[];
+}
 
 /** One thing a visitor taught it: a question it could not settle, and how the visitor settled it. */
 export interface Lesson {
@@ -79,6 +93,12 @@ export interface StartOptions {
   readonly inset?: { readonly x?: number; readonly y?: number };
   readonly companion?: Companion;
   readonly decide?: Decide;
+  /**
+   * Asked to start something, what it does with the control that starts it (ADR-031): `'open'` (default)
+   * presses it when it can only open something and points at it otherwise; `'point'` only points; `'off'`
+   * neither. It never types, and never presses what saves, sends, pays or deletes.
+   */
+  readonly act?: 'open' | 'point' | 'off';
   /** The app's own search for what no screen matches: `'/search?q={query}'`. */
   readonly search?: string;
   /** CSS selector for the app's navigation, when it is not a `<nav>`. */
@@ -100,6 +120,8 @@ export interface MountedAssistant {
   close(): void;
   /** Ask programmatically. */
   ask(utterance: string): Promise<unknown>;
+  /** The app switched language without touching `<html lang>`: follow it (`"en"`, `"pt-PT"`). */
+  setLanguage(lang: string): void;
   /** Remove it — call on sign-out. */
   destroy(): void;
 }
@@ -123,6 +145,7 @@ declare global {
   interface WindowEventMap {
     'nextgen:error': CustomEvent<ErrorDetail>;
     'nextgen:learn': CustomEvent<Lesson>;
+    'nextgen:turn': CustomEvent<{ readonly trace: TurnRecord }>;
     'nextgen:navigate': CustomEvent<{ readonly route: string }>;
     'nextgen:attach': CustomEvent<{ readonly files: File[]; readonly utterance: string; readonly route: string }>;
   }

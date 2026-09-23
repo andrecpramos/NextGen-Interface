@@ -12,6 +12,7 @@ export const start: typeof Declared.start = Real.start;
 export const StartErrorClass: typeof Declared.StartError = Real.StartError;
 export const errorEvent: typeof Declared.ERROR_EVENT = Real.ERROR_EVENT;
 export const learnEvent: typeof Declared.LEARN_EVENT = Real.LEARN_EVENT;
+export const turnEvent: typeof Declared.TURN_EVENT = Real.TURN_EVENT;
 
 // And the other way for the shapes an adopter builds and passes in: what the declaration lets them
 // write must be what the widget accepts.

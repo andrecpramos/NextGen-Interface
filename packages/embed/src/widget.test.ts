@@ -174,7 +174,8 @@ describe('the chat box — a turn', () => {
 
     expect(assistant.asked).toEqual([{ utterance: 'onde vejo o calendário', route: '/home' }]);
     expect(result.textContent).toContain('A abrir Calendário');
-    expect(result.textContent).toContain('Treinos e jogos por dia.');
+    // Where it is going, and nothing more (ADR-030).
+    expect(result.textContent).not.toContain('Treinos e jogos por dia.');
     expect(result.getAttribute('aria-busy')).toBeNull();
     expect(moves).toEqual(['/calendar']);
   });

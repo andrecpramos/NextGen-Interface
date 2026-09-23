@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Registry, TurnTrace } from '@nextgen/core-intent/browser';
 
 import type { Smalltalk } from './chat.ts';
-import { attachmentView, fillParams, isSamePlace, present, searchChoice, smalltalkView, WORDS, wordsFor, type Choice } from './present.ts';
+import { attachmentView, displayLanguage, fillParams, inLanguage, isSamePlace, present, safeRoute, searchChoice, smalltalkView, WORDS, wordsFor, type Choice } from './present.ts';
 
 /**
  * The script tag's policy for one turn: what it says, and whether it moves.
@@ -37,9 +37,9 @@ const trace = (over: Partial<TurnTrace>): TurnTrace =>
 const words = WORDS.en;
 
 describe('present — when it moves the browser', () => {
-  it('moves for an executed navigate turn, and says where', () => {
+  it('moves for an executed navigate turn, and says where — nothing more (ADR-030)', () => {
     const view = present(trace({ capabilityId: 'calendar.overview' }), registry, '/', words);
-    expect(view).toMatchObject({ tone: 'go', destination: '/calendar', body: 'Training and matches by day.' });
+    expect(view).toMatchObject({ tone: 'go', destination: '/calendar', body: null });
     expect(view.title).toBe('Opening Calendar');
   });
 
@@ -52,7 +52,8 @@ describe('present — when it moves the browser', () => {
   it('does not move to where the user already is', () => {
     const view = present(trace({ capabilityId: 'calendar.overview' }), registry, '/calendar/', words);
     expect(view.destination).toBeNull();
-    expect(view.title).toMatch(/already on Calendar/);
+    expect(view.title).toBe('You’re on Calendar');
+    expect(view.body).toBeNull();
   });
 
   it('never performs a read, write or destructive capability: there is no dispatcher here', () => {
@@ -73,7 +74,7 @@ describe('present — routes with parameters', () => {
   it('refuses to guess a parameter the current page does not carry', () => {
     const view = present(trace({ capabilityId: 'child.medical' }), registry, '/calendar', words);
     expect(view.destination).toBeNull();
-    expect(view.body).toMatch(/one specific item/);
+    expect(view.body).toBe(words.needsItem);
     expect(view.choices).toEqual([]);
   });
 
@@ -217,7 +218,7 @@ describe('present — a clear leader', () => {
       { capabilityId: 'calendar.overview', score: 0.3 },
       { capabilityId: 'squad.search', score: 0.12 },
     ]);
-    expect(view).toMatchObject({ tone: 'choose', probable: true, destination: null, title: 'Are you looking for Calendar?' });
+    expect(view).toMatchObject({ tone: 'choose', probable: true, destination: null, title: 'Looking for Calendar?' });
     expect(view.choices).toEqual([{ label: 'Calendar', route: '/calendar', detail: 'Training and matches by day.' }]);
   });
 
@@ -289,7 +290,7 @@ describe('present — a clear leader', () => {
     const reg = { capabilities: [long, essay, bare], byId: new Map([long, essay, bare].map((c) => [c.id, c])), boundaryIds: new Set() } as unknown as Registry;
     const detailOf = (id: string) => present(trace({ outcome: 'clarify', candidates: [{ capabilityId: id, score: 0.4 }] }), reg, '/', words).choices[0]!;
     expect(detailOf('x.long').detail).toBe('First sentence here.');
-    expect(detailOf('x.essay').detail!.length).toBeLessThanOrEqual(141);
+    expect(detailOf('x.essay').detail!.length).toBeLessThanOrEqual(91);
     expect(detailOf('x.essay').detail!.endsWith('…')).toBe(true);
     expect('detail' in detailOf('x.bare')).toBe(false);
   });
@@ -297,7 +298,7 @@ describe('present — a clear leader', () => {
   it('says it in the page’s language', () => {
     const view = clarify([{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.search', score: 0.1 }], '/', WORDS.pt);
     expect(view.title).toBe('Procura Calendar?');
-    expect(WORDS.pt.eitherOr('A', 'B')).toBe('Refere-se a A, ou a B?');
+    expect(WORDS.pt.eitherOr('A', 'B')).toBe('A ou B?');
   });
 });
 
@@ -370,10 +371,9 @@ describe('present — few options, each explained', () => {
     for (const w of [WORDS.en, WORDS.pt]) {
       expect(w.eitherOr('X', 'Y')).toMatch(/X.*Y.*\?$/);
       expect(w.probably('X')).toMatch(/X.*\?$/);
-      expect(w.probablyTask('X')).toContain('X');
-      expect(w.notThat).toBeTruthy();
+      expect(w.probablyTask('X')).toMatch(/X.*\?$/);
     }
-    expect(WORDS.pt.eitherOr('X', 'Y')).not.toBe(WORDS.en.eitherOr('X', 'Y'));
+    expect(WORDS.pt.probably('X')).not.toBe(WORDS.en.probably('X'));
   });
 });
 
@@ -400,6 +400,7 @@ describe('attachments — what the assistant says, and never says', () => {
   it('says it passed them to the app only when the app took them', () => {
     expect(attachmentView(true, words).body).toBe(words.attachHanded);
     expect(attachmentView(false, words).body).toContain('nothing leaves your device');
+    expect(WORDS.pt.attachOnly.body).toContain('nada sai do seu dispositivo');
     expect(attachmentView(false, words).body).not.toBe(words.attachHanded);
   });
 
@@ -565,9 +566,12 @@ describe('present — the model’s validated answer, when there is one', () => 
     expect(view.body).toBe('Training moved to Tuesday this week.');
   });
 
-  it('falls back to the declared explanation when prose is null — the pre-WP-53 shape', () => {
+  it('says nothing more than where it is going when prose is null: no stock description (ADR-030)', () => {
     const view = present(trace({ capabilityId: 'calendar.overview', prose: null }), registry, '/', words);
-    expect(view.body).toBe('Training and matches by day.');
+    expect(view.body).toBeNull();
+    // Asked what a screen is, the declared explanation is still the answer.
+    const asked = present(trace({ capabilityId: 'calendar.overview', prose: null, explanationRequest: true }), registry, '/', words);
+    expect(asked.body).toBe('Training and matches by day.');
   });
 
   it('prefers trace.prose over the declared refusal on a limit', () => {
@@ -618,7 +622,7 @@ describe('present — decide', () => {
 
   it('confirm asks before a decided move, offering that one place as the likely one', () => {
     const view = at(decided, 'confirm');
-    expect(view).toMatchObject({ tone: 'choose', destination: null, probable: true, title: 'Shall I open Calendar?' });
+    expect(view).toMatchObject({ tone: 'choose', destination: null, probable: true, title: 'Open Calendar?' });
     expect(view.choices.map((c) => c.route)).toEqual(['/calendar']);
   });
 
@@ -666,12 +670,12 @@ describe('present — item screens and repeated names', () => {
   it('answers a decided item screen with the list it is chosen from, and what to do there', () => {
     const view = present(trace({ capabilityId: 'players.stats' }), reg, '/', words);
     expect(view.destination).toBeNull();
-    expect(view.body).toContain('open Players, choose the one you want');
-    expect(view.choices).toEqual([{ label: 'Players', route: '/players', detail: 'Choose one there to see its Player stats.' }]);
+    expect(view.body).toBe('Open Players and pick one.');
+    expect(view.choices).toEqual([{ label: 'Players', route: '/players', detail: 'Pick one to see its Player stats.' }]);
   });
 
   it('still fills the item when the page names it, and says so plainly when nothing lists it', () => {
-    expect(present(trace({ capabilityId: 'players.stats' }), reg, '/players/7/stats', words).title).toMatch(/already on/);
+    expect(present(trace({ capabilityId: 'players.stats' }), reg, '/players/7/stats', words).title).toBe('You’re on Player stats');
     const orphan = present(trace({ capabilityId: 'orphan.item' }), reg, '/', words);
     expect(orphan.body).toContain(words.needsItem);
     expect(orphan.choices).toEqual([]);
@@ -679,7 +683,7 @@ describe('present — item screens and repeated names', () => {
 
   it('offers the list for an item screen it is asking about, instead of dropping it', () => {
     const view = present(trace({ outcome: 'clarify', candidates: [{ capabilityId: 'players.stats', score: 0.4 }, { capabilityId: 'finance', score: 0.1 }] }), reg, '/', words);
-    expect(view.choices[0]).toEqual({ label: 'Players', route: '/players', detail: 'Choose one there to see its Player stats.' });
+    expect(view.choices[0]).toEqual({ label: 'Players', route: '/players', detail: 'Pick one to see its Player stats.' });
     expect(view.probable).toBe(true);
   });
 
@@ -687,5 +691,85 @@ describe('present — item screens and repeated names', () => {
     const view = present(trace({ outcome: 'clarify', candidates: [{ capabilityId: 'finance.settings', score: 0.3 }, { capabilityId: 'squad.settings', score: 0.28 }] }), reg, '/', words);
     expect(view.choices.map((c) => c.label)).toEqual(['Settings · Finance', 'Settings · Squad']);
     expect(view.title).toBe(words.eitherOr('Settings · Finance', 'Settings · Squad'));
+  });
+});
+
+/** ADR-029: every destination is a path on this site before it becomes an href or a move. */
+describe('safeRoute', () => {
+  it('lets a path on this site through, query and hash included', () => {
+    for (const route of ['/', '/players', '/players/42/stats?tab=a#top', '/pt/portal', '/search?q=Ana%20%26%20Porto']) expect(safeRoute(route), route).toBe(route);
+  });
+
+  it('stops anything a browser would read as another site, or a script', () => {
+    for (const route of [
+      'javascript:alert(1)', 'https://evil.example/', '//evil.example/x', '/\\evil.example', '/\\\\evil.example', '/%5Cevil.example'.replace('%5C', '\\'),
+      ' /players', '/pla\u0000yers', '/players\n', 'players', '', null, undefined, 42, `/${'a'.repeat(3000)}`,
+    ]) expect(safeRoute(route), String(route)).toBeNull();
+  });
+
+  it('never offers an unsafe registry route, even when the router picked it', () => {
+    const evil = [{ id: 'evil', kind: 'navigate', route: '//evil.example', title: 'Evil', explanation: 'x' }];
+    const reg = { capabilities: evil, byId: new Map(evil.map((c) => [c.id, c])), boundaryIds: new Set() } as unknown as Registry;
+    // present() describes what the registry says; the widget filters it before it becomes a link or a move.
+    const view = present(trace({ capabilityId: 'evil' }), reg, '/', words);
+    expect(safeRoute(view.destination)).toBeNull();
+  });
+});
+
+/**
+ * ADR-030: a visitor reads one language — the page's. The app's words come in every language it ships
+ * (`translations`), and the assistant's own follow them; never a Portuguese screen name in an English
+ * sentence, or the other way round.
+ */
+describe('one language on screen', () => {
+  const caps = [
+    { id: 'pay', kind: 'navigate', route: '/pay', title: 'Pagamentos', explanation: 'Este ecrã mostra: Faturas.', translations: { en: { title: 'Payments', explanation: 'This screen shows: Invoices.' } } },
+    { id: 'news', kind: 'navigate', route: '/news', title: 'Notícias', explanation: 'Este ecrã mostra: Destaques.', translations: { en: { title: 'News' } } },
+    { id: 'no.money', kind: 'unsupported', route: null, title: 'Dinheiro', refusal: 'Não trato de pagamentos.', translations: { en: { title: 'Money', refusal: 'I don’t handle payments.' } } },
+    { id: 'no.law', kind: 'unsupported', route: null, title: 'Direito', refusal: 'Não dou conselhos legais.' },
+  ];
+  const reg = { language: 'pt-PT', capabilities: caps, byId: new Map(caps.map((c) => [c.id, c])), boundaryIds: new Set(['no.money', 'no.law']) } as unknown as Registry;
+
+  it('shows the page’s language when the app ships it, and the app’s own otherwise', () => {
+    expect(displayLanguage('en-GB', reg)).toBe('en');
+    expect(displayLanguage('pt', reg)).toBe('pt-PT');
+    // A language the app does not ship: English, the default, since the app has it…
+    expect(displayLanguage('fr', reg)).toBe('en');
+    // …and the app's own when it does not.
+    const ptOnly = { ...reg, capabilities: [caps[3]] } as unknown as Registry;
+    expect(displayLanguage('fr', ptOnly)).toBe('pt-PT');
+    expect(displayLanguage(null, reg)).toBe('pt-PT');
+    // A registry from before ADR-030 says nothing of its language: the page's, as it always was.
+    expect(displayLanguage('en', { ...reg, language: undefined } as unknown as Registry)).toBe('en');
+  });
+
+  it('reads each name, explanation and refusal in that language — and leaves out what it does not have', () => {
+    const en = inLanguage(reg, 'en');
+    expect(en.byId.get('pay')).toMatchObject({ title: 'Payments', explanation: 'This screen shows: Invoices.' });
+    // No English explanation: none, rather than the Portuguese one.
+    expect(en.byId.get('news')!.title).toBe('News');
+    expect(en.byId.get('news')!.explanation).toBeUndefined();
+    expect(en.byId.get('no.money')!.refusal).toBe('I don’t handle payments.');
+    expect(en.byId.get('no.law')!.refusal).toBeUndefined();
+    // Its own language, and a registry that names none, are returned as they are.
+    expect(inLanguage(reg, 'pt-PT')).toBe(reg);
+    expect(inLanguage(reg, 'pt')).toBe(reg);
+    expect(inLanguage(reg, 'en')).toBe(en);
+  });
+
+  it('answers wholly in English on an English page of a Portuguese app', () => {
+    const w = wordsFor(displayLanguage('en', reg));
+    const en = inLanguage(reg, 'en');
+    expect(present(trace({ capabilityId: 'pay' }), en, '/', w).title).toBe('Opening Payments');
+    const limit = present(trace({ outcome: 'out_of_scope', capabilityId: 'no.law' }), en, '/', w);
+    expect(`${limit.title} ${limit.body}`).not.toMatch(/Não|conselhos/);
+    expect(limit.body).toBe(w.limitFallback);
+    const asked = present(trace({ capabilityId: 'news', explanationRequest: true }), en, '/', w);
+    expect(asked.body).toBeNull();
+  });
+
+  it('never lets the router see a translation: its registry is untouched', () => {
+    inLanguage(reg, 'en');
+    expect(reg.byId.get('pay')!.title).toBe('Pagamentos');
   });
 });

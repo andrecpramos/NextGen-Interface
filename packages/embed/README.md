@@ -4,7 +4,7 @@
 with no build step, no module system, and no network call per turn.
 
 ```bash
-node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~51KB gzipped)
+node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~57KB gzipped)
 ```
 
 ```html
@@ -158,17 +158,17 @@ already has an assistant of its own, so a state can be linked to.
   the conversation fills the panel and scrolls, and the composer stays at the bottom. The
   greeting is the first message; the visitor's words appear on the right the moment they send
   them (as text, never as markup); a typing indicator shows while it works out an answer; the
-  answer arrives on the left with its "Why?" beneath. **When the router will not act it asks one
+  answer arrives on the left. **Less is more** ([ADR-030](../../.claude/decisions/ADR-030.md)): a move
+  says "Opening X" and nothing else — the screen says the rest. **When the router will not act it asks one
   question, never shows a menu** (ADR-026): when one screen is plainly ahead (its score at least 1.5
-  times the runner-up's, and not a declared limit close behind) or is the only match, "Are you looking
-  for X?" ("You can do that on X. Shall I open it?" for a task), with what it is for in the adopter's
-  own words, and "yes" takes it; when two are about as likely, "Do you mean X, or Y?", and "the second
-  one" or a detail ("the injury one") answers it. Never a third name, and never an invented purpose: a
-  screen with no declared purpose is a plain link. An answer that was a guess ends "Not what you meant?
-  Tell me a bit more", and a refusal ends with what the assistant can do instead. It is only ever a link
-  (`present.ts`); every turn is
-  kept. Under each answer is one quiet row: **Copy** (as plain text, where the browser has a
-  clipboard) and **Why?**. **Start over** (the ↺ in the header, always there)
+  times the runner-up's, and not a declared limit close behind) or is the only match, "Looking for X?"
+  ("That's in X. Open it?" for a task), with one line on what it is for in the adopter's own words, and
+  "yes" takes it; when two are about as likely, "X or Y?", and "the second one" or a detail ("the injury
+  one") answers it. Never a third name, and never an invented purpose: a screen with no declared purpose
+  is a plain link. A refusal that points nowhere ends with one short line on what it can do instead, so it
+  is never a dead end; nothing else carries a hint. It is only ever a link (`present.ts`); every turn is
+  kept. Nothing sits under an answer of its own — no "Why?", no Copy; an answer from the app's own
+  assistant carries its name and a **Copy**. **Start over** (the ↺ in the header, always there)
   returns to the greeting and drops any answer still being worked out; **↑ and ↓ in the composer**
   walk back through what was asked, only from an empty composer so they never overwrite what is
   being typed. A question and its answer sit closer together than one turn does to the next. The
@@ -187,15 +187,35 @@ already has an assistant of its own, so a state can be linked to.
   in view — beside the panel, and beside the full screen too — so the assistant has no menu.
   It still reads that navigation, never changing it: a visitor who is lost is offered up to
   three places to begin from it, in its own words.
-- **Why?** Every answer carries a native disclosure rendered from its own turn record: how
-  it was decided, how long it took, whether a model was called, and the candidates it
-  weighed with their scores. Rung A1's "explain its own decisions" — never model prose
-  (Rule 9).
+- **Why — for the adopter** ([ADR-030](../../.claude/decisions/ADR-030.md)). A visitor wants the
+  answer, not its mechanics, so none are shown. Every routed turn's record still exists (Rule 9) and
+  goes to the page as `nextgen:turn` — `{ trace }`: how it was decided, what it weighed and with what
+  scores, what the validator removed — for the adopter to log or build their own "why" from. The one
+  thing a visitor is told is ADR-017's: "Answered with help from a model", under a turn a model decided
+  or wrote.
+- **One language** ([ADR-030](../../.claude/decisions/ADR-030.md)). Everything on screen is in the
+  page's language — the assistant's words and the app's screen names and descriptions alike. The
+  registry carries the app's other languages (`translations`, from the kit's `languages`), and a
+  translation that lacks a description shows none rather than another language's. A page in a language
+  the app does not ship gets English where the app has it. `<html lang>` is followed live; an app that
+  switches language without touching it calls `handle.setLanguage('pt-PT')`.
 - **Guide.** When the registry declares steps for the screen the user lands on (WP-27),
   the orb walks them through it one step at a time, highlighting the field. The text is
   always shown, including when an anchor cannot be trusted (`anchor.ts` refuses rather
   than mispoints). ⚠️ The generated fixture registries declare no steps yet, so the
   preview does not show it.
+- **Starting what was asked** (`act.ts`, [ADR-031](../../.claude/decisions/ADR-031.md)). *"I want to
+  schedule an event"* ends with the event form open, not only on the calendar. Once there (or at once,
+  if the visitor already is), it reads the rendered page as a user does — each control by its
+  accessible name — and finds the one that starts the task ("New event", "Novo evento"). It **presses**
+  it only when the control can only open something: a link on this site, a tab, a control with
+  `aria-haspopup`/`aria-expanded`/`aria-controls`, or one the registry lists in `opens` (from the page's
+  source — `onClick={() => setOpen(true)}`, a `DialogTrigger` — or knowledge.json). Otherwise it
+  **points** (the guide's ring, *"Tap «New event» to start"*). A control that saves, sends, pays,
+  deletes or signs out is never pressed nor pointed at, nothing inside a form is touched, nothing is
+  typed, and two equally likely controls mean it does nothing. The panel makes way so the form can be
+  seen. The task crosses a full page load as a few content words in the arrival note, never the
+  question. Any framework, any app: it reads the page, not the source. `act: 'point' | 'off'` limits it.
 - **Travelling.** When a turn resolves to a destination the browser moves **at once** — never
   after the answer has been read aloud, never after an animation: "Opening Calendar" followed by
   nothing reads as broken (Pilot-A field report, P1-1). The panel stays open beside the new page
@@ -251,7 +271,7 @@ must be the marker, so a single word about the app ("I have no idea where the *c
 *book*…") makes it a question for the router. A leading greeting is let go and the rest is routed
 ("hi, where are my kids?"). When the visitor is lost it offers up to three places to begin, taken from
 the page's own navigation, in its own words, where the assistant can say what each is for. These turns
-have no `TurnTrace` — Rule 9 covers routed turns — and so no "Why?". A language other than these two gets
+have no `TurnTrace` — Rule 9 covers routed turns — and so no `nextgen:turn`. A language other than these two gets
 none of this: the visitor is routed, as before.
 
 **The app's own assistant** ([ADR-026](../../.claude/decisions/ADR-026.md), `companion`). An app that already
@@ -272,8 +292,8 @@ NextGen.start(base, role, {
 });
 ```
 
-Its answer appears in the conversation under its own name ("Answered by Assistente do clube"), with no
-"Why?" — this router did not decide it and cannot explain it (Rule 9). A declared limit on **acting** (a
+Its answer appears in the conversation under its own name ("Answered by Assistente do clube"), with a
+Copy — this router did not decide it and cannot explain it (Rule 9). A declared limit on **acting** (a
 payment, changing a record) is never handed over; it stays refused. If it declines, fails or says nothing,
 this assistant answers as it would have without it.
 

@@ -73,8 +73,6 @@ export interface Words {
   readonly confirmGo: (title: string) => string;
   /** The app's own search, offered for what no screen matched (`search`, ADR-027). */
   readonly searchFor: (query: string) => string;
-  /** Under an answer that was a guess: the way out is to say more, not to pick from a list. */
-  readonly notThat: string;
   /** What to say to small talk. It never refuses: `title` first, then the friendlier `body`. */
   readonly talk: Readonly<Record<Smalltalk, { readonly title: string; readonly body: string }>>;
   /** Follows the `help` body when there are real places to begin. */
@@ -110,7 +108,7 @@ export interface Words {
   /** Leads into where the adopter said the visitor can get help instead (`helpAt`). */
   readonly limitHelpHere: string;
   readonly limitFallback: string;
-  /** Under a refusal, so it is never a dead end: what the assistant *can* do for someone who is stuck. */
+  /** After a refusal that points nowhere, so it is never a dead end: one short line on what it *can* do. */
   readonly limitNext: string;
   readonly unsure: string;
   /** Nothing the visitor said matched anything in the app: say so, and offer places to begin. */
@@ -153,16 +151,15 @@ export interface Words {
   readonly copy: string;
   readonly copied: string;
   readonly copyFailed: string;
-  readonly why: string;
-  /** How a turn was decided, from `TurnTrace.decidedAt` and its total latency. */
-  readonly whyHow: (stage: string, ms: number | null) => string;
-  readonly whyConsidered: string;
-  readonly whyChosen: string;
   /**
-   * ADR-019 (WP-53). A count only — never the removed text itself, which was judged
-   * unsafe or unverifiable to show and stays that way here.
+   * Under an answer a model decided or wrote (ADR-017's disclosure, kept when "Why?" went — ADR-030).
+   * The only mechanics a visitor is shown; the rest of the turn's record goes to the page (`nextgen:turn`).
    */
-  readonly whyRemoved: (n: number) => string;
+  readonly byModel: string;
+  /** Announced when it pressed the control that starts what was asked (ADR-031). */
+  readonly opened: (name: string) => string;
+  /** Beside a control it points at rather than presses: the visitor's tap. */
+  readonly tapToStart: (name: string) => string;
   readonly guideLabel: string;
   readonly guideStep: (n: number, total: number) => string;
   readonly guideBack: string;
@@ -177,28 +174,27 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     submit: 'Ask',
     thinking: 'Looking…',
     going: (title) => `Opening ${title}`,
-    alreadyHere: (title) => `You are already on ${title}`,
+    alreadyHere: (title) => `You’re on ${title}`,
     open: (title) => `Open ${title}`,
-    probably: (title) => `Are you looking for ${title}?`,
-    probablyTask: (title) => `You can do that on ${title}. Shall I open it?`,
-    eitherOr: (a, b) => `Do you mean ${a}, or ${b}?`,
-    confirmGo: (title) => `Shall I open ${title}?`,
+    probably: (title) => `Looking for ${title}?`,
+    probablyTask: (title) => `That’s in ${title}. Open it?`,
+    eitherOr: (a, b) => `${a} or ${b}?`,
+    confirmGo: (title) => `Open ${title}?`,
     searchFor: (query) => `Search for “${query}”`,
-    notThat: 'Not what you meant? Tell me a bit more about what you want to do.',
     talk: {
-      greeting: { title: 'Hi! How can I help?', body: 'Tell me what you want to do, in your own words, and I’ll take you there.' },
-      thanks: { title: 'You’re welcome!', body: 'Anything else you’d like to do?' },
-      goodbye: { title: 'Bye for now!', body: 'I’m here whenever you need to find something.' },
-      howAreYou: { title: 'Doing well, thanks!', body: 'What would you like to do here?' },
-      identity: { title: 'I’m this app’s assistant.', body: 'I can take you to any screen and tell you what it’s for. I don’t change anything myself.' },
-      help: { title: 'Here’s how I can help.', body: 'Say what you want to do, in your own words, and I’ll take you to the right screen and explain what to do there.' },
-      ok: { title: 'Okay.', body: 'Tell me what you’d like to do whenever you’re ready.' },
-      thisPage: { title: 'About this page', body: 'I don’t have a description of this page, but I can take you anywhere in the app. Tell me what you want to do.' },
+      greeting: { title: 'Hi. What do you need?', body: '' },
+      thanks: { title: 'You’re welcome.', body: '' },
+      goodbye: { title: 'Bye.', body: '' },
+      howAreYou: { title: 'All good. What do you need?', body: '' },
+      identity: { title: 'I’m this app’s assistant.', body: 'I take you to the right screen. I don’t change anything.' },
+      help: { title: 'Tell me what you need.', body: 'I’ll take you to the right screen.' },
+      ok: { title: 'Okay.', body: '' },
+      thisPage: { title: 'I have no description of this page.', body: '' },
     },
-    helpStart: 'Not sure where to start? Try one of these:',
+    helpStart: 'Start here:',
     followUp: {
-      which: 'Which one? Say “the first” or “the second”, or tap it.',
-      neither: { title: 'No problem.', body: 'Tell me a bit more about what you want to do, in your own words.' },
+      which: 'Which one?',
+      neither: { title: 'Okay.', body: 'Tell me more.' },
     },
     attach: 'Attach a photo or file',
     attachCamera: 'Take a photo',
@@ -208,26 +204,26 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     attachTooLarge: (megabytes) => `That file is too large. The most is ${megabytes} MB.`,
     attachUnsupported: 'That kind of file can’t be attached. Photos, PDFs and common documents can.',
     attachEmpty: 'That file is empty.',
-    attachKept: 'Your attachment stays on this device. I can’t read it, but you can add it on that page.',
-    attachHanded: 'I’ve passed your attachment to the app.',
+    attachKept: 'I can’t read it, and it stays on this device. Add it on that page.',
+    attachHanded: 'File sent to the app.',
     attachOnly: {
-      title: 'Thanks — I’ve got it.',
-      body: 'I can’t read attachments, and nothing leaves your device. Tell me what you want to do with it and I’ll take you where it goes.',
+      title: 'Got it.',
+      body: 'I can’t read files, and nothing leaves your device. What do you want to do with it?',
     },
-    limitTitle: 'I can’t help with that here',
-    limitDoTitle: 'I can’t do that for you',
-    limitDoHere: 'You can do it yourself here:',
-    limitHelpHere: 'This can help:',
-    limitFallback: 'I can take you anywhere in this application and explain what you find there.',
-    limitNext: 'I can help you find your way around this app. Tell me what you’re trying to do.',
-    unsure: 'I did not understand that. Could you say it another way?',
-    unsureHelp: 'I’m not sure what you’re after. Tell me what you want to do, or start with one of these:',
-    needsItem: 'This page is about one specific item. Open that item in the application, then ask again.',
-    needsItemFrom: (list) => `This page is about one specific item: open ${list}, choose the one you want, and you will find it there.`,
-    fromList: (screen) => `Choose one there to see its ${screen}.`,
-    error: 'Something went wrong. Nothing was changed.',
-    greeting: 'Ready when you are.',
-    greetingHint: 'Say what you want to do, in your own words, and I’ll take you to the right screen.',
+    limitTitle: 'I can’t help with that.',
+    limitDoTitle: 'I can’t do that for you.',
+    limitDoHere: 'Do it here:',
+    limitHelpHere: 'Try here:',
+    limitFallback: 'I can take you to any screen in this app.',
+    limitNext: 'Ask me where to find something else.',
+    unsure: 'I didn’t get that. Try other words.',
+    unsureHelp: 'Not sure what you need. Start here:',
+    needsItem: 'Open the item first, then ask again.',
+    needsItemFrom: (list) => `Open ${list} and pick one.`,
+    fromList: (screen) => `Pick one to see its ${screen}.`,
+    error: 'Something went wrong. Nothing changed.',
+    greeting: 'What do you need?',
+    greetingHint: 'Say it in your own words. I’ll take you to the right screen.',
     composer: 'Ask anything about this app',
     composerShort: 'Ask anything',
     openAssistant: 'Open the assistant',
@@ -250,18 +246,9 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     copy: 'Copy',
     copied: 'Copied',
     copyFailed: 'Could not copy',
-    why: 'Why?',
-    whyHow: (stage, ms) => {
-      const how =
-        stage === 'deterministic' ? 'by an exact match'
-          : stage === 'embedding' ? 'by similarity to what this app declares'
-            : stage === 'llm' ? 'with the help of a model'
-              : 'without reaching a decision';
-      return `Decided ${how}${ms === null ? '' : ` in ${ms} ms`}${stage === 'llm' ? '' : ', with no model call'}.`;
-    },
-    whyConsidered: 'What it considered',
-    whyChosen: 'chosen',
-    whyRemoved: (n) => (n === 1 ? 'Part of the answer was left out because it could not be checked.' : `${n} parts of the answer were left out because they could not be checked.`),
+    byModel: 'Answered with help from a model.',
+    opened: (name) => `Opened “${name}”.`,
+    tapToStart: (name) => `Tap “${name}” to start.`,
     guideLabel: 'Guide',
     guideStep: (n, total) => `Step ${n} of ${total}`,
     guideBack: 'Back',
@@ -277,25 +264,24 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     alreadyHere: (title) => `Já está em ${title}`,
     open: (title) => `Abrir ${title}`,
     probably: (title) => `Procura ${title}?`,
-    probablyTask: (title) => `Pode fazer isso em ${title}. Quer que abra?`,
-    eitherOr: (a, b) => `Refere-se a ${a}, ou a ${b}?`,
-    confirmGo: (title) => `Quer que abra ${title}?`,
+    probablyTask: (title) => `Isso faz-se em ${title}. Abrir?`,
+    eitherOr: (a, b) => `${a} ou ${b}?`,
+    confirmGo: (title) => `Abrir ${title}?`,
     searchFor: (query) => `Pesquisar «${query}»`,
-    notThat: 'Não era isto? Diga-me um pouco mais sobre o que quer fazer.',
     talk: {
-      greeting: { title: 'Olá! Como posso ajudar?', body: 'Diga-me o que quer fazer, por palavras suas, e eu levo-o lá.' },
-      thanks: { title: 'De nada!', body: 'Precisa de mais alguma coisa?' },
-      goodbye: { title: 'Até já!', body: 'Estou aqui sempre que precisar de encontrar algo.' },
-      howAreYou: { title: 'Tudo bem por aqui!', body: 'O que gostaria de fazer?' },
-      identity: { title: 'Sou o assistente desta aplicação.', body: 'Levo-o a qualquer ecrã e explico para que serve. Não altero nada por conta própria.' },
-      help: { title: 'Posso ajudar assim.', body: 'Diga o que quer fazer, por palavras suas, e eu levo-o ao ecrã certo e explico o que fazer lá.' },
-      ok: { title: 'Certo.', body: 'Diga-me o que quer fazer quando quiser.' },
-      thisPage: { title: 'Sobre esta página', body: 'Não tenho uma descrição desta página, mas posso levá-lo a qualquer ecrã da aplicação. Diga-me o que quer fazer.' },
+      greeting: { title: 'Olá. Do que precisa?', body: '' },
+      thanks: { title: 'De nada.', body: '' },
+      goodbye: { title: 'Até já.', body: '' },
+      howAreYou: { title: 'Tudo bem. Do que precisa?', body: '' },
+      identity: { title: 'Sou o assistente desta aplicação.', body: 'Levo-o ao ecrã certo. Não altero nada.' },
+      help: { title: 'Diga do que precisa.', body: 'Levo-o ao ecrã certo.' },
+      ok: { title: 'Certo.', body: '' },
+      thisPage: { title: 'Não tenho descrição desta página.', body: '' },
     },
-    helpStart: 'Sem saber por onde começar? Experimente um destes:',
+    helpStart: 'Comece aqui:',
     followUp: {
-      which: 'Qual deles? Diga «o primeiro» ou «o segundo», ou toque nele.',
-      neither: { title: 'Sem problema.', body: 'Diga-me um pouco mais sobre o que quer fazer, por palavras suas.' },
+      which: 'Qual deles?',
+      neither: { title: 'Certo.', body: 'Diga-me mais.' },
     },
     attach: 'Anexar uma foto ou ficheiro',
     attachCamera: 'Tirar uma fotografia',
@@ -305,26 +291,26 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     attachTooLarge: (megabytes) => `Esse ficheiro é demasiado grande. O máximo é ${megabytes} MB.`,
     attachUnsupported: 'Esse tipo de ficheiro não pode ser anexado. Fotos, PDF e documentos comuns podem.',
     attachEmpty: 'Esse ficheiro está vazio.',
-    attachKept: 'O seu anexo fica neste dispositivo. Não o consigo ler, mas pode juntá-lo nessa página.',
-    attachHanded: 'Passei o seu anexo à aplicação.',
+    attachKept: 'Não o consigo ler, e fica neste dispositivo. Junte-o nessa página.',
+    attachHanded: 'Ficheiro enviado para a aplicação.',
     attachOnly: {
-      title: 'Obrigado — já recebi.',
-      body: 'Não consigo ler anexos, e nada sai do seu dispositivo. Diga-me o que quer fazer com isto e eu levo-o onde deve ir.',
+      title: 'Recebido.',
+      body: 'Não consigo ler ficheiros, e nada sai do seu dispositivo. O que quer fazer com ele?',
     },
-    limitTitle: 'Não consigo ajudar com isso aqui',
-    limitDoTitle: 'Não posso fazer isso por si',
-    limitDoHere: 'Pode fazê-lo aqui:',
-    limitHelpHere: 'Isto pode ajudar:',
-    limitFallback: 'Posso levá-lo a qualquer ecrã desta aplicação e explicar o que lá encontra.',
-    limitNext: 'Posso ajudá-lo a encontrar o que precisa nesta aplicação. Diga-me o que está a tentar fazer.',
-    unsure: 'Não percebi. Pode dizer de outra forma?',
-    unsureHelp: 'Não tenho a certeza do que procura. Diga-me o que quer fazer, ou comece por um destes:',
-    needsItem: 'Esta página é sobre um item concreto. Abra-o na aplicação e pergunte de novo.',
-    needsItemFrom: (list) => `Esta página é sobre um item concreto: abra ${list}, escolha o que procura, e encontra-a lá.`,
-    fromList: (screen) => `Escolha um aí para ver ${screen}.`,
+    limitTitle: 'Não posso ajudar com isso.',
+    limitDoTitle: 'Não posso fazer isso por si.',
+    limitDoHere: 'Faça-o aqui:',
+    limitHelpHere: 'Veja aqui:',
+    limitFallback: 'Posso levá-lo a qualquer ecrã desta aplicação.',
+    limitNext: 'Pergunte-me onde encontrar outra coisa.',
+    unsure: 'Não percebi. Tente outras palavras.',
+    unsureHelp: 'Não percebi do que precisa. Comece aqui:',
+    needsItem: 'Abra primeiro o item e pergunte de novo.',
+    needsItemFrom: (list) => `Abra ${list} e escolha um.`,
+    fromList: (screen) => `Escolha um para ver ${screen}.`,
     error: 'Algo correu mal. Nada foi alterado.',
-    greeting: 'Pronto quando quiser.',
-    greetingHint: 'Diga o que quer fazer, por palavras suas, e eu levo-o ao ecrã certo.',
+    greeting: 'Do que precisa?',
+    greetingHint: 'Diga por palavras suas. Eu levo-o ao ecrã certo.',
     composer: 'Pergunte algo sobre esta aplicação',
     composerShort: 'Pergunte algo',
     openAssistant: 'Abrir o assistente',
@@ -347,18 +333,9 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     copy: 'Copiar',
     copied: 'Copiado',
     copyFailed: 'Não foi possível copiar',
-    why: 'Porquê?',
-    whyHow: (stage, ms) => {
-      const how =
-        stage === 'deterministic' ? 'por correspondência exata'
-          : stage === 'embedding' ? 'por semelhança com o que esta aplicação declara'
-            : stage === 'llm' ? 'com a ajuda de um modelo'
-              : 'sem chegar a uma decisão';
-      return `Decidido ${how}${ms === null ? '' : ` em ${ms} ms`}${stage === 'llm' ? '' : ', sem chamar nenhum modelo'}.`;
-    },
-    whyConsidered: 'O que considerou',
-    whyChosen: 'escolhido',
-    whyRemoved: (n) => (n === 1 ? 'Parte da resposta foi omitida por não ter sido possível confirmá-la.' : `${n} partes da resposta foram omitidas por não ter sido possível confirmá-las.`),
+    byModel: 'Respondido com a ajuda de um modelo.',
+    opened: (name) => `Abri «${name}».`,
+    tapToStart: (name) => `Toque em «${name}» para começar.`,
     guideLabel: 'Guia',
     guideStep: (n, total) => `Passo ${n} de ${total}`,
     guideBack: 'Anterior',
@@ -376,11 +353,87 @@ export function wordsFor(lang: string | null | undefined): Words {
   return lang?.toLowerCase().startsWith('pt') ? WORDS.pt : WORDS.en;
 }
 
+const primaryTag = (tag: string): string => tag.toLowerCase().split(/[-_]/)[0]!;
+
+/** `tag` itself among `tags`, else the same language ("pt" for "pt-PT", "pt-BR" for "pt"), else null. */
+function matchTag(tag: string, tags: Iterable<string>): string | null {
+  const all = [...tags];
+  return all.find((t) => t.toLowerCase() === tag.toLowerCase()) ?? all.find((t) => primaryTag(t) === primaryTag(tag)) ?? null;
+}
+
+/**
+ * The one language a visitor reads (ADR-030): the page's, when the registry has the app's words in it;
+ * otherwise English, the default, if the app ships it; otherwise the registry's own — so the assistant's
+ * words and the app's are never two languages at once.
+ * A registry with no `language` (written before ADR-030) is taken to be in the page's.
+ */
+export function displayLanguage(pageLang: string | null | undefined, registry: Registry): string {
+  const own = registry.language;
+  if (!own) return pageLang || 'en';
+  if (!pageLang) return own;
+  const offered = new Set<string>([own]);
+  for (const c of registry.capabilities) for (const tag of Object.keys(c.translations ?? {})) offered.add(tag);
+  // A page in a language the app does not ship: English, the default, where the app has it.
+  return matchTag(pageLang, offered) ?? matchTag('en', offered) ?? own;
+}
+
+const localized = new WeakMap<Registry, Map<string, Registry>>();
+
+/**
+ * The registry as a visitor reading `lang` sees it: each capability's `title`, `explanation` and `refusal`
+ * in that language (ADR-030). What a translation does not have is left out rather than shown in another
+ * language — except a name, which is a name in any language. Display only: the router keeps the registry
+ * it was given, so no decision and no score changes. Built once per language.
+ */
+export function inLanguage(registry: Registry, lang: string): Registry {
+  // Already in it: the registry's own language, or one it does not name.
+  if (!registry.language || matchTag(lang, [registry.language])) return registry;
+  let views = localized.get(registry);
+  if (!views) localized.set(registry, (views = new Map()));
+  const cached = views.get(lang);
+  if (cached) return cached;
+  const capabilities = registry.capabilities.map((c): Capability => {
+    const tag = matchTag(lang, Object.keys(c.translations ?? {}));
+    const text = tag ? c.translations![tag] : undefined;
+    const { explanation: _explanation, refusal: _refusal, ...rest } = c;
+    return {
+      ...rest,
+      title: text?.title ?? c.title,
+      ...(text?.explanation ? { explanation: text.explanation } : {}),
+      ...(text?.refusal ? { refusal: text.refusal } : {}),
+    };
+  });
+  const view: Registry = { ...registry, language: lang, capabilities, byId: new Map(capabilities.map((c) => [c.id, c])) };
+  views.set(lang, view);
+  return view;
+}
+
 const strip = (path: string): string => path.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
 
 /** What the page knows about a parameter that its URL does not say. Only a locale, for now. */
 export interface ParamHints {
   readonly locale?: string | undefined;
+}
+
+/**
+ * A route the assistant may link to or move the browser to: a path on this site, and nothing that a
+ * browser would read as another one. Every destination passes here before it becomes an `href` or a
+ * move (ADR-029) — the registry's routes, parameters filled from the URL, the search template, the home
+ * route, the app's own navigation — so a value that went wrong anywhere upstream is a missing link, never
+ * an open redirect or a script URL. Browsers read `/\evil.example` as `//evil.example`; a control
+ * character can hide either. `null` when it is not safe.
+ */
+export function safeRoute(route: unknown): string | null {
+  if (typeof route !== 'string' || route.length === 0 || route.length > 2048) return null;
+  if (!route.startsWith('/') || route.startsWith('//') || route.includes('\\')) return null;
+  if (/[\u0000-\u001f\u007f]/.test(route)) return null;
+  try {
+    // Only compared, never requested; loopback, so Rule 8's gate agrees.
+    const base = 'http://localhost';
+    return new URL(route, base).origin === base ? route : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Moving to where you already are only breaks the back button. */
@@ -554,8 +607,9 @@ function clearlyLeads(candidates: TurnTrace['candidates']): boolean {
 export function gist(text: string | null | undefined): string | null {
   const first = (text ?? '').trim().split(/(?<=[.!?…])\s+/)[0]?.trim() ?? '';
   if (!first) return null;
-  if (first.length <= 140) return first;
-  return `${first.slice(0, 140).replace(/\s+\S*$/, '')}…`;
+  // One line under a name, not a paragraph: enough to tell two places apart.
+  if (first.length <= 90) return first;
+  return `${first.slice(0, 90).replace(/\s+\S*$/, '')}…`;
 }
 
 /**
@@ -586,7 +640,7 @@ export function smalltalkView(
       const route = fillParams(c.route, currentPath, patterns, hints);
       return route !== null && isSamePlace(route, currentPath);
     });
-    if (here) return { tone: 'explain', title: words.here(here.title), body: here.explanation ?? here.description ?? null, destination: null, choices: [] };
+    if (here) return { tone: 'explain', title: words.here(here.title), body: here.explanation ?? null, destination: null, choices: [] };
     // A page the registry does not know: say so, and offer places to go rather than guess.
     const choices = starts.length > 0 ? starts.slice(0, 3) : suggestionsFor(registry, currentPath, 3, hints);
     return { tone: 'chat', title: say.title, body: say.body, destination: null, choices };
@@ -629,7 +683,7 @@ export function followUpView(
   }
   const chosen = choices[index];
   if (!chosen) return null;
-  return { tone: 'go', title: words.going(chosen.label), body: chosen.detail ?? null, destination: chosen.route, choices: [] };
+  return { tone: 'go', title: words.going(chosen.label), body: null, destination: chosen.route, choices: [] };
 }
 
 /**
@@ -800,7 +854,7 @@ export function present(
     // The adopter asked for fewer questions (ADR-027): a plain leader is taken, not asked about. A lone
     // weak match is still asked — "eager" moves on a leader, never on the only straw there is.
     if (decide === 'eager' && leads && !trace.prose) {
-      return { tone: 'go', title: words.going(first.label), body: first.detail ?? null, destination: first.route, choices: [] };
+      return { tone: 'go', title: words.going(first.label), body: null, destination: first.route, choices: [] };
     }
     if (!second || leads) {
       const title = isActionRequest(String(trace.utterance ?? '')) ? words.probablyTask(first.label) : words.probably(first.label);
@@ -830,13 +884,13 @@ export function present(
     return {
       tone: 'explain',
       title: capability.title,
-      body: body ? `${body} ${through}` : through,
+      body: through,
       destination: null,
       choices: list ? [{ label: list.capability.title, route: list.route, detail: words.fromList(capability.title) }] : [],
     };
   }
   if (isSamePlace(route, currentPath)) {
-    return { tone: 'explain', title: words.alreadyHere(capability.title), body, destination: null, choices: [] };
+    return { tone: 'explain', title: words.alreadyHere(capability.title), body: null, destination: null, choices: [] };
   }
   // The adopter asked for nothing to move without a yes (ADR-027): the decision is offered, and "yes",
   // "sim" or a tap takes it (followup.ts).
@@ -851,5 +905,7 @@ export function present(
       probable: true,
     };
   }
-  return { tone: 'go', title: words.going(capability.title), body, destination: route, choices: [] };
+  // Moving is the answer: "Opening X", and the screen itself says the rest — not its stock description
+  // (ADR-030). What a model wrote in reply to the question is an answer, and stays (ADR-019).
+  return { tone: 'go', title: words.going(capability.title), body: trace.prose ?? null, destination: route, choices: [] };
 }

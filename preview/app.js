@@ -52,6 +52,24 @@ const companion = params.has('companion')
   : undefined;
 
 window.addEventListener('nextgen:learn', (event) => console.info('[bench] lesson:', JSON.stringify(event.detail)));
+// Each turn's record (ADR-030): the adopter's "why", in the console.
+window.addEventListener('nextgen:turn', (event) => console.info('[bench] turn:', event.detail.trace));
+
+// The mock app's own "New …" control (ADR-031): it only opens a form, as most apps' do — and says so with
+// aria-haspopup, so the assistant may press it for a visitor who asked to start one.
+const newItem = document.getElementById('new-item');
+const newDialog = document.getElementById('new-dialog');
+if (newItem && newDialog) {
+  const title = document.querySelector('h1')?.textContent?.trim() ?? '';
+  // A page the mock names only by its path has nothing to make.
+  if (title.startsWith('/')) newItem.hidden = true;
+  newItem.textContent = `${pt ? 'Novo' : 'New'} ${title.toLowerCase()}`;
+  newDialog.querySelector('.dialog-title').textContent = newItem.textContent;
+  newItem.addEventListener('click', () => {
+    newDialog.showModal();
+    newDialog.querySelector('input')?.focus();
+  });
+}
 
 NextGen.start('/nextgen', role, {
   attach: true,

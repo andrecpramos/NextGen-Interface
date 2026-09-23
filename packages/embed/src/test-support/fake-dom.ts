@@ -107,6 +107,10 @@ export class FakeElement {
   removeEventListener(type: string, listener: Listener): void {
     this.listeners.set(type, (this.listeners.get(type) ?? []).filter((l) => l !== listener));
   }
+  /** As `HTMLElement.click()`: a click, as if pressed. */
+  click(): void {
+    this.fire('click');
+  }
   fire(type: string, extra: Partial<FakeEvent> = {}): FakeEvent {
     let prevented = false;
     const event: FakeEvent = {

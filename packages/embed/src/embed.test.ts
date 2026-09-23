@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import vm from 'node:vm';
@@ -95,5 +96,33 @@ describe('the script-tag artefact (WP-29)', () => {
     // The router is pure arithmetic over shipped vectors, so this should be a
     // few tens of KB. The index is fetched separately and measured in WP-24.
     expect(gz).toBeLessThan(60 * 1024);
+  });
+});
+
+/**
+ * ADR-029: the widget writes markup into someone else's page. The one place it may is `glyph()`, and
+ * only a compiled-in `ICON_` constant reaches it. Anything a registry, a page or a visitor supplies
+ * is `textContent`. A new HTML sink, or an icon argument that is not a constant, fails here.
+ */
+describe('what reaches markup', () => {
+  const SRC = fileURLToPath(new URL('.', import.meta.url));
+  const sources = readdirSync(SRC)
+    .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.endsWith('.check.ts'))
+    .map((f) => ({ file: f, text: readFileSync(join(SRC, f), 'utf8') }));
+
+  it('has one HTML sink, and it is the icon glyph', () => {
+    const sinks = sources.flatMap(({ file, text }) =>
+      [...text.matchAll(/\.(?:innerHTML|outerHTML)\s*=|insertAdjacentHTML|document\.write|\beval\(|new Function\(/g)].map(
+        (m) => `${file}: ${text.slice(m.index, text.indexOf('\n', m.index)).trim()}`,
+      ),
+    );
+    expect(sinks).toEqual(['assistant.ts: .innerHTML = icon;']);
+  });
+
+  it('hands the glyph only compiled-in icons', () => {
+    const assistant = sources.find((s) => s.file === 'assistant.ts')!.text;
+    const icons = [...assistant.matchAll(/\b(?:glyph|iconButton)\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)].map((m) => m[1]!.split(',').at(-1)!.trim());
+    expect(icons.length).toBeGreaterThan(5);
+    for (const icon of icons) expect(icon, icon).toMatch(/^(?:ICON_[A-Z_]+|icon)$/);
   });
 });
