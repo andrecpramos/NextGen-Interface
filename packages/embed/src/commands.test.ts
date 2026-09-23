@@ -14,7 +14,10 @@ import { commandFor, normalise } from './commands.ts';
 describe('commandFor', () => {
   it('hears the short things a visitor says to the assistant itself', () => {
     expect(commandFor('Fechar', 'pt-PT')).toBe('close');
-    expect(commandFor('abre o menu', 'pt-PT')).toBe('menu');
+    expect(commandFor('Visita guiada', 'pt-PT')).toBe('tour');
+    expect(commandFor('show me around', 'en')).toBe('tour');
+    // There is no menu of the assistant's own any more: "menu" is a question (ADR-026).
+    expect(commandFor('abre o menu', 'pt-PT')).toBeNull();
     expect(commandFor('voltar atrás', 'pt-PT')).toBe('back');
     expect(commandFor('Voltar ao início', 'pt-PT')).toBe('home');
     expect(commandFor('cala-te', 'pt-PT')).toBe('stop');

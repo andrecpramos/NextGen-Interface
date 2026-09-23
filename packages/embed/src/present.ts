@@ -16,12 +16,12 @@
 //    already chosen for themselves. Otherwise the widget explains and stays put.
 
 import { isLocaleParam } from '@nextgen/core-capability';
-import { isActionRequest, type Registry, type TurnTrace } from '@nextgen/core-intent/browser';
+import { isActionRequest, type Capability, type Registry, type TurnTrace } from '@nextgen/core-intent/browser';
 
 import type { Smalltalk } from './chat.ts';
 import type { FollowUp } from './followup.ts';
 
-export type Tone = 'go' | 'explain' | 'choose' | 'limit' | 'unsure' | 'chat';
+export type Tone = 'go' | 'explain' | 'choose' | 'limit' | 'unsure' | 'chat' | 'answer';
 
 export interface Choice {
   readonly label: string;
@@ -48,6 +48,11 @@ export interface View {
   readonly probable?: boolean;
   /** One quiet line under the answer — what happened to something the visitor attached. */
   readonly note?: string;
+  /**
+   * Set on an `answer`: the adopter's own assistant wrote it, not this one (ADR-026). Shown under the
+   * answer, so it is never mistaken for something this assistant decided or checked.
+   */
+  readonly from?: string;
 }
 
 export interface Words {
@@ -58,14 +63,16 @@ export interface Words {
   readonly going: (title: string) => string;
   readonly alreadyHere: (title: string) => string;
   readonly open: (title: string) => string;
-  /** Introduces what could not be settled: one place, or two. Never more — see `OFFERED`. */
-  readonly couldHelp: (n: number) => string;
-  /** One screen is plainly ahead: "You probably want X." */
+  /** One screen is plainly ahead, or is the only one: ask about it — "Are you looking for X?" */
   readonly probably: (title: string) => string;
   /** The same, when what was asked is a task ("book a training"), not a where. */
   readonly probablyTask: (title: string) => string;
-  /** Introduces the alternative beneath the likely one. */
-  readonly orElse: string;
+  /** Two screens are about as likely: one question, never a list — "X or Y?" (ADR-026). */
+  readonly eitherOr: (a: string, b: string) => string;
+  /** A decided move, asked first because the adopter set `decide: 'confirm'` (ADR-027). */
+  readonly confirmGo: (title: string) => string;
+  /** The app's own search, offered for what no screen matched (`search`, ADR-027). */
+  readonly searchFor: (query: string) => string;
   /** Under an answer that was a guess: the way out is to say more, not to pick from a list. */
   readonly notThat: string;
   /** What to say to small talk. It never refuses: `title` first, then the friendlier `body`. */
@@ -109,6 +116,10 @@ export interface Words {
   /** Nothing the visitor said matched anything in the app: say so, and offer places to begin. */
   readonly unsureHelp: string;
   readonly needsItem: string;
+  /** The same, when the app has a screen listing those items: "open X, choose the one you want" (ADR-028). */
+  readonly needsItemFrom: (list: string) => string;
+  /** Under a list offered for an item screen: what to do there. */
+  readonly fromList: (screen: string) => string;
   readonly error: string;
   readonly greeting: string;
   /** Under the greeting, before anything is asked: what this is for, to someone who has never seen it. */
@@ -125,9 +136,18 @@ export interface Words {
   readonly voiceTypeInstead: string;
   readonly micDenied: string;
   readonly here: (title: string) => string;
-  readonly menu: string;
-  readonly closeMenu: string;
+  /** Make the panel fill the screen, and back. */
+  readonly expand: string;
+  readonly collapse: string;
   readonly readAloud: string;
+  /** The adopter's own assistant, when it does not give itself a name (ADR-026). */
+  readonly companion: string;
+  /** The button that opens the adopter's own assistant, with everything it does. */
+  readonly openCompanion: (name: string) => string;
+  /** Under an answer the adopter's own assistant wrote. */
+  readonly answeredBy: (name: string) => string;
+  /** Under a message whose attachment was passed to the adopter's own assistant. */
+  readonly attachToCompanion: (name: string) => string;
   /** Clears the conversation back to the greeting. */
   readonly startOver: string;
   readonly copy: string;
@@ -159,10 +179,11 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     going: (title) => `Opening ${title}`,
     alreadyHere: (title) => `You are already on ${title}`,
     open: (title) => `Open ${title}`,
-    couldHelp: (n) => (n === 1 ? 'This could help:' : 'Two places could help with that:'),
-    probably: (title) => `You probably want ${title}.`,
-    probablyTask: (title) => `You can probably do that on ${title}.`,
-    orElse: 'Or maybe:',
+    probably: (title) => `Are you looking for ${title}?`,
+    probablyTask: (title) => `You can do that on ${title}. Shall I open it?`,
+    eitherOr: (a, b) => `Do you mean ${a}, or ${b}?`,
+    confirmGo: (title) => `Shall I open ${title}?`,
+    searchFor: (query) => `Search for “${query}”`,
     notThat: 'Not what you meant? Tell me a bit more about what you want to do.',
     talk: {
       greeting: { title: 'Hi! How can I help?', body: 'Tell me what you want to do, in your own words, and I’ll take you there.' },
@@ -202,6 +223,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     unsure: 'I did not understand that. Could you say it another way?',
     unsureHelp: 'I’m not sure what you’re after. Tell me what you want to do, or start with one of these:',
     needsItem: 'This page is about one specific item. Open that item in the application, then ask again.',
+    needsItemFrom: (list) => `This page is about one specific item: open ${list}, choose the one you want, and you will find it there.`,
+    fromList: (screen) => `Choose one there to see its ${screen}.`,
     error: 'Something went wrong. Nothing was changed.',
     greeting: 'Ready when you are.',
     greetingHint: 'Say what you want to do, in your own words, and I’ll take you to the right screen.',
@@ -216,9 +239,13 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     voiceTypeInstead: 'Voice-to-text is not available on this device. Type your question instead.',
     micDenied: 'The microphone was not allowed.',
     here: (title) => `You are on ${title}`,
-    menu: 'Menu',
-    closeMenu: 'Close the menu',
+    expand: 'Full screen',
+    collapse: 'Smaller',
     readAloud: 'Read answers aloud',
+    companion: 'the app’s assistant',
+    openCompanion: (name) => `Open ${name}`,
+    answeredBy: (name) => `Answered by ${name}`,
+    attachToCompanion: (name) => `Your attachment went to ${name}.`,
     startOver: 'Start over',
     copy: 'Copy',
     copied: 'Copied',
@@ -249,10 +276,11 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     going: (title) => `A abrir ${title}`,
     alreadyHere: (title) => `Já está em ${title}`,
     open: (title) => `Abrir ${title}`,
-    couldHelp: (n) => (n === 1 ? 'Isto pode ajudar:' : 'Dois sítios podem ajudar:'),
-    probably: (title) => `Provavelmente quer ${title}.`,
-    probablyTask: (title) => `Provavelmente faz isso em ${title}.`,
-    orElse: 'Ou talvez:',
+    probably: (title) => `Procura ${title}?`,
+    probablyTask: (title) => `Pode fazer isso em ${title}. Quer que abra?`,
+    eitherOr: (a, b) => `Refere-se a ${a}, ou a ${b}?`,
+    confirmGo: (title) => `Quer que abra ${title}?`,
+    searchFor: (query) => `Pesquisar «${query}»`,
     notThat: 'Não era isto? Diga-me um pouco mais sobre o que quer fazer.',
     talk: {
       greeting: { title: 'Olá! Como posso ajudar?', body: 'Diga-me o que quer fazer, por palavras suas, e eu levo-o lá.' },
@@ -292,6 +320,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     unsure: 'Não percebi. Pode dizer de outra forma?',
     unsureHelp: 'Não tenho a certeza do que procura. Diga-me o que quer fazer, ou comece por um destes:',
     needsItem: 'Esta página é sobre um item concreto. Abra-o na aplicação e pergunte de novo.',
+    needsItemFrom: (list) => `Esta página é sobre um item concreto: abra ${list}, escolha o que procura, e encontra-a lá.`,
+    fromList: (screen) => `Escolha um aí para ver ${screen}.`,
     error: 'Algo correu mal. Nada foi alterado.',
     greeting: 'Pronto quando quiser.',
     greetingHint: 'Diga o que quer fazer, por palavras suas, e eu levo-o ao ecrã certo.',
@@ -306,9 +336,13 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     voiceTypeInstead: 'A conversão de voz em texto não está disponível neste dispositivo. Escreva a sua pergunta.',
     micDenied: 'O microfone não foi autorizado.',
     here: (title) => `Está em ${title}`,
-    menu: 'Menu',
-    closeMenu: 'Fechar o menu',
+    expand: 'Ecrã inteiro',
+    collapse: 'Mais pequeno',
     readAloud: 'Ler as respostas em voz alta',
+    companion: 'o assistente da aplicação',
+    openCompanion: (name) => `Abrir ${name}`,
+    answeredBy: (name) => `Respondido por ${name}`,
+    attachToCompanion: (name) => `O seu anexo foi para ${name}.`,
     startOver: 'Recomeçar',
     copy: 'Copiar',
     copied: 'Copiado',
@@ -333,7 +367,11 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
   },
 };
 
-/** The page's own language decides the widget's. The registry was written in it too. */
+/**
+ * The page's own language decides the widget's — the registry was written in it too. The widget speaks
+ * English (the default, for any page not in Portuguese) and Portuguese; an adopter can still replace any
+ * line through `words`.
+ */
 export function wordsFor(lang: string | null | undefined): Words {
   return lang?.toLowerCase().startsWith('pt') ? WORDS.pt : WORDS.en;
 }
@@ -409,6 +447,47 @@ export function fillParams(
 }
 
 /**
+ * The screen a visitor opens to reach an item-scoped one: `/players/:id/stats` is reached from `/players`.
+ * The capability whose route is the longest prefix of this one, cut before its first parameter that picks
+ * an item (a locale is not one), and that can be opened from here. `null` when the app declares none.
+ *
+ * In a complex app most screens are about one item — a player, an invoice, an order — and a visitor on a
+ * page that names none could only be told "open that item first" (ADR-028). The list is where they do.
+ */
+export function listFor(capability: Capability, registry: Registry, currentPath: string, patterns: readonly string[], hints: ParamHints = {}): { readonly capability: Capability; readonly route: string } | null {
+  const segments = (capability.route ?? '').split('/');
+  const cut = segments.findIndex((s) => s.startsWith(':') && !isLocaleParam(s.slice(1).replace(/\?$/, '')));
+  if (cut <= 0) return null;
+  const prefix = segments.slice(0, cut);
+  let best: { capability: Capability; route: string; length: number } | null = null;
+  for (const c of registry.capabilities) {
+    if (c.kind !== 'navigate' || !c.route || c.id === capability.id) continue;
+    const parts = c.route.split('/');
+    if (parts.length > prefix.length || parts.length < 2 || !parts.every((p, i) => p === prefix[i])) continue;
+    const route = fillParams(c.route, currentPath, patterns, hints);
+    if (!route || (best && best.length >= parts.length)) continue;
+    best = { capability: c, route, length: parts.length };
+  }
+  return best ? { capability: best.capability, route: best.route } : null;
+}
+
+/**
+ * Where a screen sits, in the app's own words: the title of the screen above it (`/finance/settings` sits
+ * under `/finance`, "Finanças"), else its route's first segment. How two screens with one name — the
+ * "Settings" of Finance and the "Settings" of Squad — are told apart when both are offered.
+ */
+export function areaOf(capability: Capability, registry: Registry): string | null {
+  const segments = (capability.route ?? '').split('/').filter((s) => s && !s.startsWith(':'));
+  for (let n = segments.length - 1; n >= 1; n--) {
+    const prefix = `/${segments.slice(0, n).join('/')}`;
+    const parent = registry.capabilities.find((c) => c.kind === 'navigate' && c.route === prefix && c.id !== capability.id);
+    if (parent) return parent.title;
+  }
+  const first = segments[0];
+  return first ? first.charAt(0).toUpperCase() + first.slice(1).replace(/[-_]/g, ' ') : null;
+}
+
+/**
  * Places to offer before anything is asked: screens the user can go to from
  * here, in registry order. The same rules as a clarifying answer — no boundary,
  * no parameter the current page cannot fill, not the page they are already on.
@@ -452,6 +531,17 @@ const OFFERED = 2;
  * "the app cannot do that" as to a screen, it is a real question.
  */
 const LEAD_FLOOR = 0.15;
+
+/**
+ * No screen is even a likely one: every candidate is below the bar a leader must clear to be offered as
+ * one (`LEAD_FLOOR`) — "as likely unrelated as not" (ADR-025). On a content-heavy app, "fotos de Ana en
+ * Oporto" shares a stop-word or two with a screen and scores 0.05: that is not a match, and treating it as
+ * one offered two unrelated screens where the app's search, or its own assistant, was the answer
+ * (ADR-027). Not a new number: the same floor.
+ */
+export function barelyMatched(candidates: TurnTrace['candidates']): boolean {
+  return candidates.every((candidate) => candidate.score < LEAD_FLOOR);
+}
 const LEAD_RATIO = 1.5;
 
 function clearlyLeads(candidates: TurnTrace['candidates']): boolean {
@@ -553,6 +643,34 @@ export function attachmentView(handedToPage: boolean, words: Words): View {
 }
 
 /**
+ * The app's own search, as a place to offer (ADR-027): `template` is a path on this app with `{query}`
+ * where the words go — `/search?q={query}`. For an app whose content is people, posts and products
+ * rather than screens, "find Ana's photos from Porto" matches no screen, and the app's search is the
+ * honest answer. `null` for a template that is not a same-origin path with a `{query}` in it: an
+ * attribute or option must never become a link to somewhere else.
+ */
+export function searchChoice(template: string | null | undefined, query: string, words: Words): Choice | null {
+  const said = query.replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!template || !said || !template.startsWith('/') || template.startsWith('//') || !template.includes('{query}')) return null;
+  return { label: words.searchFor(said), route: template.replace('{query}', encodeURIComponent(said)) };
+}
+
+/**
+ * How readily the assistant moves the browser — the adopter's dial, not the router's (ADR-027). The
+ * router's calibrated decision is the same under all three; what changes is what is done with it:
+ *
+ * - `confirm`  never moves without a yes. Even a decided turn is asked: "Open Calendar?" — for an app
+ *              where a wrong page is costly, or visitors are wary.
+ * - `balanced` (default) moves when the router decided; asks one question when it did not.
+ * - `eager`    also moves when one place is plainly ahead (the likely-one bar, ADR-023) — fewer
+ *              questions, and sometimes a wrong page, which the visitor leaves with "not this".
+ *
+ * It never touches a limit, a refusal, or a turn where nothing matched.
+ */
+export type Decide = 'confirm' | 'balanced' | 'eager';
+export const DECIDE: readonly Decide[] = ['confirm', 'balanced', 'eager'];
+
+/**
  * `starts` are where to begin when nothing the visitor said matched anything — the app's own main
  * navigation when the page has one (see `smalltalkView`).
  */
@@ -563,6 +681,7 @@ export function present(
   words: Words,
   starts: readonly Choice[] = [],
   hints: ParamHints = {},
+  decide: Decide = 'balanced',
 ): View {
   const patterns = registry.capabilities.map((c) => c.route).filter((r): r is string => typeof r === 'string');
   const capability = trace.capabilityId ? registry.byId.get(trace.capabilityId) : undefined;
@@ -626,6 +745,8 @@ export function present(
     // it alone — validated the same as every other branch.
     const seen = new Set<string>();
     const choices: Choice[] = [];
+    /** The screen each choice opens, for telling two with one name apart. */
+    const owners: Capability[] = [];
     let offeredFirst: string | null = null;
     // A score of 0 is no evidence: nothing the visitor said appears anywhere in what the app says, and
     // the "best" screens are whichever came first. That is a ranking of nothing, not a suggestion.
@@ -633,14 +754,32 @@ export function present(
     for (const candidate of evidence) {
       const c = registry.byId.get(candidate.capabilityId);
       if (!c || c.kind === 'unsupported' || registry.boundaryIds.has(c.id)) continue;
-      const route = fillParams(c.route, currentPath, patterns, hints);
-      if (!route || seen.has(route)) continue;
+      let route = fillParams(c.route, currentPath, patterns, hints);
+      let owner = c;
+      // Every place says what it is for, so two unfamiliar names can be told apart.
+      let detail = gist(c.explanation);
+      if (!route) {
+        // A screen about one item this page does not name: offer the list it is reached from (ADR-028),
+        // saying what to do there — rather than drop the screen the visitor most likely meant.
+        const list = listFor(c, registry, currentPath, patterns, hints);
+        if (!list) continue;
+        route = list.route;
+        owner = list.capability;
+        detail = words.fromList(c.title);
+      }
+      if (seen.has(route)) continue;
       seen.add(route);
       offeredFirst ??= c.id;
-      // Every place says what it is for, so two unfamiliar names can be told apart.
-      const detail = gist(c.explanation);
-      choices.push({ label: c.title, route, ...(detail ? { detail } : {}) });
+      choices.push({ label: owner.title, route, ...(detail ? { detail } : {}) });
+      owners.push(owner);
       if (choices.length === OFFERED) break;
+    }
+    // Two screens with one name — the "Settings" of two areas — say which area each is in (ADR-028).
+    const folded = choices.map((c) => c.label.trim().toLowerCase());
+    for (let i = 0; i < choices.length; i++) {
+      if (folded.indexOf(folded[i]!) === folded.lastIndexOf(folded[i]!)) continue;
+      const area = areaOf(owners[i]!, registry);
+      if (area) choices[i] = { ...choices[i]!, label: `${choices[i]!.label} · ${area}` };
     }
     if (choices.length === 0) {
       if (evidence.length === 0) {
@@ -650,15 +789,25 @@ export function present(
       return unsure;
     }
 
-    // Plainly ahead, and what would be offered first *is* the leader (not something further down
-    // because the leader needed an item this page cannot supply): say so. A task ("book a training")
-    // is answered as one — where it can be done — and a where as a where. When the model wrote
-    // something, its words frame the answer (ADR-019) and this stays out of it.
-    if (!trace.prose && clearlyLeads(trace.candidates) && trace.candidates[0]?.capabilityId === offeredFirst) {
-      const title = isActionRequest(String(trace.utterance ?? '')) ? words.probablyTask(choices[0]!.label) : words.probably(choices[0]!.label);
-      return { tone: 'choose', title, body: null, destination: null, choices, probable: true };
+    // One question, never a menu (ADR-026): a visitor who does not know the app cannot rank names they
+    // have never seen, but can answer "this, or that?". When one place is plainly ahead — and what would
+    // be offered first *is* the leader, not something further down because the leader needed an item
+    // this page cannot supply — or is the only one, the question is about it alone, and "yes" takes it
+    // (followup.ts). A task ("book a training") is asked as one: where it can be done. When the model
+    // wrote something (ADR-019), its words are the body beneath the question.
+    const [first, second] = choices as [Choice, Choice | undefined];
+    const leads = clearlyLeads(trace.candidates) && trace.candidates[0]?.capabilityId === offeredFirst;
+    // The adopter asked for fewer questions (ADR-027): a plain leader is taken, not asked about. A lone
+    // weak match is still asked — "eager" moves on a leader, never on the only straw there is.
+    if (decide === 'eager' && leads && !trace.prose) {
+      return { tone: 'go', title: words.going(first.label), body: first.detail ?? null, destination: first.route, choices: [] };
     }
-    return { tone: 'choose', title: words.couldHelp(choices.length), body: trace.prose ?? null, destination: null, choices };
+    if (!second || leads) {
+      const title = isActionRequest(String(trace.utterance ?? '')) ? words.probablyTask(first.label) : words.probably(first.label);
+      // Only a real leader is drawn as the likely one; a lone weak match is asked about all the same.
+      return { tone: 'choose', title, body: trace.prose ?? null, destination: null, choices: [first], ...(leads ? { probable: true } : {}) };
+    }
+    return { tone: 'choose', title: words.eitherOr(first.label, second.label), body: trace.prose ?? null, destination: null, choices: [first, second] };
   }
 
   const route = fillParams(capability.route, currentPath, patterns, hints);
@@ -675,16 +824,32 @@ export function present(
     return { tone: 'explain', title: capability.title, body, destination: null, choices: link };
   }
   if (!route) {
+    // About one item, and this page names none. Where the app lists them, that is the way there (ADR-028).
+    const list = listFor(capability, registry, currentPath, patterns, hints);
+    const through = list ? words.needsItemFrom(list.capability.title) : words.needsItem;
     return {
       tone: 'explain',
       title: capability.title,
-      body: body ? `${body} ${words.needsItem}` : words.needsItem,
+      body: body ? `${body} ${through}` : through,
       destination: null,
-      choices: [],
+      choices: list ? [{ label: list.capability.title, route: list.route, detail: words.fromList(capability.title) }] : [],
     };
   }
   if (isSamePlace(route, currentPath)) {
     return { tone: 'explain', title: words.alreadyHere(capability.title), body, destination: null, choices: [] };
+  }
+  // The adopter asked for nothing to move without a yes (ADR-027): the decision is offered, and "yes",
+  // "sim" or a tap takes it (followup.ts).
+  if (decide === 'confirm') {
+    const detail = gist(capability.explanation);
+    return {
+      tone: 'choose',
+      title: words.confirmGo(capability.title),
+      body: trace.prose ?? null,
+      destination: null,
+      choices: [{ label: capability.title, route, ...(detail ? { detail } : {}) }],
+      probable: true,
+    };
   }
   return { tone: 'go', title: words.going(capability.title), body, destination: route, choices: [] };
 }

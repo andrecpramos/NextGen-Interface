@@ -28,7 +28,8 @@ import {
 } from '@nextgen/generator';
 
 import { knowledgeQuestions } from './knowledge-report.ts';
-import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, self, stripBom } from './paths.ts';
+import { ladder, ladderMarkdown } from './ladder.ts';
+import { arg, assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, self, shown, stripBom } from './paths.ts';
 
 /**
  * The shape of `bundle/thresholds.hashing.json`'s `stage3` field (WP-52, ADR-017).
@@ -287,5 +288,8 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     warnings,
   };
   writeFileSync(join(reviewDir, 'build.json'), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  // How to make it better, numbered, with where this build stands on each (ladder.ts) — for the developer
+  // to read without running anything else.
+  writeFileSync(join(reviewDir, 'IMPROVE.md'), ladderMarkdown(ladder(kit, record, self(), arg(shown(kit)))), 'utf8');
   return record;
 }

@@ -46,11 +46,14 @@ interface Page {
   readonly warnings: string[];
 }
 
-function page(attributes: Record<string, string>, options: { missing?: boolean; body?: string } = {}): Page {
+function page(
+  attributes: Record<string, string>,
+  options: { missing?: boolean; body?: string; lang?: string; beforeScript?: (window: JSDOM['window']) => void } = {},
+): Page {
   const virtualConsole = new VirtualConsole();
   const warnings: string[] = [];
   virtualConsole.on('warn', (...args: unknown[]) => void warnings.push(args.map(String).join(' ')));
-  const dom = new JSDOM(`<!doctype html><html lang="pt-PT"><head><title>t</title></head><body>${options.body ?? ''}</body></html>`, {
+  const dom = new JSDOM(`<!doctype html><html lang="${options.lang ?? 'pt-PT'}"><head><title>t</title></head><body>${options.body ?? ''}</body></html>`, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
     url: 'https://clube.test/my/children/7',
@@ -66,6 +69,7 @@ function page(attributes: Record<string, string>, options: { missing?: boolean; 
       return { ok: true, status: 200, json: async () => JSON.parse(readFileSync(`${GEN}${file}`, 'utf8')) };
     },
   });
+  options.beforeScript?.(window);
   const script = window.document.createElement('script');
   for (const [name, value] of Object.entries(attributes)) script.setAttribute(name, value);
   script.textContent = code;
@@ -157,5 +161,61 @@ describe('the script tag starts itself from its own attributes', () => {
     expect(missing.window.document.querySelector('[data-nextgen]')).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(rejections).toEqual([]);
+  });
+
+  it('announces a failure to start on the window as nextgen:error, with a reason — never silent', async () => {
+    const events: { reason: string; message: string }[] = [];
+    const missing = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' }, { missing: true, beforeScript: (window) => {
+      window.addEventListener('nextgen:error', (event) => void events.push((event as CustomEvent).detail));
+    } });
+    await settle(() => events.length > 0);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.reason).toBe('bundle-unavailable');
+    expect(events[0]!.message).toMatch(/404.*restarted/);
+    expect(missing.window.document.querySelector('[data-nextgen]')).toBeNull();
+  });
+
+  it('keeps the distance from the corner data-nextgen-inset gives, and ignores one that is not two numbers', async () => {
+    const inset = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-inset': '24, 144' });
+    await settle(() => inset.window.document.querySelector('[data-nextgen]') !== null);
+    const host = inset.window.document.querySelector('[data-nextgen]') as HTMLElement;
+    expect(host.style.getPropertyValue('--ng-inset-x')).toBe('24px');
+    expect(host.style.getPropertyValue('--ng-inset-y')).toBe('144px');
+
+    const bad = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-inset': '1px;color:red' });
+    await settle(() => bad.window.document.querySelector('[data-nextgen]') !== null);
+    expect(bad.warnings.join('\n')).toMatch(/ignoring data-nextgen-inset/);
+    expect((bad.window.document.querySelector('[data-nextgen]') as HTMLElement).style.getPropertyValue('--ng-inset-y')).toBe('20px');
+  });
+
+  it('serves a user with several roles from each role’s registry, merged, with no index to fetch', async () => {
+    const { window, fetched } = page({ 'data-nextgen-role': 'COACH PARENT', 'data-nextgen-base': '/nextgen' });
+    await settle(() => window.document.querySelector('[data-nextgen]') !== null);
+    expect(window.document.querySelector('[data-nextgen]')).not.toBeNull();
+    expect([...fetched].sort()).toEqual(['/nextgen/registry.COACH.json', '/nextgen/registry.PARENT.json', '/nextgen/thresholds.hashing.json']);
+  });
+
+  it('speaks Portuguese on a Portuguese page and English on any other, fetching nothing more for it', async () => {
+    const greeting = (w: Page['window']) => w.document.querySelector('[data-nextgen]')!.shadowRoot!.querySelector('.greeting')!.textContent;
+    const pt = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' }, { lang: 'pt-PT' });
+    await settle(() => pt.window.document.querySelector('[data-nextgen]') !== null);
+    expect(greeting(pt.window)).toBe('Pronto quando quiser.');
+
+    const es = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' }, { lang: 'es-ES' });
+    await settle(() => es.window.document.querySelector('[data-nextgen]') !== null);
+    expect(greeting(es.window)).toBe('Ready when you are.');
+    expect(es.fetched.every((url) => !url.includes('words'))).toBe(true);
+  });
+
+  it('hides the app’s own launchers named by data-nextgen-hide while it runs', async () => {
+    const { window } = page(
+      { 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-hide': '#club-chat, .tour-prompt' },
+      { body: '<button id="club-chat">Chat</button><div class="tour-prompt">Take the tour</div><button id="keep">Keep</button>' },
+    );
+    await settle(() => window.document.querySelector('[data-nextgen]') !== null);
+    const shown = (selector: string) => window.getComputedStyle(window.document.querySelector(selector)!).display !== 'none';
+    expect(shown('#club-chat')).toBe(false);
+    expect(shown('.tour-prompt')).toBe(false);
+    expect(shown('#keep')).toBe(true);
   });
 });

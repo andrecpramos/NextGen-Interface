@@ -205,6 +205,11 @@ const server = createServer(async (req, res) => {
     res.end(body);
   };
 
+  // Every browser asks; a 404 is a red line in the console that has nothing to do with the widget.
+  if (pathname === '/favicon.ico') {
+    res.writeHead(204, { 'Cache-Control': 'max-age=86400' }).end();
+    return;
+  }
   if (pathname === '/' || pathname === '/bench') return html(await benchPage(role));
   if (pathname === '/hosts') {
     // The link to the mock app is rendered rather than written in, so it points at a route
@@ -219,12 +224,41 @@ const server = createServer(async (req, res) => {
   res.writeHead(404).end('Not found');
 });
 
-server.listen(PORT, HOST, async () => {
+// A bench left running in another terminal holds the port. Crashing with EADDRINUSE and a stack trace
+// read as "the preview is broken" (2026-09-23); the next free port is what anyone would do by hand.
+// A port asked for explicitly (PORT=…) is not second-guessed.
+const FIXED = Boolean(process.env.PORT);
+const TRIES = 20;
+
+function listen(port, attempt = 0) {
+  server.once('error', (error) => {
+    if (error.code === 'EADDRINUSE' && !FIXED && attempt < TRIES) {
+      if (attempt === 0) console.log(`\n  Port ${port} is in use — probably a bench left running in another terminal. Trying the next one.`);
+      listen(port + 1, attempt + 1);
+      return;
+    }
+    console.error(
+      error.code === 'EADDRINUSE'
+        ? `\n  Port ${port} is in use. Stop whatever holds it, or pick another: PORT=5000 pnpm preview\n`
+        : `\n  The bench could not start: ${error.message}\n`,
+    );
+    process.exit(1);
+  });
+  server.listen(port, HOST);
+}
+
+// One listener, reading the port actually bound: a callback per attempt would announce the busy one too.
+server.once('listening', async () => {
+  server.removeAllListeners('error');
+  const { port } = server.address();
   const pages = await pagesFor(roles[0]);
   console.log(`\n  ${APP} — ${roles.length} role(s): ${roles.join(', ')}`);
-  console.log(`\n  Bench (ask, and see why): http://${HOST}:${PORT}/bench`);
-  console.log(`  The app, as a visitor:    http://${HOST}:${PORT}${pages[0]?.route ?? '/'}`);
-  console.log(`  Host-page variants:       http://${HOST}:${PORT}/hosts`);
-  console.log(`  The orb, alive:           http://${HOST}:${PORT}/alive`);
+  console.log(`\n  Bench (ask, and see why): http://${HOST}:${port}/bench`);
+  console.log(`  The app, as a visitor:    http://${HOST}:${port}${pages[0]?.route ?? '/'}`);
+  console.log(`  … with its own assistant: http://${HOST}:${port}${pages[0]?.route ?? '/'}?companion&open`);
+  console.log(`  Host-page variants:       http://${HOST}:${port}/hosts`);
+  console.log(`  The orb, alive:           http://${HOST}:${port}/alive`);
   console.log(`\n  Every role's bundle is served here. Production must serve one (Rule 17).\n`);
 });
+
+listen(PORT);

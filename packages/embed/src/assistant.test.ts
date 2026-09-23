@@ -251,29 +251,19 @@ describe('the assistant layer — at rest', () => {
     expect(orb.getAttribute('aria-label')).toBe('Open the assistant');
     expect(orb.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getAttribute('role')).toBe('dialog');
-    expect(screen.getAttribute('aria-modal')).toBe('true');
+    // A panel beside the page, not a modal over it — until it is expanded.
+    expect(screen.getAttribute('aria-modal')).toBe('false');
+    expect(screen.dataset.size).toBe('compact');
     expect(screen.hasAttribute('inert')).toBe(true);
   });
 
-  it('says what it is when pointed at or reached by keyboard — a globe in a corner says nothing to a stranger', () => {
+  it('writes nothing beside the orb, pointed at or focused: its name is for a screen reader only', () => {
     const { orb, bubble } = setup(answering({}));
     orb.fire('pointerenter', { pointerType: 'mouse' } as never);
-    expect(bubble.dataset.show).toBe('true');
-    expect(bubble.textContent).toBe('Ask where to go');
-    // The orb's own name already says it to a screen reader; the hint is not announced twice.
-    expect(bubble.getAttribute('aria-hidden')).toBe('true');
-    orb.fire('pointerleave');
-    expect(bubble.dataset.show).toBe('false');
-    expect(bubble.hasAttribute('aria-hidden')).toBe(false);
-
     orb.fire('focus');
-    expect(bubble.dataset.show).toBe('true');
-    orb.fire('blur');
-    expect(bubble.dataset.show).toBe('false');
-
-    // A finger has no hover: a tap opens the screen, and a hint would only flash on the way.
-    orb.fire('pointerenter', { pointerType: 'touch' } as never);
-    expect(bubble.dataset.show).toBe('false');
+    expect(bubble.textContent).toBe('');
+    expect(String(bubble.className).split(' ')).toContain('sr-only');
+    expect(orb.getAttribute('aria-label')).toBe('Open the assistant');
   });
 
   it('offers no microphone and no read-aloud where the browser can do neither', () => {
@@ -289,11 +279,15 @@ describe('the assistant layer — at rest', () => {
   });
 });
 
+/** What the page's own scrolling is set to, with nothing set read as the page's own default. */
+const overflow = (doc: FakeDocument): string => doc.documentElement.style.overflow ?? '';
+
 describe('the landing page', () => {
-  it('on a home route the screen is the page: open on arrival, with focus in the composer', async () => {
+  it('on a home route the panel opens by itself, with focus in the composer', async () => {
     const { screen, doc, input } = setup(answering({}), { home: ['/home'] });
     await settle(100);
     expect(screen.dataset.open).toBe('true');
+    expect(screen.dataset.size).toBe('compact');
     expect(doc.activeElement).toBe(input);
   });
 
@@ -309,28 +303,29 @@ describe('the landing page', () => {
     await settle(100);
     close.fire('click');
     expect(screen.dataset.open).toBe('false');
-    expect(doc.documentElement.style.overflow).toBe('');
+    expect(overflow(doc)).toBe('');
   });
 
-  it('taking the user to the landing route opens the screen there, rather than a note', async () => {
+  it('taking the user to the landing route keeps the panel open there, rather than leaving a note', async () => {
     const { mounted, screen, bubble, moves } = setup(answering(toCalendar), { home: ['/calendar'] });
     void mounted.ask('where is the calendar');
     await settle(3500);
     expect(moves).toEqual(['/calendar']);
     expect(screen.dataset.open).toBe('true');
-    expect(bubble.dataset.show).toBe('false');
+    expect(bubble.textContent).toBe('');
   });
 });
 
-describe('opening the screen', () => {
-  it('moves focus in, stops the page scrolling, and offers no pre-written questions', async () => {
+describe('opening the panel', () => {
+  it('moves focus in, leaves the page scrolling beside it, and offers no pre-written questions', async () => {
     const { orb, screen, input, doc, host, byClass } = setup(answering({}));
     orb.fire('click');
     await settle(50);
     expect(screen.dataset.open).toBe('true');
+    expect(screen.dataset.size).toBe('compact');
     expect(screen.hasAttribute('inert')).toBe(false);
     expect(doc.activeElement).toBe(input);
-    expect(doc.documentElement.style.overflow).toBe('hidden');
+    expect(overflow(doc)).toBe('');
     expect(orb.getAttribute('aria-hidden')).toBe('true');
     expect(byClass('greeting').textContent).toBe('Ready when you are.');
     // …and, beneath it, what this is for — to someone who has never seen it. A sentence, not a question.
@@ -347,115 +342,132 @@ describe('opening the screen', () => {
     expect(screen.dataset.open).toBe('false');
     expect(screen.hasAttribute('inert')).toBe(true);
     expect(doc.activeElement).toBe(orb);
-    expect(doc.documentElement.style.overflow).toBe('');
+    expect(overflow(doc)).toBe('');
   });
 
-  it('keeps Tab inside the screen', async () => {
-    const { orb, screen, doc, menu, send } = setup(answering({}));
+  it('lets Tab walk on into the page: a panel beside it is not a trap', async () => {
+    const { orb, screen, send } = setup(answering({}));
     orb.fire('click');
     await settle(50);
     send.focus();
-    expect(screen.fire('keydown', { key: 'Tab' }).defaultPrevented).toBe(true);
-    expect(doc.activeElement).toBe(menu);
-    expect(screen.fire('keydown', { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(true);
-    expect(doc.activeElement).toBe(send);
+    expect(screen.fire('keydown', { key: 'Tab' }).defaultPrevented).toBe(false);
+  });
+
+  it('has every control of the full screen: expand, start over, and close — and no menu of its own', async () => {
+    const { orb, host, byClass } = setup(answering({}));
+    orb.fire('click');
+    await settle(50);
+    for (const name of ['expand', 'restart', 'close']) expect(byClass(name).hidden, name).not.toBe(true);
+    expect(host.find((el) => String(el.className ?? '').split(' ').some((c) => c === 'menu' || c === 'drawer'))).toBeUndefined();
   });
 });
 
-describe('the menu', () => {
-  it("opens the app's own navigation, in its order, with the current page marked", async () => {
-    const { orb, menu, drawer, all, doc } = setup(answering({}), {}, { page: clubPage });
+describe('expanding the panel', () => {
+  it('fills the screen as a modal: the page stops scrolling, Tab stays in, and the button says it shrinks', async () => {
+    const { orb, screen, doc, byClass, send } = setup(answering({}));
     orb.fire('click');
     await settle(50);
-    menu.fire('click');
-    expect(drawer.dataset.open).toBe('true');
-    expect(drawer.hasAttribute('inert')).toBe(false);
-    expect(menu.getAttribute('aria-expanded')).toBe('true');
-    const links = all('drawer-link');
-    // The footer is not the menu, and another site is not a place in this app.
-    expect(links.map((a) => a.textContent)).toEqual(['Home', 'Calendar', 'Standings']);
-    expect(links.map((a) => a.href)).toEqual(['/home', '/calendar', '/competition/standings']);
-    expect(links[0]!.getAttribute('aria-current')).toBe('page');
-    expect(doc.activeElement).toBe(links[0]);
-  });
-
-  it('Escape closes the menu first, and focus returns to its button; the next Escape closes the screen', async () => {
-    const { orb, menu, drawer, screen, doc } = setup(answering({}), {}, { page: clubPage });
-    orb.fire('click');
-    await settle(50);
-    menu.fire('click');
-    screen.fire('keydown', { key: 'Escape' });
-    expect(drawer.dataset.open).toBe('false');
-    expect(screen.dataset.open).toBe('true');
-    expect(doc.activeElement).toBe(menu);
-    screen.fire('keydown', { key: 'Escape' });
-    expect(screen.dataset.open).toBe('false');
-  });
-
-  it('following a link travels there with the orb', async () => {
-    const { orb, menu, all, moves, screen } = setup(answering({}), {}, { page: clubPage });
-    orb.fire('click');
-    await settle(50);
-    menu.fire('click');
-    expect(all('drawer-link')[1]!.fire('click', { button: 0 }).defaultPrevented).toBe(true);
-    await settle(1500);
-    expect(moves).toEqual(['/calendar']);
-    expect(screen.dataset.open).toBe('false');
-  });
-
-  it('choosing the page the user is already on just closes the screen onto it', async () => {
-    const { orb, menu, all, moves, screen } = setup(answering({}), {}, { page: clubPage });
-    orb.fire('click');
-    await settle(50);
-    menu.fire('click');
-    all('drawer-link')[0]!.fire('click', { button: 0 });
-    expect(screen.dataset.open).toBe('false');
-    await settle(1500);
-    expect(moves).toEqual([]);
-  });
-
-  it('on a page with no navigation of its own, lists the places the registry knows', async () => {
-    const { orb, menu, all } = setup(answering({}));
-    orb.fire('click');
-    await settle(50);
-    menu.fire('click');
-    expect(all('drawer-link').map((a) => a.href)).toEqual([
-      '/calendar',
-      '/squad',
-      '/competition/standings',
-      '/settings',
-      '/notifications',
-      '/expenses/new',
-    ]);
-  });
-
-  it('keeps Tab inside the open menu', async () => {
-    const { orb, menu, screen, all, byClass, doc } = setup(answering({}), {}, { page: clubPage });
-    orb.fire('click');
-    await settle(50);
-    menu.fire('click');
-    all('drawer-link').at(-1)!.focus();
+    const expand = byClass('expand');
+    expand.fire('click');
+    expect(screen.dataset.size).toBe('full');
+    expect(screen.getAttribute('aria-modal')).toBe('true');
+    expect(expand.getAttribute('aria-pressed')).toBe('true');
+    expect(expand.textContent).toBe('Smaller');
+    expect(overflow(doc)).toBe('hidden');
+    send.focus();
     expect(screen.fire('keydown', { key: 'Tab' }).defaultPrevented).toBe(true);
-    expect(doc.activeElement).toBe(byClass('drawer-close'));
+    expect(doc.activeElement).toBe(expand);
+
+    expand.fire('click');
+    expect(screen.dataset.size).toBe('compact');
+    expect(screen.getAttribute('aria-modal')).toBe('false');
+    expect(overflow(doc)).toBe('');
+  });
+
+  it('can be asked for by the page: open({ expanded: true })', async () => {
+    const { mounted, screen, doc } = setup(answering({}));
+    mounted.open({ expanded: true });
+    await settle(50);
+    expect(screen.dataset.size).toBe('full');
+    mounted.close();
+    expect(overflow(doc)).toBe('');
+    // Closed and opened again, it is the panel again.
+    mounted.open();
+    expect(screen.dataset.size).toBe('compact');
+  });
+
+  it("leaves the app's own sidebar in view, and returns to its corner when the visitor reaches for it", async () => {
+    const { orb, screen, byClass, doc } = setup(answering({}), {}, {
+      page: (d) => {
+        const aside = d.createElement('aside');
+        aside.getBoundingClientRect = () => ({ left: 0, top: 0, width: 240, height: 768 });
+        d.body.append(aside);
+      },
+    });
+    orb.fire('click');
+    await settle(50);
+    byClass('expand').fire('click');
+    expect(screen.style['--ng-frame-left']).toBe('240px');
+    expect(screen.style['--ng-frame-top']).toBe('0px');
+    // A press on the page — here, its sidebar — goes past the panel's own layer.
+    for (const listener of doc.defaultView!.listeners.get('pointerdown') ?? []) (listener as (e: unknown) => void)({ target: doc.body });
+    expect(screen.dataset.size).toBe('compact');
+    expect(screen.dataset.open).toBe('true');
   });
 });
 
 describe('a turn that resolves to a place', () => {
-  it('says where it is going, flies back to the edge, moves, and says where the user landed', async () => {
-    const { mounted, thread, screen, orb, bubble, moves, storage } = setup(answering(toCalendar));
-    const done = mounted.ask('where is the calendar');
+  it('says where it is going and moves at once — not after the answer is read — with the panel still open beside the page', async () => {
+    const { mounted, thread, screen, moves, storage } = setup(answering(toCalendar));
+    void mounted.ask('where is the calendar');
     await settle(0);
     expect(thread.textContent).toContain('Opening Calendar');
-    expect(moves).toEqual([]);
-    await settle(3000);
-    await done;
     expect(moves).toEqual(['/calendar']);
-    expect(screen.dataset.open).toBe('false');
-    expect(orb.dataset.mode).toBe('docked');
+    expect(screen.dataset.open).toBe('true');
     await settle(400);
-    expect(bubble.textContent).toBe('You are on Calendar');
-    expect(bubble.dataset.show).toBe('true');
+    // The conversation already said where; the note is used up, not repeated.
     expect(storage.items.size).toBe(0);
+  });
+
+  it('shrinks back to its corner to move, so the new page can be seen', async () => {
+    const { mounted, screen, byClass, moves } = setup(answering(toCalendar));
+    mounted.open({ expanded: true });
+    await settle(50);
+    expect(byClass('expand').getAttribute('aria-pressed')).toBe('true');
+    void mounted.ask('where is the calendar');
+    await settle(0);
+    expect(moves).toEqual(['/calendar']);
+    expect(screen.dataset.size).toBe('compact');
+  });
+
+  it('moves without waiting for a voice that is still reading the answer aloud', async () => {
+    const spoken: string[] = [];
+    const local = { name: 'US', lang: 'en-US', localService: true, default: true, voiceURI: 'US' } as SpeechSynthesisVoice;
+    const synth = { getVoices: () => [local], speak: (u: { text: string }) => void spoken.push(u.text), cancel: () => undefined };
+    class Utterance {
+      text: string;
+      lang = '';
+      voice: unknown = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onboundary: (() => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+    const { env } = localVoice({
+      getUserMedia: null,
+      synth: synth as unknown as SpeechSynthesis,
+      Utterance: Utterance as unknown as VoiceEnv['Utterance'],
+    });
+    const preferences = new MemoryStorage();
+    preferences.setItem('nextgen:read-aloud', 'on');
+    const { mounted, moves } = setup(answering(toCalendar), { voiceEnv: env, preferences });
+    void mounted.ask('where is the calendar');
+    await settle(0);
+    // The voice never says it has finished; the move has happened all the same.
+    expect(spoken).toHaveLength(1);
+    expect(moves).toEqual(['/calendar']);
   });
 
   it('on a full page load, leaves a note for the next page instead', async () => {
@@ -470,10 +482,9 @@ describe('a turn that resolves to a place', () => {
     });
   });
 
-  it('does not go anywhere once the user has closed the screen', async () => {
+  it('does not go anywhere once the user has closed it while it was still working the answer out', async () => {
     const { mounted, moves, storage } = setup(answering(toCalendar));
     void mounted.ask('where is the calendar');
-    await settle(500);
     mounted.close();
     await settle(4000);
     expect(moves).toEqual([]);
@@ -482,15 +493,18 @@ describe('a turn that resolves to a place', () => {
 });
 
 describe('the next page', () => {
-  it('picks up the note: the orb is already on that side and says where the user is', async () => {
+  it('picks up the note: the orb is already on that side, and says where the user is to a screen reader only', async () => {
     const storage = new MemoryStorage();
     storage.setItem('nextgen:arrival', JSON.stringify({ title: 'Calendar', side: 'left', at: Date.now() }));
     const { orb, bubble } = setup(answering({}), { storage, dockSide: 'auto' });
     expect(orb.dataset.side).toBe('left');
     await settle(60);
     expect(bubble.textContent).toBe('You are on Calendar');
-    expect(bubble.dataset.show).toBe('true');
+    expect(bubble.getAttribute('role')).toBe('status');
+    expect(String(bubble.className).split(' ')).toContain('sr-only');
     expect(storage.items.size).toBe(0);
+    await settle(5000);
+    expect(bubble.textContent).toBe('');
   });
 
   it('ignores a stale note', async () => {
@@ -498,7 +512,7 @@ describe('the next page', () => {
     storage.setItem('nextgen:arrival', JSON.stringify({ title: 'Calendar', side: 'left', at: Date.now() - 60_000 }));
     const { bubble } = setup(answering({}), { storage });
     await settle(60);
-    expect(bubble.dataset.show).toBe('false');
+    expect(bubble.textContent).toBe('');
     expect(storage.items.size).toBe(0);
   });
 
@@ -507,7 +521,7 @@ describe('the next page', () => {
     storage.setItem('nextgen:arrival', '{"title": 3, "side": "up"}');
     const { bubble } = setup(answering({}), { storage });
     await settle(60);
-    expect(bubble.dataset.show).toBe('false');
+    expect(bubble.textContent).toBe('');
   });
 });
 
@@ -537,7 +551,7 @@ describe('the guide', () => {
     );
     await settle(60);
     expect(guide.hidden).toBe(false);
-    expect(bubble.dataset.show).toBe('false');
+    expect(bubble.textContent).toBe('');
     expect(byClass('guide-title').textContent).toBe('You are on New expense');
     expect(byClass('guide-count').textContent).toBe('Step 1 of 2');
     expect(byClass('guide-text').textContent).toBe('Fill in “Amount”.');
@@ -551,6 +565,24 @@ describe('the guide', () => {
     byClass('guide-done').fire('click');
     expect(guide.hidden).toBe(true);
     expect(storage.items.size).toBe(0);
+  });
+
+  it('makes way for the guide when a move from the open panel lands on a screen with steps', async () => {
+    const toExpense: Partial<TurnTrace> = { capabilityId: 'expenses.new' };
+    const { mounted, guide, screen, moves } = setup(answering(toExpense));
+    void mounted.ask('new expense');
+    await settle(0);
+    expect(moves).toEqual(['/expenses/new']);
+    await settle(400);
+    expect(screen.dataset.open).toBe('false');
+    expect(guide.hidden).toBe(false);
+  });
+
+  it('starts the steps of the page the visitor is on when they ask for the tour', async () => {
+    const { mounted, guide, screen } = setup(answering({}), {}, { path: '/expenses/new' });
+    await mounted.ask('tutorial');
+    expect(screen.dataset.open).toBe('false');
+    expect(guide.hidden).toBe(false);
   });
 });
 
@@ -679,7 +711,7 @@ describe('the conversation remembers what it offered', () => {
   });
 });
 
-describe('a clear leader, offered as the likely one', () => {
+describe('a clear leader, asked about as the likely one', () => {
   const leading = {
     outcome: 'clarify',
     decidedAt: 'embedding',
@@ -691,19 +723,17 @@ describe('a clear leader, offered as the likely one', () => {
   } as unknown as Partial<TurnTrace>;
   const classes = (el: FakeElement): string[] => String(el.className).split(' ');
 
-  it('puts the likely one first with what it is for, and the rest beneath, introduced as alternatives', async () => {
+  it('asks one question about the likely one, with what it is for — and offers nothing else to pick from', async () => {
     const { mounted, thread, all } = setup(answering(leading));
     const done = mounted.ask('games');
     await settle(2000);
     await done;
     const chips = all('chip');
-    expect(chips.map((a) => a.href)).toEqual(['/calendar', '/squad']);
+    expect(chips.map((a) => a.href)).toEqual(['/calendar']);
     expect(classes(chips[0]!)).toContain('lead');
-    expect(classes(chips[1]!)).not.toContain('lead');
-    expect(thread.textContent).toContain('You probably want Calendar.');
+    expect(thread.textContent).toContain('Are you looking for Calendar?');
     expect(thread.textContent).toContain('Open Calendar');
     expect(thread.textContent).toContain('Training and matches by day.');
-    expect(thread.textContent).toContain('Or maybe:');
   });
 
   it('is still only a link: nothing moves until the visitor takes it', async () => {
@@ -717,25 +747,14 @@ describe('a clear leader, offered as the likely one', () => {
     expect(moves).toEqual(['/calendar']);
   });
 
-  it('offers no alternatives label when there are none', async () => {
-    const alone = { ...leading, candidates: [{ capabilityId: 'calendar.overview', score: 0.3 }] } as unknown as Partial<TurnTrace>;
-    const { mounted, thread, all } = setup(answering(alone));
-    const done = mounted.ask('games');
-    await settle(2000);
-    await done;
-    expect(all('lead')).toHaveLength(1);
-    expect(thread.textContent).not.toContain('Or maybe:');
-  });
-
-  it('leaves a menu of equals exactly as it was: no likely one, no label', async () => {
+  it('asks "this, or that?" between two equals: no likely one, two places, one question', async () => {
     const { mounted, thread, all } = setup(answering(clarifying));
     const done = mounted.ask('games');
     await settle(2000);
     await done;
     expect(all('lead')).toHaveLength(0);
     expect(all('chip')).toHaveLength(2);
-    expect(thread.textContent).toContain('Two places could help with that:');
-    expect(thread.textContent).not.toContain('Or maybe:');
+    expect(thread.textContent).toContain('Do you mean Calendar, or Squad?');
   });
 });
 
@@ -987,7 +1006,7 @@ describe('attachments — a photo or a file, kept on the device', () => {
 
   it('is left out entirely when the adopter says the app has nowhere to send a file', () => {
     const { page } = fitted(true);
-    const { host, byClass, input, screen, all } = setup(answering(toCalendar), { attach: false }, { page });
+    const { host, byClass, input, screen, all, mounted } = setup(answering(toCalendar), { attach: false }, { page });
     expect(byClass('attach').hidden).toBe(true);
     expect(byClass('camera').hidden).toBe(true);
     // …and pasting or dropping a file does not sneak one in.
@@ -996,14 +1015,21 @@ describe('attachments — a photo or a file, kept on the device', () => {
     expect(screen.fire('dragover', event({ dataTransfer: { types: ['Files'] } })).defaultPrevented).toBe(false);
     attach(host, [file('a.png')]);
     expect(all('attach-item')).toHaveLength(0);
-    // The box is the same width it was before any of this existed: the full placeholder, not the short one.
+    // Without the paperclip and camera, even a phone's full-screen box has room for the whole sentence.
+    mounted.open({ expanded: true });
     expect(input.placeholder).toBe('Ask anything about this app');
   });
 
   it('asks in fewer words where the row is crowded, so the box is not clipped mid-sentence', () => {
+    // The corner panel is narrow on any device.
     const desktop = setup(answering(toCalendar), {}, { page: fitted(false).page });
+    expect(desktop.input.placeholder).toBe('Ask anything');
+    // Expanded on a desktop, there is room for the whole sentence…
+    desktop.mounted.open({ expanded: true });
     expect(desktop.input.placeholder).toBe('Ask anything about this app');
+    // …but not on a phone, where the row still holds four buttons.
     const phone = setup(answering(toCalendar), {}, { page: fitted(true).page });
+    phone.mounted.open({ expanded: true });
     expect(phone.input.placeholder).toBe('Ask anything');
     expect(String(phone.input.placeholder).length).toBeLessThanOrEqual(16);
   });
@@ -1231,7 +1257,25 @@ describe('reading answers aloud', () => {
     }
   }
 
-  it('reads a typed answer in a local voice, and stops once the visitor turns it off', async () => {
+  it('is silent until the visitor turns it on — a talking page is a surprise in an office', async () => {
+    const spoken: Utterance[] = [];
+    const local = { name: 'US', lang: 'en-US', localService: true, default: true, voiceURI: 'US' } as SpeechSynthesisVoice;
+    const synth = { getVoices: () => [local], speak: (u: Utterance) => void spoken.push(u), cancel: () => undefined };
+    const { env } = localVoice({
+      getUserMedia: null,
+      synth: synth as unknown as SpeechSynthesis,
+      Utterance: Utterance as unknown as VoiceEnv['Utterance'],
+    });
+    const { mounted, sound } = setup(answering(clarifying), { voiceEnv: env });
+    expect(sound.hidden).toBe(false);
+    expect(sound.getAttribute('aria-pressed')).toBe('false');
+    const asking = mounted.ask('games');
+    await settle(3000);
+    await asking;
+    expect(spoken).toHaveLength(0);
+  });
+
+  it('reads a typed answer in a local voice once turned on, and stops once the visitor turns it off', async () => {
     const spoken: Utterance[] = [];
     const local = { name: 'US', lang: 'en-US', localService: true, default: true, voiceURI: 'US' } as SpeechSynthesisVoice;
     const synth = { getVoices: () => [local], speak: (u: Utterance) => void spoken.push(u), cancel: () => undefined };
@@ -1241,13 +1285,14 @@ describe('reading answers aloud', () => {
       Utterance: Utterance as unknown as VoiceEnv['Utterance'],
     });
     const { mounted, sound, preferences } = setup(answering(clarifying), { voiceEnv: env });
-    expect(sound.hidden).toBe(false);
+    sound.fire('click');
     expect(sound.getAttribute('aria-pressed')).toBe('true');
+    expect(preferences.getItem('nextgen:read-aloud')).toBe('on');
 
     const first = mounted.ask('games');
     await settle(0);
     expect(spoken).toHaveLength(1);
-    expect(spoken[0]!.text.startsWith('Two places could help with that:')).toBe(true);
+    expect(spoken[0]!.text.startsWith('Do you mean Calendar, or Squad?')).toBe(true);
     expect(spoken[0]!.voice).toBe(local);
     spoken[0]!.onend!();
     await settle(0);
@@ -1271,7 +1316,9 @@ describe('reading answers aloud', () => {
       synth: synth as unknown as SpeechSynthesis,
       Utterance: Utterance as unknown as VoiceEnv['Utterance'],
     });
-    const { mounted } = setup(answering(toCalendar), { voiceEnv: env });
+    const preferences = new MemoryStorage();
+    preferences.setItem('nextgen:read-aloud', 'on');
+    const { mounted } = setup(answering(toCalendar), { voiceEnv: env, preferences });
     const asking = mounted.ask('hi');
     await settle(0);
     expect(spoken).toHaveLength(1);
@@ -1305,12 +1352,12 @@ describe('hands-free voice', () => {
     expect(tracks[0]!.stopped).toBe(1);
   });
 
-  it('a remembered choice listens when the screen opens; a spoken question is answered, and leaving closes the microphone', async () => {
+  it('a remembered choice listens when the panel opens; a spoken question is answered, the conversation carries on there, and closing ends it', async () => {
     const { env, made, tracks } = localVoice();
     const preferences = new MemoryStorage();
     preferences.setItem('nextgen:hands-free', 'on');
     const assistant = answering(toCalendar);
-    const { orb, moves } = setup(assistant, { voiceEnv: env, preferences });
+    const { orb, moves, mounted } = setup(assistant, { voiceEnv: env, preferences });
     await settle(0);
     expect(made).toHaveLength(0); // nothing listens on the original pages
 
@@ -1321,6 +1368,9 @@ describe('hands-free voice', () => {
     await settle(4000);
     expect(assistant.asked).toEqual(['where is the calendar']);
     expect(moves).toEqual(['/calendar']);
+    // The panel stayed open beside the new page, so it is still listening there.
+    expect(tracks[0]!.stopped).toBe(0);
+    mounted.close();
     expect(tracks[0]!.stopped).toBe(1);
   });
 
@@ -1392,15 +1442,23 @@ describe('setting voice up', () => {
 });
 
 describe('spoken commands', () => {
-  it('act at once instead of being asked: menu opens the menu, fechar closes the screen', async () => {
+  it('act at once instead of being asked: fechar closes the panel', async () => {
     const assistant = answering({});
-    const { mounted, screen, drawer } = setup(assistant, {}, { page: clubPage });
-    await mounted.ask('menu');
+    const { mounted, screen } = setup(assistant, {}, { page: clubPage });
+    mounted.open();
     expect(screen.dataset.open).toBe('true');
-    expect(drawer.dataset.open).toBe('true');
     await mounted.ask('Fechar, por favor.');
     expect(screen.dataset.open).toBe('false');
     expect(assistant.asked).toEqual([]);
+  });
+
+  it('asks the router about "tutorial" when there is no tour and this page has no steps', async () => {
+    const assistant = answering(clarifying);
+    const { mounted } = setup(assistant);
+    const done = mounted.ask('tutorial');
+    await settle(2000);
+    await done;
+    expect(assistant.asked).toEqual(['tutorial']);
   });
 
   it('voltar goes back a page', async () => {
@@ -1541,7 +1599,7 @@ describe('the conversation is a chat', () => {
     const all = messages(thread);
     expect(all.length).toBeLessThanOrEqual(60);
     expect(all[0]!.textContent).toMatch(/^Ready when you are\./);
-    expect(all[all.length - 1]!.textContent).toContain('Two places could help with that:');
+    expect(all[all.length - 1]!.textContent).toContain('Do you mean Calendar, or Squad?');
     expect(all[all.length - 2]!.textContent).toBe('question 44');
   });
 
@@ -1563,12 +1621,12 @@ describe('chat extras — start over, copy, recall', () => {
     await done;
   };
 
-  it('offers to start over only once there is something to start over from', async () => {
+  it('always offers to start over, so a visitor never has to find out when it appears', async () => {
     const { mounted, byClass } = setup(answering(clarifying));
     const restart = byClass('restart');
-    expect(restart.hidden).toBe(true);
+    expect(restart.hidden).not.toBe(true);
     await answer(mounted, 'games');
-    expect(restart.hidden).toBe(false);
+    expect(restart.hidden).not.toBe(true);
   });
 
   it('starts over: the greeting again, the landing page again, and the composer ready', async () => {
@@ -1579,7 +1637,6 @@ describe('chat extras — start over, copy, recall', () => {
     await settle(10);
     expect(messages(thread).map((m) => m.textContent)).toEqual([`Ready when you are.${WORDS.en.greetingHint}`]);
     expect(screen.dataset.conversation).toBe('false');
-    expect(byClass('restart').hidden).toBe(true);
     expect(all('chip')).toHaveLength(0);
     expect(doc.activeElement).toBe(input);
   });
@@ -1606,7 +1663,7 @@ describe('chat extras — start over, copy, recall', () => {
     all('copy')[0]!.fire('click');
     await settle(10);
     expect(copied).toHaveLength(1);
-    expect(copied[0]).toContain('Two places could help with that:');
+    expect(copied[0]).toContain('Do you mean Calendar, or Squad?');
     expect(copied[0]).toContain('Calendar');
     expect(copied[0]).toContain('/calendar');
     expect(caption.textContent).toBe('Copied');
@@ -1694,13 +1751,354 @@ describe('the composer’s edge light', () => {
   });
 });
 
+/**
+ * The app already has an assistant of its own — a model-backed chat, a tour (ADR-026). The visitor meets
+ * one entry point, loses nothing either had, and is never unsure which one said what.
+ */
+describe('the app’s own assistant, merged in', () => {
+  const nothing = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0 }] } as unknown as Partial<TurnTrace>;
+  const text = (el: FakeElement): string => String(el.textContent);
+  const run = async (mounted: { ask(q: string): Promise<unknown> }, q: string) => {
+    const done = mounted.ask(q);
+    await settle(3000);
+    return done;
+  };
+  const companionOf = (answer: string | null | Error = 'Three players are injured this week.') => {
+    const asked: { text: string; files: readonly File[]; route: string }[] = [];
+    return {
+      asked,
+      companion: {
+        name: 'Club assistant',
+        ask: async (request: { text: string; files: readonly File[]; route: string }) => {
+          asked.push(request);
+          if (answer instanceof Error) throw answer;
+          return answer;
+        },
+      },
+    };
+  };
+
+  it('answers what this assistant cannot place, in the conversation, under the other one’s name — never with a "Why?"', async () => {
+    const { companion, asked } = companionOf();
+    const { mounted, thread, all } = setup(answering(nothing), { companion });
+    await run(mounted, 'how many players are injured');
+    expect(asked).toEqual([{ text: 'how many players are injured', files: [], route: '/home' }]);
+    expect(text(thread)).toContain('Three players are injured this week.');
+    expect(text(thread)).toContain('Answered by Club assistant');
+    expect(all('why')).toHaveLength(0);
+  });
+
+  it('is not asked when the router has somewhere to offer: that question stays this assistant’s', async () => {
+    const { companion, asked } = companionOf();
+    const { mounted } = setup(answering(clarifying), { companion });
+    await run(mounted, 'games');
+    expect(asked).toEqual([]);
+  });
+
+  it('gets a topic the registry puts outside the app, but never a refusal to act', async () => {
+    const acting = caps.map((c) => (c.id === 'unsupported.payments' ? { ...c, refuses: 'action' } : c));
+    const actingRegistry = { capabilities: acting, byId: new Map(acting.map((c) => [c.id, c])), boundaryIds: registry.boundaryIds } as unknown as Registry;
+    const refused: Partial<TurnTrace> = { outcome: 'out_of_scope', capabilityId: 'unsupported.payments', candidates: [] };
+    const acts: Routable = { registry: actingRegistry, route: async () => trace(refused) };
+    const first = companionOf();
+    const a = setup(acts, { companion: first.companion });
+    await run(a.mounted, 'pay my invoice');
+    expect(first.asked).toEqual([]);
+    expect(text(a.thread)).toContain('I cannot move money.');
+
+    // The same limit, as a topic rather than an act, is theirs to answer.
+    const second = companionOf();
+    const b = setup(answering(refused), { companion: second.companion });
+    await run(b.mounted, 'tell me about payments');
+    expect(second.asked).toHaveLength(1);
+  });
+
+  it('leaves the turn to this assistant when it declines or fails', async () => {
+    for (const answer of [null, '   ', new Error('down')]) {
+      const { companion } = companionOf(answer);
+      const { mounted, thread } = setup(answering(nothing), { companion });
+      await run(mounted, 'quero falar com alguém');
+      expect(text(thread), String(answer)).toContain('not sure what you’re after');
+      expect(text(thread)).not.toContain('Answered by');
+    }
+  });
+
+  it('turns the paperclip on, and takes what is attached — with the words — instead of the page', async () => {
+    const { companion, asked } = companionOf('That is a medical certificate for Rui.');
+    const events: unknown[] = [];
+    const { mounted, host, thread } = setup(answering(nothing), { companion }, {
+      page: (doc) => {
+        (doc.defaultView as unknown as Record<string, unknown>).dispatchEvent = (e: unknown) => void events.push(e);
+      },
+    });
+    const clip = host.find((el) => String(el.className ?? '').split(' ').includes('attach'))!;
+    expect(clip.hidden).toBe(false);
+    const picker = host.findAll((el) => el.tagName === 'input' && el.type === 'file')[0]!;
+    const pdf = { name: 'atestado.pdf', type: 'application/pdf', size: 2048 } as unknown as File;
+    picker.files = [pdf];
+    picker.fire('change');
+    await run(mounted, 'what is this?');
+    expect(asked).toEqual([{ text: 'what is this?', files: [pdf], route: '/home' }]);
+    expect(events).toEqual([]);
+    expect(text(thread)).toContain('That is a medical certificate for Rui.');
+    expect(text(thread)).toContain('Your attachment went to Club assistant.');
+  });
+
+  it('is opened whole from the panel, which steps aside for it', async () => {
+    let opened = 0;
+    const { orb, screen, byClass } = setup(answering({}), { companion: { name: 'Club assistant', open: () => void opened++ } });
+    orb.fire('click');
+    await settle(50);
+    const button = byClass('companion');
+    expect(button.hidden).toBe(false);
+    expect(button.textContent).toBe('Open Club assistant');
+    button.fire('click');
+    expect(opened).toBe(1);
+    expect(screen.dataset.open).toBe('false');
+  });
+
+  it('offers no such button when there is nothing to open', () => {
+    const { byClass } = setup(answering({}));
+    expect(byClass('companion').hidden).toBe(true);
+  });
+
+  it('starts the app’s own tour when the visitor asks for one, on the page they are on', async () => {
+    const tours: string[] = [];
+    const routed = answering({});
+    const { mounted, screen } = setup(routed, { companion: { tour: (route: string) => void tours.push(route) } }, { path: '/calendar' });
+    mounted.open();
+    await mounted.ask('visita guiada');
+    expect(tours).toEqual(['/calendar']);
+    expect(screen.dataset.open).toBe('false');
+    expect(routed.asked).toEqual([]);
+  });
+
+  it('hides the app’s own launchers while it runs, and gives them back when it goes', () => {
+    let head: FakeElement | null = null;
+    const { mounted } = setup(answering({}), { companion: { hide: ['#club-chat', '[data-tour-prompt]'] } }, {
+      page: (doc) => {
+        head = doc.createElement('head');
+        (doc as unknown as { head: FakeElement }).head = head;
+      },
+    });
+    expect(head!.children).toHaveLength(1);
+    expect(head!.children[0]!.textContent).toBe('#club-chat, [data-tour-prompt] { display: none !important; }');
+    mounted.destroy();
+    expect(head!.children).toHaveLength(0);
+  });
+});
+
+/**
+ * What the adopter tunes and what visitors teach (ADR-027). Every app is different, so how bold the
+ * assistant is, where content questions go, and what it learns from real use are the adopter's to set.
+ */
+describe('the adopter’s dial — how readily it moves', () => {
+  const leading = {
+    outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 },
+    candidates: [{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.list', score: 0.1 }],
+  } as unknown as Partial<TurnTrace>;
+  const run = async (mounted: { ask(q: string): Promise<unknown> }, q: string) => {
+    const done = mounted.ask(q);
+    await settle(3000);
+    return done;
+  };
+
+  it('balanced (the default): moves on a decision, asks about a leader', async () => {
+    const decided = setup(answering(toCalendar));
+    await run(decided.mounted, 'calendar');
+    expect(decided.moves).toEqual(['/calendar']);
+    const led = setup(answering(leading));
+    await run(led.mounted, 'games');
+    expect(led.moves).toEqual([]);
+  });
+
+  it('confirm: never moves without a yes — even a decided turn is asked, and "yes" takes it', async () => {
+    const { mounted, moves, thread } = setup(answering(toCalendar), { decide: 'confirm' });
+    await run(mounted, 'calendar');
+    expect(moves).toEqual([]);
+    expect(String(thread.textContent)).toContain('Shall I open Calendar?');
+    await run(mounted, 'yes');
+    expect(moves).toEqual(['/calendar']);
+  });
+
+  it('eager: also moves when one place is plainly ahead — but never on a lone weak match, or two equals', async () => {
+    const led = setup(answering(leading), { decide: 'eager' });
+    await run(led.mounted, 'games');
+    expect(led.moves).toEqual(['/calendar']);
+    const weak = setup(answering({ ...leading, candidates: [{ capabilityId: 'calendar.overview', score: 0.1 }] } as never), { decide: 'eager' });
+    await run(weak.mounted, 'games');
+    expect(weak.moves).toEqual([]);
+    const tie = setup(answering(clarifying), { decide: 'eager' });
+    await run(tie.mounted, 'games');
+    expect(tie.moves).toEqual([]);
+  });
+
+  it('never changes a refusal, whatever the dial says', async () => {
+    const { mounted, moves, thread } = setup(answering({ outcome: 'out_of_scope', capabilityId: 'unsupported.payments' }), { decide: 'eager' });
+    await run(mounted, 'pay my invoice');
+    expect(moves).toEqual([]);
+    expect(String(thread.textContent)).toContain('I cannot move money.');
+  });
+});
+
+describe('the app’s own search, for what no screen matches', () => {
+  const nothing = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0 }] } as unknown as Partial<TurnTrace>;
+
+  it('offers a search for the visitor’s own words first, when nothing matched', async () => {
+    const { mounted, all } = setup(answering(nothing), { search: '/search?q={query}' });
+    const done = mounted.ask('photos of Ana in Porto');
+    await settle(3000);
+    await done;
+    const chips = all('chip');
+    expect(chips[0]!.href).toBe('/search?q=photos%20of%20Ana%20in%20Porto');
+    expect(chips[0]!.textContent).toBe('Search for “photos of Ana in Porto”');
+  });
+
+  it('treats faint matches as no match: search first, and no "X, or Y?" about two unrelated screens', async () => {
+    const faint = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0.06 }, { capabilityId: 'squad.list', score: 0.04 }] } as unknown as Partial<TurnTrace>;
+    const { mounted, all, thread } = setup(answering(faint), { search: '/search?q={query}' });
+    const done = mounted.ask('fotos de Ana en Oporto');
+    await settle(3000);
+    await done;
+    expect(all('chip')[0]!.href).toBe('/search?q=fotos%20de%20Ana%20en%20Oporto');
+    expect(String(thread.textContent)).toContain('not sure what you’re after');
+    expect(String(thread.textContent)).not.toContain('Do you mean');
+
+    // …and the app's own assistant is asked about it too, as about anything else this one cannot place.
+    const asked: string[] = [];
+    const withCompanion = setup(answering(faint), { companion: { ask: async ({ text }) => (asked.push(text), 'Ana has 3 albums.') } });
+    const again = withCompanion.mounted.ask('fotos de Ana en Oporto');
+    await settle(3000);
+    await again;
+    expect(asked).toEqual(['fotos de Ana en Oporto']);
+  });
+
+  it('is not offered when a screen matched, or when the template is not a path on this app', async () => {
+    const matched = setup(answering(clarifying), { search: '/search?q={query}' });
+    const a = matched.mounted.ask('games');
+    await settle(3000);
+    await a;
+    expect(matched.all('chip').map((c) => c.href)).not.toContain('/search?q=games');
+    for (const template of ['https://evil.test/?q={query}', '//evil.test/{query}', '/search']) {
+      const bad = setup(answering(nothing), { search: template });
+      const b = bad.mounted.ask('anything');
+      await settle(3000);
+      await b;
+      expect(bad.all('chip').some((c) => String(c.href).includes('evil') || c.href === '/search'), template).toBe(false);
+    }
+  });
+});
+
+describe('what visitors teach it', () => {
+  const run = async (mounted: { ask(q: string): Promise<unknown> }, q: string) => {
+    const done = mounted.ask(q);
+    await settle(3000);
+    return done;
+  };
+  const lessons = () => {
+    const got: unknown[] = [];
+    return { got, onLearn: (lesson: unknown) => void got.push(lesson) };
+  };
+
+  it('is told when a visitor picks a place for a question it could not settle — by tap', async () => {
+    const { got, onLearn } = lessons();
+    const { mounted, all } = setup(answering(clarifying), { onLearn });
+    await run(mounted, 'games');
+    all('chip')[1]!.fire('click', { button: 0 });
+    expect(got).toEqual([{ question: 'games', route: '/squad', how: 'chose', from: '/home', offered: ['/calendar', '/squad'] }]);
+  });
+
+  it('…by saying which, and when they say neither', async () => {
+    const chose = lessons();
+    const a = setup(answering(clarifying), { onLearn: chose.onLearn });
+    await run(a.mounted, 'games');
+    await run(a.mounted, 'the second one');
+    expect(chose.got).toMatchObject([{ question: 'games', route: '/squad', how: 'chose' }]);
+
+    const rejected = lessons();
+    const b = setup(answering(clarifying), { onLearn: rejected.onLearn });
+    await run(b.mounted, 'games');
+    await run(b.mounted, 'neither');
+    expect(rejected.got).toMatchObject([{ question: 'games', route: null, how: 'rejected' }]);
+  });
+
+  it('is told about a question nothing in the app matched', async () => {
+    const { got, onLearn } = lessons();
+    const nothing = { outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0 }] } as unknown as Partial<TurnTrace>;
+    const { mounted } = setup(answering(nothing), { onLearn });
+    await run(mounted, 'quero falar com alguém');
+    expect(got).toMatchObject([{ question: 'quero falar com alguém', route: null, how: 'unplaced' }]);
+  });
+
+  it('learns nothing from a decision it made itself, from small talk, or from a refusal', async () => {
+    const { got, onLearn } = lessons();
+    const decided = setup(answering(toCalendar), { onLearn });
+    await run(decided.mounted, 'calendar');
+    await run(decided.mounted, 'thanks');
+    const refused = setup(answering({ outcome: 'out_of_scope', capabilityId: 'unsupported.payments' }), { onLearn });
+    await run(refused.mounted, 'pay my invoice');
+    expect(got).toEqual([]);
+  });
+
+  it('survives a page handler that throws', async () => {
+    const { mounted, all, moves } = setup(answering(clarifying), { onLearn: () => { throw new Error('page bug'); } });
+    await run(mounted, 'games');
+    all('chip')[0]!.fire('click', { button: 0 });
+    await settle(500);
+    expect(moves).toEqual(['/calendar']);
+  });
+});
+
+describe('a navigation that is not a <nav>', () => {
+  it('is found by the selector the adopter gives, for places to begin and for the full-screen frame', async () => {
+    const { mounted, all, byClass, screen } = setup(
+      answering({ outcome: 'clarify', decidedAt: 'embedding', latency: { total: 5 }, candidates: [{ capabilityId: 'calendar.overview', score: 0 }] } as never),
+      { navigation: '[data-sidebar]' },
+      {
+        page: (doc) => {
+          const side = doc.createElement('div');
+          side.setAttribute('data-sidebar', '');
+          side.getBoundingClientRect = () => ({ left: 0, top: 0, width: 220, height: 800 });
+          for (const [href, text] of [['/calendar', 'Agenda'], ['/competition/standings', 'Table']] as const) {
+            const a = doc.createElement('a');
+            a.setAttribute('href', href);
+            a.textContent = text;
+            side.append(a);
+          }
+          doc.body.append(side);
+        },
+      },
+    );
+    const done = mounted.ask('help me, I am lost here');
+    await settle(3000);
+    await done;
+    expect(all('chip').map((c) => c.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('Agenda')]));
+    byClass('expand').fire('click');
+    expect(screen.style['--ng-frame-left']).toBe('220px');
+  });
+});
+
+describe('where it sits', () => {
+  it('keeps the distance from the corner the adopter asks for, so it clears the app’s own buttons', () => {
+    const { host, orb } = setup(answering({}), { inset: { x: 24, y: 144 } });
+    expect(host.style['--ng-inset-x']).toBe('24px');
+    expect(host.style['--ng-inset-y']).toBe('144px');
+    // 1200 × 800 window: the orb's 92px box ends 24px from the right and 144px from the bottom.
+    const scale = Number(orb.style['--s']);
+    expect(Number.parseFloat(String(orb.style['--x']))).toBeCloseTo(1200 - 24 - 46 - (320 * scale) / 2, 0);
+    expect(Number.parseFloat(String(orb.style['--y']))).toBeCloseTo(800 - 144 - 46 - (320 * scale) / 2, 0);
+  });
+});
+
 describe('destroy', () => {
   it('removes the layer and gives the page its scrolling back', async () => {
     const { mounted, doc, orb } = setup(answering({}));
     orb.fire('click');
     await settle(50);
+    mounted.open({ expanded: true });
+    expect(overflow(doc)).toBe('hidden');
     mounted.destroy();
     expect(doc.body.children.some((el) => el.hasAttribute('data-nextgen-assistant'))).toBe(false);
-    expect(doc.documentElement.style.overflow).toBe('');
+    expect(overflow(doc)).toBe('');
   });
 });

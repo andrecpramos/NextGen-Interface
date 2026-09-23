@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { adopterNav, type NavRoot } from './nav.ts';
+import { adopterNav, navFrame, type FrameNode, type FrameRoot, type NavRoot } from './nav.ts';
 import { FakeDocument, type FakeElement } from './test-support/fake-dom.ts';
 
 /**
@@ -87,5 +87,55 @@ describe('adopterNav', () => {
     const layer = node(doc, 'div', {}, [node(doc, 'nav', {}, [link(doc, '/a', 'A'), link(doc, '/b', 'B')])]);
     doc.body.append(layer);
     expect(read(doc, '/home', layer)).toEqual([]);
+  });
+});
+
+/**
+ * Where the app's navigation sits, so the full-screen assistant leaves it in view (ADR-026). Plain
+ * boxes stand in for a laid-out page: `parentElement` and `getBoundingClientRect` are all it reads.
+ */
+describe('navFrame', () => {
+  interface Box {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  }
+  const el = (box: Box, parentElement: FrameNode | null = null): FrameNode => ({ getBoundingClientRect: () => box, parentElement });
+  const page = (byTag: Record<string, FrameNode[]>): FrameRoot => ({
+    querySelectorAll: (selector) => byTag[selector] ?? [],
+  });
+  const viewport = { innerWidth: 1440, innerHeight: 900 };
+
+  it('finds a sidebar against the left edge, widened to the container that also holds its account menu', () => {
+    const sidebar = el({ left: 0, top: 0, width: 264, height: 900 });
+    // The <nav> is only the list of links, not the whole sidebar.
+    const nav = el({ left: 0, top: 64, width: 248, height: 520 }, sidebar);
+    expect(navFrame(page({ nav: [nav] }), viewport)).toEqual({ left: 264, top: 0 });
+  });
+
+  it('finds a bar across the top', () => {
+    const header = el({ left: 0, top: 0, width: 1440, height: 64 });
+    expect(navFrame(page({ '[role="navigation"]': [header] }), viewport)).toEqual({ left: 0, top: 64 });
+  });
+
+  it('finds both, a sidebar beside a bar', () => {
+    const sidebar = el({ left: 0, top: 0, width: 240, height: 900 });
+    const bar = el({ left: 240, top: 0, width: 1200, height: 56 });
+    expect(navFrame(page({ aside: [sidebar], nav: [bar] }), viewport)).toEqual({ left: 240, top: 56 });
+  });
+
+  it('frames nothing for a navigation in the page’s flow, a hidden one, or its own layer', () => {
+    const inFlow = el({ left: 320, top: 400, width: 600, height: 48 });
+    const hidden = el({ left: 0, top: 0, width: 0, height: 0 });
+    const wide = el({ left: 0, top: 0, width: 900, height: 900 });
+    const ours = el({ left: 0, top: 0, width: 240, height: 900 });
+    const frame = navFrame(page({ nav: [inFlow, hidden, wide, ours] }), viewport, { contains: (node: never) => node === ours });
+    expect(frame).toEqual({ left: 0, top: 0 });
+  });
+
+  it('frames nothing for a short list of links that merely starts at the left edge', () => {
+    const shortNav = el({ left: 0, top: 300, width: 200, height: 160 });
+    expect(navFrame(page({ nav: [shortNav] }), viewport)).toEqual({ left: 0, top: 0 });
   });
 });

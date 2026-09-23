@@ -22,7 +22,7 @@
 // This file adds no routing behaviour of its own, on purpose — a second
 // implementation would be a second thing to keep in step.
 
-import { registryFromIndex, makeEmbedder, route as routeTurn } from '@nextgen/core-intent/browser';
+import { indexFor, makeEmbedder, mergeRegistryFiles, registryFromIndex, route as routeTurn } from '@nextgen/core-intent/browser';
 import type { Registry, RegistryFile, ShippedIndex, Thresholds, TurnTrace } from '@nextgen/core-intent/browser';
 import type { GuidedStep } from '@nextgen/core-capability';
 
@@ -31,14 +31,21 @@ import type { GuidedStep } from '@nextgen/core-capability';
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 
 import { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
+import { announceFailure, StartError } from './errors.ts';
 import { SameOriginLlmRuntime, type Stage3Config } from './stage3.ts';
 
 export type { Stage3Config } from './stage3.ts';
+export { ERROR_EVENT, StartError, type ErrorDetail, type StartFailure } from './errors.ts';
 
 /** What the generator wrote for one role, as the adopter serves it. */
 export interface Bundle {
   readonly registry: RegistryFile;
-  readonly index: ShippedIndex;
+  /**
+   * The vectors the build shipped. Optional: without it they are computed from the registry
+   * (`indexFor`, the function the build writes them with), which is how a merged registry for a user
+   * with several roles is indexed.
+   */
+  readonly index?: ShippedIndex;
   readonly thresholds: Thresholds;
   /**
    * Present only when `nextgen build --stage3 <path>` turned it on (ADR-017, WP-52).
@@ -61,7 +68,7 @@ export interface Assistant {
 
 /** Build an assistant from a bundle already in memory. No I/O at all. */
 export function create(bundle: Bundle): Assistant {
-  const registry: Registry = registryFromIndex(bundle.registry, bundle.index);
+  const registry: Registry = registryFromIndex(bundle.registry, bundle.index ?? indexFor(bundle.registry));
 
   // One encoder, fitted to THIS registry's documents and shared with nothing —
   // lessons.md L10 is what a shared, re-fitted encoder cost this project once.
@@ -116,36 +123,71 @@ export function create(bundle: Bundle): Assistant {
  * built without `--stage3`: the field is absent, `create()` never constructs a runtime,
  * and the three fetches above stay the only network this script ever does.
  */
-export async function load(basePath: string, role: string): Promise<Assistant> {
+export async function load(basePath: string, role: string | readonly string[], options: LoadOptions = {}): Promise<Assistant> {
   const base = basePath.replace(/\/+$/, '');
+  const fetchFile = options.fetch ?? ((url: string) => fetch(url));
   const get = async <T>(file: string): Promise<T> => {
-    const response = await fetch(`${base}/${file}`);
-    if (!response.ok) throw new Error(`NextGen: could not load ${base}/${file} (${response.status})`);
-    return (await response.json()) as T;
+    let response: Response;
+    try {
+      response = await fetchFile(`${base}/${file}`);
+    } catch (error) {
+      throw new StartError('bundle-unavailable', `could not load ${base}/${file}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (!response.ok) {
+      throw new StartError(
+        'bundle-unavailable',
+        `could not load ${base}/${file} (${response.status})${response.status === 404 ? ' — is it served there? A server started before the files or endpoint existed must be restarted' : ''}`,
+      );
+    }
+    try {
+      return (await response.json()) as T;
+    } catch {
+      throw new StartError('bundle-invalid', `${base}/${file} is not JSON — is the path serving the app's page instead?`);
+    }
   };
-  const [registry, index, thresholds] = await Promise.all([
-    get<RegistryFile>(`registry.${role}.json`),
-    get<ShippedIndex>(`index.${role}.json`),
+  // A user who holds several roles (a coach who is also a parent) is served each role's registry — the
+  // server decides which, from the session — and gets their union. Its index is computed, never the
+  // roles' indexes concatenated: each lives in its own vector space (`mergeRegistryFiles`, `indexFor`).
+  const roles = [...new Set(typeof role === 'string' ? [role] : role)];
+  if (roles.length === 0) throw new StartError('mount-failed', 'no role was given');
+  const single = roles.length === 1;
+  const [registries, index, thresholds] = await Promise.all([
+    Promise.all(roles.map((r) => get<RegistryFile>(`registry.${r}.json`))),
+    single ? get<ShippedIndex>(`index.${roles[0]}.json`) : Promise.resolve(undefined),
     get<{ thresholds: Thresholds; stage3?: Stage3Config }>('thresholds.hashing.json'),
   ]);
-  return create({
-    registry,
-    index,
-    thresholds: thresholds.thresholds,
-    ...(thresholds.stage3 ? { stage3: thresholds.stage3 } : {}),
-  });
+  try {
+    return create({
+      registry: mergeRegistryFiles(registries),
+      ...(index ? { index } : {}),
+      thresholds: thresholds.thresholds,
+      ...(thresholds.stage3 ? { stage3: thresholds.stage3 } : {}),
+    });
+  } catch (error) {
+    throw new StartError('bundle-invalid', error instanceof Error ? error.message : String(error));
+  }
 }
 
-export { present, wordsFor, fillParams, isSamePlace, WORDS, type Choice, type Tone, type View, type Words } from './present.ts';
+export interface LoadOptions {
+  /**
+   * How to fetch the three files. Default: the page's own `fetch`, with no credentials beyond cookies.
+   * For an app whose API wants a token — a single-page app with a Bearer token in memory — pass its own
+   * authenticated client: `(url) => fetch(url, { headers: { Authorization: \`Bearer ${token}\` } })`.
+   */
+  readonly fetch?: (url: string) => Promise<Response>;
+}
+
+
+export { present, wordsFor, fillParams, isSamePlace, searchChoice, DECIDE, WORDS, type Choice, type Decide, type Tone, type View, type Words } from './present.ts';
 export { mount, adoptStyles, offerMove, NAVIGATE_EVENT, type MountOptions, type Mounted, type NavigateDetail, type Routable } from './widget.ts';
-export { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
+export { mountAssistant, LEARN_EVENT, type AssistantOptions, type Companion, type CompanionRequest, type Lesson, type MountedAssistant } from './assistant.ts';
 
 /** A corner named by `data-nextgen-position`. Only its side is used: the orb rests at the bottom. */
 export type Corner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
 export const CORNERS: readonly Corner[] = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];
 
-export interface StartOptions extends AssistantOptions {
+export interface StartOptions extends AssistantOptions, LoadOptions {
   /** Mount inside this element instead of the page's body. The assistant still covers the page. */
   readonly target?: Element;
   /**
@@ -161,14 +203,19 @@ export interface StartOptions extends AssistantOptions {
  * `options.navigate` — or listen for `nextgen:navigate` — so moving does not reload
  * the page.
  *
- * Rejects when the bundle cannot be loaded. The script tag's own start-up catches
- * that and warns instead, because it has no caller (script-tag.ts).
+ * Rejects with a `StartError` when it cannot start, and announces that on the window as
+ * `nextgen:error` first, with a `reason` — so a caller that forgets to catch still leaves a
+ * trace. The script tag's own start-up catches it and warns, because it has no caller (script-tag.ts).
  */
-export async function start(basePath: string, role: string, options: StartOptions = {}): Promise<MountedAssistant> {
-  const assistant = await load(basePath, role);
-  await bodyReady();
-  const cornerSide = options.position ? (options.position.endsWith('left') ? 'left' : 'right') : 'auto';
-  return mountAssistant(options.target ?? document.body, assistant, { ...options, dockSide: options.dockSide ?? cornerSide });
+export async function start(basePath: string, role: string | readonly string[], options: StartOptions = {}): Promise<MountedAssistant> {
+  try {
+    const assistant = await load(basePath, role, options);
+    await bodyReady();
+    const cornerSide = options.position ? (options.position.endsWith('left') ? 'left' : 'right') : 'auto';
+    return mountAssistant(options.target ?? document.body, assistant, { ...options, dockSide: options.dockSide ?? cornerSide });
+  } catch (error) {
+    throw announceFailure(error);
+  }
 }
 
 /** A script in <head> without `defer` runs before <body> exists. */

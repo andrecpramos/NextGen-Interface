@@ -64,7 +64,9 @@ export const GRAPHITE: Theme = {
   raised: [23, 27, 33, 1],
   field: [26, 30, 36, 1],
   text: [230, 233, 238, 1],
-  muted: [122, 131, 143, 1],
+  // #848D99: AA on the raised surface with room to spare. #7A838F measured 4.50:1 on #171B21 — AA only
+  // to the second decimal, and below it on any step lighter (Pilot-A field report, 2026-09-23).
+  muted: [132, 141, 153, 1],
   border: [255, 255, 255, 0.09],
   accent: [121, 192, 206, 1],
   accentText: [121, 192, 206, 1],
@@ -342,8 +344,13 @@ export function themeVariables(theme: Theme): Record<string, string> {
   const dark = theme.scheme === 'dark';
   const vars: Record<string, string> = {
     '--ng-scheme': theme.scheme,
-    // Opaque: on the landing route this screen is the page, so nothing may show through it.
+    // Opaque: only where the browser cannot blur, or the visitor asked for no transparency.
     '--ng-backdrop': css(theme.background),
+    // Behind the full-screen conversation: the page's own background, lifted a shade toward its text on a
+    // dark page, and translucent — the app stays there underneath, blurred, rather than going black.
+    '--ng-veil': css(withAlpha(dark ? mix(theme.background, theme.text, 0.08) : theme.background, dark ? 0.7 : 0.6)),
+    // The corner panel: the page's raised surface as glass, mostly there so text on it stays legible.
+    '--ng-panel': css(withAlpha(dark ? mix(theme.raised, theme.text, 0.04) : theme.raised, dark ? 0.78 : 0.8)),
     '--ng-text': css(theme.text),
     '--ng-muted': css(theme.muted),
     '--ng-surface': css(theme.surface),

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Registry, TurnTrace } from '@nextgen/core-intent/browser';
 
 import type { Smalltalk } from './chat.ts';
-import { attachmentView, fillParams, isSamePlace, present, smalltalkView, WORDS, wordsFor, type Choice } from './present.ts';
+import { attachmentView, fillParams, isSamePlace, present, searchChoice, smalltalkView, WORDS, wordsFor, type Choice } from './present.ts';
 
 /**
  * The script tag's policy for one turn: what it says, and whether it moves.
@@ -204,24 +204,21 @@ describe('present — a limit that helps', () => {
 
 /**
  * When the router will not act but one screen is plainly ahead, a menu of equals is the wrong
- * answer: it makes the visitor do the ranking the router already did. So the leader is offered
- * first, as the likely one, with what the screen is for — and never executed, because a
- * suggestion costs one tap when it is wrong and a move costs a page.
+ * answer: it makes the visitor do the ranking the router already did. So the answer is one question
+ * about the leader, with what the screen is for (ADR-026) — and never executed, because a
+ * suggestion costs one tap (or a "yes") when it is wrong and a move costs a page.
  */
 describe('present — a clear leader', () => {
   const clarify = (candidates: { capabilityId: string; score: number }[], path = '/', w = words) =>
     present(trace({ outcome: 'clarify', candidates }), registry, path, w);
 
-  it('says which one it thinks you mean when one is clearly ahead, and what that screen is for', () => {
+  it('asks about the one it thinks you mean when one is clearly ahead, with what that screen is for — and nothing else', () => {
     const view = clarify([
       { capabilityId: 'calendar.overview', score: 0.3 },
       { capabilityId: 'squad.search', score: 0.12 },
     ]);
-    expect(view).toMatchObject({ tone: 'choose', probable: true, destination: null, title: 'You probably want Calendar.' });
-    expect(view.choices).toEqual([
-      { label: 'Calendar', route: '/calendar', detail: 'Training and matches by day.' },
-      { label: 'Squad', route: '/squad', detail: 'Every player.' },
-    ]);
+    expect(view).toMatchObject({ tone: 'choose', probable: true, destination: null, title: 'Are you looking for Calendar?' });
+    expect(view.choices).toEqual([{ label: 'Calendar', route: '/calendar', detail: 'Training and matches by day.' }]);
   });
 
   it('never moves the browser, whatever the margin', () => {
@@ -234,8 +231,8 @@ describe('present — a clear leader', () => {
       { capabilityId: 'squad.search', score: 0.25 },
     ]);
     expect(view.probable).toBeUndefined();
-    expect(view.title).toBe(words.couldHelp(2));
     expect(view.choices).toHaveLength(2);
+    expect(view.title).toBe(words.eitherOr(view.choices[0]!.label, view.choices[1]!.label));
   });
 
   it('keeps asking when the best is barely a match at all', () => {
@@ -258,18 +255,27 @@ describe('present — a clear leader', () => {
     ]);
     expect(view.probable).toBeUndefined();
     expect(view.choices.map((c) => c.label)).toEqual(['Calendar']);
+    // …but it is still asked about, as one question, not offered as a list of one.
+    expect(view.title).toBe(words.probably('Calendar'));
   });
 
-  it('leaves the framing to the model when it wrote something, which wins over fixed wording', () => {
-    const view = present(
-      trace({ outcome: 'clarify', prose: 'I found a couple of things close to that.', candidates: [{ capabilityId: 'calendar.overview', score: 0.5 }, { capabilityId: 'squad.search', score: 0.1 }] }),
+  it('keeps what the model wrote as the body beneath the question, over any fixed wording', () => {
+    const prose = 'I found a couple of things close to that.';
+    const lead = present(
+      trace({ outcome: 'clarify', prose, candidates: [{ capabilityId: 'calendar.overview', score: 0.5 }, { capabilityId: 'squad.search', score: 0.1 }] }),
       registry,
       '/',
       words,
     );
-    expect(view.probable).toBeUndefined();
-    expect(view.title).toBe(words.couldHelp(2));
-    expect(view.body).toBe('I found a couple of things close to that.');
+    expect(lead).toMatchObject({ title: words.probably('Calendar'), body: prose });
+    const tie = present(
+      trace({ outcome: 'clarify', prose, candidates: [{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.search', score: 0.25 }] }),
+      registry,
+      '/',
+      words,
+    );
+    expect(tie.body).toBe(prose);
+    expect(tie.choices).toHaveLength(2);
   });
 
   it('a lone candidate above the floor is the likely one', () => {
@@ -290,9 +296,8 @@ describe('present — a clear leader', () => {
 
   it('says it in the page’s language', () => {
     const view = clarify([{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.search', score: 0.1 }], '/', WORDS.pt);
-    expect(view.title).toBe('Provavelmente quer Calendar.');
-    expect(WORDS.pt.orElse).toBeTruthy();
-    expect(WORDS.en.orElse).toBeTruthy();
+    expect(view.title).toBe('Procura Calendar?');
+    expect(WORDS.pt.eitherOr('A', 'B')).toBe('Refere-se a A, ou a B?');
   });
 });
 
@@ -313,11 +318,11 @@ describe('present — few options, each explained', () => {
   const ask = (utterance: string, candidates = many, over: Partial<TurnTrace> = {}, w = words) =>
     present(trace({ outcome: 'clarify', utterance, candidates, ...over }), registry, '/my/children/42/development', w);
 
-  it('offers at most two places, however many candidates there were', () => {
+  it('offers at most two places, however many candidates there were — and one when one is plainly ahead', () => {
     expect(ask('something').choices).toHaveLength(2);
     const leading = ask('something', [{ capabilityId: 'calendar.overview', score: 0.9 }, ...many.slice(1)]);
     expect(leading.probable).toBe(true);
-    expect(leading.choices).toHaveLength(2);
+    expect(leading.choices).toHaveLength(1);
   });
 
   it('says what every offered screen is for, so a stranger can tell them apart', () => {
@@ -331,17 +336,20 @@ describe('present — few options, each explained', () => {
     expect('detail' in view.choices[0]!).toBe(false);
   });
 
-  it('a tie is two places, named as such, not a quiz', () => {
+  it('a tie is one question naming both places — "this, or that?" — not a list to rank', () => {
     const view = ask('something');
     expect(view.probable).toBeUndefined();
-    expect(view.title).toBe(words.couldHelp(2));
-    expect(words.couldHelp(2)).not.toMatch(/which/i);
+    const [a, b] = view.choices.map((c) => c.label);
+    expect(view.title).toBe(words.eitherOr(a!, b!));
+    expect(view.title).toContain(a!);
+    expect(view.title).toContain(b!);
+    expect(view.title.endsWith('?')).toBe(true);
   });
 
-  it('a single place is offered as one, not as a choice between things', () => {
+  it('a single place is asked about, not offered as a choice between things', () => {
     const view = ask('something', [{ capabilityId: 'calendar.overview', score: 0.1 }]);
     expect(view.choices).toHaveLength(1);
-    expect(view.title).toBe(words.couldHelp(1));
+    expect(view.title).toBe(words.probably('Calendar'));
   });
 
   it('when what was asked is a task, it says the task can be done there', () => {
@@ -354,18 +362,18 @@ describe('present — few options, each explained', () => {
   });
 
   it('does not say a task can be done when it is not sure which screen it is', () => {
-    expect(ask('I want to book a training').title).toBe(words.couldHelp(2));
+    const view = ask('I want to book a training');
+    expect(view.title).toBe(words.eitherOr(view.choices[0]!.label, view.choices[1]!.label));
   });
 
-  it('has the words for it in both languages', () => {
+  it('has the words for it in both languages, each a question', () => {
     for (const w of [WORDS.en, WORDS.pt]) {
-      expect(w.couldHelp(1)).toBeTruthy();
-      expect(w.couldHelp(2)).toBeTruthy();
-      expect(w.couldHelp(1)).not.toBe(w.couldHelp(2));
+      expect(w.eitherOr('X', 'Y')).toMatch(/X.*Y.*\?$/);
+      expect(w.probably('X')).toMatch(/X.*\?$/);
       expect(w.probablyTask('X')).toContain('X');
       expect(w.notThat).toBeTruthy();
     }
-    expect(WORDS.pt.couldHelp(2)).not.toBe(WORDS.en.couldHelp(2));
+    expect(WORDS.pt.eitherOr('X', 'Y')).not.toBe(WORDS.en.eitherOr('X', 'Y'));
   });
 });
 
@@ -435,7 +443,6 @@ describe('present — nothing matched', () => {
       { capabilityId: 'squad.search', score: 0 },
     ]);
     expect(view.title).toBe(words.unsureHelp);
-    expect(view.title).not.toBe(words.couldHelp(2));
     expect(view.probable).toBeUndefined();
   });
 
@@ -458,7 +465,7 @@ describe('present — nothing matched', () => {
       { capabilityId: 'squad.search', score: 0 },
     ]);
     expect(view.choices.map((c) => c.label)).toEqual(['Calendar']);
-    expect(view.title).toBe(words.couldHelp(1));
+    expect(view.title).toBe(words.probably('Calendar'));
   });
 
   it('is plain "did not understand" when there is nowhere to send them either', () => {
@@ -600,5 +607,85 @@ describe('words', () => {
   it('compares places on the path only', () => {
     expect(isSamePlace('/calendar', '/calendar?week=2')).toBe(true);
     expect(isSamePlace('/calendar', '/squad')).toBe(false);
+  });
+});
+
+/** The adopter's dial (ADR-027): what is done with the router's decision, never the decision itself. */
+describe('present — decide', () => {
+  const decided = trace({ capabilityId: 'calendar.overview' });
+  const leading = trace({ outcome: 'clarify', candidates: [{ capabilityId: 'calendar.overview', score: 0.3 }, { capabilityId: 'squad.search', score: 0.1 }] });
+  const at = (t: TurnTrace, decide: 'confirm' | 'balanced' | 'eager') => present(t, registry, '/', words, [], {}, decide);
+
+  it('confirm asks before a decided move, offering that one place as the likely one', () => {
+    const view = at(decided, 'confirm');
+    expect(view).toMatchObject({ tone: 'choose', destination: null, probable: true, title: 'Shall I open Calendar?' });
+    expect(view.choices.map((c) => c.route)).toEqual(['/calendar']);
+  });
+
+  it('eager takes a plain leader; balanced asks about it', () => {
+    expect(at(leading, 'eager')).toMatchObject({ tone: 'go', destination: '/calendar' });
+    expect(at(leading, 'balanced')).toMatchObject({ tone: 'choose', destination: null });
+  });
+
+  it('leaves a decided move, a limit and an explanation alone under every setting but confirm', () => {
+    expect(at(decided, 'eager').destination).toBe('/calendar');
+    const limit = trace({ outcome: 'out_of_scope', capabilityId: 'unsupported.payments' });
+    for (const decide of ['confirm', 'balanced', 'eager'] as const) expect(at(limit, decide).tone).toBe('limit');
+    expect(at(trace({ capabilityId: 'calendar.overview', explanationRequest: true }), 'confirm').tone).toBe('explain');
+  });
+});
+
+describe('searchChoice', () => {
+  it('puts the visitor’s words, encoded, where the template says', () => {
+    expect(searchChoice('/search?q={query}', '  Ana  & Porto ', words)).toEqual({ label: 'Search for “Ana & Porto”', route: '/search?q=Ana%20%26%20Porto' });
+  });
+
+  it('refuses anything that is not a path on this app with a place for the words', () => {
+    for (const template of [undefined, '', 'https://x.test/?q={query}', '//x.test/{query}', '/search', 'search?q={query}']) {
+      expect(searchChoice(template, 'x', words), String(template)).toBeNull();
+    }
+    expect(searchChoice('/search?q={query}', '   ', words)).toBeNull();
+  });
+});
+
+/**
+ * ADR-028: complex apps are mostly screens about one item, and repeat names across areas. A visitor on a
+ * page that names no item is offered the list it is chosen from; two screens with one name say where each is.
+ */
+describe('present — item screens and repeated names', () => {
+  const caps2 = [
+    { id: 'players.list', kind: 'navigate', route: '/players', title: 'Players', explanation: 'Every player in the club.' },
+    { id: 'players.stats', kind: 'navigate', route: '/players/:playerId/stats', title: 'Player stats', explanation: 'One player’s minutes and goals.' },
+    { id: 'finance', kind: 'navigate', route: '/finance', title: 'Finance', explanation: 'Money.' },
+    { id: 'finance.settings', kind: 'navigate', route: '/finance/settings', title: 'Settings', explanation: 'How invoices are numbered.' },
+    { id: 'squad.settings', kind: 'navigate', route: '/squad/settings', title: 'Settings', explanation: 'Squad rules.' },
+    { id: 'orphan.item', kind: 'navigate', route: '/orphans/:id', title: 'Orphan', explanation: 'Nothing lists these.' },
+  ];
+  const reg = { capabilities: caps2, byId: new Map(caps2.map((c) => [c.id, c])), boundaryIds: new Set() } as unknown as Registry;
+
+  it('answers a decided item screen with the list it is chosen from, and what to do there', () => {
+    const view = present(trace({ capabilityId: 'players.stats' }), reg, '/', words);
+    expect(view.destination).toBeNull();
+    expect(view.body).toContain('open Players, choose the one you want');
+    expect(view.choices).toEqual([{ label: 'Players', route: '/players', detail: 'Choose one there to see its Player stats.' }]);
+  });
+
+  it('still fills the item when the page names it, and says so plainly when nothing lists it', () => {
+    expect(present(trace({ capabilityId: 'players.stats' }), reg, '/players/7/stats', words).title).toMatch(/already on/);
+    const orphan = present(trace({ capabilityId: 'orphan.item' }), reg, '/', words);
+    expect(orphan.body).toContain(words.needsItem);
+    expect(orphan.choices).toEqual([]);
+  });
+
+  it('offers the list for an item screen it is asking about, instead of dropping it', () => {
+    const view = present(trace({ outcome: 'clarify', candidates: [{ capabilityId: 'players.stats', score: 0.4 }, { capabilityId: 'finance', score: 0.1 }] }), reg, '/', words);
+    expect(view.choices[0]).toEqual({ label: 'Players', route: '/players', detail: 'Choose one there to see its Player stats.' });
+    expect(view.probable).toBe(true);
+  });
+
+  it('tells two screens with one name apart by the area each is in', () => {
+    const view = present(trace({ outcome: 'clarify', candidates: [{ capabilityId: 'finance.settings', score: 0.3 }, { capabilityId: 'squad.settings', score: 0.28 }] }), reg, '/', words);
+    expect(view.choices.map((c) => c.label)).toEqual(['Settings · Finance', 'Settings · Squad']);
+    expect(view.title).toBe(words.eitherOr('Settings · Finance', 'Settings · Squad'));
   });
 });

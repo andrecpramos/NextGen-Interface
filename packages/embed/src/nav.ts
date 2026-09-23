@@ -37,6 +37,25 @@ export interface NavOptions {
   readonly currentPath: string;
   /** The assistant's own layer, which is never read as the adopter's navigation. */
   readonly exclude?: { contains(node: never): boolean } | null;
+  /**
+   * The adopter's selector for their navigation, when it is a `div` sidebar with no `nav` or
+   * `role="navigation"` — common in apps built from generic components. Replaces the default search.
+   */
+  readonly selector?: string | null;
+}
+
+/** The elements that are navigation: the adopter's selector, else the semantic ones. Never throws. */
+function navigations<T>(root: { querySelectorAll(selector: string): ArrayLike<T> }, selector: string | null | undefined, fallback: readonly string[]): T[] {
+  const selectors = selector ? [selector] : fallback;
+  const out: T[] = [];
+  for (const s of selectors) {
+    try {
+      for (const node of Array.from(root.querySelectorAll(s))) if (!out.includes(node)) out.push(node);
+    } catch {
+      // an invalid selector from the adopter: nothing found, never an exception in their page
+    }
+  }
+  return out;
 }
 
 const MAIN = /\b(main|primary|principal|site|global)\b/i;
@@ -71,11 +90,10 @@ export function adopterNav(root: NavRoot, options: NavOptions): NavLink[] {
   } catch {
     return [];
   }
-  const all = [...Array.from(root.querySelectorAll('nav')), ...Array.from(root.querySelectorAll('[role="navigation"]'))];
+  const all = navigations(root, options.selector, ['nav', '[role="navigation"]']);
   let best: NavLink[] = [];
   let bestScore = 0;
-  all.forEach((nav, index) => {
-    if (all.indexOf(nav) !== index) return;
+  all.forEach((nav) => {
     if (options.exclude?.contains(nav as never) || nav.closest?.('footer')) return;
     const links = linksIn(nav, origin, options);
     if (links.length < 2) return;
@@ -86,4 +104,91 @@ export function adopterNav(root: NavRoot, options: NavOptions): NavLink[] {
     }
   });
   return best;
+}
+
+// ------------------------------------------------------------------ frame --
+//
+// Where the adopter's navigation sits on the screen, so the full-screen assistant can leave it in view
+// (ADR-026): a sidebar against the left edge, a bar across the top. The assistant covers the rest. Only
+// read, never changed; a navigation that is neither — a drawer, a menu in the page's flow — frames nothing.
+
+interface Box {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The slice of an element `navFrame` reads. `Element` satisfies it. */
+export interface FrameNode {
+  getBoundingClientRect(): Box;
+  readonly parentElement: FrameNode | null;
+}
+
+export interface FrameRoot {
+  querySelectorAll(selector: string): ArrayLike<FrameNode>;
+}
+
+/** How far in from the left and the top the adopter's own navigation reaches. Zero where it has none. */
+export interface Frame {
+  readonly left: number;
+  readonly top: number;
+}
+
+/** A sidebar is at most this share of the width and at least this share of the height; a top bar the reverse. */
+const SIDEBAR_MAX_WIDTH = 0.4;
+const SIDEBAR_MIN_HEIGHT = 0.5;
+const BAR_MAX_HEIGHT = 0.25;
+const BAR_MIN_WIDTH = 0.6;
+/** Touching an edge, give or take a border. */
+const AT_EDGE = 2;
+
+function box(node: FrameNode): Box | null {
+  try {
+    const r = node.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 ? r : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The navigation's own `<nav>` is often only its list of links, inside a taller sidebar that also holds
+ * the account menu. So each one is widened to the largest ancestor still on the same edge and still
+ * the shape of a sidebar (or a bar).
+ */
+export function navFrame(
+  root: FrameRoot,
+  viewport: { readonly innerWidth: number; readonly innerHeight: number },
+  exclude?: { contains(node: never): boolean } | null,
+  selector?: string | null,
+): Frame {
+  const w = viewport.innerWidth;
+  const h = viewport.innerHeight;
+  let left = 0;
+  let top = 0;
+  for (const node of navigations(root, selector, ['nav', '[role="navigation"]', 'aside'])) {
+    if (exclude?.contains(node as never)) continue;
+    const own = box(node);
+    if (!own) continue;
+    if (own.left <= AT_EDGE && own.width <= w * SIDEBAR_MAX_WIDTH) {
+      let tallest = own;
+      for (let up = node.parentElement; up; up = up.parentElement) {
+        const r = box(up);
+        if (!r || r.left > AT_EDGE || r.width > w * SIDEBAR_MAX_WIDTH) break;
+        if (r.height > tallest.height) tallest = r;
+      }
+      if (tallest.height >= h * SIDEBAR_MIN_HEIGHT) left = Math.max(left, tallest.left + tallest.width);
+    }
+    if (own.top <= AT_EDGE && own.height <= h * BAR_MAX_HEIGHT) {
+      let widest = own;
+      for (let up = node.parentElement; up; up = up.parentElement) {
+        const r = box(up);
+        if (!r || r.top > AT_EDGE || r.height > h * BAR_MAX_HEIGHT) break;
+        if (r.width > widest.width) widest = r;
+      }
+      if (widest.width >= w * BAR_MIN_WIDTH) top = Math.max(top, widest.top + widest.height);
+    }
+  }
+  return { left: Math.round(left), top: Math.round(top) };
 }

@@ -20,8 +20,10 @@ judgement about what a person hears, sees or can reach.
   `http://127.0.0.1:4173/dashboard?role=PARENT` — the mock app, with the real widget, in Portuguese and with
   attachments turned on. (On an adopter's app: `node <tool>/scan.mjs preview`.)
 - **What you are testing** (rewritten 2026-09-22; the first version of this list described the old inline
-  search box): a round button in a corner of the page — the orb — which opens a full-screen dialog with a
-  greeting, a conversation and a question box at the bottom.
+  search box; revised 2026-09-23 for ADR-026): a round button in a corner of the page — the orb — which
+  opens a chat panel in that corner, with a greeting, a conversation and a question box at the bottom. The
+  panel sits beside the page and is not modal; its "Ecrã inteiro" (full screen) button makes it fill the
+  screen except the app's own navigation, and then it is modal.
 - **Keep your hands off the mouse for the whole pass.** If you reach for it, that
   is itself a finding — write down what made you reach.
 
@@ -40,13 +42,13 @@ down what you heard and it matches the "should".
 | 3 | Type a question and press `Enter` — do **not** reach for the send button | Submit. You should never need the button | | |
 | 4 | Listen while it is working | Say "A procurar…" ("Looking…") once, or nothing. It must not chatter or repeat | | |
 | 5 | Listen when the answer lands | Read the answer **without you doing anything** — the conversation is a log that announces what is added. If you had to go looking for it, that is ❌ | | |
-| 6 | Ask something ambiguous ("jogos", "calendário") | Announce the two options as a list, and say **how many** items are in it, each with what it is for | | |
+| 6 | Ask something ambiguous ("jogos", "calendário") | Ask **one question** — "Procura X?" or "Refere-se a X, ou a Y?" — and announce its one or two places as a list, saying **how many** items are in it, each with what it is for | | |
 | 7 | `Tab` to an option and press `Enter` | Go to that screen. Before that, `Shift+Tab` back up — you should be able to leave the list | | |
 | 8 | Ask a question, and while it is still working `Tab` into the **previous** answer's links. Let the new answer land | Leave you where you were: earlier answers stay in the conversation, so nothing is removed from under you, and focus is not thrown to the top of the page | | |
-| 9 | Keep pressing `Tab`, then `Shift+Tab`, all the way round | Stay **inside the dialog**, wrapping from the send button to the menu button and back. Nothing on the page behind it may be reached | | |
+| 9 | Keep pressing `Tab`, then `Shift+Tab`, all the way round — first in the panel, then after pressing "Ecrã inteiro" | In the **panel**, `Tab` walks on past the send button into the page: it is beside the page, not over it. **Expanded**, the button is announced pressed ("Mais pequeno"), and `Tab` stays **inside the dialog**, wrapping from the send button to the full-screen button and back | | |
 | 10 | Ask for something the app cannot do ("quero pagar a mensalidade", "book me a flight") | State the limit as a fact, in one sentence, then what it *can* do. It must not apologise in a loop or read like an error | | |
-| 11 | Press `Escape` | Close the dialog and put you back on the orb button, now announced collapsed. With the menu open, the first `Escape` closes only the menu | | |
-| 12 | Look at the screen: `Tab` through every control in the dialog, and the orb outside it | Show a **visible** focus ring on each — 2px, in the page's accent colour. Nothing may be focusable with no visible ring. (Mouse users see "Pergunte para onde quer ir" beside the orb on hover; keyboard focus shows it too — it is hidden from NVDA, which already hears the button's name) | | |
+| 11 | Press `Escape` | Close the dialog and put you back on the orb button, now announced collapsed | | |
+| 12 | Look at the screen: `Tab` through every control in the dialog, and the orb outside it | Show a **visible** focus ring on each — 2px, in the page's accent colour. Nothing may be focusable with no visible ring. Nothing is written beside the orb, on hover or on focus: NVDA hears the button's name | | |
 | 13 | Windows Settings → Accessibility → Contrast themes → apply **Night sky** (or any) | The widget follows it: solid system colours instead of glass, readable text, visible borders and focus, the primary buttons in the highlight colour | | |
 | 14 | Browser zoom to **200%**, then 400% | Stay usable, no horizontal scrolling to read, nothing clipped or overlapping | | |
 | 15 | Windows Settings → Accessibility → Visual effects → **Animation effects off**. Use the widget | Behave identically, with nothing fading, sliding or pulsing. (The orb still draws, but does not animate) | | |

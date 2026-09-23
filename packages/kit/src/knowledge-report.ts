@@ -33,6 +33,9 @@ const EXAMPLE = `{
   }
 }`;
 
+/** How many screens the interview asks about first. */
+const FIRST = 10;
+
 export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: KnowledgeCoverage, found: boolean): string {
   const of = (n: number): string => `${n} of ${coverage.screens}`;
   const app = gaps.filter((g) => g.kind === 'app-about-missing' || g.kind === 'limits-missing' || g.kind === 'rules-missing' || g.kind === 'role-unknown');
@@ -54,8 +57,22 @@ export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: Know
 
   if (app.length) lines.push('## The application', '', ...app.map((g) => `- ${g.message}`), '');
   if (screens.length) {
-    lines.push('## Screens', '');
-    lines.push(...screens.map((g) => `- ${g.message}`), '');
+    // An interview of a hundred questions is not finished (Pilot-A, 2026-09-23: 133). The screens where an
+    // answer helps most come first — most roles, names that collide, top level (`screenPriority`) — and
+    // the rest wait until real questions (`scan.mjs teach`) show which of them matter.
+    const byScreen = new Map<string, KnowledgeGap[]>();
+    for (const g of screens) byScreen.set(g.route!, [...(byScreen.get(g.route!) ?? []), g]);
+    const ranked = [...byScreen.values()].sort((a, b) => (b[0]!.priority ?? 0) - (a[0]!.priority ?? 0) || a[0]!.route!.localeCompare(b[0]!.route!));
+    const first = ranked.slice(0, FIRST);
+    const later = ranked.slice(FIRST);
+    lines.push(`## Screens — start here (${first.length} of ${ranked.length})`, '');
+    lines.push('The screens where an answer is likely to help most: reached by the most roles, named like another screen, or at the top of the app.', '');
+    lines.push(...first.flat().map((g) => `- ${g.message}`), '');
+    if (later.length) {
+      lines.push(`## Screens — later (${later.length})`, '');
+      lines.push('Ask about these once the first ten are answered — or let real questions pick them: `scan.mjs teach` lists what visitors asked that no screen answered.', '');
+      lines.push(...later.flat().map((g) => `- ${g.message}`), '');
+    }
   }
   if (orphans.length) lines.push('## Knowledge that points at nothing', '', ...orphans.map((g) => `- ${g.message}`), '');
   if (!app.length && !screens.length && !orphans.length) lines.push('Nothing is missing. Every screen has a purpose and enough real phrasing.', '');

@@ -166,7 +166,7 @@ const states = [];
 // ---------------------------------------------------- the assistant layer --
 //
 // `start()` mounts this, so it is what an adopter's visitor meets first: an orb
-// at the edge, and a full-screen dialog behind it. jsdom has no layout and no
+// at the edge, and a chat panel behind it that can fill the screen. jsdom has no layout and no
 // canvas, so the orb draws nothing here and where it sits is not judged —
 // `chooseDockSide` and the orb's state have their own tests. What is judged is
 // everything a keyboard or screen-reader user reaches.
@@ -224,19 +224,23 @@ say('\n  the assistant layer — orb, screen, answer\n');
     `aria-hidden=${picker.getAttribute('aria-hidden')} tabindex=${picker.tabIndex} hidden=${picker.hidden}`);
   for (const remove of root.querySelectorAll('.attach-x')) remove.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 
-  // The menu: the adopter's navigation, or the registry's places where the page has none.
-  const menuButton = root.querySelector('.menu');
-  const drawer = root.querySelector('.drawer');
-  menuButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  const menuOpened = drawer.getAttribute('data-open') === 'true' && !drawer.hasAttribute('inert')
-    && menuButton.getAttribute('aria-expanded') === 'true';
-  const focusInMenu = drawer.contains(root.activeElement);
-  const expandedWhileOpen = menuButton.getAttribute('aria-expanded');
-  const menuLinks = root.querySelectorAll('.drawer-link').length;
-  layerStates.push([`screen, menu open (${menuLinks} links)`, await audit(window, mounted.host)]);
-  screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  const menuClosedFirst = drawer.getAttribute('data-open') === 'false' && screen.getAttribute('data-open') === 'true'
-    && root.activeElement === menuButton;
+  // No menu of its own any more (ADR-026): the app's navigation stays in view. What replaced it is the
+  // expand control — a toggle between the corner panel (not modal) and the full screen (modal).
+  const compactModal = screen.getAttribute('aria-modal');
+  const expandButton = root.querySelector('.expand');
+  const expandName = expandButton?.textContent.trim();
+  expandButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const expandedModal = screen.getAttribute('aria-modal') === 'true' && screen.getAttribute('data-size') === 'full'
+    && expandButton.getAttribute('aria-pressed') === 'true';
+  const collapseName = expandButton.textContent.trim();
+  layerStates.push(['screen expanded', await audit(window, mounted.host)]);
+  // The last stop wraps to the first only when modal.
+  root.querySelector('.send').focus();
+  screen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+  const tabKeptIn = root.activeElement === expandButton;
+  expandButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const backToPanel = screen.getAttribute('aria-modal') === 'false' && expandButton.getAttribute('aria-pressed') === 'false';
+  const noOwnMenu = root.querySelectorAll('.menu, .drawer').length === 0;
 
   // The same clarifying question the chat box is audited with above.
   const answered = await mounted.ask('onde vejo as lesões do meu filho');
@@ -259,9 +263,16 @@ say('\n  the assistant layer — orb, screen, answer\n');
 
   const greeting = root.getElementById(screen.getAttribute('aria-labelledby'));
   note(
-    screen.getAttribute('role') === 'dialog' && screen.getAttribute('aria-modal') === 'true' && Boolean(greeting?.textContent.trim()),
-    'the screen is a named modal dialog', `aria-labelledby → "${greeting?.textContent}"`,
+    screen.getAttribute('role') === 'dialog' && Boolean(greeting?.textContent.trim()),
+    'the panel is a named dialog', `aria-labelledby → "${greeting?.textContent}"`,
   );
+  note(compactModal === 'false' && expandedModal && backToPanel,
+    'the corner panel is not modal; expanded, it is — and the toggle says which it is',
+    `aria-modal ${compactModal} → ${expandedModal ? 'true' : 'not true'} → ${backToPanel ? 'false' : 'not false'}`);
+  note(Boolean(expandName) && Boolean(collapseName) && expandName !== collapseName,
+    'the expand toggle has an accessible name that says what it will do', `"${expandName}" / "${collapseName}"`);
+  note(tabKeptIn, 'expanded, Tab stays inside the dialog');
+  note(noOwnMenu, 'no navigation of its own: the app\'s stays in view');
   note(Boolean(orb.getAttribute('aria-label')?.trim()), 'the orb has an accessible name',
     `aria-label="${orb.getAttribute('aria-label')}"`);
   note(opened && focusMovedIn, 'opening moves focus into the screen',
@@ -272,9 +283,6 @@ say('\n  the assistant layer — orb, screen, answer\n');
 
   note(noSuggestions, 'the screen offers no pre-written questions or places',
     noSuggestions ? 'greeting and composer only' : 'a suggestion list is rendered');
-  note(menuOpened && focusInMenu && menuLinks > 0, 'the menu is a real disclosure, and focus moves into it',
-    `aria-expanded=${expandedWhileOpen} while open · ${menuLinks} link(s)`);
-  note(menuClosedFirst, 'Escape closes the menu first, and focus returns to its button');
   const why = root.querySelector('.why summary');
   const weighed = root.querySelectorAll('.why-list li').length;
   note(Boolean(why?.textContent.trim()) && weighed > 0,

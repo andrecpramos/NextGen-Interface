@@ -8,11 +8,13 @@ import { doctor } from './doctor.ts';
 import { arg, self, shown } from './paths.ts';
 import { preview } from './preview.ts';
 import { report } from './report.ts';
+import { teach } from './teach.ts';
 
 /**
  *   scan.mjs init <app folder> [--out <kit folder>] [--force]
  *   scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>]
  *   scan.mjs calibrate [kit folder] --golden <file.jsonl>
+ *   scan.mjs teach [kit folder] --from <lessons.jsonl> [--write] [--min <n>]
  *   scan.mjs doctor [kit folder] [--report <file.md>]
  *   scan.mjs preview [kit folder] [--port <n>] [--app-url <url>]
  *
@@ -41,6 +43,7 @@ const USAGE = `usage:
   scan.mjs init <app folder> [--out <kit folder>] [--force]
   scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>]
   scan.mjs calibrate [kit folder] --golden <file.jsonl>
+  scan.mjs teach [kit folder] --from <lessons.jsonl> [--write] [--min <n>]
   scan.mjs doctor [kit folder] [--report <file.md>]
   scan.mjs preview [kit folder] [--port <n>] [--app-url <url>]`;
 
@@ -54,7 +57,7 @@ function positional(): string | null {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg.startsWith('--')) {
-      if (!['--force'].includes(arg)) i++;
+      if (!['--force', '--write'].includes(arg)) i++;
       continue;
     }
     return arg;
@@ -135,6 +138,30 @@ export async function run(): Promise<number> {
     }
     const result = await calibrate(resolve(positional() ?? 'nextgen'), golden);
     console.log(result.text);
+    return 0;
+  }
+
+  if (command === 'teach') {
+    const from = flag('from');
+    const min = flag('min');
+    if (!from || (min !== null && !/^\d+$/.test(min))) {
+      console.error(USAGE);
+      console.error(
+        '\n  --from is required: the lessons your page kept from `nextgen:learn` events, one JSON object per line:\n' +
+          '    {"question": "onde vejo quem está lesionado", "route": "/medical/availability", "how": "chose"}\n' +
+          '    {"question": "quero falar com alguém", "route": null, "how": "unplaced"}\n',
+      );
+      return 2;
+    }
+    const kit = resolve(positional() ?? 'nextgen');
+    const result = teach(kit, from, { write: process.argv.includes('--write'), ...(min !== null ? { min: Number(min) } : {}) });
+    const phrases = result.taught.reduce((n, t) => n + t.phrases.length, 0);
+    console.log(`\n  ${result.read} lesson(s) read.`);
+    console.log(`  ${phrases} new phrase(s) for ${result.taught.length} screen(s); ${result.unanswered.length} question(s) no screen answered; ${result.held.length} held back.`);
+    console.log(`  Report: ${result.reportFile}`);
+    if (result.wrote) console.log(`  Wrote ${result.knowledgeFile}. Next: ${self()} build ${arg(shown(kit))}\n`);
+    else if (phrases > 0) console.log(`  Nothing written. Read the report, then: ${self()} teach ${arg(shown(kit))} --from ${arg(from)} --write\n`);
+    else console.log('');
     return 0;
   }
 
