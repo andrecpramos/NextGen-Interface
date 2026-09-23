@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-09-11T18:30:46.937Z",
+  "generatedAt": "2026-09-23T20:47:32.252Z",
   "config": {
     "embedder": "hashing",
     "model": "gemma3:1b",
     "thresholds": {
       "tauAct": 0.55,
-      "tauHigh": 0.456,
+      "tauHigh": 0.636,
       "delta": 0.01,
       "tauFloor": 0,
       "topK": 3,
-      "boundaryMargin": 0.065
+      "boundaryMargin": 0.1
     }
   },
   "entries": 13,
@@ -50,8 +50,8 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 13,
-      "stage3p50": 249.3397,
-      "stage3p95": 2003.0995
+      "stage3p50": 274.6905000000006,
+      "stage3p95": 9052.4657
     }
   },
   "stage3Health": {
@@ -67,11 +67,11 @@
   },
   "modelFreeRate": 0,
   "latency": {
-    "p50": 249.6922999999997,
-    "p95": 2004.3882999999998,
-    "stage1p95": 0.13039999999999452,
-    "stage2p95": 0.8411999999998443,
-    "stage3p95": 2003.0995
+    "p50": 275.08899999999994,
+    "p95": 9057.8963,
+    "stage1p95": 0.1337000000000046,
+    "stage2p95": 4.4191,
+    "stage3p95": 9052.4657
   },
   "registryOverlap": [],
   "failures": []

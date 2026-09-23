@@ -2,6 +2,8 @@ import { normalize, contentTokens } from './text.ts';
 import { actionSignalApplies, isActionRequest } from './action.ts';
 import { bridge } from './bridge.ts';
 import { cosine } from './embedder.ts';
+import { toSparse, type SparseVector } from './sparse.ts';
+import { exampleText } from '@nextgen/core-capability';
 import { THRESHOLDS, type Thresholds } from './config.ts';
 // The subpath, not the package root: the root re-exports the model store, which imports
 // node:crypto/fs/path, and stages.ts is in the browser bundle (lessons.md L11).
@@ -105,6 +107,34 @@ export interface Stage2Result {
  * runner-up is at 0.70 — those are two capabilities the registry has failed to
  * distinguish, and guessing between them is how you delete the wrong thing.
  */
+/**
+ * Each capability's own phrasings — its title and every example — embedded one by one (ADR-032). Built
+ * once per registry and embedder, the first time either is asked, with the embedder that embeds the
+ * question: the same vocabulary, so the same space. Stored sparse: a phrasing is a handful of features in a
+ * vocabulary of thousands.
+ */
+const phrasingCache = new WeakMap<Registry, WeakMap<Embedder, Promise<SparseVector[][]>>>();
+
+function phrasingsOf(registry: Registry, embedder: Embedder): Promise<SparseVector[][]> {
+  let byEmbedder = phrasingCache.get(registry);
+  if (!byEmbedder) phrasingCache.set(registry, (byEmbedder = new WeakMap()));
+  let built = byEmbedder.get(embedder);
+  if (!built) {
+    // The hashing encoder embeds straight to sparse: a dense vector per phrasing, as wide as the whole
+    // vocabulary, took 10.8 s on a 2,000-screen registry before the first answer.
+    const sparse = (embedder as Partial<{ embedSparse(text: string): SparseVector }>).embedSparse;
+    built = Promise.all(
+      registry.capabilities.map(async (cap) => {
+        const texts = [cap.title, ...(cap.examples ?? []).map(exampleText)].filter((t) => t && t.trim());
+        if (typeof sparse === 'function') return texts.map((t) => sparse.call(embedder, t));
+        return (await embedder.embedAll(texts)).map((v) => toSparse(v));
+      }),
+    );
+    byEmbedder.set(embedder, built);
+  }
+  return built;
+}
+
 export async function stage2(
   utterance: string,
   registry: Registry,
@@ -113,9 +143,22 @@ export async function stage2(
 ): Promise<Stage2Result> {
   // Words the app does not use are bridged to ones it does (bridge.ts); words it does use are left as they are.
   const vec = await embedder.embed(bridge(utterance, registry));
+  const phrasings = await phrasingsOf(registry, embedder);
 
+  // ADR-032. A capability is scored twice and the two are averaged: against its whole document — what the
+  // screen is, all of it — and against the one of its own phrasings closest to the question. The document
+  // alone blurs a short, specific question ("notificações por ler") into everything else the screen says;
+  // the nearest phrasing alone over-trusts one example. Limits are scored the same way: one rule. Measured
+  // after recalibrating (2026-09-23): family fixture settled correctly 48 → 55 of 69, right screen first
+  // 39 → 45 of 55, out-of-scope refused 64.3% → 71.4%, none wrongly refused; reference registry stage 2
+  // accepts 14.8% → 23.0% (hashing) and 27.6% → 34.4% (nomic) at 100% precision.
   const scored: Candidate[] = registry.capabilities
-    .map((cap, i) => ({ capabilityId: cap.id, score: cosine(vec, registry.vectors[i]!) }))
+    .map((cap, i) => {
+      const whole = cosine(vec, registry.vectors[i]!);
+      let nearest = 0;
+      for (const p of phrasings[i] ?? []) nearest = Math.max(nearest, cosine(vec, p));
+      return { capabilityId: cap.id, score: (whole + nearest) / 2 };
+    })
     .sort((a, b) => b.score - a.score);
 
   // Declared limits are ranked alongside real capabilities — same encoder, same

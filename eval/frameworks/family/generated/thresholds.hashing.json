@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T09:38:34.718Z",
+  "generatedAt": "2026-09-23T20:38:13.810Z",
   "encoder": "hashing",
   "registry": "eval/frameworks/family/generated",
   "method": "Swept against the fixture app’s golden set, split by destination 40/60. boundaryMargin maximises out-of-scope refusal subject to zero in-domain refusals; actionBoundaryMargin (ADR-015) does the same for utterances carrying an action verb, under the identical zero-false-refusal constraint and never above boundaryMargin; tauHigh/delta maximise stage-2 accepts subject to 100% precision. Never hand-set (Rule 14). The sweep is core-intent/src/calibrate.ts, shared with the drop-in kit so there is one implementation.",
