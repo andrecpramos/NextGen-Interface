@@ -41,6 +41,8 @@ export function splitByRole(
    * filtered out of it at read time.
    */
   contextFor?: (role: RoleName) => RegistryContext | null,
+  /** The language every capability's own words are in: the app's first (ADR-030). */
+  language?: string,
 ): Map<RoleName, RegistryFile> {
   const out = new Map<RoleName, RegistryFile>();
   for (const role of roles) {
@@ -58,6 +60,7 @@ export function splitByRole(
     out.set(role, {
       schemaVersion: SCHEMA_VERSION,
       domainDescription,
+      ...(language ? { language } : {}),
       ...(context ? { context } : {}),
       capabilities: [...reachable, ...limits],
     });

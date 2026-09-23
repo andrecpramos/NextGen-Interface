@@ -23,7 +23,6 @@ import {
   writeOutput,
   type GeneratorConfig,
   type KnowledgeCoverage,
-  type ProseCache,
   type SkippedRoute,
 } from '@nextgen/generator';
 
@@ -180,8 +179,9 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
   mkdirSync(bundleDir, { recursive: true });
   mkdirSync(reviewDir, { recursive: true });
 
-  const cacheFile = join(reviewDir, 'prose-cache.json');
-  const cache: ProseCache = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as ProseCache) : {};
+  // With no model there is no prose to cache: the file could only ever say `{}`.
+  // A copy an older kit left behind is removed rather than kept as clutter.
+  rmSync(join(reviewDir, 'prose-cache.json'), { force: true });
   // What the adopter wrote about their own app: beside the config, or where the config says.
   const loaded = loadKnowledge(join(kit, CONFIG_FILE), config.knowledge);
   const output = await generate({
@@ -191,7 +191,6 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     // There is no model to pass here, and no client for one in this bundle (ADR-018 D-6,
     // ADR-021). The generator's own CLI still takes `--model`, for work in this repository.
     model: null,
-    cache,
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
   });
 
@@ -202,7 +201,6 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     if (/^registry\..+\.json$/.test(file)) renameSync(join(reviewDir, file), join(bundleDir, file));
   }
   await writeIndexes(bundleDir, output.registries);
-  writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
 
   // Rule 14: thresholds belong to a registry. A calibration the adopter produced
   // wins. Otherwise the shipped profile is used, and says it is not theirs.

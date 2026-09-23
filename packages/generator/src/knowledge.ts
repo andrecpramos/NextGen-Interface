@@ -57,6 +57,12 @@ export interface ScreenKnowledge {
   /** Things a real user says when they want it. */
   readonly askedAs: readonly string[];
   /**
+   * The names of controls on it that only open something — a form, a dialog, a drawer — as the page shows
+   * them: `["Novo evento", "New event"]` (ADR-031). The assistant may press one for a visitor who asked to
+   * start what it opens. Never list a control that saves, sends, pays or creates a record when pressed.
+   */
+  readonly opens: readonly string[];
+  /**
    * For a screen the scanner cannot read — a route decided on the server, a micro-frontend, a framework it
    * does not know — its name. With it, a `screens` entry whose route matches nothing found is *declared*:
    * it becomes a screen of the registry (ADR-028). Ignored for a screen the scanner found: the app's own
@@ -252,6 +258,7 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
       contains: list(value.contains, `${path}.contains`, MAX_LIST),
       aliases: list(value.aliases, `${path}.aliases`, MAX_LIST),
       askedAs: list(value.askedAs, `${path}.askedAs`, MAX_LIST),
+      opens: list(value.opens, `${path}.opens`, 20).filter((name) => name.length <= 80),
       title: text(value.title, `${path}.title`, 80),
       roles: roles(value.roles, `${path}.roles`),
     };
@@ -393,18 +400,23 @@ export function applyKnowledge<T extends AnnotatedCapability>(
     if (everyday.length) vocabulary.push(sentence([...new Set(everyday)]));
 
     const seen = new Set<string>();
-    const examples = [...(c.examples ?? []), ...screen.askedAs].filter((example) => {
+    // What the adopter said opens something here is also how a visitor asks to start it (ADR-031).
+    const examples = [...(c.examples ?? []), ...screen.askedAs, ...screen.opens.slice(0, 3)].filter((example) => {
       const id = fold(exampleText(example)).replace(/\s+/g, ' ').trim();
       if (!id || seen.has(id)) return false;
       seen.add(id);
       return true;
     });
 
+    // Controls that only open something here (ADR-031): what the source showed, and what the adopter said.
+    const opens = [...new Set([...(c.opens ?? []), ...screen.opens])];
+
     return {
       ...c,
       description: [c.description, ...vocabulary].join(' '),
       examples: examples.slice(0, MAX_EXAMPLES),
       ...(screen.purpose ? { explanation: screen.purpose, explanationSource: SOURCE } : {}),
+      ...(opens.length > 0 ? { opens } : {}),
     };
   });
 

@@ -438,3 +438,17 @@ describe('declaredScreens — screens the scanner cannot read', () => {
     expect(knowledgeGaps(merged, knowledge).gaps.filter((g) => g.kind === 'knowledge-orphan')).toEqual([]);
   });
 });
+
+/** ADR-031: the adopter can say which controls only open something — for any framework the scanner cannot read. */
+describe('knowledge.json — what only opens something', () => {
+  it('adds the controls a screen says only open something, beside any the source showed, once each', () => {
+    const { knowledge } = parseKnowledge({ screens: { '/my/children/medical': { opens: ['Nova nota', 'New note', 'Nova nota', ''] } } });
+    const withSource = { ...medical, opens: ['New note'] } as AnnotatedCapability;
+    expect(applyKnowledge([withSource], knowledge).capabilities[0]!.opens).toEqual(['New note', 'Nova nota']);
+  });
+
+  it('adds nothing to a screen it says nothing about', () => {
+    const { knowledge } = parseKnowledge({ screens: { '/my/children/medical': { purpose: 'x' } } });
+    expect(applyKnowledge([medical], knowledge).capabilities[0]!.opens).toBeUndefined();
+  });
+});

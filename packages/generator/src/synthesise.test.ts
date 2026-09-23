@@ -4,6 +4,7 @@ import {
   cacheKey,
   deriveProse,
   explanationCacheKey,
+  startExamples,
   synthesise,
   worthShowing,
   type ProseModel,
@@ -264,5 +265,20 @@ describe('deriveProse — no chrome, no empty states, and the page’s own words
     expect(prose.examples.some((e) => e.includes('esta página'))).toBe(false);
     // Two at most: the page's words add vocabulary, and do not drown the title's.
     expect(prose.examples.filter((e) => e.startsWith('ver '))).toHaveLength(2);
+  });
+});
+
+/** ADR-031: a control that starts something names the task in the app's words, and the usual verbs reach it. */
+describe('startExamples — how a visitor asks for what a control starts', () => {
+  it('keeps the label, and pairs its thing with the usual verbs, in its own language', () => {
+    expect(startExamples('Novo anúncio', 'pt-PT')).toEqual(['novo anúncio', 'criar anúncio', 'adicionar anúncio']);
+    expect(startExamples('+ New event', 'en')).toEqual(['+ new event', 'create event', 'add event']);
+  });
+
+  it('adds no verbs to a label that is not a start word and a thing', () => {
+    expect(startExamples('Filters', 'en')).toEqual(['filters']);
+    expect(startExamples('Novo', 'pt')).toEqual(['novo']);
+    expect(startExamples('Agendar treino', 'fr')).toEqual(['agendar treino']);
+    expect(startExamples('   ', 'en')).toEqual([]);
   });
 });

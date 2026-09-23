@@ -22,7 +22,8 @@ import type { Capability, Embedder, EnumIndex, Registry, RegistryFile } from './
 export async function loadRegistry(path: string, embedder: Embedder): Promise<Registry> {
   const raw = JSON.parse(readFileSync(path, 'utf8')) as RegistryFile;
 
-  const enums: Record<string, EnumIndex> = {};
+  // A null prototype: a name in the file can only ever be a key ("__proto__" included).
+  const enums: Record<string, EnumIndex> = Object.create(null);
   for (const [name, def] of Object.entries(raw.enums ?? {})) {
     enums[name] = buildEnumIndex(def);
   }
@@ -45,6 +46,7 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
   return {
     schemaVersion: raw.schemaVersion,
     domainDescription: raw.domainDescription,
+    ...(raw.language ? { language: raw.language } : {}),
     ...(raw.context ? { context: raw.context } : {}),
     capabilities,
     byId: new Map<string, Capability>(capabilities.map((c) => [c.id, c])),

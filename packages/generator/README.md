@@ -19,7 +19,7 @@ node --experimental-strip-types packages/generator/src/cli.ts <config.json> \
 | `master.json` | Every capability with its `roles` annotation, for review and diffing. Never shipped to a browser. |
 | `SKIPPED.md` | Every discovered route that did **not** become a capability, with the application's own words as evidence. |
 | `INFERRED.md` | Every candidate rule found in a handler or control but not confidently recognised, held back rather than guessed (ADR-020, WP-55). |
-| `prose-cache.json` | Model-written descriptions and examples, keyed by a hash of the facts that produced them. This is what makes regeneration deterministic. |
+| `prose-cache.json` | Model-written descriptions and examples, keyed by a hash of the facts that produced them. This is what makes regeneration deterministic. Written only when a model ran; with `--no-model` there is nothing to cache and no file. |
 
 ## The two rules it exists to keep
 

@@ -289,14 +289,9 @@ export function deriveProse(request: ProseRequest): Prose {
   // and without a template sentence. (It was "X is a screen in the auth area of this application, at
   // /:locale/auth/login." — English on a Portuguese app, and no information.) The area and the route
   // stay in `description`, which is what retrieval matches on and no visitor reads.
-  const words = DERIVED_WORDS[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? DERIVED_WORDS.en!;
+  const words = derivedWords(request.languages[0]);
   const content = request.copy.filter((text) => text.trim().toLowerCase() !== primary.trim().toLowerCase() && worthShowing(text));
-  const shown = content.slice(0, 4).map((text) => clip(text));
-  const explanation =
-    shown.length > 0
-      ? // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
-        `${words.shows} ${shown.join(', ').replace(/[.!?…]+$/, '')}.`
-      : words.only(primary, request.feature === 'app' ? null : request.feature);
+  const explanation = showsSentence(request.languages[0], primary, request.copy) ?? words.only(primary, request.feature === 'app' ? null : request.feature);
   // Each title with its own language's words for "take me there". The first version put
   // "open" before the first title and "abre" before the second, whatever their languages
   // were: a Portuguese application was given "open finanças", and an English one
@@ -315,6 +310,24 @@ export function deriveProse(request: ProseRequest): Prose {
   const see = SEE[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? SEE.en!;
   for (const text of content.filter(isLabel).slice(0, 2)) examples.push(`${see} ${text.trim().toLowerCase()}`);
   return { description, explanation, examples: [...new Set(examples)], source: 'derived' };
+}
+
+const derivedWords = (language: string | undefined) =>
+  DERIVED_WORDS[(language ?? 'en').split('-')[0]!.toLowerCase()] ?? DERIVED_WORDS.en!;
+
+/**
+ * "This screen shows: A, B, C." — what the page itself says, in `language`, or `null` when it says
+ * nothing worth showing. No filler sentence: a translation with nothing to say says nothing (ADR-030).
+ */
+export function showsSentence(language: string | undefined, title: string, copy: readonly string[]): string | null {
+  const shown = copy
+    // "No announcements." is the page saying it is empty. Filtered here, where it is only shown, and not
+    // in `worthShowing`, whose examples are embedded (a change there moves calibrated scores, Rule 14).
+    .filter((text) => text.trim().toLowerCase() !== title.trim().toLowerCase() && worthShowing(text) && !/^no \S+( \S+)?[.!]?$/i.test(text.trim()))
+    .slice(0, 4)
+    .map((text) => clip(text));
+  // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
+  return shown.length > 0 ? `${derivedWords(language).shows} ${shown.join(', ').replace(/[.!?…]+$/, '')}.` : null;
 }
 
 /** How a user asks to see something, per language: the verb before a page's own label in a derived example. */
@@ -382,6 +395,33 @@ const ASK_TO_GO: Readonly<Record<string, readonly string[]>> = {
   en: ['open', 'take me to', 'go to'],
   pt: ['abre', 'leva-me para', 'ir para'],
 };
+
+/** How a user asks to start something, per language: paired with what a control starts (ADR-031). */
+const ASK_TO_START: Readonly<Record<string, readonly string[]>> = {
+  en: ['create', 'add'],
+  pt: ['criar', 'adicionar'],
+};
+
+/** The word a control's name starts with when it starts something: "New", "Novo", "Add"… */
+const STARTS = /^(\+\s*)?(new|add|create|novo|nova|novos|novas|adicionar|criar|agendar|marcar|registar|registrar)\s+/i;
+
+/**
+ * How a visitor asks for what a control starts, in the control's language (ADR-031): its own label —
+ * "novo evento" — and, when the label is a start word and a thing, that thing with the usual verbs —
+ * "criar evento", "adicionar evento". Measured on the family fixture, 2026-09-23: "quero criar um anúncio"
+ * went from a question (0.22) to decided (0.27) with no golden decision changed. Only the app's own words,
+ * and one verb pattern per language: never a sentence nobody wrote.
+ */
+export function startExamples(label: string, language: string): string[] {
+  const flat = label.replace(/\s+/g, ' ').trim();
+  if (!flat) return [];
+  const out = [flat.toLowerCase()];
+  const thing = STARTS.test(flat) ? flat.replace(STARTS, '').trim().toLowerCase() : '';
+  if (thing && thing.split(' ').length <= 4) {
+    for (const verb of ASK_TO_START[language.split('-')[0]!.toLowerCase()] ?? []) out.push(`${verb} ${thing}`);
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------- cache --
 

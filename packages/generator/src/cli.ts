@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 import { generate } from './generate.ts';
@@ -97,7 +97,9 @@ async function main(): Promise<void> {
   // and no fit on the critical path of the first turn.
   const indexes = await writeIndexes(outputDir, output.registries);
 
-  writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
+  // An empty cache is not written: with no model it could only ever say `{}`.
+  if (Object.keys(cache).length > 0) writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
+  else rmSync(cacheFile, { force: true });
 
   console.log(`\n${formatRoleSummary(output)}\n`);
   console.log(`  wrote ${result.files.length + indexes.length + 1} files to ${outputDir}`);

@@ -269,6 +269,14 @@ describe('mergeRegistryFiles — one registry for a user with several roles', ()
     expect(mergeRegistryFiles([registryFile])).toBe(registryFile);
   });
 
+  it('keeps a "__proto__" enum a key — it changes no prototype (ADR-029)', () => {
+    const hostile = JSON.parse('{"__proto__": {"values": [{"value": "x", "synonyms": ["y"]}]}}') as NonNullable<RegistryFile['enums']>;
+    const merged = mergeRegistryFiles([{ ...registryFile, enums: hostile }, other]);
+    expect(Object.getPrototypeOf(merged.enums)).toBeNull();
+    expect(Object.keys(merged.enums!)).toEqual(['__proto__']);
+    expect(({} as Record<string, unknown>).values).toBeUndefined();
+  });
+
   it('refuses registries of different schemas, and an empty list', () => {
     expect(() => mergeRegistryFiles([])).toThrow(RegistryMergeError);
     expect(() => mergeRegistryFiles([registryFile, { ...other, schemaVersion: 99 }])).toThrow(/schema 99/);

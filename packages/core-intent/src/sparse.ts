@@ -37,9 +37,6 @@ export function toSparse(v: Vector): SparseVector {
   return { dim: v.length, idx, val };
 }
 
-/** The width of a stored vector, dense or sparse. */
-export const widthOf = (v: StoredVector): number => (isSparse(v) ? v.dim : v.length);
-
 /** Dot product of any two stored vectors. Pre-normalised vectors make this the cosine. */
 export function dotStored(a: StoredVector, b: StoredVector): number {
   if (!isSparse(a) && !isSparse(b)) {

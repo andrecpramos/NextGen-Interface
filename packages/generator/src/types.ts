@@ -120,6 +120,12 @@ export interface PageFacts {
    * that split exists at all.
    */
   readonly inferredCandidates: readonly InferredCandidate[];
+  /**
+   * Controls on the page whose only job is to show something — `onClick={() => setOpen(true)}`, a
+   * `DialogTrigger` — named as the page names them (ADR-031). What the widget may press for a visitor
+   * who asked to start what they open. Untrusted (Rule 15); absent where the page is not read as TSX.
+   */
+  readonly openers?: readonly { readonly label: string | null; readonly labelKey: string | null }[];
 }
 
 /** Which shape of imperative guard an inferred candidate came from. */

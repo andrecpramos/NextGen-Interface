@@ -135,7 +135,8 @@ export function assertIndexMatches(registry: RegistryFile, index: ShippedIndex):
 export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Registry {
   assertIndexMatches(raw, index);
 
-  const enums: Record<string, EnumIndex> = {};
+  // A null prototype: a name in a fetched file can only ever be a key ("__proto__" included).
+  const enums: Record<string, EnumIndex> = Object.create(null);
   for (const [name, def] of Object.entries(raw.enums ?? {})) {
     enums[name] = buildEnumIndex(def);
   }
@@ -148,6 +149,7 @@ export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Regis
   return {
     schemaVersion: raw.schemaVersion,
     domainDescription: raw.domainDescription,
+    ...(raw.language ? { language: raw.language } : {}),
     ...(raw.context ? { context: raw.context } : {}),
     capabilities,
     byId: new Map<string, Capability>(capabilities.map((c) => [c.id, c])),
@@ -247,7 +249,9 @@ export function mergeRegistryFiles(files: readonly RegistryFile[]): RegistryFile
       capabilities.push(cap);
     }
   }
-  const enums = Object.assign({}, ...files.map((f) => f.enums ?? {})) as NonNullable<RegistryFile['enums']>;
+  // Copied key by key onto a null prototype: `Object.assign` would run a "__proto__" key as a setter.
+  const enums: Record<string, NonNullable<RegistryFile['enums']>[string]> = Object.create(null);
+  for (const file of files) for (const [name, def] of Object.entries(file.enums ?? {})) enums[name] = def;
   const unique = <T>(items: readonly T[], key: (item: T) => string): T[] => {
     const keys = new Set<string>();
     return items.filter((item) => (keys.has(key(item)) ? false : (keys.add(key(item)), true)));
@@ -267,6 +271,8 @@ export function mergeRegistryFiles(files: readonly RegistryFile[]): RegistryFile
   return {
     schemaVersion: first.schemaVersion,
     domainDescription: first.domainDescription,
+    // One build writes every role's registry from one config, so they share a language.
+    ...(first.language ? { language: first.language } : {}),
     capabilities,
     ...(Object.keys(enums).length > 0 ? { enums } : {}),
     ...(context ? { context } : {}),

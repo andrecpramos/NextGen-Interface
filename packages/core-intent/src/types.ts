@@ -30,6 +30,7 @@ export {
   type Capability,
   type CapabilityExample,
   type CapabilityKind,
+  type CapabilityText,
   type EnumDefinition,
   type ExecutableKind,
   type ParamSpec,
@@ -52,6 +53,8 @@ export interface Registry {
   readonly schemaVersion: number;
   /** What application stage 3 is routing for (WP-16, D-2). See `RegistryFile`. */
   readonly domainDescription: string;
+  /** The language its capabilities' own words are in (ADR-030). See `RegistryFile`. */
+  readonly language?: string;
   /** What the owner says about the app — its words, rules, limits — for stage 3. Absent for most registries. */
   readonly context?: RegistryContext;
   readonly capabilities: readonly Capability[];

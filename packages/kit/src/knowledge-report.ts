@@ -28,7 +28,8 @@ const EXAMPLE = `{
       "purpose": "What this screen is for, in your words. Shown to a visitor who asks what it is.",
       "contains": ["what is on it", "another thing"],
       "aliases": ["another name for it"],
-      "askedAs": ["a real thing a user says", "another one", "a third"]
+      "askedAs": ["a real thing a user says", "another one", "a third"],
+      "opens": ["a button that only opens a form here, as it reads", "the same in your other language"]
     }
   }
 }`;

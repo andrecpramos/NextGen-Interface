@@ -175,3 +175,38 @@ describe('generate — derived examples speak each title’s language', () => {
     }
   });
 });
+
+/**
+ * ADR-030: a visitor reads one language. The registry is written in the app's first language and says
+ * so; every other language the app ships comes along as display text — its own names, and what the page
+ * says in that language — never embedded, so no score moves.
+ */
+describe('the app’s other languages', () => {
+  it('says which language its own words are in, and carries the others beside them', async () => {
+    const { registries } = await output;
+    for (const file of registries.values()) {
+      expect(file.language).toBe('pt-PT');
+      expect(validateRegistry(file).ok).toBe(true);
+    }
+    const children = await at('/my/children');
+    expect(children!.title).toBe('Os Meus Educandos');
+    expect(children!.translations?.en?.title).toBe('My Children');
+  });
+
+  it('writes an explanation in a language only from what the page says in it — never a sentence mixing two', async () => {
+    const { master } = await output;
+    for (const capability of master) {
+      const en = capability.translations?.en?.explanation;
+      if (!en) continue;
+      expect(en.startsWith('This screen shows:')).toBe(true);
+      expect(en).not.toMatch(/ã|ç|õ|Este ecrã/);
+    }
+  });
+
+  it('gives the built-in limits in every language the app ships', async () => {
+    const { boundaries } = await output;
+    const outside = boundaries.find((b) => b.id === 'unsupported.other_applications')!;
+    expect(outside.refusal).toMatch(/aplicação/);
+    expect(outside.translations?.en?.refusal).toMatch(/application/);
+  });
+});

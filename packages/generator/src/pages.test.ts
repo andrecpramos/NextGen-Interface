@@ -122,3 +122,27 @@ describe('fields — the form controls a page renders', () => {
     expect(page('squad', 'SquadOverviewPage').fields).toEqual([]);
   });
 });
+
+/**
+ * ADR-031: a control whose only job is to show something — a form, a dialog, a drawer — is one the widget
+ * may press for a visitor. Read from what the handler does, never from what the button is called: "Close"
+ * sets state too, and "Save" is a click like any other.
+ */
+describe('readPage — controls that only open something', () => {
+  const facts = readPage(join(FIXTURE_ROOT, '..', '..', 'openers', 'EventsPage.tsx'));
+
+  it('finds state that shows something, and triggers, named as the page names them', () => {
+    expect(facts.openers).toEqual([
+      { label: null, labelKey: 'events:actions.new' },
+      { label: 'Filters', labelKey: null },
+      { label: 'Import events', labelKey: null },
+      { label: 'Invite people', labelKey: null },
+      { label: 'Share calendar', labelKey: null },
+    ]);
+  });
+
+  it('never counts a control that does something, closes something, or asks to confirm', () => {
+    const labels = (facts.openers ?? []).map((o) => o.label);
+    for (const not of ['Save', 'Delete', 'Close', 'Remove all']) expect(labels).not.toContain(not);
+  });
+});

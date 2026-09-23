@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "domainDescription": "A aplicação de um clube desportivo de formação: os encarregados de educação acompanham os seus filhos, os jogadores veem o que o clube lhes diz e o seu estado, e os treinadores gerem o plantel e os treinos. / A youth sports club app: guardians follow their children, players see what the club tells them, and coaches run the squad and training.",
+  "language": "pt-PT",
   "context": {
     "glossary": [
       {
@@ -105,7 +106,13 @@
       "triggers": [
         "anuncios",
         "announcements"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Announcements",
+          "explanation": "This screen shows: Sent by, Messages from the club."
+        }
+      }
     },
     {
       "id": "dashboard.my",
@@ -131,7 +138,13 @@
       "triggers": [
         "painel",
         "dashboard"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Dashboard",
+          "explanation": "This screen shows: Home."
+        }
+      }
     },
     {
       "id": "guardian.my_children",
@@ -157,7 +170,12 @@
       "triggers": [
         "os meus educandos",
         "my children"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "My Children"
+        }
+      }
     },
     {
       "id": "guardian.my_children_medical",
@@ -183,7 +201,13 @@
       "triggers": [
         "estado medico",
         "medical status"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Medical Status",
+          "explanation": "This screen shows: Your child's medical status, Fitness and recovery status (no diagnosis)."
+        }
+      }
     },
     {
       "id": "notifications.my_notifications",
@@ -208,7 +232,12 @@
       "triggers": [
         "notificacoes",
         "notifications"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Notifications"
+        }
+      }
     },
     {
       "id": "settings.notifications",
@@ -245,7 +274,13 @@
             "selector": "#notify-email"
           }
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "My Preferences · Notifications",
+          "explanation": "This screen shows: My Preferences, Notifications, Email address."
+        }
+      }
     },
     {
       "id": "settings.overview",
@@ -270,7 +305,12 @@
       "triggers": [
         "definicoes",
         "settings"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Settings"
+        }
+      }
     },
     {
       "id": "unsupported.external_actions",
@@ -286,7 +326,13 @@
         "marca uma consulta para o meu filho",
         "envia um email ao treinador"
       ],
-      "refuses": "action"
+      "refuses": "action",
+      "translations": {
+        "en": {
+          "title": "Acting outside this application",
+          "refusal": "I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you."
+        }
+      }
     },
     {
       "id": "unsupported.data_changes",
@@ -302,7 +348,13 @@
         "apaga este registo por mim",
         "altera a data disto por mim"
       ],
-      "refuses": "action"
+      "refuses": "action",
+      "translations": {
+        "en": {
+          "title": "Changing records for you",
+          "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself."
+        }
+      }
     },
     {
       "id": "unsupported.other_applications",
@@ -317,7 +369,13 @@
         "what’s in my email inbox",
         "como está o tempo amanhã",
         "escreve-me um poema"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Questions about anything else",
+          "refusal": "I only know this application — I can’t help with things outside it."
+        }
+      }
     },
     {
       "id": "unsupported.declared.pagamentos_quotas_e_faturas",

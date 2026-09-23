@@ -156,12 +156,18 @@ const CATALOGUE: readonly CatalogueEntry[] = [
  * Relevance is judged from the routes themselves, so a catalogue entry is never
  * emitted on the strength of a guess about the domain.
  */
-export function synthesiseBoundaries(routes: readonly DiscoveredRoute[], language = 'en'): Capability[] {
+export function synthesiseBoundaries(routes: readonly DiscoveredRoute[], language = 'en', others: readonly string[] = []): Capability[] {
   const surface = routes.map((route) => `${route.path} ${route.feature ?? ''}`).join(' ');
   const code = language.toLowerCase().slice(0, 2);
   return CATALOGUE.filter((entry) => entry.relevantWhen === null || entry.relevantWhen.test(surface)).map((entry) => {
     // In the app's own language where the catalogue has it; English otherwise.
     const said = entry.localized?.[code] ?? entry;
+    // And in the app's other languages, for a visitor reading one of them (ADR-030).
+    const translations: Record<string, { title: string; refusal: string }> = {};
+    for (const other of others) {
+      const in_ = entry.localized?.[other.toLowerCase().slice(0, 2)] ?? entry;
+      if (in_ !== said) translations[other] = { title: in_.title, refusal: in_.refusal };
+    }
     return {
       id: entry.id,
       kind: 'unsupported',
@@ -171,6 +177,7 @@ export function synthesiseBoundaries(routes: readonly DiscoveredRoute[], languag
       refusal: said.refusal,
       examples: [...entry.examples],
       ...(entry.refuses ? { refuses: entry.refuses } : {}),
+      ...(Object.keys(translations).length > 0 ? { translations } : {}),
     };
   });
 }
