@@ -164,6 +164,7 @@ pnpm check                       # typecheck + every test + registry validation
 pnpm eval:apps                   # generate, calibrate and route over a fixture app
 pnpm adapter:build               # rebuild adapter/ after changing packages/
 pnpm adapter:check               # prove a copy of it runs with nothing installed
+pnpm export:adopter <folder>     # the folder an adopter is handed: adapter/, the docs, the licence, checksums
 ```
 
 `pnpm preview` is where to start: it serves the real widget on a mock application built

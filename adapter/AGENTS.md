@@ -239,9 +239,10 @@ This is opt-in, off unless that flag is passed, and it is not a decision to make
   offer to wire it, do not silently assume they want it running unlimited.
 - **It never leaves their origin, structurally, not by promise.** The transport resolves
   the configured path against the page it is running on and refuses to POST anywhere else
-  — checked on every commit by fetching nothing when the two disagree
-  (`tooling/scripts/check-stage3.mjs`). You do not need to trust this claim; you can point
-  the developer at the gate that holds it.
+  — checked on every commit of this tool, in its source repository, by building a bundle
+  with an off-origin path and confirming nothing is fetched. That check is not in this
+  folder; what the developer can verify here is the behaviour: build with `--stage3`, open
+  the browser's network panel, and see that the only POST goes to their own origin.
 
 Ask: *"Right now, a question the assistant can't place sends the visitor a clarifying
 question instead of guessing — which is safe, but can feel more like a menu than an
