@@ -39,6 +39,12 @@ interface CatalogueEntry {
    * refusing on topic alone refused "injury info for my kid" as if it were "book a physio for my son".
    */
   readonly refuses?: 'action';
+  /**
+   * The same limit in another language, by two-letter code, for an application whose primary language
+   * it is. A Portuguese app used to declare "Processing a payment" and refuse in English to visitors who
+   * had asked in Portuguese (Pilot-A field report, 2026-09-23, P3-1). The examples stay bilingual either way.
+   */
+  readonly localized?: Readonly<Record<string, { readonly title: string; readonly description: string; readonly refusal: string }>>;
 }
 
 const CATALOGUE: readonly CatalogueEntry[] = [
@@ -58,6 +64,15 @@ const CATALOGUE: readonly CatalogueEntry[] = [
     ],
     relevantWhen: null,
     refuses: 'action',
+    localized: {
+      pt: {
+        title: 'Agir fora desta aplicação',
+        description:
+          'Marcar uma consulta, enviar um email ou uma mensagem, ou fazer algo noutro sistema em nome do utilizador. Este assistente trabalha apenas dentro desta aplicação.',
+        refusal:
+          'Posso levá-lo a qualquer ecrã desta aplicação e explicar o que lá encontra, mas não marco consultas, não envio mensagens nem ajo noutro sistema por si.',
+      },
+    },
   },
   {
     id: 'unsupported.data_changes',
@@ -75,6 +90,14 @@ const CATALOGUE: readonly CatalogueEntry[] = [
     ],
     relevantWhen: null,
     refuses: 'action',
+    localized: {
+      pt: {
+        title: 'Alterar registos por si',
+        description:
+          'Criar, editar ou apagar um registo. Este assistente leva o utilizador ao ecrã onde o pode fazer; nunca preenche um formulário nem grava uma alteração em seu nome.',
+        refusal: 'Posso levá-lo ao ecrã certo e dizer-lhe o que fazer lá, mas não crio, altero nem apago registos por conta própria.',
+      },
+    },
   },
   {
     id: 'unsupported.payments',
@@ -92,6 +115,14 @@ const CATALOGUE: readonly CatalogueEntry[] = [
     ],
     relevantWhen: /finance|billing|invoice|payment|payroll|fee|quota|fatura/i,
     refuses: 'action',
+    localized: {
+      pt: {
+        title: 'Processar um pagamento',
+        description:
+          'Pagar uma fatura, uma quota ou um salário. A aplicação regista e mostra documentos financeiros; movimentar dinheiro é um processo bancário fora dela.',
+        refusal: 'Posso levá-lo aos ecrãs de faturas, pagamentos e cobranças, mas não processo pagamentos por si.',
+      },
+    },
   },
   {
     id: 'unsupported.other_applications',
@@ -108,6 +139,14 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       'escreve-me um poema',
     ],
     relevantWhen: null,
+    localized: {
+      pt: {
+        title: 'Perguntas sobre outros assuntos',
+        description:
+          'Cultura geral, outras aplicações, ou qualquer assunto que esta aplicação não cobre. O assistente responde sobre esta aplicação e mais nada.',
+        refusal: 'Só conheço esta aplicação — não consigo ajudar com assuntos fora dela.',
+      },
+    },
   },
 ];
 
@@ -117,18 +156,21 @@ const CATALOGUE: readonly CatalogueEntry[] = [
  * Relevance is judged from the routes themselves, so a catalogue entry is never
  * emitted on the strength of a guess about the domain.
  */
-export function synthesiseBoundaries(routes: readonly DiscoveredRoute[]): Capability[] {
+export function synthesiseBoundaries(routes: readonly DiscoveredRoute[], language = 'en'): Capability[] {
   const surface = routes.map((route) => `${route.path} ${route.feature ?? ''}`).join(' ');
-  return CATALOGUE.filter((entry) => entry.relevantWhen === null || entry.relevantWhen.test(surface)).map(
-    (entry) => ({
+  const code = language.toLowerCase().slice(0, 2);
+  return CATALOGUE.filter((entry) => entry.relevantWhen === null || entry.relevantWhen.test(surface)).map((entry) => {
+    // In the app's own language where the catalogue has it; English otherwise.
+    const said = entry.localized?.[code] ?? entry;
+    return {
       id: entry.id,
       kind: 'unsupported',
       route: null,
-      title: entry.title,
-      description: entry.description,
-      refusal: entry.refusal,
+      title: said.title,
+      description: said.description,
+      refusal: said.refusal,
       examples: [...entry.examples],
       ...(entry.refuses ? { refuses: entry.refuses } : {}),
-    }),
-  );
+    };
+  });
 }

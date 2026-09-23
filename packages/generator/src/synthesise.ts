@@ -290,10 +290,8 @@ export function deriveProse(request: ProseRequest): Prose {
   // /:locale/auth/login." — English on a Portuguese app, and no information.) The area and the route
   // stay in `description`, which is what retrieval matches on and no visitor reads.
   const words = DERIVED_WORDS[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? DERIVED_WORDS.en!;
-  const shown = request.copy
-    .filter((text) => text.trim().toLowerCase() !== primary.trim().toLowerCase())
-    .slice(0, 4)
-    .map((text) => clip(text));
+  const content = request.copy.filter((text) => text.trim().toLowerCase() !== primary.trim().toLowerCase() && worthShowing(text));
+  const shown = content.slice(0, 4).map((text) => clip(text));
   const explanation =
     shown.length > 0
       ? // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
@@ -310,7 +308,46 @@ export function deriveProse(request: ProseRequest): Prose {
     for (const verb of verbs) examples.push(`${verb} ${title.toLowerCase()}`);
   }
   if (examples.length === 0) for (const verb of ASK_TO_GO.en!) examples.push(`${verb} ${primary.toLowerCase()}`);
+  // "open X", "take me to X", "go to X" repeat the title and add no word a visitor might use (Pilot-A field
+  // report, 2026-09-23, P3-1). What the page itself shows does: a column, a section, a label — "ver
+  // elegibilidade", "see match squad". Short lines only, and only the first two: a page's own words as a
+  // request, never a sentence someone wrote, so nothing is invented.
+  const see = SEE[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? SEE.en!;
+  for (const text of content.filter(isLabel).slice(0, 2)) examples.push(`${see} ${text.trim().toLowerCase()}`);
   return { description, explanation, examples: [...new Set(examples)], source: 'derived' };
+}
+
+/** How a user asks to see something, per language: the verb before a page's own label in a derived example. */
+const SEE: Readonly<Record<string, string>> = { en: 'see', pt: 'ver' };
+
+/** A label, not a sentence: a few words, no full stop — what a column, a tab or a section heading says. */
+function isLabel(text: string): boolean {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const count = flat.split(' ').length;
+  return count >= 1 && count <= 4 && flat.length >= 4 && !/[.!?…:]$/.test(flat);
+}
+
+/**
+ * What the page renders that says nothing about what the screen is for (Pilot-A field report, 2026-09-23):
+ * a unit ("min"), a control ("+ Princípio", "Mover para cima"), and an empty state ("Sem equipas
+ * registadas", "Cria a primeira equipa…") — the page saying it has nothing yet. Served as "This screen
+ * shows: min, Mover para cima", they read as broken. Coarse and bilingual, like the rest of this file.
+ */
+export function worthShowing(text: string): boolean {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length < 3) return false;
+  // A unit or an abbreviation in lower case: "min", "kg", "km/h", "%".
+  if (/^[a-z%°/.]{1,4}$/.test(flat)) return false;
+  // A control: starts with a symbol, or is — as the whole label — a verb for moving, reordering or
+  // dismissing. The whole label only: "Next fixtures" is content, "Next" is a button.
+  if (/^[+\-−×✕←→↑↓•·»›]/.test(flat)) return false;
+  if (/^(mover|move|subir|descer)( para)? ?(cima|baixo|up|down)?$|^(fechar|close|cancelar|cancel|voltar|back|anterior|previous|seguinte|next|carregar mais|load more|ver mais|see more|mostrar mais|show more|guardar|save|editar|edit|apagar|delete|remover|remove)[\s»›→.…]*$/i.test(flat)) return false;
+  // An empty state: the page saying there is nothing, or asking you to make the first one.
+  if (/^(sem |nenhum|nenhuma|não há|ainda não|ainda sem|no [a-z]+ (yet|found|registered)|there (are|is) no|nothing (here|yet)|none yet|you (have|don't have) no)/i.test(flat)) return false;
+  if (/^(cria|crie|adiciona|adicione|create|add) (a|o|as|os|your|the)? ?(primeir|first)/i.test(flat)) return false;
+  // A loading or error placeholder.
+  if (/^(a carregar|carregando|loading|erro|error)\b/i.test(flat)) return false;
+  return true;
 }
 
 /** A line of page copy for a list: a paragraph is cut at a word, so four of them cannot run to a wall of text. */
@@ -333,6 +370,12 @@ const DERIVED_WORDS: Readonly<
     only: (name, area) => `${name} é um ecrã ${area ? `da área ${area} ` : ''}desta aplicação.`,
   },
 };
+
+/** "open X", "take me to X", "go to X" in the application's primary language: Rule 10's three for a title alone. */
+export function askToGo(language: string, title: string): string[] {
+  const verbs = ASK_TO_GO[language.split('-')[0]!.toLowerCase()] ?? ASK_TO_GO.en!;
+  return verbs.map((verb) => `${verb} ${title.toLowerCase()}`);
+}
 
 /** How a user asks to be taken to a screen. Three each, so a derived capability still meets Rule 10's minimum. */
 const ASK_TO_GO: Readonly<Record<string, readonly string[]>> = {

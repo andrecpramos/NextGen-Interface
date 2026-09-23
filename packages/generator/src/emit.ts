@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import { validateRegistry, formatValidation, capabilityDocument, type Capability, type RegistryContext, type RegistryFile } from '@nextgen/core-capability';
-import { makeEmbedder } from '@nextgen/core-intent';
+import { indexFor, makeEmbedder } from '@nextgen/core-intent';
 
 import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleName, SkippedRoute } from './types.ts';
 
@@ -272,6 +272,14 @@ export async function writeIndexes(
   const written: string[] = [];
 
   for (const [role, registry] of registries) {
+    // The hashing index is the runtime's own `indexFor`: the file the browser downloads and the index it
+    // would compute for a merged, multi-role registry are made by one function, so they cannot drift.
+    if (encoderName === 'hashing') {
+      const name = `index.${role}.json`;
+      writeFileSync(join(target, name), `${JSON.stringify(indexFor(registry))}\n`, 'utf8');
+      written.push(name);
+      continue;
+    }
     const documents = registry.capabilities.map(capabilityDocument);
 
     // A fresh encoder for this registry, every time. See the warning above.

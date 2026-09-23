@@ -1,8 +1,10 @@
 import { capabilityDocument } from '@nextgen/core-capability';
-import { normalize } from './text.ts';
+import { HashingEmbedder } from './embedder.ts';
+import { buildTriggerIndex } from './triggers.ts';
 import { buildEnumIndex } from './slots.ts';
 import { actionVocabularyOf } from './action.ts';
-import type { Capability, EnumIndex, Registry, RegistryFile, Vector } from './types.ts';
+import type { StoredVector } from './sparse.ts';
+import type { Capability, EnumIndex, Registry, RegistryFile } from './types.ts';
 
 /**
  * Build a `Registry` from data that is already in memory (WP-24).
@@ -45,8 +47,21 @@ export interface ShippedIndex {
   readonly schemaVersion: number;
   readonly encoder: string;
   readonly generatedAt: string;
-  readonly entries: readonly { readonly capabilityId: string; readonly vector: readonly number[] }[];
+  /**
+   * `'sparse'` (ADR-028): each entry is its non-zero `terms` and their `weights`, in a space `dimension`
+   * wide. Absent: each entry is a dense `vector` — every index before 2026-09-23, and any encoder whose
+   * vectors are dense anyway. Both are read; `indexFor` writes sparse.
+   */
+  readonly format?: 'sparse';
+  readonly dimension?: number;
+  readonly entries: readonly ShippedEntry[];
 }
+
+export type ShippedEntry =
+  | { readonly capabilityId: string; readonly vector: readonly number[] }
+  | { readonly capabilityId: string; readonly terms: readonly number[]; readonly weights: readonly number[] };
+
+const isSparseEntry = (e: ShippedEntry): e is Extract<ShippedEntry, { terms: readonly number[] }> => 'terms' in e;
 
 export class IndexMismatchError extends Error {
   constructor(reason: string) {
@@ -69,8 +84,11 @@ export class IndexMismatchError extends Error {
  */
 export function assertIndexMatches(registry: RegistryFile, index: ShippedIndex): void {
   if (index.schemaVersion !== registry.schemaVersion) {
+    // Written as JSON, so a string "1" and a number 1 do not print as the same thing
+    // (Pilot-A field report, 2026-09-23: a server-side merge wrote the version as a string).
+    const shown = (v: unknown): string => `${JSON.stringify(v)} (${typeof v})`;
     throw new IndexMismatchError(
-      `schema ${index.schemaVersion} against registry schema ${registry.schemaVersion}`,
+      `schema ${shown(index.schemaVersion)} against registry schema ${shown(registry.schemaVersion)}`,
     );
   }
   if (index.entries.length !== registry.capabilities.length) {
@@ -86,8 +104,24 @@ export function assertIndexMatches(registry: RegistryFile, index: ShippedIndex):
       );
     }
   }
-  const width = index.entries[0]?.vector.length;
-  if (width !== undefined && index.entries.some((e) => e.vector.length !== width)) {
+  if (index.format === 'sparse') {
+    const dim = index.dimension;
+    if (typeof dim !== 'number' || !Number.isInteger(dim) || dim < 0) throw new IndexMismatchError('a sparse index names no dimension');
+    for (const [i, e] of index.entries.entries()) {
+      if (!isSparseEntry(e) || e.terms.length !== e.weights.length) throw new IndexMismatchError(`entry ${i} is not a sparse vector`);
+      for (let k = 0; k < e.terms.length; k++) {
+        const t = e.terms[k]!;
+        if (!Number.isInteger(t) || t < 0 || t >= dim || (k > 0 && t <= e.terms[k - 1]!)) {
+          throw new IndexMismatchError(`entry ${i} has a term outside its ${dim} dimensions, or out of order`);
+        }
+      }
+    }
+    return;
+  }
+  if (index.entries.some(isSparseEntry)) throw new IndexMismatchError('sparse entries in an index that does not say it is sparse');
+  const dense = index.entries as readonly { readonly vector: readonly number[] }[];
+  const width = dense[0]?.vector.length;
+  if (width !== undefined && dense.some((e) => e.vector.length !== width)) {
     throw new IndexMismatchError('vectors are not all the same width');
   }
 }
@@ -108,16 +142,8 @@ export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Regis
 
   const capabilities = raw.capabilities;
 
-  const triggerIndex = new Map<string, string>();
-  for (const cap of capabilities) {
-    for (const trigger of cap.triggers ?? []) {
-      const key = normalize(trigger);
-      if (triggerIndex.has(key) && triggerIndex.get(key) !== cap.id) {
-        console.warn(`[registry] trigger collision on "${key}": ${triggerIndex.get(key)} vs ${cap.id}`);
-      }
-      triggerIndex.set(key, cap.id);
-    }
-  }
+  // A phrase two capabilities claim names neither: stage 2 decides between them (triggers.ts).
+  const { index: triggerIndex } = buildTriggerIndex(capabilities);
 
   return {
     schemaVersion: raw.schemaVersion,
@@ -131,9 +157,118 @@ export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Regis
     // themselves. The vectors are shipped precisely because they *cannot* be
     // derived without the fitted corpus.
     documents: capabilities.map(capabilityDocument),
-    vectors: index.entries.map((e) => e.vector as Vector),
+    vectors: index.entries.map((e): StoredVector => (isSparseEntry(e) ? { dim: index.dimension!, idx: e.terms, val: e.weights } : e.vector)),
     enums,
     boundaryIds: new Set(capabilities.filter((c) => c.kind === 'unsupported').map((c) => c.id)),
     actionVocabulary: actionVocabularyOf(capabilities.filter((c) => c.kind !== 'unsupported')),
+  };
+}
+
+/**
+ * The index for a registry, computed: a fresh hashing encoder fitted on this registry's own documents,
+ * each document embedded, four significant figures kept. **This is the function the build writes
+ * `index.<ROLE>.json` with** (generator `writeIndexes`), so a computed index and a shipped one are the
+ * same bytes — the shipped file is a cache, not a second source of truth.
+ *
+ * Why it exists (Pilot-A field report, 2026-09-23, P2-2): a user can hold several roles, and each role's
+ * index is its own vector space — the same capability had 56 of 56 components different between two
+ * roles — so two shipped indexes cannot be concatenated. Two registries can be merged
+ * (`mergeRegistryFiles`), and their index computed here, in milliseconds for a few hundred screens.
+ * The runtime already fits the same encoder on the same documents to embed each question, so this adds
+ * one pass of `embedSparse`, not a new kind of work.
+ *
+ * Sparse (ADR-028): only the words each screen has. Dense, a 500-screen app's index was 29 MB.
+ */
+export function indexFor(raw: RegistryFile, generatedAt: string = new Date().toISOString()): ShippedIndex {
+  const documents = raw.capabilities.map(capabilityDocument);
+  // A fresh encoder, fitted on exactly this registry — never one shared or re-fitted (lessons L10).
+  const embedder = new HashingEmbedder();
+  embedder.fit(documents);
+  const vectors = documents.map((d) => embedder.embedSparse(d));
+  return {
+    schemaVersion: raw.schemaVersion,
+    encoder: 'hashing',
+    generatedAt,
+    format: 'sparse',
+    dimension: vectors[0]?.dim ?? 0,
+    // Order is load-bearing: the runtime pairs capabilities[i] with vectors[i] (`assertIndexMatches`).
+    // Four significant figures: cosine is scale-invariant and the ranking is unchanged well above this
+    // precision, so the remaining digits are bytes a browser downloads and never uses. A weight that
+    // rounds to zero is left out, exactly as it contributed nothing when it was written as 0.
+    entries: raw.capabilities.map((c, i) => {
+      const terms: number[] = [];
+      const weights: number[] = [];
+      const v = vectors[i]!;
+      for (let k = 0; k < v.idx.length; k++) {
+        const w = Number(v.val[k]!.toFixed(4));
+        if (w !== 0) {
+          terms.push(v.idx[k]!);
+          weights.push(w);
+        }
+      }
+      return { capabilityId: c.id, terms, weights };
+    }),
+  };
+}
+
+/** Two registries that cannot be one application's. */
+export class RegistryMergeError extends Error {
+  constructor(message: string) {
+    super(`registries cannot be merged: ${message}`);
+    this.name = 'RegistryMergeError';
+  }
+}
+
+/**
+ * One registry for a user who holds several roles: every capability any of them can reach, once.
+ *
+ * Each role's registry is already that role's entitlement (Rule 17), so their union is exactly what this
+ * user may reach — the server decides which roles' files a session receives, never this function. A
+ * capability two roles share is the same capability (same id, same app), and the first role's copy is
+ * kept. Order follows the first registry, then each later one's new capabilities. Contested stage-1
+ * phrases are handled where the index is built (`buildTriggerIndex`): a phrase that now names two
+ * screens names neither. Index it with `indexFor` — never by concatenating the roles' shipped indexes.
+ */
+export function mergeRegistryFiles(files: readonly RegistryFile[]): RegistryFile {
+  const [first, ...rest] = files;
+  if (!first) throw new RegistryMergeError('none given');
+  if (rest.length === 0) return first;
+  for (const file of rest) {
+    if (file.schemaVersion !== first.schemaVersion) {
+      throw new RegistryMergeError(`schema ${JSON.stringify(file.schemaVersion)} against ${JSON.stringify(first.schemaVersion)}`);
+    }
+  }
+  const seen = new Set<string>();
+  const capabilities: Capability[] = [];
+  for (const file of files) {
+    for (const cap of file.capabilities) {
+      if (seen.has(cap.id)) continue;
+      seen.add(cap.id);
+      capabilities.push(cap);
+    }
+  }
+  const enums = Object.assign({}, ...files.map((f) => f.enums ?? {})) as NonNullable<RegistryFile['enums']>;
+  const unique = <T>(items: readonly T[], key: (item: T) => string): T[] => {
+    const keys = new Set<string>();
+    return items.filter((item) => (keys.has(key(item)) ? false : (keys.add(key(item)), true)));
+  };
+  const contexts = files.map((f) => f.context).filter((c): c is NonNullable<RegistryFile['context']> => Boolean(c));
+  const glossary = unique(contexts.flatMap((c) => c.glossary ?? []), (g) => g.term);
+  const rules = unique(contexts.flatMap((c) => c.rules ?? []), (r) => r);
+  const limits = unique(contexts.flatMap((c) => c.limits ?? []), (l) => l.about);
+  const context =
+    contexts.length === 0
+      ? undefined
+      : {
+          ...(glossary.length > 0 ? { glossary } : {}),
+          ...(rules.length > 0 ? { rules } : {}),
+          ...(limits.length > 0 ? { limits } : {}),
+        };
+  return {
+    schemaVersion: first.schemaVersion,
+    domainDescription: first.domainDescription,
+    capabilities,
+    ...(Object.keys(enums).length > 0 ? { enums } : {}),
+    ...(context ? { context } : {}),
   };
 }

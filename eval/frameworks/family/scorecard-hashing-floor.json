@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-09-21T00:39:14.827Z",
+  "generatedAt": "2026-09-23T09:38:34.855Z",
   "embedder": "hashing",
   "stage3": null,
   "entries": 69,
   "modelFreeRate": 1,
-  "top1": 0.6181818181818182,
+  "top1": 0.7090909090909091,
   "paletteFound": 0,
-  "outOfScopeRefused": 0.7142857142857143,
+  "outOfScopeRefused": 0.6428571428571429,
   "inScopeWronglyRefused": 0,
-  "latencyP50": 0.05280000000000484,
-  "latencyP95": 0.2587000000000046,
+  "latencyP50": 0.0759000000000043,
+  "latencyP95": 0.40049999999999386,
   "results": [
     {
       "id": "fam-0001",
@@ -30,7 +30,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 1.9047999999999945
+      "ms": 3.02170000000001
     },
     {
       "id": "fam-0002",
@@ -51,7 +51,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.7256
+      "ms": 0.7968999999999937
     },
     {
       "id": "fam-0003",
@@ -72,7 +72,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.033699999999996066
+      "ms": 0.03870000000000573
     },
     {
       "id": "fam-0004",
@@ -93,7 +93,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.08619999999999095
+      "ms": 0.11129999999999995
     },
     {
       "id": "fam-0005",
@@ -114,7 +114,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.022900000000007026
+      "ms": 0.02430000000001087
     },
     {
       "id": "fam-0006",
@@ -128,14 +128,14 @@
       },
       "provenance": "hand-written from the fixture's own pt-PT copy",
       "got": {
-        "outcome": "clarify",
-        "capability": null,
-        "route": null,
+        "outcome": "execute",
+        "capability": "guardian.my_children_medical",
+        "route": "/my/children/medical",
         "stage": "embedding"
       },
-      "correct": false,
+      "correct": true,
       "modelFree": true,
-      "ms": 0.07119999999999038
+      "ms": 0.08979999999999677
     },
     {
       "id": "fam-0007",
@@ -156,7 +156,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07049999999999557
+      "ms": 0.07920000000000016
     },
     {
       "id": "fam-0008",
@@ -177,7 +177,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07640000000000668
+      "ms": 0.0759000000000043
     },
     {
       "id": "fam-0009",
@@ -198,7 +198,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.0204000000000093
+      "ms": 0.027200000000007662
     },
     {
       "id": "fam-0010",
@@ -219,7 +219,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07469999999999288
+      "ms": 0.08950000000000102
     },
     {
       "id": "fam-0011",
@@ -240,7 +240,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07429999999999382
+      "ms": 0.18600000000000705
     },
     {
       "id": "fam-0012",
@@ -261,7 +261,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.020700000000005048
+      "ms": 0.03490000000000748
     },
     {
       "id": "fam-0013",
@@ -282,7 +282,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.015100000000003888
+      "ms": 0.02740000000000009
     },
     {
       "id": "fam-0014",
@@ -303,7 +303,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.05750000000000455
+      "ms": 0.07519999999999527
     },
     {
       "id": "fam-0015",
@@ -324,7 +324,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.2587000000000046
+      "ms": 0.0945999999999998
     },
     {
       "id": "fam-0016",
@@ -345,7 +345,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07269999999999754
+      "ms": 0.07049999999999557
     },
     {
       "id": "fam-0017",
@@ -366,7 +366,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.0589999999999975
+      "ms": 0.06219999999999004
     },
     {
       "id": "fam-0018",
@@ -387,7 +387,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.021399999999999864
+      "ms": 0.02039999999999509
     },
     {
       "id": "fam-0019",
@@ -408,7 +408,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.05280000000000484
+      "ms": 0.0613000000000028
     },
     {
       "id": "fam-0020",
@@ -422,14 +422,14 @@
       },
       "provenance": "hand-written from the fixture's own pt-PT copy",
       "got": {
-        "outcome": "clarify",
-        "capability": null,
-        "route": null,
+        "outcome": "execute",
+        "capability": "dashboard.my",
+        "route": "/my",
         "stage": "embedding"
       },
-      "correct": false,
+      "correct": true,
       "modelFree": true,
-      "ms": 0.05329999999999302
+      "ms": 0.05819999999999936
     },
     {
       "id": "fam-0021",
@@ -450,7 +450,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.04959999999999809
+      "ms": 0.05310000000000059
     },
     {
       "id": "fam-0022",
@@ -470,7 +470,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.06620000000000914
+      "ms": 0.08270000000000266
     },
     {
       "id": "fam-0023",
@@ -490,7 +490,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.05639999999999645
+      "ms": 0.14809999999999945
     },
     {
       "id": "fam-0024",
@@ -510,7 +510,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.06470000000000198
+      "ms": 0.09479999999999222
     },
     {
       "id": "fam-0025",
@@ -530,7 +530,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07979999999999166
+      "ms": 0.08959999999999013
     },
     {
       "id": "fam-0026",
@@ -550,7 +550,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.07399999999999807
+      "ms": 0.11840000000000828
     },
     {
       "id": "fam-0027",
@@ -571,7 +571,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.018699999999995498
+      "ms": 0.03249999999999886
     },
     {
       "id": "fam-0028",
@@ -592,7 +592,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.24030000000000484
+      "ms": 0.5476999999999919
     },
     {
       "id": "fam-0029",
@@ -613,7 +613,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.07310000000001082
+      "ms": 0.07540000000000191
     },
     {
       "id": "fam-0030",
@@ -634,7 +634,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.04979999999999052
+      "ms": 0.23239999999999839
     },
     {
       "id": "fam-0031",
@@ -655,7 +655,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.01470000000000482
+      "ms": 0.021599999999992292
     },
     {
       "id": "fam-0032",
@@ -676,7 +676,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.04729999999999279
+      "ms": 0.07910000000001105
     },
     {
       "id": "fam-0033",
@@ -697,7 +697,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.05089999999999861
+      "ms": 0.10320000000000107
     },
     {
       "id": "fam-0034",
@@ -718,7 +718,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.048799999999999955
+      "ms": 0.07679999999999154
     },
     {
       "id": "fam-0035",
@@ -739,7 +739,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.044900000000012597
+      "ms": 0.07229999999999848
     },
     {
       "id": "fam-0036",
@@ -760,7 +760,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.04950000000000898
+      "ms": 0.07669999999998822
     },
     {
       "id": "fam-0037",
@@ -781,7 +781,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.0636000000000081
+      "ms": 0.06799999999999784
     },
     {
       "id": "fam-0038",
@@ -802,7 +802,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.050399999999996226
+      "ms": 0.052499999999994884
     },
     {
       "id": "fam-0039",
@@ -823,7 +823,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.05839999999999179
+      "ms": 0.05180000000000007
     },
     {
       "id": "fam-0040",
@@ -844,7 +844,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.008399999999994634
+      "ms": 0.008199999999987995
     },
     {
       "id": "fam-0041",
@@ -865,7 +865,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.008899999999997021
+      "ms": 0.009599999999991837
     },
     {
       "id": "fam-0042",
@@ -886,7 +886,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.04269999999999641
+      "ms": 0.04810000000000514
     },
     {
       "id": "fam-0043",
@@ -906,7 +906,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.05340000000001055
+      "ms": 0.08100000000000307
     },
     {
       "id": "fam-0044",
@@ -920,13 +920,13 @@
       "provenance": "an action the application does not perform",
       "got": {
         "outcome": "out_of_scope",
-        "capability": "unsupported.declared.contactar_uma_pessoa",
+        "capability": "unsupported.external_actions",
         "route": null,
         "stage": "embedding"
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.05310000000000059
+      "ms": 0.06430000000000291
     },
     {
       "id": "fam-0045",
@@ -946,7 +946,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.3515000000000015
+      "ms": 0.11050000000000182
     },
     {
       "id": "fam-0046",
@@ -959,14 +959,14 @@
       },
       "provenance": "a question about another application entirely",
       "got": {
-        "outcome": "out_of_scope",
-        "capability": "unsupported.data_changes",
+        "outcome": "clarify",
+        "capability": null,
         "route": null,
         "stage": "embedding"
       },
-      "correct": true,
+      "correct": false,
       "modelFree": true,
-      "ms": 0.07549999999999102
+      "ms": 0.08670000000000755
     },
     {
       "id": "fam-0047",
@@ -980,14 +980,14 @@
       },
       "provenance": "hand-written from the fixture's own pt-PT copy",
       "got": {
-        "outcome": "clarify",
-        "capability": null,
-        "route": null,
+        "outcome": "execute",
+        "capability": "squad.overview",
+        "route": "/squad",
         "stage": "embedding"
       },
-      "correct": false,
+      "correct": true,
       "modelFree": true,
-      "ms": 0.04529999999999745
+      "ms": 0.40049999999999386
     },
     {
       "id": "fam-0048",
@@ -1029,7 +1029,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.0589999999999975
+      "ms": 0.055899999999994066
     },
     {
       "id": "fam-0050",
@@ -1050,7 +1050,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.007799999999988927
+      "ms": 0.007699999999999818
     },
     {
       "id": "fam-0051",
@@ -1064,14 +1064,14 @@
       },
       "provenance": "hand-written from the fixture's own pt-PT copy",
       "got": {
-        "outcome": "clarify",
-        "capability": null,
-        "route": null,
+        "outcome": "execute",
+        "capability": "squad.overview",
+        "route": "/squad",
         "stage": "embedding"
       },
-      "correct": false,
+      "correct": true,
       "modelFree": true,
-      "ms": 0.055999999999997385
+      "ms": 0.06050000000000466
     },
     {
       "id": "fam-0052",
@@ -1092,7 +1092,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.04399999999999693
+      "ms": 0.04989999999999384
     },
     {
       "id": "fam-0053",
@@ -1113,7 +1113,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.04189999999999827
+      "ms": 0.15279999999999916
     },
     {
       "id": "fam-0054",
@@ -1134,7 +1134,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.0075999999999964984
+      "ms": 0.008499999999997954
     },
     {
       "id": "fam-0055",
@@ -1155,7 +1155,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.06320000000000903
+      "ms": 0.10120000000000573
     },
     {
       "id": "fam-0056",
@@ -1176,7 +1176,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.050599999999988654
+      "ms": 0.2306999999999988
     },
     {
       "id": "fam-0057",
@@ -1197,7 +1197,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.059499999999999886
+      "ms": 0.08849999999999625
     },
     {
       "id": "fam-0058",
@@ -1211,14 +1211,14 @@
       },
       "provenance": "hand-written from the fixture's own en copy",
       "got": {
-        "outcome": "clarify",
-        "capability": null,
-        "route": null,
+        "outcome": "execute",
+        "capability": "dashboard.overview",
+        "route": "/dashboard",
         "stage": "embedding"
       },
-      "correct": false,
+      "correct": true,
       "modelFree": true,
-      "ms": 0.052599999999998204
+      "ms": 0.13510000000000844
     },
     {
       "id": "fam-0059",
@@ -1239,7 +1239,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.01099999999999568
+      "ms": 0.015299999999996317
     },
     {
       "id": "fam-0060",
@@ -1260,7 +1260,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.04080000000000439
+      "ms": 0.05740000000000123
     },
     {
       "id": "fam-0061",
@@ -1281,7 +1281,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.04760000000000275
+      "ms": 0.07500000000000284
     },
     {
       "id": "fam-0062",
@@ -1295,14 +1295,14 @@
       },
       "provenance": "hand-written from the fixture's own pt-PT copy",
       "got": {
-        "outcome": "clarify",
-        "capability": null,
-        "route": null,
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
         "stage": "embedding"
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.05129999999999768
+      "ms": 0.13819999999999766
     },
     {
       "id": "fam-0063",
@@ -1323,7 +1323,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.004499999999993065
+      "ms": 0.006200000000006867
     },
     {
       "id": "fam-0064",
@@ -1343,7 +1343,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.05289999999999395
+      "ms": 0.07379999999999143
     },
     {
       "id": "fam-0065",
@@ -1363,7 +1363,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.05180000000000007
+      "ms": 0.08740000000000236
     },
     {
       "id": "fam-0066",
@@ -1383,7 +1383,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.054400000000001114
+      "ms": 0.08889999999999532
     },
     {
       "id": "fam-0067",
@@ -1403,7 +1403,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.04179999999999495
+      "ms": 0.08659999999999002
     },
     {
       "id": "fam-0068",
@@ -1423,7 +1423,7 @@
       },
       "correct": true,
       "modelFree": true,
-      "ms": 0.04460000000000264
+      "ms": 0.1075000000000017
     },
     {
       "id": "fam-0069",
@@ -1444,7 +1444,7 @@
       },
       "correct": false,
       "modelFree": true,
-      "ms": 0.24160000000000537
+      "ms": 0.14399999999999125
     }
   ]
 }

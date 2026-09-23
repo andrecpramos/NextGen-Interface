@@ -56,6 +56,18 @@ export interface ScreenKnowledge {
   readonly aliases: readonly string[];
   /** Things a real user says when they want it. */
   readonly askedAs: readonly string[];
+  /**
+   * For a screen the scanner cannot read — a route decided on the server, a micro-frontend, a framework it
+   * does not know — its name. With it, a `screens` entry whose route matches nothing found is *declared*:
+   * it becomes a screen of the registry (ADR-028). Ignored for a screen the scanner found: the app's own
+   * title stays.
+   */
+  readonly title: string | null;
+  /**
+   * Which roles can open a declared screen. Required in an app with more than one role: a screen's
+   * presence in a registry is that role's entitlement (Rule 17), and nothing may be guessed into one.
+   */
+  readonly roles: readonly string[] | null;
 }
 
 /** Something users ask for that this app does not do — declared, never judged (Rule 13). */
@@ -240,6 +252,8 @@ export function parseKnowledge(raw: unknown): { knowledge: AppKnowledge; problem
       contains: list(value.contains, `${path}.contains`, MAX_LIST),
       aliases: list(value.aliases, `${path}.aliases`, MAX_LIST),
       askedAs: list(value.askedAs, `${path}.askedAs`, MAX_LIST),
+      title: text(value.title, `${path}.title`, 80),
+      roles: roles(value.roles, `${path}.roles`),
     };
   }
 
@@ -289,6 +303,59 @@ function mentions(folded: string, term: string): boolean {
 }
 
 const exampleText = (example: string | { readonly say: string }): string => (typeof example === 'string' ? example : example.say);
+
+/** An id for a declared screen, in the registry's dotted-lowercase form: `/players/:id/stats` → `declared.players.id.stats`. */
+function declaredId(route: string, taken: ReadonlySet<string>): string {
+  const segments = route
+    .split('/')
+    .filter(Boolean)
+    .map((s) => s.replace(/^:/, '').replace(/\?$/, '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9_]/g, '_'))
+    .map((s) => (/^[a-z]/.test(s) ? s : `s${s}`));
+  const base = `declared.${segments.length > 0 ? segments.join('.') : 'home'}`;
+  let id = base;
+  for (let n = 2; taken.has(id); n++) id = `${base}_${n}`;
+  return id;
+}
+
+/**
+ * Screens the adopter declared because the scanner could not read them (ADR-028): a `screens` entry keyed
+ * by a route, with a `title`, that matches no screen found. Server-decided routes, micro-frontends and
+ * frameworks the scanner does not know are how a complex app escapes a route table; this is how it gets
+ * them back. Only for a route (`/…`), only with a title, and — where the app has more than one role —
+ * only for the roles named: a declared screen with no roles is left out, and `knowledgeGaps` says so.
+ * `applyKnowledge` then merges its purpose, contents and phrasing exactly as for a found screen.
+ */
+export function declaredScreens(
+  found: readonly AnnotatedCapability[],
+  knowledge: AppKnowledge,
+  allRoles: readonly string[],
+  askToGo: (title: string) => readonly string[],
+): AnnotatedCapability[] {
+  const routes = new Set(found.map((c) => c.route).filter(Boolean));
+  const ids = new Set(found.map((c) => c.id));
+  const out: AnnotatedCapability[] = [];
+  for (const [key, screen] of Object.entries(knowledge.screens)) {
+    if (!key.startsWith('/') || !screen.title || routes.has(key) || ids.has(key)) continue;
+    const roles = screen.roles ? screen.roles.filter((r) => allRoles.includes(r)) : allRoles.length === 1 ? [...allRoles] : [];
+    if (roles.length === 0) continue;
+    const id = declaredId(key, ids);
+    ids.add(id);
+    routes.add(key);
+    out.push({
+      id,
+      kind: 'navigate',
+      route: key,
+      title: screen.title,
+      description: `${terminated(screen.title)}`,
+      explanation: screen.purpose ?? terminated(screen.title),
+      explanationSource: SOURCE,
+      // Rule 10's three, from the adopter's own phrasing first; `applyKnowledge` adds the rest of `askedAs`.
+      examples: [...askToGo(screen.title)],
+      roles,
+    } as AnnotatedCapability);
+  }
+  return out;
+}
 
 /**
  * Merge what the adopter wrote into the screens the generator found. Pure: it returns new
@@ -414,6 +481,8 @@ export type GapKind =
   | 'purpose-missing'
   | 'phrasing-thin'
   | 'knowledge-orphan'
+  /** A declared screen (a `title` for a route the scanner did not find) that names no role in a multi-role app. */
+  | 'declared-roles-missing'
   /** A limit's `instead` names a route that is no screen of this app: it would be dropped without a word. */
   | 'instead-unknown';
 
@@ -423,6 +492,29 @@ export interface KnowledgeGap {
   readonly title?: string;
   /** What to ask the developer, in words an agent can say as it stands. */
   readonly message: string;
+  /**
+   * For a question about a screen: how much answering it is likely to help, higher first (`screenPriority`).
+   * 133 questions is an interview nobody finishes (Pilot-A field report, 2026-09-23); the first ten are.
+   */
+  readonly priority?: number;
+}
+
+/**
+ * How much knowing a screen is likely to help, for ordering the interview. Not a measurement — a
+ * deterministic heuristic over what the scanner knows, stated so it can be argued with:
+ *
+ * - every role that reaches it is more visitors who may ask for it (+2 each);
+ * - a screen whose name shares a word with another's is where the router has to tell two apart (+3);
+ * - a top-level screen is asked for by name; a deep one by way of its parent (−1 per level past two);
+ * - a screen that needs an item (`:id`) is reached from that item, rarely asked for (−3).
+ */
+export function screenPriority(capability: AnnotatedCapability, all: readonly AnnotatedCapability[]): number {
+  const route = capability.route ?? '';
+  const depth = route.split('/').filter(Boolean).length;
+  const words = (title: string): Set<string> => new Set(fold(title).split(/\W+/).filter((w) => w.length > 3));
+  const own = words(capability.title);
+  const twinned = all.some((other) => other.id !== capability.id && other.kind === 'navigate' && [...words(other.title)].some((w) => own.has(w)));
+  return capability.roles.length * 2 + (twinned ? 3 : 0) - Math.max(0, depth - 2) - (route.includes(':') ? 3 : 0);
 }
 
 export interface KnowledgeCoverage {
@@ -472,23 +564,40 @@ export function knowledgeGaps(
   const matched = new Set<string>();
   let withPurpose = 0;
   let withPhrasing = 0;
+  const all = [...screens.values()];
   for (const [route, c] of screens) {
     const key = Object.hasOwn(knowledge.screens, route) ? route : Object.hasOwn(knowledge.screens, c.id) ? c.id : null;
     const label = `${route} (“${c.title}”)`;
+    const priority = screenPriority(c, all);
     if (key === null) {
-      gaps.push({ kind: 'screen-unknown', route, title: c.title, message: `${label}: what is this screen for, what is on it, and what would a user say to get here?` });
+      gaps.push({ kind: 'screen-unknown', route, title: c.title, priority, message: `${label}: what is this screen for, what is on it, and what would a user say to get here?` });
       continue;
     }
     matched.add(key);
     const entry = knowledge.screens[key]!;
     if (entry.purpose) withPurpose++;
-    else gaps.push({ kind: 'purpose-missing', route, title: c.title, message: `${label}: what is it for, in your words?` });
+    else gaps.push({ kind: 'purpose-missing', route, title: c.title, priority, message: `${label}: what is it for, in your words?` });
     if (entry.askedAs.length >= THIN) withPhrasing++;
-    else gaps.push({ kind: 'phrasing-thin', route, title: c.title, message: `${label}: give ${THIN - entry.askedAs.length} more things a real user would say to get here (aim for five: requests, in the language most of your users write, only what this screen really does).` });
+    else gaps.push({ kind: 'phrasing-thin', route, title: c.title, priority, message: `${label}: give ${THIN - entry.askedAs.length} more things a real user would say to get here (aim for five: requests, in the language most of your users write, only what this screen really does).` });
   }
 
+  const roleNames = [...new Set(capabilities.flatMap((c) => c.roles))];
   for (const key of Object.keys(knowledge.screens).sort()) {
-    if (!matched.has(key)) gaps.push({ kind: 'knowledge-orphan', route: key, message: `“${key}” is in knowledge.json but matches no screen — a typo, or a page that was removed?` });
+    if (matched.has(key)) continue;
+    const entry = knowledge.screens[key]!;
+    if (key.startsWith('/') && entry.title && !(entry.roles ?? []).some((r) => roleNames.includes(r))) {
+      gaps.push({
+        kind: 'declared-roles-missing',
+        route: key,
+        message: `“${key}” (“${entry.title}”) is declared in knowledge.json, but names no role this app has (${roleNames.join(', ') || 'none'}), so no one is offered it. Add "roles": the roles that can open it.`,
+      });
+      continue;
+    }
+    gaps.push({
+      kind: 'knowledge-orphan',
+      route: key,
+      message: `“${key}” is in knowledge.json but matches no screen — a typo, a page that was removed, or a screen the scanner cannot read? To declare one it cannot read, give it a "title" and the "roles" that can open it.`,
+    });
   }
   // Where a limit sends the visitor must be a real screen, or it is quietly dropped from every role.
   for (const limit of knowledge.cannot) {

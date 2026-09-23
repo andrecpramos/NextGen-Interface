@@ -5,6 +5,7 @@ import {
   deriveProse,
   explanationCacheKey,
   synthesise,
+  worthShowing,
   type ProseModel,
   type ProseRequest,
 } from './synthesise.ts';
@@ -53,7 +54,8 @@ describe('synthesise — what the model is allowed to produce', () => {
       const prose = out.get('squad.players')!;
       // The derived description names the route; a model-written one never does.
       expect(prose.description).toContain('/squad/players');
-      expect(prose.examples.every((e) => /open|take me|go to|abre|leva-me|ir para/.test(e))).toBe(true);
+      // Derived: a way of asking to go there, or to see one of the page's own labels — never model prose.
+      expect(prose.examples.every((e) => /open|take me|go to|abre|leva-me|ir para|^see |^ver /.test(e))).toBe(true);
     }
   });
 
@@ -238,5 +240,29 @@ describe('deriveProse — what the screen is for, in the visitor’s words', () 
 
   it('falls back to English for a language it has no words for', () => {
     expect(deriveProse(request({ languages: ['de'], titles: { de: 'Spieler' }, copy: ['Position'] })).explanation).toBe('This screen shows: Position.');
+  });
+});
+
+/** Pilot-A field report, 2026-09-23 (P3-1): what a derived screen says, and what it is asked as. */
+describe('deriveProse — no chrome, no empty states, and the page’s own words as requests', () => {
+  const pt = (copy: string[]) => deriveProse(request({ copy }));
+
+  it('leaves out units, controls and empty states: they say nothing about what the screen is for', () => {
+    const prose = pt(['min', '+ Princípio', 'Mover para cima', 'Sem equipas registadas', 'Cria a primeira equipa da época', 'A carregar…', 'Elegibilidade']);
+    expect(prose.explanation).toBe('Este ecrã mostra: Elegibilidade.');
+  });
+
+  it('keeps ordinary content, in both languages', () => {
+    for (const text of ['Elegibilidade', 'Match squad', 'Minutos jogados', 'Next fixtures']) expect(worthShowing(text), text).toBe(true);
+    for (const text of ['ok', '→ Next', 'Load more', 'There are no players yet', 'Nenhum resultado', 'Create your first team']) expect(worthShowing(text), text).toBe(false);
+  });
+
+  it('asks for the page’s own labels — "ver elegibilidade" — and never for a sentence', () => {
+    const prose = pt(['Elegibilidade', 'Convocatória do jogo', 'Esta página mostra a elegibilidade de cada atleta.', 'Minutos']);
+    expect(prose.examples).toContain('ver elegibilidade');
+    expect(prose.examples).toContain('ver convocatória do jogo');
+    expect(prose.examples.some((e) => e.includes('esta página'))).toBe(false);
+    // Two at most: the page's words add vocabulary, and do not drown the title's.
+    expect(prose.examples.filter((e) => e.startsWith('ver '))).toHaveLength(2);
   });
 });

@@ -9,6 +9,7 @@ import { synthesiseId, routeSegments, featureOf } from './ids.ts';
 import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
 import {
+  askToGo,
   deriveProse,
   pruneCache,
   synthesise,
@@ -18,7 +19,7 @@ import {
   type ProseRequest,
 } from './synthesise.ts';
 import { splitByRole } from './emit.ts';
-import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, type AppKnowledge } from './knowledge.ts';
+import { applyKnowledge, declaredScreens, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, type AppKnowledge } from './knowledge.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
 import { rulesEntry } from './field-rules.ts';
@@ -727,7 +728,9 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   // What the adopter knows about their screens and the source cannot: merged after the sort, so
   // the order never depends on what was written.
   const knowledge = options.knowledge ?? EMPTY_KNOWLEDGE;
-  const master = applyKnowledge(found, knowledge).capabilities;
+  // Screens the scanner could not read, declared by the adopter with a title and roles (ADR-028).
+  const declared = declaredScreens(found, knowledge, roles.allRoles, (title) => askToGo(config.languages[0] ?? 'en', title));
+  const master = applyKnowledge([...found, ...declared].sort((a, b) => a.id.localeCompare(b.id)), knowledge).capabilities;
   skipped.sort((a, b) => a.path.localeCompare(b.path));
 
   // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
@@ -737,7 +740,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   );
 
   // The generic catalogue, then the limits this adopter declared in their own words.
-  const boundaries = [...synthesiseBoundaries(routes), ...knowledgeBoundaries(knowledge)];
+  const boundaries = [...synthesiseBoundaries(routes, config.languages[0] ?? 'en'), ...knowledgeBoundaries(knowledge)];
   const domainDescription =
     config.domainDescription ?? knowledge.app.about ?? (await describeApplication(master, options.model ?? null, cache));
 

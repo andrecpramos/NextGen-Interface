@@ -38,7 +38,7 @@ export {
 } from '@nextgen/core-capability';
 
 import { isCapabilityKind } from '@nextgen/core-capability';
-import type { Vector } from '@nextgen/core-inference';
+import type { StoredVector } from './sparse.ts';
 import type { Capability, RegistryContext } from '@nextgen/core-capability';
 
 /** Surface form → canonical value, plus leaf → parent for category roll-up. */
@@ -58,7 +58,8 @@ export interface Registry {
   readonly byId: ReadonlyMap<string, Capability>;
   readonly triggerIndex: ReadonlyMap<string, string>;
   readonly documents: readonly string[];
-  readonly vectors: readonly Vector[];
+  /** One per capability, in order: dense from a real embedding model, sparse from the hashing encoder. */
+  readonly vectors: readonly StoredVector[];
   readonly enums: Readonly<Record<string, EnumIndex>>;
   /** Ids of the declared limits (ADR-009). Precomputed; consulted on every turn. */
   readonly boundaryIds: ReadonlySet<string>;

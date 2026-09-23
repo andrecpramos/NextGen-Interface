@@ -21,8 +21,13 @@ export {
   registryFromIndex,
   assertIndexMatches,
   IndexMismatchError,
+  indexFor,
+  mergeRegistryFiles,
+  RegistryMergeError,
   type ShippedIndex,
 } from './registry-browser.ts';
+export { buildTriggerIndex } from './triggers.ts';
+export { toSparse, isSparse, dotStored, type SparseVector, type StoredVector } from './sparse.ts';
 export {
   stage1,
   stage2,

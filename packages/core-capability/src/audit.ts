@@ -23,10 +23,10 @@ export interface SimilarPair {
  * at 0.70 — those are two capabilities the registry has failed to distinguish,
  * and guessing between them is how the wrong thing gets deleted.
  */
-export function similarityAudit(
+export function similarityAudit<V = readonly number[]>(
   ids: readonly string[],
-  vectors: readonly (readonly number[])[],
-  cosine: (a: readonly number[], b: readonly number[]) => number,
+  vectors: readonly V[],
+  cosine: (a: V, b: V) => number,
   threshold = 0.55,
 ): SimilarPair[] {
   const pairs: SimilarPair[] = [];

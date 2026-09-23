@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, knowledgeGaps, parseKnowledge } from './knowledge.ts';
+import { applyKnowledge, declaredScreens, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, knowledgeGaps, parseKnowledge, screenPriority } from './knowledge.ts';
 import type { AnnotatedCapability } from './types.ts';
 
 /**
@@ -366,5 +366,75 @@ describe('rules — how the app works, told to the model', () => {
     const gap = knowledgeGaps([medical], typo).gaps.find((g) => g.kind === 'role-unknown');
     expect(gap).toBeDefined();
     expect(gap!.message).toContain('COACHH');
+  });
+});
+
+/** Pilot-A, 2026-09-23: 133 questions is an interview nobody finishes. The ones that help most come first. */
+describe('screenPriority — which screens to ask about first', () => {
+  const everyone = cap({ id: 'calendar', route: '/calendar', title: 'Calendário', roles: ['COACH', 'PARENT', 'PLAYER'] });
+  const one = cap({ id: 'audit', route: '/admin/audit', title: 'Registo de Auditoria', roles: ['ADMIN'] });
+  const deep = cap({ id: 'deep', route: '/admin/users/roles/matrix', title: 'Matriz', roles: ['ADMIN'] });
+  const item = cap({ id: 'player', route: '/players/:id', title: 'Jogador', roles: ['COACH', 'PARENT', 'PLAYER'] });
+  const twinA = cap({ id: 'train.plan', route: '/training/plan', title: 'Plano de Treino', roles: ['COACH'] });
+  const twinB = cap({ id: 'train.load', route: '/training/load', title: 'Carga de Treino', roles: ['COACH'] });
+  const all = [everyone, one, deep, item, twinA, twinB];
+
+  it('puts a screen more roles reach ahead of one only a few do', () => {
+    expect(screenPriority(everyone, all)).toBeGreaterThan(screenPriority(one, all));
+  });
+
+  it('puts a top-level screen ahead of a deep one, and one reached from an item last among equals', () => {
+    expect(screenPriority(one, all)).toBeGreaterThan(screenPriority(deep, all));
+    expect(screenPriority(everyone, all)).toBeGreaterThan(screenPriority(item, all));
+  });
+
+  it('raises screens whose names collide, where the router has to tell them apart', () => {
+    const alone = cap({ id: 'x', route: '/x', title: 'Mensagens', roles: ['COACH'] });
+    expect(screenPriority(twinA, all)).toBeGreaterThan(screenPriority(alone, [...all, alone]));
+  });
+
+  it('is carried on every screen question knowledgeGaps asks', () => {
+    const { gaps } = knowledgeGaps(all, EMPTY_KNOWLEDGE);
+    for (const g of gaps.filter((gap) => gap.kind === 'screen-unknown')) expect(typeof g.priority, g.route).toBe('number');
+  });
+});
+
+/**
+ * ADR-028: a complex app has screens its route table does not show — routes decided on the server,
+ * micro-frontends, frameworks the scanner does not read. The adopter declares them in knowledge.json.
+ */
+describe('declaredScreens — screens the scanner cannot read', () => {
+  const ask = (title: string) => [`open ${title.toLowerCase()}`, `go to ${title.toLowerCase()}`, `take me to ${title.toLowerCase()}`];
+  const file = (screens: Record<string, unknown>) => parseKnowledge({ screens }).knowledge;
+
+  it('declares a titled route that matches nothing found, for the roles named, with valid ids and Rule 10’s examples', () => {
+    const declared = declaredScreens([medical], file({
+      '/billing/invoices/:invoiceId': { title: 'Invoice', purpose: 'One invoice and its lines.', roles: ['PARENT', 'NOPE'] },
+    }), ['PARENT', 'COACH'], ask);
+    expect(declared).toHaveLength(1);
+    expect(declared[0]).toMatchObject({ id: 'declared.billing.invoices.invoiceid', kind: 'navigate', route: '/billing/invoices/:invoiceId', title: 'Invoice', explanation: 'One invoice and its lines.', roles: ['PARENT'] });
+    expect(declared[0]!.examples!.length).toBeGreaterThanOrEqual(3);
+    expect(declared[0]!.id).toMatch(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)+$/);
+  });
+
+  it('never declares a screen for roles it did not name in a multi-role app — and says so', () => {
+    const knowledge = file({ '/reports/secret': { title: 'Secret report' } });
+    expect(declaredScreens([medical], knowledge, ['PARENT', 'COACH'], ask)).toEqual([]);
+    const { gaps } = knowledgeGaps([medical], knowledge);
+    expect(gaps.find((g) => g.kind === 'declared-roles-missing')?.message).toMatch(/names no role/);
+  });
+
+  it('gives a one-role app’s declared screen to its only role, and leaves found screens and untitled entries alone', () => {
+    expect(declaredScreens([], file({ '/help': { title: 'Help' } }), ['USER'], ask)[0]?.roles).toEqual(['USER']);
+    expect(declaredScreens([medical], file({ '/my/children/medical': { title: 'Other name' }, '/nameless': { purpose: 'x' } }), ['PARENT'], ask)).toEqual([]);
+  });
+
+  it('is enriched like any found screen once merged, and is no orphan', () => {
+    const knowledge = file({ '/help': { title: 'Help centre', purpose: 'Articles and contact.', askedAs: ['where is support', 'I need to talk to someone', 'faq'] } });
+    const declared = declaredScreens([medical], knowledge, ['PARENT'], ask);
+    const merged = applyKnowledge([medical, ...declared], knowledge).capabilities;
+    const help = merged.find((c) => c.route === '/help')!;
+    expect(help.examples).toEqual(expect.arrayContaining(['where is support', 'open help centre']));
+    expect(knowledgeGaps(merged, knowledge).gaps.filter((g) => g.kind === 'knowledge-orphan')).toEqual([]);
   });
 });
