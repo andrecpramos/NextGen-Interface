@@ -5,6 +5,16 @@ into someone else's application, on their behalf. Someone copied this folder int
 repository and gave you its path. Everything needed is here: no package to install, no
 registry to reach, no account, no network.
 
+**Say this to the developer before anything else: no model is used unless they turn on stage 3
+(ASK 8).** Without it the assistant matches questions against what the app declares, in the
+browser, and answers from fixed wording. Owners who imagine a generative assistant are
+disappointed by the first answer otherwise (Pilot-A field report, 2026-09-23). If the app already
+has a model-backed assistant of its own, ASK 6 merges it in.
+
+**And say this right after: the developer can make it better for their own app, in six numbered
+steps** — "Make it smarter, or more careful — step by step", below. The first build is a starting
+point, not the ceiling; `doctor` shows which step is next.
+
 **The one rule this file asks of you:** each section below marked `ASK` is a decision that
 belongs to the developer, not to you. Put it to them in your own words, wait for an actual
 answer, and only then act on it — even if you are confident you already know what they
@@ -41,6 +51,7 @@ node <here>/scan.mjs build   nextgen     # write nextgen/bundle/ and nextgen/rev
 node <here>/scan.mjs doctor  nextgen     # what it read, what it guessed, what to fix
 node <here>/scan.mjs preview nextgen     # a local page to ask questions as each role, before wiring anything
 node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
+node <here>/scan.mjs teach nextgen --from lessons.jsonl           # later: what real visitors taught it
 ```
 
 `preview` serves every role's files at once so the developer can compare them. It binds to this machine
@@ -191,16 +202,32 @@ tool is used on apps whose files are medical. It is handed to the *page*, as a c
   four files) are a courtesy.
 - If it does not, leave the attribute out. That is the default, and the honest one for most apps: a button
   that goes nowhere is a dead end. (`data-nextgen-attach="off"` says the same thing explicitly.)
+- If the app has an assistant of its own that can read a file (ASK 6), the files go to it instead, and the
+  paperclip turns on by itself.
 
 Tell the developer plainly which they have. Do not wire an upload endpoint on your own initiative.
 
-## ASK 6 — Does this app already have something in a screen corner?
+## ASK 6 — Does this app already have an assistant, a tour, or something in a screen corner?
 
-The assistant mounts itself as a fixed corner element. If the app already has a support
-widget, a dock, or a floating action button there, the two will stack.
+The assistant is an orb in a bottom corner that opens a chat panel there. Three things collide with it,
+and the developer knows about all three:
 
-Ask: *"Does this app already have UI living in a screen corner I should know about? If so,
-I can place the assistant somewhere that won't collide, instead of the default corner."*
+- **Something already in the corner** — a floating action button, a dock, the account menu at the foot of a
+  sidebar. Move the orb clear of it with `data-nextgen-inset="20,144"` (x,y pixels from the corner) or
+  `inset: { x, y }`, and pick the side with `data-nextgen-position`. *Look* at the running app before
+  choosing: one integration chose from reading code and covered the account menu.
+- **An assistant of its own** — a model-backed chat. Do not ship two assistants with two entry points. The
+  orb becomes the one entry point, and theirs is merged in (`companion`, ADR-026): what this assistant cannot
+  place — a question about the app's data, one that matches no screen — and anything attached goes to theirs,
+  and its answer appears in the same conversation under its own name; a button in the panel opens theirs
+  whole, with its history and everything else it has; its own launcher is hidden while this one runs.
+- **A guided tour** — "tutorial" or "visita guiada" said to the assistant starts it (`companion.tour`), and its
+  prompt can be hidden the same way.
+
+Ask: *"Does this app already have UI in a screen corner, its own assistant, or a guided tour? I can place the
+orb clear of the corner, and merge the assistant and the tour into it so visitors have one place to ask —
+nothing either one does is lost."* Wiring a companion is a code change in the app (see "A single-page app
+with token auth" below); say so, and wait for a yes.
 
 ## ASK 7 — Calibration
 
@@ -370,11 +397,11 @@ Two rules, and the first one is a security property rather than a preference.
    their session, never from the request.
 2. **Never serve `review/`,** in any environment, for any reason.
 
-`nextgen.js` and `thresholds.hashing.json` go to everyone. The script tag uses no inline
-script or style, so a strict Content-Security-Policy is fine.
+`nextgen.js` and `thresholds.hashing.json` go to everyone. The script tag uses no inline script or style, so a strict Content-Security-Policy is fine.
 
 **The role must come from the session, never from the request** — a role in a query string
-or a header is a role the visitor chooses.
+or a header is a role the visitor chooses. A user who holds several roles is served each of
+their roles' files, and the script tag names them all: `data-nextgen-role="COACH PARENT"`.
 
 **Express**, after the app's own session middleware:
 
@@ -385,9 +412,9 @@ const BUNDLE = path.resolve('nextgen/bundle');
 const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
 
 app.get('/nextgen/:file', (req, res) => {
-  const role = req.user?.role; // from their session
+  const roles = req.user?.roles ?? (req.user?.role ? [req.user.role] : []); // from their session
   const { file } = req.params;
-  const own = Boolean(role) && (file === `registry.${role}.json` || file === `index.${role}.json`);
+  const own = roles.some((role) => file === `registry.${role}.json` || file === `index.${role}.json`);
   if (!SHARED.has(file) && !own) return res.sendStatus(404);
   res.sendFile(file, { root: BUNDLE });
 });
@@ -416,6 +443,121 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
 
 Note what both do with a file that is not the caller's: **404, not 403.** A 403 confirms
 the screen exists.
+
+**Restart the server after adding the endpoint, and tell the developer to.** A server started
+before the route existed answers 404, and the assistant does not start. It will not be
+silent about it — the console says `[NextGen] the assistant did not start: … (404)` and the
+window receives a `nextgen:error` event — but the developer has to know to look.
+
+### A single-page app with token auth
+
+The script tag assumes the server writes the role into the page. A static single-page app
+with a Bearer token in memory cannot: there is no server-rendered HTML, and the widget's own
+`fetch` carries no `Authorization` header. **This path needs a small code change in the app —
+say so before you start.** Load `runtime/nextgen.js` without `data-nextgen-role` (so it does
+not start itself), then start it from the app's code once the user is signed in:
+
+```js
+const assistant = await window.NextGen.start('/api/assistant/navigation-bundle', role, {
+  fetch: (url) => fetch(url, { headers: { Authorization: `Bearer ${getToken()}` } }),
+  navigate: (route) => router.navigate(route),   // the app's own router: no page reloads
+  home: ['/dashboard'],                           // where the panel opens by itself; never a public '/'
+  decide: 'balanced',                             // or 'confirm' / 'eager' — "Make it smarter, or more careful"
+  search: '/search?q={query}',                    // only if the app has a search page
+  onLearn: (lesson) => lessonsLog.push(lesson),   // what visitors taught it, for `scan.mjs teach`
+  inset: { x: 20, y: 144 },                       // clear of the app's own corner UI (ASK 6)
+  lang: 'pt-PT',
+  // Only when the developer said yes in ASK 6:
+  companion: {
+    name: 'Club assistant',
+    ask: ({ text, files, route }) => theirAssistant.answer(text, files, route), // plain text, or null
+    open: () => theirAssistant.open(),
+    tour: (route) => theirTour.start(route),
+    hide: ['#their-chat-launcher'],
+  },
+});
+```
+
+The handle it resolves to is the whole API:
+
+| | |
+|---|---|
+| `open()` / `open({ expanded: true })` | open the corner panel, or the full screen. Bind it to the app's own launcher, its command palette, or a keyboard shortcut |
+| `close()` | close it |
+| `ask(text)` | ask programmatically; resolves to what was shown |
+| `destroy()` | remove it — **call this on sign-out** |
+| `host` | the element it lives in |
+
+`start()` rejects with a `StartError` (`reason`: `bundle-unavailable`, `bundle-invalid` or
+`mount-failed`) and also announces it as `nextgen:error` on the window. **Never swallow it**
+with an empty `catch`: log it in development at least. One integration's `.catch(() => {})`
+turned a 404 into an hour of "there is no orb".
+
+**A user with several roles** (a coach who is also a parent): pass them all —
+`start(base, ['COACH', 'PARENT'])`, or `data-nextgen-role="COACH PARENT"` — and serve each of
+their roles' `registry.<ROLE>.json`. The widget merges them and computes the index for the merged
+registry itself. Do **not** merge them on the server by concatenating registries and indexes:
+each role's index is its own vector space, and a concatenated one routes confidently to the wrong
+screens. A phrase two roles' screens both claim ("nutrição") names neither; the assistant asks.
+
+**Types.** `runtime/nextgen.d.ts` types `window.NextGen`, the options above, the handle, and the
+`nextgen:error`, `nextgen:learn`, `nextgen:navigate` and `nextgen:attach` events. Copy it beside the
+app's code if it uses TypeScript.
+
+## Make it smarter, or more careful — step by step
+
+**Tell the developer this plainly: they can make the assistant better for their own app, and each
+step below does.** No two apps are alike, so how clever and how careful it is belongs to them, not to
+this tool. The steps are in the order that gives the most for the least effort; every one is optional
+and can be undone. `doctor` prints them with where the app stands on each (✓ done, → next), and
+`build` writes them to `review/IMPROVE.md`.
+
+1. **Tell it what your screens are for.** The biggest single improvement: a screen described in the
+   developer's words is found by the words users say, not only by its title. Answer
+   `review/KNOWLEDGE-GAPS.md` into `knowledge.json` (ASK 9) — the ten screens that matter most are
+   listed first. A screen the scanner could not read (a route decided on the server, a micro-frontend, a
+   framework it does not know) goes there too, with a `"title"` and the `"roles"` that can open it, and
+   becomes a screen like any other. Then `build`.
+2. **Calibrate it on real questions** (ASK 7). Fits how sure it must be before it opens a screen by
+   itself: fewer wrong moves, fewer needless questions.
+3. **Put it in the app properly.** Navigation wired to the router (ASK 5), `data-nextgen-home` set to where
+   signed-in users land, the orb clear of the app's own buttons (`data-nextgen-inset`, ASK 6).
+4. **Let real use teach it.** Keep the `nextgen:learn` events (or `onLearn`) as one JSON object per line;
+   `scan.mjs teach nextgen --from lessons.jsonl`, read `review/TAUGHT.md`, then `--write`, then `build`.
+   Every question it could not settle, and the screen the visitor then picked, becomes a phrase it knows.
+5. **Choose how bold it is, and where the rest goes.** `data-nextgen-decide`: `confirm` never moves
+   without a yes, `balanced` (default) moves when sure and asks one question when not, `eager` also moves
+   when one screen is plainly ahead. `data-nextgen-search="/search?q={query}"` sends what no screen matches
+   to the app's own search. An assistant or a tour the app already has is merged in as a `companion` (ASK 6).
+6. **Add a model, if it is worth it** (ASK 8, "Turn on model-backed answers" below). Optional: it settles
+   what the steps above cannot, at the cost of a server the developer runs and pays for.
+
+What to tell the developer honestly: **steps 1 and 4 do more than a model does**, and cost nothing per
+question. A model helps most on an app whose questions are open-ended; it cannot make up for screens
+nobody described.
+
+## Where it fits, and where it does not
+
+It is a guide to an app's **screens**: "where do I…", "take me to…", "what is this page for".
+Measure a candidate app against what it needs:
+
+- **Fits well:** a line-of-business app — a club, a clinic, a school, an ERP, an admin panel, a SaaS
+  dashboard — with roles, routes declared in code, and users who do not know where things are. Size is
+  not the limit: measured, a 2,000-screen registry indexes in under half a second, ships a 7 MB index
+  (before compression) and answers in about 3 ms. Screens about one item (`/players/:id`) are reached
+  through the list they are chosen from, and two screens with one name are told apart by their area.
+- **Fits with help:** an app whose navigation is not a `<nav>` (`navigation` selector); a single-page
+  app with token auth ("A single-page app with token auth"); screens the scanner cannot read — routes
+  decided on the server, micro-frontends, frameworks it does not know — declared in `knowledge.json`
+  (step 1 above). The assistant speaks English (the default) and Portuguese only: an app in another
+  language gets an English interface around its own screen names.
+- **Does not fit on its own:** an app whose content *is* the product — a social network, a marketplace,
+  a news site. There, most questions are about people, posts and products ("Ana's photos from Porto"),
+  which no screen answers: route them to the app's search (`search`) and its own assistant
+  (`companion`), and keep this for the settings, help and account screens. Apps where the same screen
+  shows different things to each user are also beyond what the scanner reads.
+
+Say which of the three this app is before the developer invests in it.
 
 ## Turn on model-backed answers
 
@@ -475,9 +617,11 @@ developer before they ship, every time this flag is used.
 
 ## What you should never do without asking first
 
-- **Edit anything under the application's own source.** This tool never needs to. If a
-  step seems to require it, stop and say so rather than finding a way to make it work.
-  (It proves this about itself: the target tree is fingerprinted before and after a run.)
+- **Edit anything under the application's own source.** The tool never needs to (it proves
+  this about itself: the target tree is fingerprinted before and after a run). Putting the
+  assistant *into* the app does — a script tag (ASK 3), router wiring (ASK 5), and in a
+  single-page app with token auth, a few lines of start-up code. Each is a change the
+  developer agreed to, shown as a diff; anything beyond that, stop and say so.
 - Serve `review/`, in any environment, for any reason.
 - Treat a `GUESSED` line in `doctor`'s output as close enough without checking.
 - Run `calibrate` on anything other than questions the developer actually wrote and can
@@ -491,10 +635,17 @@ developer before they ship, every time this flag is used.
 
 ## What to tell them to expect
 
-- **It offers; it rarely decides.** Most of the time it shows the two likeliest screens, each
-  with what it is for, and the person picks. That is a click more than a perfect guess, and it has sent nobody to a
-  wrong place. With stage 3 on (ASK 8), fewer of those turns end in a question back — the
-  ones the registry alone could not settle now get an answer instead.
+- **When it is not sure, it asks one question — never a menu.** "Are you looking for Plantel?"
+  when one screen is plainly ahead, "Do you mean Plantel, or Convocatória?" when two are close;
+  "yes" or "the second one" answers it. That is one reply more than a perfect guess, and a
+  question moves nobody to a wrong place. It does move on its own when it is sure, and sure is
+  not always right: on the reference app, 1 of 55 in-scope questions opened a neighbouring screen
+  instead of the one expected. `decide: 'confirm'` removes even that; `'eager'` trades more of it
+  for fewer questions. With stage 3 on (ASK 8), or the app's own assistant merged in (ASK 6), fewer
+  turns end in a question back. The better the answers to ASK 9, the fewer questions it has to ask.
+- **It moves at once, and is silent unless asked.** A clear request opens the screen straight
+  away, with the chat panel still open beside it. Answers are read aloud only once the visitor
+  turns the speaker on, or talks to it hands-free.
 - **It does not decline everything it should.** Roughly half of out-of-scope requests are
   declined; the rest become clarifying questions. None are executed. `FIELD-NOTES.md` §5
   explains why, and what to do about it.

@@ -9,7 +9,8 @@
 //                       file. It is the kit's only entry point (ADR-021) and references no
 //                       model client, so the bundle cannot reach a network.
 //   runtime/nextgen.js  packages/embed/dist/nextgen.js, byte for byte
-//   VERSION             an id of the two files above (their hashes; no date, no commit), which
+//   runtime/nextgen.d.ts  packages/embed/nextgen.d.ts: types for the API an app calls
+//   VERSION             an id of the files above (their hashes; no date, no commit), which
 //                       `doctor` prints so an adopter can say which build they copied
 //
 // The premise of ADR-018 is "copy a folder, run it". That is only true if the folder
@@ -46,17 +47,19 @@ const built = (target) => {
 const targets = [
   { path: join(OUT, 'scan.mjs'), build: bundleScanner },
   { path: join(OUT, 'runtime', 'nextgen.js'), build: readWidget },
-  // Which build an adopter copied. An id of the two files above and nothing else — no date, no commit —
+  // Types for the part of the widget an app calls, held to the source by embed's declarations.check.ts.
+  { path: join(OUT, 'runtime', 'nextgen.d.ts'), build: () => readFileSync(join(ROOT, 'packages', 'embed', 'nextgen.d.ts')) },
+  // Which build an adopter copied. An id of the files above and nothing else — no date, no commit —
   // so it changes exactly when they do, and `--check` stays a comparison of bytes.
   { path: join(OUT, 'VERSION'), build: writeVersion },
 ];
 
 async function writeVersion() {
-  const [scanner, widget] = await Promise.all([built(targets[0]), built(targets[1])]);
+  const [scanner, ...runtime] = await Promise.all(targets.slice(0, -1).map((target) => built(target)));
   const text = [
-    `nextgen-adapter ${sha(scanner)}-${sha(widget)}`,
-    'Identifies scan.mjs and runtime/nextgen.js, the two files an adopter copies. It changes exactly when',
-    'either does. `node scan.mjs doctor` prints it: quote it when you report a problem.',
+    `nextgen-adapter ${sha(scanner)}-${sha(Buffer.concat(runtime))}`,
+    'Identifies scan.mjs and runtime/ (nextgen.js and its types), the files an adopter copies. It changes',
+    'exactly when any of them does. `node scan.mjs doctor` prints it: quote it when you report a problem.',
     '',
   ].join('\n');
   return Buffer.from(text, 'utf8');
