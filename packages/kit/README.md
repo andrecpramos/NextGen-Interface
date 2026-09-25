@@ -139,14 +139,22 @@ an unsettled turn POSTs to `<path>` on **your own origin**, and your server deci
 model answers. Off unless you pass it.
 
 ```bash
-node <here>/scan.mjs build <kit folder> --stage3 /nextgen/stage3 [--stage3-model <name>]
+node <here>/scan.mjs build <kit folder> --stage3 /nextgen/stage3 [--stage3-model <name>] [--stage3-timeout <ms>]
 ```
 
-`doctor` then says plainly that stage 3 is ON and names the path — read it before you ship.
-What the proxy receives, what it must answer, and a rate-limited Express reference are in
-[adapter/AGENTS.md](../../adapter/AGENTS.md), "Turn on model-backed answers". **An
+`doctor` then says plainly that stage 3 is ON, names the path, and says how long the widget
+waits for an answer (8 s by default; `--stage3-timeout` for a model on your own GPU) — read
+it before you ship. What the proxy receives, what it must answer, and a rate-limited Express
+reference are in [adapter/AGENTS.md](../../adapter/AGENTS.md), "Turn on model-backed answers". **An
 unauthenticated endpoint that calls a model is something anyone loading your page can spend
-money or GPU time against** — rate limit it before it is live, not after.
+money or GPU time against** — rate limit it before it is live, not after. An app that signs in
+with a bearer token passes its own client to `start()` as `stage3Fetch`, so the endpoint can
+require a signed-in user.
+
+The request asks only for what the turn reads (the choice and a confidence, plus a written
+answer only when the visitor asked what something is), and says `think: false`. Pass that on
+to a reasoning model. On qwen3:14b over the family fixture, 8 of the 9 turns that reached
+stage 3 used to end in a clarifying question after ~5 s. Now all 9 are decided in ~0.9 s.
 
 **What stays true whether or not you turn this on:**
 

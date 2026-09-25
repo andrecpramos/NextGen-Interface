@@ -422,6 +422,46 @@ describe('stage 3 (WP-52, ADR-017)', () => {
     expect(text).toMatch(/ON.*stage3.*YOUR OWN/s);
   }, 60_000);
 
+  it('writes a timeout the widget reads back, and doctor says what it waits and how to change it', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit, { stage3: { path: 'stage3', timeoutMs: 12_000 } });
+
+    expect(record.stage3).toEqual({ path: 'stage3', model: null, timeoutMs: 12_000 });
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect(thresholds.stage3).toEqual({ path: 'stage3', timeoutMs: 12_000 });
+    expect(doctor(kit).text).toMatch(/Waits 12 s for an answer;/);
+  }, 60_000);
+
+  it('says the default wait, and how to raise it, when no timeout was given', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3' } });
+
+    expect(doctor(kit).text).toMatch(/Waits 8 s for an answer \(the default\).*--stage3-timeout/s);
+  }, 60_000);
+
+  it('counts what visitors settled, and says when there is enough to calibrate on (ADR-040)', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit);
+    expect(doctor(kit).text).toMatch(/Keep what visitors teach it: .*lessons\.jsonl/s);
+    const lesson = (how: string, i: number) => JSON.stringify({ question: `question ${i}`, route: how === 'chose' ? '/a' : null, how, from: '/', offered: [] });
+    const few = [...Array.from({ length: 5 }, (_, i) => lesson('chose', i)), lesson('unplaced', 99), 'not json'];
+    writeFileSync(join(kit, 'lessons.jsonl'), `${few.join('\n')}\n`, 'utf8');
+    expect(doctor(kit).text).toMatch(/settled 5 question\(s\).*15 more/s);
+    writeFileSync(join(kit, 'lessons.jsonl'), `${Array.from({ length: 21 }, (_, i) => lesson(i % 3 ? 'chose' : 'rejected', i)).join('\n')}\n`, 'utf8');
+    expect(doctor(kit).text).toMatch(/settled 21 question\(s\).*enough to calibrate/s);
+  }, 60_000);
+
+  it('refuses a timeout no visitor would wait for, or no model could meet', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    for (const timeoutMs of [0, 500, 60_000, 1.5, Number.NaN]) {
+      await expect(build(kit, { stage3: { path: 'stage3', timeoutMs } })).rejects.toThrow(/--stage3-timeout/);
+    }
+  }, 60_000);
+
   it('rebuilding without --stage3 turns it back off — it is not sticky in the kit folder', async () => {
     const kit = kitFolder();
     init(TINY, kit);

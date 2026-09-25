@@ -5,7 +5,32 @@ import vm from 'node:vm';
 
 import type { SkipReason } from '@nextgen/generator';
 
-import { readConfig, type BuildRecord } from './build.ts';
+import { readConfig, STAGE3_DEFAULT_TIMEOUT_MS, type BuildRecord } from './build.ts';
+
+/** Where doctor looks for what visitors taught the assistant (`nextgen:learn`, one JSON object per line). */
+export const LESSONS_FILE = 'lessons.jsonl';
+/** How many real questions `calibrate` asks for (ADR-040). */
+const CALIBRATION_MINIMUM = 20;
+
+/**
+ * Questions visitors settled — picked a place, or said neither — in the kit folder's lessons file, or `null`
+ * when there is none. A question nothing matched is not counted: it settles nothing to calibrate on.
+ */
+function settledLessons(kit: string): number | null {
+  const file = join(kit, LESSONS_FILE);
+  if (!existsSync(file)) return null;
+  let settled = 0;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const lesson = JSON.parse(line) as { how?: unknown; question?: unknown };
+      if (typeof lesson.question === 'string' && (lesson.how === 'chose' || lesson.how === 'rejected')) settled++;
+    } catch {
+      // a line that is not JSON is not a lesson
+    }
+  }
+  return settled;
+}
 import type { Finding } from './detect.ts';
 import { arg, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR, self, shown } from './paths.ts';
 import { ladder, ladderLines } from './ladder.ts';
@@ -246,6 +271,22 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     say('       Add some it should refuse, with "route": null — a sweep with nothing to refuse cannot');
     say('       find where refusing starts. The kit cannot calibrate from its own example questions:');
     say('       measured, that wrongly refused 7 real requests in 105.');
+    // ADR-040: calibration from what real visitors settled, not a hand-set rule — so say when there is enough.
+    const lessons = settledLessons(kit);
+    if (lessons !== null) {
+      say('');
+      say(`  Your visitors have settled ${lessons} question(s) the assistant asked them about (${LESSONS_FILE}).`);
+      say(`    Teach them:  ${tool} teach ${here} --from ${LESSONS_FILE}   (add --write once the report reads right)`);
+      if (lessons >= CALIBRATION_MINIMUM) {
+        say(`    That is enough to calibrate: copy them into your questions file with the role each was asked`);
+        say('    in, and run calibrate. Real questions, settled by real visitors, are the best there is.');
+      } else {
+        say(`    ${CALIBRATION_MINIMUM - lessons} more and there are enough real questions to calibrate on.`);
+      }
+    } else {
+      say(`  Keep what visitors teach it: each "nextgen:learn" event, one JSON object per line, in`);
+      say(`  ${LESSONS_FILE} in this folder. doctor counts them and says when there are enough to calibrate.`);
+    }
   }
   say();
 
@@ -259,6 +300,10 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     say('  serve, rate-limit and secure. See "Turn on model-backed answers" in AGENTS.md or');
     say('  the kit README for a reference proxy with rate limiting.');
     if (record.stage3.model) say(`  Requests name the model "${record.stage3.model}"; your proxy decides what that means.`);
+    const waits = record.stage3.timeoutMs ?? STAGE3_DEFAULT_TIMEOUT_MS;
+    say(`  Waits ${waits / 1000} s for an answer${record.stage3.timeoutMs === undefined ? ' (the default)' : ''}; a later one is dropped and the`);
+    say('  visitor is asked instead. A model on your own GPU can take longer when it is busy: raise it');
+    say('  with --stage3-timeout <ms>, and have your proxy give up a second sooner so the widget still asks.');
     say();
   }
 

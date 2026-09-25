@@ -12,7 +12,7 @@ import { teach } from './teach.ts';
 
 /**
  *   scan.mjs init <app folder> [--out <kit folder>] [--force]
- *   scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>]
+ *   scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>] [--stage3-timeout <ms>]
  *   scan.mjs calibrate [kit folder] --golden <file.jsonl>
  *   scan.mjs teach [kit folder] --from <lessons.jsonl> [--write] [--min <n>]
  *   scan.mjs doctor [kit folder] [--report <file.md>]
@@ -37,11 +37,15 @@ import { teach } from './teach.ts';
  * Off unless this is passed — there is no bare `--stage3` with a guessed default,
  * because the path is a server the developer has to actually run, rate-limit and
  * secure, and typing it is the smallest possible forcing function for that.
+ *
+ * `--stage3-timeout <ms>`: how long the widget waits for that answer before asking the
+ * visitor instead. Default 8000. A model on the developer's own GPU can answer correctly in
+ * 8–11 s when it is busy, and an answer that arrives after the timeout is thrown away.
  */
 
 const USAGE = `usage:
   scan.mjs init <app folder> [--out <kit folder>] [--force]
-  scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>]
+  scan.mjs build [kit folder] [--stage3 <path>] [--stage3-model <name>] [--stage3-timeout <ms>]
   scan.mjs calibrate [kit folder] --golden <file.jsonl>
   scan.mjs teach [kit folder] --from <lessons.jsonl> [--write] [--min <n>]
   scan.mjs doctor [kit folder] [--report <file.md>]
@@ -101,9 +105,21 @@ export async function run(): Promise<number> {
       return 2;
     }
     const stage3Path = flag('stage3');
+    const stage3Timeout = flag('stage3-timeout');
+    if (stage3Timeout !== null && !stage3Path) {
+      console.error('\n  --stage3-timeout only means something with --stage3 <path>. Nothing was built.\n');
+      return 2;
+    }
     const record = await build(kit, {
       ...(stage3Path
-        ? { stage3: { path: stage3Path, ...(flag('stage3-model') ? { model: flag('stage3-model')! } : {}) } }
+        ? {
+            stage3: {
+              path: stage3Path,
+              ...(flag('stage3-model') ? { model: flag('stage3-model')! } : {}),
+              // Validated by build(), which says what a good value is; Number('') and Number('abc') fail there too.
+              ...(stage3Timeout !== null ? { timeoutMs: Number(stage3Timeout) } : {}),
+            },
+          }
         : {}),
       onProgress: (done, total) => {
         if (done % 20 === 0 || done === total) console.log(`    ... ${done}/${total} screens described`);

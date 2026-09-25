@@ -103,8 +103,16 @@ export interface BuildRecord {
     readonly gaps: number;
   };
   /** `null` when this bundle was built without `--stage3` — the default, and what most reviews will see. */
-  readonly stage3: { readonly path: string; readonly model: string | null } | null;
+  readonly stage3: { readonly path: string; readonly model: string | null; readonly timeoutMs?: number } | null;
 }
+
+/** How long the widget waits for a stage-3 answer when the build does not say (embed/src/stage3.ts). */
+export const STAGE3_DEFAULT_TIMEOUT_MS = 8000;
+/**
+ * The bounds on `--stage3-timeout`. Below a second no model answers; above thirty seconds the visitor
+ * has given up long before the answer arrives, and a clarifying question sooner serves them better.
+ */
+export const STAGE3_TIMEOUT_BOUNDS = { min: 1000, max: 30_000 } as const;
 
 export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: string } {
   const file = join(resolve(kitDir), CONFIG_FILE);
@@ -230,6 +238,15 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
   if (options.stage3 && !options.stage3.path.trim()) {
     throw new Error('--stage3 needs a path — the address on your own origin to POST completion requests to.');
   }
+  const timeoutMs = options.stage3?.timeoutMs;
+  if (
+    timeoutMs !== undefined &&
+    (!Number.isInteger(timeoutMs) || timeoutMs < STAGE3_TIMEOUT_BOUNDS.min || timeoutMs > STAGE3_TIMEOUT_BOUNDS.max)
+  ) {
+    throw new Error(
+      `--stage3-timeout must be a whole number of milliseconds from ${STAGE3_TIMEOUT_BOUNDS.min} to ${STAGE3_TIMEOUT_BOUNDS.max}; got ${timeoutMs}.`,
+    );
+  }
   if (options.stage3) {
     warnings.push(
       `Stage 3 is ON: a turn stages 1–2 cannot settle will POST to "${options.stage3.path}" on YOUR OWN origin, ` +
@@ -280,7 +297,13 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     calibrated,
     thresholdsSource,
     knowledge: { found: loaded.found, path: loaded.path, coverage, gaps: gaps.length },
-    stage3: options.stage3 ? { path: options.stage3.path, model: options.stage3.model ?? null } : null,
+    stage3: options.stage3
+      ? {
+          path: options.stage3.path,
+          model: options.stage3.model ?? null,
+          ...(options.stage3.timeoutMs !== undefined ? { timeoutMs: options.stage3.timeoutMs } : {}),
+        }
+      : null,
     prose: 'derived from the app’s own labels (no model)',
     bundleFiles: readdirSync(bundleDir).sort(),
     warnings,
