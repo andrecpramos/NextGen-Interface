@@ -1787,6 +1787,82 @@ describe('the app’s own assistant, merged in', () => {
     expect(all('why')).toHaveLength(0);
   });
 
+  /** ADR-038: the app's own rule claims what its assistant can do, before this one routes anything. */
+  const capture = () => {
+    const events: { type: string; detail: Record<string, unknown> }[] = [];
+    const page = (doc: FakeDocument): void => {
+      const view = doc.defaultView as unknown as Record<string, unknown>;
+      view.CustomEvent = class {
+        type: string;
+        detail: unknown;
+        constructor(type: string, init: { detail?: unknown } = {}) {
+          this.type = type;
+          this.detail = init.detail;
+        }
+      };
+      view.dispatchEvent = (event: { type: string; detail: Record<string, unknown> }) => {
+        events.push(event);
+        return true;
+      };
+    };
+    return { events, page };
+  };
+
+  it('hands a question its rule claims straight to the app’s assistant — the router is never asked', async () => {
+    const { companion, asked } = companionOf('Prepared, for you to confirm: cancel Tuesday’s session.');
+    const router = answering(toCalendar);
+    const { events, page } = capture();
+    const claims = (said: string): boolean => /\bcancel\b/i.test(said);
+    const { mounted, thread } = setup(router, { companion: { ...companion, handOver: claims } }, { page });
+    await run(mounted, 'cancel tomorrow’s session');
+    expect(router.asked).toEqual([]);
+    expect(asked.map((a) => a.text)).toEqual(['cancel tomorrow’s session']);
+    expect(text(thread)).toContain('Prepared, for you to confirm');
+    const handed = events.filter((e) => e.type === 'nextgen:companion');
+    expect(handed).toHaveLength(1);
+    expect(handed[0]!.detail).toMatchObject({ utterance: 'cancel tomorrow’s session', handedOverBy: 'rule', answered: true });
+    expect(events.some((e) => e.type === 'nextgen:turn')).toBe(false);
+  });
+
+  it('routes as usual when the rule does not claim it, or the app’s assistant declines, or the rule throws', async () => {
+    for (const handOver of [() => false, () => { throw new Error('rule broke'); }]) {
+      const { companion, asked } = companionOf();
+      const router = answering(toCalendar);
+      const { mounted, moves } = setup(router, { companion: { ...companion, handOver } });
+      await run(mounted, 'calendar');
+      expect(router.asked).toEqual(['calendar']);
+      expect(asked).toEqual([]);
+      expect(moves).toEqual(['/calendar']);
+    }
+    const { companion } = companionOf(null);
+    const router = answering(toCalendar);
+    const { events, page } = capture();
+    const { mounted } = setup(router, { companion: { ...companion, handOver: () => true } }, { page });
+    await run(mounted, 'calendar');
+    expect(router.asked).toEqual(['calendar']);
+    expect(events.find((e) => e.type === 'nextgen:companion')!.detail).toMatchObject({ handedOverBy: 'rule', answered: false });
+  });
+
+  it('announces a question it could not place and handed over, as "unplaced"', async () => {
+    const { companion } = companionOf();
+    const { events, page } = capture();
+    const { mounted } = setup(answering(nothing), { companion }, { page });
+    await run(mounted, 'how many players are injured');
+    expect(events.find((e) => e.type === 'nextgen:companion')!.detail).toMatchObject({ handedOverBy: 'unplaced', answered: true });
+  });
+
+  it('steps aside for the app’s own panel — hidden, orb and all — and comes back as it was', async () => {
+    const { mounted, host, screen } = setup(answering(toCalendar));
+    mounted.open();
+    expect(screen.dataset.open).toBe('true');
+    mounted.stepAside();
+    expect(host.style.display).toBe('none');
+    expect(screen.dataset.open).toBe('false');
+    mounted.comeBack();
+    expect(host.style.display).toBeUndefined();
+    expect(screen.dataset.open).toBe('true');
+  });
+
   it('is not asked when the router has somewhere to offer: that question stays this assistant’s', async () => {
     const { companion, asked } = companionOf();
     const { mounted } = setup(answering(clarifying), { companion });
@@ -1870,6 +1946,167 @@ describe('the app’s own assistant, merged in', () => {
     expect(tours).toEqual(['/calendar']);
     expect(screen.dataset.open).toBe('false');
     expect(routed.asked).toEqual([]);
+  });
+
+  describe('its tours, in a Tutorials view beside the conversation (ADR-033, ADR-035)', () => {
+    type Tour = { id: string; title: string; note?: string };
+    const club = (listed: unknown = [
+      { id: 'coach', title: 'Coach tour', note: 'Completed' },
+      { id: 'whats-new', title: 'What’s new' },
+    ]) => {
+      const started: [string, string | undefined][] = [];
+      let now = listed;
+      return {
+        started,
+        change: (next: unknown) => void (now = next),
+        companion: {
+          tours: () => now as Tour[],
+          tour: (route: string, id?: string) => void started.push([route, id]),
+        },
+      };
+    };
+    const names = (all: (name: string) => FakeElement[]) => all('tour-name').map((n) => String(n.textContent));
+
+    it('offers no Tutorials tab when the app lists no tours', () => {
+      const { byClass } = setup(answering({}), { companion: { tour: () => true } });
+      expect(byClass('tabs').hidden).toBe(true);
+    });
+
+    it('lists this page’s tours in their own view, and starts the one picked', async () => {
+      const { companion, started } = club();
+      const routed = answering({});
+      const { orb, screen, byClass, all } = setup(routed, { companion }, { path: '/training' });
+      orb.fire('click');
+      await settle(50);
+      const tab = byClass('tours');
+      expect(byClass('tabs').hidden).toBe(false);
+      expect(tab.getAttribute('aria-selected')).toBe('false');
+      tab.fire('click');
+      expect(screen.dataset.view).toBe('tours');
+      expect(tab.getAttribute('aria-selected')).toBe('true');
+      expect(byClass('tours-view').hidden).toBe(false);
+      expect(String(byClass('tours-heading').textContent)).toBe('Tutorials for this page');
+      expect(names(all)).toEqual(['Coach tour', 'What’s new']);
+      expect(all('tour-note').map((n) => String(n.textContent))).toEqual(['Completed']);
+      all('tour-item')[1]!.fire('click');
+      expect(started).toEqual([['/training', 'whats-new']]);
+      expect(screen.dataset.open).toBe('false');
+      expect(routed.asked).toEqual([]);
+    });
+
+    it('follows the page: the list is read again when the app says it changed', async () => {
+      const { companion, change } = club([{ id: 'a', title: 'Training' }]);
+      const { mounted, location, byClass, all } = setup(answering({}), { companion }, { path: '/training' });
+      mounted.open();
+      await settle(50);
+      byClass('tours').fire('click');
+      expect(names(all)).toEqual(['Training']);
+      location.path = '/squad';
+      change([{ id: 'b', title: 'Squad' }, { id: 'c', title: 'Registrations' }]);
+      mounted.refresh();
+      expect(names(all)).toEqual(['Squad', 'Registrations']);
+      change([]);
+      mounted.refresh();
+      expect(names(all)).toEqual([]);
+      expect(byClass('tours-empty').hidden).toBe(false);
+    });
+
+    it('goes back to the conversation from the tab, from Escape, and by asking something', async () => {
+      const { companion } = club();
+      const { mounted, orb, screen, byClass } = setup(answering({}), { companion });
+      orb.fire('click');
+      await settle(50);
+      const first = mounted.ask('hello');
+      await settle(2000);
+      await first;
+      const tours = byClass('tours');
+      const chat = byClass('chat');
+
+      tours.fire('click');
+      chat.fire('click');
+      expect(screen.dataset.view).toBe('chat');
+      expect(byClass('tours-view').hidden).toBe(true);
+      // The conversation was kept while the tours showed.
+      expect(screen.dataset.conversation).toBe('true');
+
+      tours.fire('click');
+      expect(screen.fire('keydown', { key: 'Escape' }).defaultPrevented).toBe(true);
+      expect(screen.dataset.view).toBe('chat');
+      expect(screen.dataset.open).toBe('true');
+
+      tours.fire('click');
+      const second = mounted.ask('where are the injuries?');
+      expect(screen.dataset.view).toBe('chat');
+      await settle(2000);
+      await second;
+    });
+
+    it('comes back to the greeting, not an empty thread, when nothing was asked yet', async () => {
+      const { companion } = club();
+      const { orb, screen, byClass } = setup(answering({}), { companion });
+      orb.fire('click');
+      await settle(50);
+      byClass('tours').fire('click');
+      expect(screen.dataset.conversation).toBe('true');
+      byClass('chat').fire('click');
+      expect(screen.dataset.conversation).toBe('false');
+    });
+
+    it('moves between the two tabs with the arrow keys', async () => {
+      const { companion } = club();
+      const { orb, screen, byClass } = setup(answering({}), { companion });
+      orb.fire('click');
+      await settle(50);
+      byClass('tabs').fire('keydown', { key: 'ArrowRight' });
+      expect(screen.dataset.view).toBe('tours');
+      byClass('tabs').fire('keydown', { key: 'Home' });
+      expect(screen.dataset.view).toBe('chat');
+    });
+
+    it('says so when the app has no tour for this page', async () => {
+      const { companion } = club([]);
+      const { orb, byClass, all } = setup(answering({}), { companion });
+      orb.fire('click');
+      await settle(50);
+      byClass('tours').fire('click');
+      expect(String(byClass('tours-empty').textContent)).toContain('There is no tutorial for this page.');
+      expect(all('tour-item')).toEqual([]);
+    });
+
+    it('shows the tours when "tutorial" could mean more than one', async () => {
+      const { companion, started } = club();
+      const routed = answering({});
+      const { mounted, screen, all } = setup(routed, { companion });
+      mounted.open();
+      await mounted.ask('tutorial');
+      expect(started).toEqual([]);
+      expect(screen.dataset.open).toBe('true');
+      expect(screen.dataset.view).toBe('tours');
+      expect(all('tour-item')).toHaveLength(2);
+      expect(routed.asked).toEqual([]);
+    });
+
+    it('starts the only one at once when there is only one', async () => {
+      const { companion, started } = club([{ id: 'coach', title: 'Coach tour' }]);
+      const { mounted } = setup(answering({}), { companion }, { path: '/training' });
+      mounted.open();
+      await mounted.ask('tutorial');
+      expect(started).toEqual([['/training', undefined]]);
+    });
+
+    it('drops what is not a tour, and survives a list that throws', async () => {
+      const shown = setup(answering({}), { companion: club([{ id: '', title: 'x' }, { id: 'a', title: ' ' }, null, { id: 'ok', title: 'Fine' }]).companion });
+      shown.orb.fire('click');
+      await settle(50);
+      shown.byClass('tours').fire('click');
+      expect(names(shown.all)).toEqual(['Fine']);
+
+      const broken = setup(answering({}), { companion: { tours: () => { throw new Error('boom'); } } });
+      broken.orb.fire('click');
+      await settle(50);
+      broken.byClass('tours').fire('click');
+      expect(String(broken.byClass('tours-empty').textContent)).toContain('There is no tutorial for this page.');
+    });
   });
 
   it('hides the app’s own launchers while it runs, and gives them back when it goes', () => {
@@ -2314,5 +2551,20 @@ describe('using the app — when the likely place is where the visitor already i
     expect(presses).toBe(1);
     expect(String(thread.textContent)).toContain('You’re on Calendar');
     expect(all('chip')).toEqual([]);
+  });
+});
+
+describe('the chat box (ADR-035 addendum)', () => {
+  it('is round, and so are its buttons, whatever radius the page’s own fields and buttons have', () => {
+    const { host } = setup(answering({}));
+    const css = String(host.find((el) => el.tagName === 'style')?.textContent ?? '');
+    // The rule that starts a line with exactly this selector, up to its closing brace.
+    const rule = (selector: string): string => {
+      const at = css.indexOf(`\n${selector} {`);
+      return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
+    };
+    expect(rule('.composer')).toContain('border-radius: 999px');
+    expect(rule('.composer .icon')).toContain('border-radius: 999px');
+    expect(rule('.send .glyph, .mic[aria-pressed="true"] .glyph')).toContain('border-radius: 50%');
   });
 });

@@ -107,6 +107,10 @@ export interface Words {
   readonly limitDoHere: string;
   /** Leads into where the adopter said the visitor can get help instead (`helpAt`). */
   readonly limitHelpHere: string;
+  /** Beneath "I can't do that for you", when the screen where it is handled is the one they are on (Rule 20). */
+  readonly limitHandledHere: string;
+  /** Keyboard mashing (ADR-039): not understood, and where to begin. */
+  readonly mashed: string;
   readonly limitFallback: string;
   /** After a refusal that points nowhere, so it is never a dead end: one short line on what it *can* do. */
   readonly limitNext: string;
@@ -133,6 +137,12 @@ export interface Words {
   readonly setUpVoice: string;
   readonly voiceTypeInstead: string;
   readonly micDenied: string;
+  /** No microphone could be opened (ADR-037). */
+  readonly voiceNoMic: string;
+  /** The app's speech-to-text could not be reached, or refused (ADR-037). */
+  readonly voiceServiceDown: string;
+  /** What was said is being turned into text on the app's own server (ADR-037). */
+  readonly transcribing: string;
   readonly here: (title: string) => string;
   /** Make the panel fill the screen, and back. */
   readonly expand: string;
@@ -148,6 +158,18 @@ export interface Words {
   readonly attachToCompanion: (name: string) => string;
   /** Clears the conversation back to the greeting. */
   readonly startOver: string;
+  /** The panel's two views, as a tab list (ADR-035): its accessible name. */
+  readonly views: string;
+  /** The tab that shows the conversation. */
+  readonly chat: string;
+  /** The tab that lists the app's tours. */
+  readonly tutorials: string;
+  /** Above the list of tours. */
+  readonly toursTitle: string;
+  /** Under it: the page the tours are for. */
+  readonly toursOn: (page: string) => string;
+  /** When the app has no tour for the page the visitor is on. */
+  readonly noTours: string;
   readonly copy: string;
   readonly copied: string;
   readonly copyFailed: string;
@@ -214,6 +236,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     limitDoTitle: 'I can’t do that for you.',
     limitDoHere: 'Do it here:',
     limitHelpHere: 'Try here:',
+    limitHandledHere: 'It’s handled on this screen.',
+    mashed: 'I didn’t catch that. Tell me where you want to go, or start here:',
     limitFallback: 'I can take you to any screen in this app.',
     limitNext: 'Ask me where to find something else.',
     unsure: 'I didn’t get that. Try other words.',
@@ -234,6 +258,9 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     setUpVoice: 'Tap the microphone to set up voice on this device. It downloads once.',
     voiceTypeInstead: 'Voice-to-text is not available on this device. Type your question instead.',
     micDenied: 'The microphone was not allowed.',
+    voiceNoMic: 'No microphone could be opened. Check that one is connected and not in use.',
+    voiceServiceDown: 'Voice is not working right now. Type your question instead.',
+    transcribing: 'Writing down what you said…',
     here: (title) => `You are on ${title}`,
     expand: 'Full screen',
     collapse: 'Smaller',
@@ -243,6 +270,12 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     answeredBy: (name) => `Answered by ${name}`,
     attachToCompanion: (name) => `Your attachment went to ${name}.`,
     startOver: 'Start over',
+    views: 'Chat or tutorials',
+    chat: 'Chat',
+    tutorials: 'Tutorials',
+    toursTitle: 'Tutorials for this page',
+    toursOn: (page) => `On ${page}`,
+    noTours: 'There is no tutorial for this page. Move to another screen to see its tutorials.',
     copy: 'Copy',
     copied: 'Copied',
     copyFailed: 'Could not copy',
@@ -301,6 +334,8 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     limitDoTitle: 'Não posso fazer isso por si.',
     limitDoHere: 'Faça-o aqui:',
     limitHelpHere: 'Veja aqui:',
+    limitHandledHere: 'É tratado neste ecrã.',
+    mashed: 'Não percebi. Diga-me para onde quer ir, ou comece aqui:',
     limitFallback: 'Posso levá-lo a qualquer ecrã desta aplicação.',
     limitNext: 'Pergunte-me onde encontrar outra coisa.',
     unsure: 'Não percebi. Tente outras palavras.',
@@ -321,6 +356,9 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     setUpVoice: 'Toque no microfone para ativar a voz neste dispositivo. É descarregada uma vez.',
     voiceTypeInstead: 'A conversão de voz em texto não está disponível neste dispositivo. Escreva a sua pergunta.',
     micDenied: 'O microfone não foi autorizado.',
+    voiceNoMic: 'Não foi possível abrir um microfone. Verifique se está ligado e livre.',
+    voiceServiceDown: 'A voz não está a funcionar agora. Escreva a sua pergunta.',
+    transcribing: 'A escrever o que disse…',
     here: (title) => `Está em ${title}`,
     expand: 'Ecrã inteiro',
     collapse: 'Mais pequeno',
@@ -330,6 +368,12 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     answeredBy: (name) => `Respondido por ${name}`,
     attachToCompanion: (name) => `O seu anexo foi para ${name}.`,
     startOver: 'Recomeçar',
+    views: 'Conversa ou tutoriais',
+    chat: 'Conversa',
+    tutorials: 'Tutoriais',
+    toursTitle: 'Tutoriais desta página',
+    toursOn: (page) => `Em ${page}`,
+    noTours: 'Não há nenhum tutorial para esta página. Mude de ecrã para ver os tutoriais dessa área.',
     copy: 'Copiar',
     copied: 'Copiado',
     copyFailed: 'Não foi possível copiar',
@@ -745,6 +789,12 @@ export function present(
     return { ...unsure, title: words.error };
   }
 
+  // Keyboard mashing (ADR-039): not understood, said plainly, with places to begin — never a dead end.
+  if (trace.mashing) {
+    const places = starts.length > 0 ? starts.slice(0, 3) : suggestionsFor(registry, currentPath, 3, hints);
+    return { tone: 'unsure', title: words.mashed, body: null, destination: null, choices: places };
+  }
+
   // A declared limit is the system working, so it is stated as a limit, not as an apology.
   // ADR-019 (WP-53): the model may have written something more specific than the
   // registry's own fixed refusal text — *"can I change my child's medical status
@@ -753,6 +803,22 @@ export function present(
   // before it ever reached this trace. `trace.prose` wins when present; the declared
   // text is the fallback it has always been.
   if (trace.outcome === 'out_of_scope' || capability?.kind === 'unsupported') {
+    // Rule 20 (ADR-041): asked to change something, the assistant says it cannot do it for them, and
+    // offers the screen where it is handled — a link the visitor takes, never a move.
+    if (trace.changeRequest && capability && capability.kind !== 'unsupported') {
+      const route = fillParams(capability.route, currentPath, patterns, hints);
+      if (route && isSamePlace(route, currentPath)) {
+        return { tone: 'limit', title: words.limitDoTitle, body: words.limitHandledHere, destination: null, choices: [] };
+      }
+      const detail = gist(capability.explanation);
+      const list = route ? null : listFor(capability, registry, currentPath, patterns, hints);
+      const place: Choice | null = route
+        ? { label: capability.title, route, ...(detail ? { detail } : {}) }
+        : list
+          ? { label: list.capability.title, route: list.route, detail: words.fromList(capability.title) }
+          : null;
+      return { tone: 'limit', title: words.limitDoTitle, body: place ? words.limitHelpHere : null, destination: null, choices: place ? [place] : [] };
+    }
     const refusal = capability?.kind === 'unsupported' ? (capability as { refusal?: string }).refusal : undefined;
     const said = trace.prose ?? refusal ?? words.limitFallback;
     // The assistant helps; it does not act. A limit can point to where the visitor can do it
@@ -853,6 +919,11 @@ export function present(
     const leads = clearlyLeads(trace.candidates) && trace.candidates[0]?.capabilityId === offeredFirst;
     // The adopter asked for fewer questions (ADR-027): a plain leader is taken, not asked about. A lone
     // weak match is still asked — "eager" moves on a leader, never on the only straw there is.
+    // Rule 20 (ADR-041): a request to change something is never followed, even by "eager", and is asked as
+    // what it is — the assistant cannot do it; this is where it is handled.
+    if (trace.changeRequest) {
+      return { tone: 'limit', title: words.limitDoTitle, body: words.limitHelpHere, destination: null, choices: !second || leads ? [first] : [first, second] };
+    }
     if (decide === 'eager' && leads && !trace.prose) {
       return { tone: 'go', title: words.going(first.label), body: null, destination: first.route, choices: [] };
     }

@@ -1,4 +1,7 @@
-// Voice, on the device or not at all (Rule 8).
+// Voice, on the device — or on the app's own server, never a third party's (Rule 8, ADR-037).
+//
+// This file is the on-device half. The server half is `server-voice.ts`: a recogniser of the same shape,
+// used only when the adopter names a path on their own site (`transcribe`), and swapped in here unchanged.
 //
 // Three browser capabilities, each used only in its local form:
 //
@@ -38,6 +41,8 @@ export interface Recognition {
   onerror: ((event: { readonly error: string }) => void) | null;
   onend: (() => void) | null;
   onstart?: (() => void) | null;
+  /** The browser's own: audio capture ended. The server recogniser fires it as it starts to upload. */
+  onaudioend?: (() => void) | null;
   start(): void;
   stop(): void;
   abort?(): void;
@@ -166,6 +171,10 @@ export interface ConverseOptions {
   onText(text: string, final: boolean): void;
   /** Speech-to-text has stopped for good — permission, language, or no local recogniser. The meter keeps running. */
   onTranscriptionLost(): void;
+  /** What went wrong, when it is worth saying (ADR-037): `network`, `audio-capture`, `not-allowed`, `service-not-allowed`. */
+  onTranscriptionError?(code: string): void;
+  /** The recording ended and what was said is being turned into text — on the app's own server (ADR-037). */
+  onTranscribing?(): void;
 }
 
 export interface Conversation {
@@ -251,7 +260,9 @@ export async function converse(env: VoiceEnv, options: ConverseOptions): Promise
       // Silence, and our own abort, are how a hands-free session normally goes.
       if (event.error === 'no-speech' || event.error === 'aborted') return;
       failures = FATAL_RECOGNITION_ERRORS.has(event.error) ? MAX_RECOGNITION_FAILURES : failures + 1;
+      options.onTranscriptionError?.(event.error);
     };
+    rec.onaudioend = () => options.onTranscribing?.();
     rec.onend = () => {
       if (recognition === rec) recognition = null;
       if (stopped || paused) return;

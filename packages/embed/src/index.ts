@@ -32,9 +32,9 @@ import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 
 import { mountAssistant, type AssistantOptions, type MountedAssistant } from './assistant.ts';
 import { announceFailure, StartError } from './errors.ts';
-import { SameOriginLlmRuntime, type Stage3Config } from './stage3.ts';
+import { SameOriginLlmRuntime, type Stage3Config, type Stage3Fetch } from './stage3.ts';
 
-export type { Stage3Config } from './stage3.ts';
+export type { Stage3Config, Stage3Fetch } from './stage3.ts';
 export { ERROR_EVENT, StartError, type ErrorDetail, type StartFailure } from './errors.ts';
 
 /** What the generator wrote for one role, as the adopter serves it. */
@@ -69,8 +69,11 @@ export interface Assistant {
 /** The most of a question the router reads. The composer stops at this too. */
 export const MAX_QUESTION = 500;
 
-/** Build an assistant from a bundle already in memory. No I/O at all. */
-export function create(bundle: Bundle): Assistant {
+/**
+ * Build an assistant from a bundle already in memory. No I/O at all — until a turn reaches stage 3,
+ * when the bundle turned it on, and then through `options.stage3Fetch` when given.
+ */
+export function create(bundle: Bundle, options: Pick<LoadOptions, 'stage3Fetch'> = {}): Assistant {
   const registry: Registry = registryFromIndex(bundle.registry, bundle.index ?? indexFor(bundle.registry));
 
   // One encoder, fitted to THIS registry's documents and shared with nothing —
@@ -96,7 +99,7 @@ export function create(bundle: Bundle): Assistant {
   // transport (WP-24's acceptance item, unchanged since bundle.stage3 is absent by
   // default). `undefined` here, not merely `useStage3: false`, so a caller poking at
   // internals sees "there is no runtime" rather than "there is one and it is switched off".
-  const runtime = bundle.stage3 ? new SameOriginLlmRuntime(bundle.stage3) : undefined;
+  const runtime = bundle.stage3 ? new SameOriginLlmRuntime(bundle.stage3, options.stage3Fetch) : undefined;
 
   return {
     capabilities: registry.capabilities.length,
@@ -188,12 +191,15 @@ export async function load(basePath: string, role: string | readonly string[], o
     get<{ thresholds: Thresholds; stage3?: Stage3Config }>('thresholds.hashing.json'),
   ]);
   try {
-    return create({
-      registry: mergeRegistryFiles(registries),
-      ...(index ? { index } : {}),
-      thresholds: thresholds.thresholds,
-      ...(thresholds.stage3 ? { stage3: thresholds.stage3 } : {}),
-    });
+    return create(
+      {
+        registry: mergeRegistryFiles(registries),
+        ...(index ? { index } : {}),
+        thresholds: thresholds.thresholds,
+        ...(thresholds.stage3 ? { stage3: thresholds.stage3 } : {}),
+      },
+      options.stage3Fetch ? { stage3Fetch: options.stage3Fetch } : {},
+    );
   } catch (error) {
     throw new StartError('bundle-invalid', error instanceof Error ? error.message : String(error));
   }
@@ -206,12 +212,22 @@ export interface LoadOptions {
    * authenticated client: `(url) => fetch(url, { headers: { Authorization: \`Bearer ${token}\` } })`.
    */
   readonly fetch?: (url: string) => Promise<Response>;
+  /**
+   * How to send a stage-3 request, when the build turned stage 3 on: the app's own authenticated
+   * client, so the endpoint that calls a model can require a signed-in user. Default: the page's
+   * `fetch`, which carries cookies and nothing else. It receives the URL and a full `RequestInit`
+   * (method, headers, body, signal) and must pass them all on:
+   * `(url, init) => api.fetch(url, { ...init, headers: { ...init.headers, Authorization: \`Bearer ${token}\` } })`.
+   * The URL is always on this site: the widget checks that before this is called.
+   * Separate from `fetch`, which is handed only a URL and would turn this POST into a GET.
+   */
+  readonly stage3Fetch?: Stage3Fetch;
 }
 
 
 export { present, wordsFor, fillParams, isSamePlace, searchChoice, DECIDE, WORDS, type Choice, type Decide, type Tone, type View, type Words } from './present.ts';
 export { mount, adoptStyles, offerMove, NAVIGATE_EVENT, type MountOptions, type Mounted, type NavigateDetail, type Routable } from './widget.ts';
-export { mountAssistant, LEARN_EVENT, TURN_EVENT, type AssistantOptions, type Companion, type CompanionRequest, type Lesson, type MountedAssistant } from './assistant.ts';
+export { mountAssistant, LEARN_EVENT, TURN_EVENT, COMPANION_EVENT, type AssistantOptions, type Companion, type CompanionRequest, type CompanionTour, type CompanionTurn, type Lesson, type MountedAssistant } from './assistant.ts';
 
 /** A corner named by `data-nextgen-position`. Only its side is used: the orb rests at the bottom. */
 export type Corner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';

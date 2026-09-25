@@ -209,6 +209,53 @@ describe('present — a limit that helps', () => {
  * about the leader, with what the screen is for (ADR-026) — and never executed, because a
  * suggestion costs one tap (or a "yes") when it is wrong and a move costs a page.
  */
+/**
+ * Rule 20 (ADR-041): asked to change something, the assistant says it can't do it for them and offers the
+ * screen where it is handled. A link the visitor takes — never a move, whatever `decide` says.
+ */
+describe('present — a request to change something', () => {
+  const change = (over: Partial<TurnTrace>): TurnTrace =>
+    trace({ outcome: 'out_of_scope', capabilityId: 'calendar.overview', changeRequest: true, ...over });
+
+  it('says it cannot do it for them, and offers the screen as a link, without moving', () => {
+    const view = present(change({}), registry, '/', words);
+    expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, body: words.limitHelpHere, destination: null });
+    expect(view.choices).toEqual([{ label: 'Calendar', route: '/calendar', detail: 'Training and matches by day.' }]);
+  });
+
+  it('says it is handled here when they are already on that screen — never a dead end', () => {
+    const view = present(change({}), registry, '/calendar', words);
+    expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, body: words.limitHandledHere, choices: [] });
+  });
+
+  it('offers the list an item screen is reached from, when the page names no item', () => {
+    const view = present(change({ capabilityId: 'child.medical' }), registry, '/', words);
+    expect(view.destination).toBeNull();
+    expect(view.choices.length).toBeLessThanOrEqual(1);
+  });
+
+  it('asks as a limit, not "you probably want", when the router was not sure — and never moves, even eager', () => {
+    const unsure = trace({
+      outcome: 'clarify',
+      changeRequest: true,
+      candidates: [{ capabilityId: 'calendar.overview', score: 0.6 }, { capabilityId: 'squad.search', score: 0.05 }],
+    });
+    for (const decide of ['balanced', 'eager'] as const) {
+      const view = present(unsure, registry, '/', words, [], {}, decide);
+      expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, destination: null });
+      expect(view.choices[0]?.route).toBe('/calendar');
+    }
+  });
+});
+
+describe('present — keyboard mashing (ADR-039)', () => {
+  it('says it did not catch that, and offers places to begin — never a refusal, never a move', () => {
+    const view = present(trace({ outcome: 'clarify', mashing: true }), registry, '/', words);
+    expect(view).toMatchObject({ tone: 'unsure', title: words.mashed, destination: null });
+    expect(view.choices.length).toBeGreaterThan(0);
+  });
+});
+
 describe('present — a clear leader', () => {
   const clarify = (candidates: { capabilityId: string; score: number }[], path = '/', w = words) =>
     present(trace({ outcome: 'clarify', candidates }), registry, path, w);

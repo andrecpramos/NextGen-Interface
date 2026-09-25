@@ -221,8 +221,26 @@ and the developer knows about all three:
   place — a question about the app's data, one that matches no screen — and anything attached goes to theirs,
   and its answer appears in the same conversation under its own name; a button in the panel opens theirs
   whole, with its history and everything else it has; its own launcher is hidden while this one runs.
+  - **What theirs can *do*, give it first** (`companion.handOver(text, { route })`, ADR-038). The orb never
+    acts: asked to cancel, move, pay or delete, it answers "I can't do that for you" and points at the
+    screen (Rule 20). If their assistant can prepare that change for this user, write a rule that claims
+    it (for example `/\b(cancel|move|reschedule)\b/i`, only for roles whose tools can do it), plus
+    questions of fact ("how many…", "who scored…"). A claimed question goes straight to theirs, with no
+    routing and no model call of ours. Keep the rule cheap and synchronous: it runs on every question. Test
+    it: in the first integration, rules held, while asking the model to choose flipped from one prompt
+    wording to the next.
+  - **When theirs opens a panel, a confirmation card or a form**, call the handle's `stepAside()`, and
+    `comeBack()` when it closes. The orb and its panel hide and return as they were. In the first
+    integration the orb's panel covered their composer's microphone and send button.
+  - Each question handed to theirs is announced as `nextgen:companion`
+    `{ utterance, handedOverBy: 'rule' | 'unplaced', latencyMs, answered }`, for their logs and tests.
+    `nextgen:turn` covers only what the orb routed.
 - **A guided tour** — "tutorial" or "visita guiada" said to the assistant starts it (`companion.tour`), and its
-  prompt can be hidden the same way.
+  prompt can be hidden the same way. **Several tours** (a role tour, a "what's new" tour): list them with
+  `companion.tours(route)` → `[{ id, title, note? }]`, and the panel's **Tutorials** option shows them to pick
+  from; the pick comes back as `tour(route, id)` (ADR-033). The panel then has two tabs, **Chat** and
+  **Tutorials** (ADR-035); call the handle's `refresh()` whenever the app changes page with its own
+  router or a tour's progress changes, so the Tutorials view follows. The app's own tour menu can then go.
 
 Ask: *"Does this app already have UI in a screen corner, its own assistant, or a guided tour? I can place the
 orb clear of the corner, and merge the assistant and the tour into it so visitors have one place to ask —
@@ -277,12 +295,22 @@ This is opt-in, off unless that flag is passed, and it is not a decision to make
   folder; what the developer can verify here is the behaviour: build with `--stage3`, open
   the browser's network panel, and see that the only POST goes to their own origin.
 
-Ask: *"Right now, a question the assistant can't place sends the visitor a clarifying
-question instead of guessing — which is safe, but can feel more like a menu than an
-assistant. I can wire it to call a model through a small server on your own site instead,
-which answers more of what people actually ask. That means visitor text reaching your
-server and a model you run or pay for — want that, or is the current behaviour fine for
-now? It's a `build --stage3` flag either way, so it's easy to turn on later."*
+**Recommend it when the developer can run a model** (the owner's decision, 2026-09-25): a
+model on their own GPU or a hosted one, behind their own server. Measured on the reference
+fixture with qwen3:14b: the right screen for 92.7% of questions with it against 81.8%
+without, at about 0.9 s for a turn that needs it. Most turns never need it: they settle in
+the browser first. Without a model to run, the default is fine. Say so, and don't press.
+
+What it does not do, whatever the model says: it never moves the visitor for a request to
+change something (Rule 20). "Cancel tomorrow's session" is answered with where that is done,
+not by opening the screen as if it were done.
+
+Ask: *"Right now, a question the assistant can't place gets a quick question back instead of
+a guess. That's safe, but a bit more like a menu than an assistant. If you can run a model
+(on your own machine or a hosted one), I recommend wiring it through a small server on your
+own site: it answers more of what people actually ask, in about a second. That means visitor
+text reaching your server and a model you run or pay for. Want that now? It's a
+`build --stage3` flag either way, so it's easy to turn on later."*
 
 If they say yes, ASK where the proxy should live and whether they want the reference
 implementation (Express, with rate limiting) or already have their own preference.
@@ -502,7 +530,8 @@ const assistant = await window.NextGen.start('/api/assistant/navigation-bundle',
     name: 'Club assistant',
     ask: ({ text, files, route }) => theirAssistant.answer(text, files, route), // plain text, or null
     open: () => theirAssistant.open(),
-    tour: (route) => theirTour.start(route),
+    tour: (route, id) => theirTour.start(route, id),              // id: the one picked from tours
+    tours: (route) => theirTour.listFor(route),                    // [{ id, title, note? }] — the Tutorials option
     hide: ['#their-chat-launcher'],
   },
 });
@@ -516,6 +545,7 @@ The handle it resolves to is the whole API:
 | `close()` | close it |
 | `ask(text)` | ask programmatically; resolves to what was shown |
 | `setLanguage(tag)` | the app switched language without changing `<html lang>`: follow it (`'en'`, `'pt-PT'`) |
+| `refresh()` | the app changed page with its own router, or its tours changed: the Tutorials view reads them again |
 | `destroy()` | remove it — **call this on sign-out** |
 
 **One language on screen.** The visitor reads the page's language only — the assistant's words and the
@@ -633,8 +663,11 @@ Only if the developer said yes to ASK 8. Two steps: run a proxy, then rebuild po
 it. The order matters — `build` records the path as it starts to serve `bundle/`, but the
 proxy itself can go live anytime before real traffic reaches it.
 
-**1. Run a proxy.** It receives `{ system, prompt, schema, model }` as JSON and must answer
-with JSON matching `schema` — nothing more. It decides which model to call and how; this
+**1. Run a proxy.** It receives `{ system, prompt, schema, model, think }` as JSON and must answer
+with JSON matching `schema` — nothing more. `think: false` means "don't reason first": pass it to
+the model (Ollama's `think`). A reasoning model (qwen3, deepseek-r1) that ignores it spends its
+token budget reasoning, and its answer is cut off before the JSON closes. Pass `schema` as it
+is: it asks only for the fields this turn reads, and the proxy should not add any. It decides which model to call and how; this
 tool never assumes a provider. The reference below is Express, with rate limiting, because
 an unauthenticated endpoint that calls a model is something anyone loading the page can
 spend money or GPU time against — ADR-017's own warning, not a hypothetical:
@@ -661,14 +694,14 @@ function allowed(ip) {
 app.post('/nextgen/stage3', express.json({ limit: '32kb' }), async (req, res) => {
   if (!allowed(req.ip)) return res.status(429).json({ error: 'rate limited' });
 
-  const { system, prompt, schema, model } = req.body ?? {};
+  const { system, prompt, schema, model, think } = req.body ?? {};
   if (typeof system !== 'string' || typeof prompt !== 'string' || !schema) {
     return res.status(400).json({ error: 'malformed request' });
   }
 
   // Call whatever model this app's developer chose. This is the one line that is theirs
   // to fill in — the shape of the call depends entirely on the provider.
-  const answer = await callTheirModel({ system, prompt, schema, model });
+  const answer = await callTheirModel({ system, prompt, schema, model, think });
 
   res.json(answer); // must match `schema` — nothing wrapping it, no envelope
 });
@@ -682,6 +715,59 @@ node <adapter folder>/scan.mjs build nextgen --stage3 /nextgen/stage3
 
 `doctor` will then say plainly that stage 3 is ON and name the path — read that line to the
 developer before they ship, every time this flag is used.
+
+**The app signs in with a token, not a cookie?** The widget sends this POST with the page's
+`fetch`, which carries cookies and nothing else. A single-page app that keeps a bearer token in
+memory passes its own client as `stage3Fetch` to `start()`, and the proxy then requires a
+signed-in user, as the rest of the app's API does. A signed-in app should do this rather than rely
+on the per-IP limit above. `stage3Fetch` gets the URL and a full `RequestInit`, and must pass on
+all of it:
+`stage3Fetch: (url, init) => api.fetch(url, { ...init, headers: { ...init.headers, Authorization: \`Bearer ${token}\` } })`.
+The widget checks that the URL is on this site before it calls this. Don't reuse `fetch` for
+this: that option is handed only a URL, so it would turn this POST into a GET.
+
+**The model runs on the developer's own machine?** The widget waits 8 s, then asks the
+visitor instead. A busy local GPU can answer correctly in 8–11 s, and that answer is thrown
+away. Add `--stage3-timeout 12000` to the build, and have the proxy give up about a second
+sooner, so the widget can still ask its own question.
+
+## Turn on voice in every browser
+
+Out of the box the microphone works only where the browser recognises speech **on the device**.
+For most languages that is almost nowhere: Brave has the API with nothing behind it, Firefox has
+none, and Chrome and Edge send audio to Google or Microsoft unless an on-device pack is installed.
+The orb never uses a cloud recogniser: a visitor's voice must not reach a vendor the app has no
+agreement with (Rule 8).
+
+`transcribe` changes that. What a visitor says is recorded, sent to **a path on the developer's own
+site**, and turned into text by a speech-to-text server they run. A path on another site is
+refused. Nothing is sent until the visitor has actually said something.
+
+```js
+start('/nextgen', role, { transcribe: { path: '/api/transcribe', fetch: signedFetch } })
+// or, on the script tag: data-nextgen-transcribe="/api/transcribe"
+```
+
+The endpoint takes an OpenAI-style `/v1/audio/transcriptions` form (`file`, `language`,
+`response_format=json`) and answers `{ text }`. So speaches, faster-whisper servers and hosted APIs
+all fit behind a few lines of the app's own server. Require a signed-in user and rate-limit it, as
+for stage 3: it runs a model on uploaded audio. **Keep no audio.** Say so in the privacy notice.
+
+Settings measured in the first integration (self-hosted Whisper on CPU, a chat model on the GPU):
+
+| Setting | Why |
+|---|---|
+| `large-v3-turbo`, int8, one thread per physical core: ~3.5 s | 10/10 word-perfect, names included; `small` int8 is ~1.2 s at 9/10 |
+| Keep the model loaded and warm it at start | a cold load took 170 s |
+| `language` set, `temperature 0`, `vad_filter` on | deterministic, and silence trimmed |
+| A prompt with the app's own words, ≤ ~600 characters | names and domain words spelled right; longer prompts can repeat on silence |
+| Drop segments with `no_speech_prob > 0.6` and `avg_logprob < −1` | Whisper invents text on noise |
+| CPU, not GPU, when a chat model shares the card | otherwise every chat reply slows down |
+
+Ask: *"Voice works today only in browsers that recognise speech on the device, and for
+<language> that's almost none. If you run a speech-to-text server on your own site (Whisper, for
+instance), I can send what visitors say there, and only there, and voice then works everywhere,
+phones included. Want that?"*
 
 ## What you should never do without asking first
 

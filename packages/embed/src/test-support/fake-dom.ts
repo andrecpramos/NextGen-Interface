@@ -37,7 +37,10 @@ export class FakeElement {
   readonly children: FakeElement[] = [];
   readonly attributes = new Map<string, string>();
   readonly listeners = new Map<string, Listener[]>();
-  readonly style: Record<string, string> & { setProperty(name: string, value: string): void };
+  readonly style: Record<string, string> & {
+    setProperty(name: string, value: string, priority?: string): void;
+    removeProperty(name: string): string;
+  };
   shadowRoot: FakeElement | null = null;
   parent: FakeElement | null = null;
   ownText = '';
@@ -49,7 +52,14 @@ export class FakeElement {
     this.tagName = tagName;
     this.ownerDocument = ownerDocument;
     const style: Record<string, string> = {};
-    this.style = Object.assign(style, { setProperty: (name: string, value: string) => void (style[name] = value) });
+    this.style = Object.assign(style, {
+      setProperty: (name: string, value: string) => void (style[name] = value),
+      removeProperty: (name: string): string => {
+        const was = style[name] ?? '';
+        delete style[name];
+        return was;
+      },
+    });
   }
 
   get textContent(): string {

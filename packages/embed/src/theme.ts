@@ -350,7 +350,7 @@ export function themeVariables(theme: Theme): Record<string, string> {
     // dark page, and translucent — the app stays there underneath, blurred, rather than going black.
     '--ng-veil': css(withAlpha(dark ? mix(theme.background, theme.text, 0.08) : theme.background, dark ? 0.7 : 0.6)),
     // The corner panel: the page's raised surface as glass, mostly there so text on it stays legible.
-    '--ng-panel': css(withAlpha(dark ? mix(theme.raised, theme.text, 0.04) : theme.raised, dark ? 0.78 : 0.8)),
+    '--ng-panel': css(withAlpha(dark ? mix(theme.raised, theme.text, 0.02) : theme.raised, 0.98)),
     '--ng-text': css(theme.text),
     '--ng-muted': css(theme.muted),
     '--ng-surface': css(theme.surface),
@@ -366,20 +366,19 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--ng-on-accent': css(theme.onAccent),
     '--ng-shadow': dark ? 'rgb(0 0 0 / 0.6)' : 'rgb(15 23 42 / 0.16)',
     '--ng-scrim': dark ? 'rgb(0 0 0 / 0.5)' : 'rgb(15 23 42 / 0.28)',
-    // The signature look — glass, metal and light — every value derived from the page's own scheme and
-    // accent, so it reads as part of their application. Glass is their raised surface, made translucent;
-    // its edge is lit from the top left; the metal is their accent, lit and shaded; the light is their accent.
-    '--ng-glass': css(withAlpha(theme.raised, dark ? 0.56 : 0.66)),
-    // For what must stay legible over whatever is behind it: still glass, mostly there.
-    '--ng-glass-strong': css(withAlpha(theme.raised, dark ? 0.82 : 0.86)),
-    '--ng-edge-hi': dark ? 'rgb(255 255 255 / 0.26)' : 'rgb(255 255 255 / 0.95)',
-    '--ng-edge-lo': dark ? 'rgb(255 255 255 / 0.04)' : css(withAlpha(theme.text, 0.07)),
-    '--ng-inner': dark ? 'rgb(255 255 255 / 0.1)' : 'rgb(255 255 255 / 0.9)',
-    '--ng-metal-hi': css(mix(theme.accent, WHITE, 0.38)),
-    '--ng-metal-lo': css(mix(theme.accent, BLACK, 0.32)),
-    '--ng-glow': css(withAlpha(theme.accent, dark ? 0.5 : 0.38)),
-    '--ng-aurora-1': css(withAlpha(theme.accent, dark ? 0.22 : 0.16)),
-    '--ng-aurora-2': css(withAlpha(theme.accent, dark ? 0.12 : 0.1)),
+    // The surface is flat (ADR-035): the page's own raised colour, a hairline border, its accent — no
+    // lit edge, no metal, no glow. The names are kept so an older stylesheet rule still resolves; each is
+    // now plain. Surfaces are all but opaque, so the page beneath is never mistaken for part of them.
+    '--ng-glass': css(withAlpha(theme.raised, dark ? 0.97 : 0.98)),
+    '--ng-glass-strong': css(theme.raised),
+    '--ng-edge-hi': 'transparent',
+    '--ng-edge-lo': 'transparent',
+    '--ng-inner': 'transparent',
+    '--ng-metal-hi': css(theme.accent),
+    '--ng-metal-lo': css(theme.accent),
+    '--ng-glow': 'transparent',
+    '--ng-aurora-1': 'transparent',
+    '--ng-aurora-2': 'transparent',
   };
   if (theme.font) vars['--ng-font'] = theme.font;
   if (theme.radius) vars['--ng-radius'] = theme.radius;

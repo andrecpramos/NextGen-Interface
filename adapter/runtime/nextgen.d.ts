@@ -33,6 +33,8 @@ export declare const LEARN_EVENT: 'nextgen:learn';
  * weighed and with what scores. The visitor is not shown this; the adopter can log it or build their own "why".
  */
 export declare const TURN_EVENT: 'nextgen:turn';
+/** `'nextgen:companion'` — announced on `window` for each question handed to the app's own assistant, `CompanionTurn`. */
+export declare const COMPANION_EVENT: 'nextgen:companion';
 
 /** A turn's record, as `nextgen:turn` carries it. The fields most worth reading; the object has more. */
 export interface TurnRecord {
@@ -41,6 +43,20 @@ export interface TurnRecord {
   readonly capabilityId: string | null;
   readonly decidedAt: string;
   readonly candidates: readonly { readonly capabilityId: string; readonly score: number }[];
+  /** Asked to change something (Rule 20): `outcome` is `out_of_scope` and `capabilityId` the screen offered. */
+  readonly changeRequest: boolean;
+  /** Keyboard mashing, answered without routing (no candidates, no model). */
+  readonly mashing: boolean;
+}
+
+/** What `nextgen:companion` carries: a question the app's own assistant was asked. */
+export interface CompanionTurn {
+  readonly utterance: string;
+  /** `'rule'`: your `handOver` claimed it. `'unplaced'`: the orb could not place it. */
+  readonly handedOverBy: 'rule' | 'unplaced';
+  readonly latencyMs: number;
+  /** `false` when your assistant declined and the orb answered instead. */
+  readonly answered: boolean;
 }
 
 /** One thing a visitor taught it: a question it could not settle, and how the visitor settled it. */
@@ -64,12 +80,29 @@ export interface Companion {
   readonly name?: string;
   /** Answer what this assistant cannot place, and anything attached. Resolve to plain text, or null. */
   ask?(request: CompanionRequest): Promise<string | null | undefined>;
+  /**
+   * Your rule for what your assistant should take — a change it can prepare for this user, a question of
+   * fact. Runs before the orb routes anything; `true` sends the question to `ask`. Cheap and synchronous.
+   */
+  handOver?(text: string, context: { readonly route: string }): boolean;
   /** Open the app's own assistant, whole. */
   open?(): void;
-  /** Start the app's own tour for this page; `false` when it has none. */
-  tour?(route: string): boolean | void;
+  /** Start the app's own tour for this page — or, with `id`, the one picked from `tours`; `false` when it has none. */
+  tour?(route: string, id?: string): boolean | void;
+  /** The app's tours for this page, in the panel's Tutorials view (at most 12). Call `refresh()` when they change. */
+  tours?(route: string): readonly CompanionTour[];
   /** CSS selectors of the app's own launchers, hidden while this one runs. */
   readonly hide?: readonly string[];
+}
+
+/** One of the app's guided tours, as the Tutorials option lists it. */
+export interface CompanionTour {
+  /** Handed back to `tour(route, id)` when picked. */
+  readonly id: string;
+  /** Its name, in the page's language. */
+  readonly title: string;
+  /** One short line under the name — "Completed", "In progress". */
+  readonly note?: string;
 }
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -77,6 +110,18 @@ type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export interface StartOptions {
   /** How to fetch the bundle's files — pass the app's authenticated fetch for token auth. */
   readonly fetch?: (url: string) => Promise<Response>;
+  /**
+   * How to send a model-backed (stage 3) request — pass the app's authenticated client for token auth.
+   * It gets the URL, always on this site, and a full `RequestInit` to pass on whole. Default: the page's `fetch`.
+   */
+  readonly stage3Fetch?: (url: string, init: RequestInit) => Promise<Response>;
+  /**
+   * Voice recognised by your own server: a path on this site taking an OpenAI-style
+   * `/v1/audio/transcriptions` form (`file`, `language`) and answering `{ text }`. What a visitor says goes
+   * there and nowhere else; another site's path is refused. Without it, voice works only where the browser
+   * recognises speech on the device. `fetch`: your authenticated client, as `stage3Fetch`.
+   */
+  readonly transcribe?: { readonly path: string; readonly fetch?: (url: string, init: RequestInit) => Promise<Response> };
   /** Move the browser without a page load: the app's router. */
   readonly navigate?: (route: string) => void;
   /** The page's language. Default: `<html lang>`. Portuguese, or English for anything else. */
@@ -122,6 +167,12 @@ export interface MountedAssistant {
   ask(utterance: string): Promise<unknown>;
   /** The app switched language without touching `<html lang>`: follow it (`"en"`, `"pt-PT"`). */
   setLanguage(lang: string): void;
+  /** The app changed page with its own navigation, or its tours changed: the Tutorials view reads them again. */
+  refresh(): void;
+  /** Your own UI needs the corner (your assistant's panel, a confirmation card): close and hide, orb included. */
+  stepAside(): void;
+  /** Show it again after `stepAside()`, open if it was open. */
+  comeBack(): void;
   /** Remove it — call on sign-out. */
   destroy(): void;
 }
@@ -146,6 +197,7 @@ declare global {
     'nextgen:error': CustomEvent<ErrorDetail>;
     'nextgen:learn': CustomEvent<Lesson>;
     'nextgen:turn': CustomEvent<{ readonly trace: TurnRecord }>;
+    'nextgen:companion': CustomEvent<CompanionTurn>;
     'nextgen:navigate': CustomEvent<{ readonly route: string }>;
     'nextgen:attach': CustomEvent<{ readonly files: File[]; readonly utterance: string; readonly route: string }>;
   }

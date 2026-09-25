@@ -95,7 +95,9 @@ describe('the script-tag artefact (WP-29)', () => {
     const gz = gzipSync(Buffer.from(code)).length;
     // The router is pure arithmetic over shipped vectors, so this should be a
     // few tens of KB. The index is fetched separately and measured in WP-24.
-    expect(gz).toBeLessThan(60 * 1024);
+    // 70 KB since 2026-09-25 (ADR-029 addendum, the owner's decision): one file an adopter serves, with
+    // room for server voice, the mashing filter and the companion hand-over.
+    expect(gz).toBeLessThan(70 * 1024);
   });
 });
 

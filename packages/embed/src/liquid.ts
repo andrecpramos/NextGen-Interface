@@ -266,10 +266,7 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'source-over';
 
-    const aura = ctx.createRadialGradient(c, c, R * 0.6, c, c, R * 1.95);
-    aura.addColorStop(0, rgba(accent, (light ? 0.1 : 0.12) + (light ? 0.16 : 0.2) * lv));
-    aura.addColorStop(1, rgba(accent, 0));
-    circle(ctx, c, c, R * 1.95, aura);
+    // No aura (ADR-035): the body is the whole of it.
 
     // A bead behind the light, in the page's own raised colour, so the orb reads
     // on whatever it is docked over.
@@ -288,10 +285,10 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     }
 
     // Four masses of the same liquid, each drifting a little off the centre and
-    // turning its own way. On a dark page `screen` lets them brighten where they
-    // overlap; on a light one they are laid down as translucent ink instead.
-    ctx.globalCompositeOperation = light ? 'source-over' : 'screen';
-    const density = light ? 0.72 : 1;
+    // turning its own way.
+    // Laid down as flat ink on any page (ADR-035): `screen` made the overlaps glow.
+    ctx.globalCompositeOperation = 'source-over';
+    const density = light ? 0.6 : 0.62;
     const drift = R * (0.1 + 0.08 * lv);
     const layers = [
       { scale: 1.02, spin: 0.5, col: deep, a: 0.95, fx: 0.7, fy: 0.6 },
@@ -305,9 +302,10 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
       const r = R * layer.scale;
       const a = layer.a * density;
       blob(ctx, ox, oy, r, t * current.spin * layer.spin, i, lv);
-      const g = ctx.createRadialGradient(ox - r * 0.3, oy - r * 0.35, r * 0.05, ox, oy, r * 1.3);
-      g.addColorStop(0, rgba(bright, a * 0.42));
-      g.addColorStop(0.45, rgba(layer.col, a * 0.8));
+      // Centred, and the same colour throughout: lit off-centre it read as a polished sphere (ADR-035).
+      const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, r * 1.2);
+      g.addColorStop(0, rgba(layer.col, a * 0.8));
+      g.addColorStop(0.55, rgba(layer.col, a * 0.7));
       g.addColorStop(1, rgba(layer.col, 0));
       ctx.fillStyle = g;
       ctx.fill();
@@ -331,15 +329,9 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     // read as liquid held together rather than as a glow.
     blob(ctx, c + Math.sin(t * 0.49) * drift * 0.5, c + Math.cos(t * 0.43) * drift * 0.5, R * 1.04, t * current.spin * 0.4, 0, lv);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = rgba(light ? deep : bright, (light ? 0.3 : 0.2) + 0.2 * lv);
+    ctx.strokeStyle = rgba(light ? deep : accent, (light ? 0.22 : 0.18) + 0.15 * lv);
     ctx.stroke();
-
-    const sx = c - R * 0.32;
-    const sy = c - R * 0.4;
-    const spec = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 0.34);
-    spec.addColorStop(0, `rgba(255,255,255,${light ? '0.35' : '0.16'})`);
-    spec.addColorStop(1, 'rgba(255,255,255,0)');
-    circle(ctx, sx, sy, R * 0.34, spec);
+    // No specular highlight: a white spot on the body read as polished metal, not as the app (ADR-034).
   }
 
   function report(): void {

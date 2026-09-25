@@ -28,7 +28,7 @@
 // in and Escape closes it, returning focus to the orb. Only expanded is it modal, keeping Tab in.
 
 import type { GuidedStep } from '@nextgen/core-capability';
-import type { TurnTrace } from '@nextgen/core-intent/browser';
+import { isMashing, type TurnTrace } from '@nextgen/core-intent/browser';
 
 import { planAct, taskOf, type ActNode, type ActRoot, type Task } from './act.ts';
 import { resolveSteps, type AnchorNode, type AnchorRoot, type ResolvedStep } from './anchor.ts';
@@ -54,6 +54,7 @@ import {
   type Transcription,
   type VoiceEnv,
 } from './voice.ts';
+import { serverRecognition, serverVoiceEnv, type TranscribeOptions } from './server-voice.ts';
 import { adoptStyles, offerMove, type MountOptions, type Routable } from './widget.ts';
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -115,6 +116,14 @@ export interface AssistantOptions extends MountOptions {
   readonly attach?: boolean;
   /** The browser's voice APIs. A seam for tests; the default reads them from the page. */
   readonly voiceEnv?: VoiceEnv | null;
+  /**
+   * Speech-to-text on the app's own server (ADR-037): `{ path: '/api/transcribe' }`, a path on this site
+   * taking an OpenAI-style `/v1/audio/transcriptions` form and answering `{ text }`. What a visitor says is
+   * recorded, sent there and nowhere else, and voice then works in every browser — most have no on-device
+   * recogniser for most languages. A path on another site is refused. Without it, voice is on-device only.
+   * `fetch`: the app's authenticated client, as `stage3Fetch`.
+   */
+  readonly transcribe?: TranscribeOptions;
 }
 
 /** The event a page listens for to learn what visitors taught the assistant (ADR-027). */
@@ -122,6 +131,9 @@ export const LEARN_EVENT = 'nextgen:learn';
 
 /** Each routed turn's record, `{ trace }`, for the adopter: why it did what it did (ADR-030, Rule 9). */
 export const TURN_EVENT = 'nextgen:turn';
+
+/** Each question handed to the app's own assistant, `CompanionTurn` (ADR-038): the record of a turn no router decided. */
+export const COMPANION_EVENT = 'nextgen:companion';
 
 /**
  * One thing a visitor taught the assistant: a question it could not settle, and how it was settled.
@@ -164,16 +176,44 @@ export interface Companion {
    * *acting* (a payment, changing a record) is never handed over: it stays refused.
    */
   ask?(request: CompanionRequest): Promise<string | null | undefined>;
+  /**
+   * The app's own rule for what its assistant should take (ADR-038): a change it can prepare for this user,
+   * a question of fact ("how many goals did we score"). Called before this assistant routes a question at
+   * all — no screen scoring, no model — and `true` sends the question to `ask`. Must be cheap and
+   * synchronous: it runs on every question typed. Needs `ask`; ignored without it.
+   */
+  handOver?(text: string, context: { readonly route: string }): boolean;
   /** Open the app's own assistant, whole: its history, its new-chat button, everything it has. */
   open?(): void;
-  /** Start the app's own guided tour, for the page the visitor is on. Return `false` when it has none for it. */
-  tour?(route: string): boolean | void;
+  /**
+   * Start the app's own guided tour, for the page the visitor is on — or, with `id`, the one they picked
+   * from `tours`. Return `false` when it has none for it.
+   */
+  tour?(route: string, id?: string): boolean | void;
+  /**
+   * The tours the app offers the visitor on the page they are on, listed under the panel's Tutorials option
+   * to pick from (ADR-033). Also what "tutorial" shows when there is more than one. At most 12 are shown.
+   */
+  tours?(route: string): readonly CompanionTour[];
   /**
    * CSS selectors for the app's own launchers — its chat button, its tour prompt — hidden while this
    * assistant runs, so there is one entry point. Shown again by `destroy()`.
    */
   readonly hide?: readonly string[];
 }
+
+/** One of the app's guided tours, as the Tutorials option lists it. */
+export interface CompanionTour {
+  /** Handed back to `tour(route, id)` when the visitor picks it. */
+  readonly id: string;
+  /** Its name, in the page's language: the app translates it. */
+  readonly title: string;
+  /** One short line under the name — "Completed", "In progress", "New". Optional. */
+  readonly note?: string;
+}
+
+/** A list, not a catalogue: the Tutorials option shows at most this many of the app's tours. */
+const MAX_TOURS = 12;
 
 export interface MountedAssistant {
   readonly host: HTMLElement;
@@ -187,7 +227,30 @@ export interface MountedAssistant {
    * (`"en"`, `"pt-PT"`). With no `lang` option, `<html lang>` is followed without being asked.
    */
   setLanguage(lang: string): void;
+  /**
+   * The app changed page without this assistant moving it — its own navigation — or what its tours say
+   * changed (one was finished): read them again. Cheap, and a no-op unless the tours are showing.
+   */
+  refresh(): void;
+  /**
+   * The app's own UI needs the corner — its assistant's panel, a confirmation card, a tour (ADR-038). This
+   * one closes and hides, orb included, until `comeBack()`. Found in a real browser: the open panel covered
+   * the app assistant's composer, so its microphone and send button could not be tapped.
+   */
+  stepAside(): void;
+  /** Show it again after `stepAside()`, open if it was open. */
+  comeBack(): void;
   destroy(): void;
+}
+
+/** What `nextgen:companion` carries: a question the app's own assistant was asked (ADR-038). */
+export interface CompanionTurn {
+  readonly utterance: string;
+  /** `'rule'`: the app's `handOver` claimed it. `'unplaced'`: this assistant could not place it. */
+  readonly handedOverBy: 'rule' | 'unplaced';
+  readonly latencyMs: number;
+  /** Whether the app's assistant answered it; `false` when it declined, and this assistant answered instead. */
+  readonly answered: boolean;
 }
 
 /** A question the router could not settle, and what was offered for it: the context of a `Lesson`. */
@@ -256,41 +319,31 @@ const CSS = `
   height: min(660px, calc(100vh - 2 * var(--ng-inset-y, 20px)));
   height: min(660px, calc(100dvh - 2 * var(--ng-inset-y, 20px)));
   border-radius: 26px; overflow: hidden; transform-origin: 100% 100%; transform: translateY(14px) scale(.97);
-  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 34px 90px -28px var(--ng-shadow, rgb(0 0 0 / .6));
+  box-shadow: inset 0 0 0 1px var(--ng-border, rgb(255 255 255 / .1)), 0 16px 40px -18px var(--ng-shadow, rgb(0 0 0 / .6));
 }
 .screen[data-size="compact"][data-side="left"] { right: auto; left: var(--ng-inset-x, 20px); transform-origin: 0 100%; }
 .screen[data-size="compact"][data-open="true"] { transform: none; }
 /* Expanded: the whole screen, except the app's own navigation, which stays where it is (navFrame). */
 .screen[data-size="full"] { inset: var(--ng-frame-top, 0px) 0 0 var(--ng-frame-left, 0px); }
-/* Behind the conversation: the page itself, blurred and veiled in its own background colour, with the
-   host's accent lit softly through it. Translucent, so the app is still there underneath. */
+/* Behind the conversation: the page itself, blurred and veiled in its own background colour. No light
+   is thrown on it (ADR-035): it is one more surface of the app. */
 .backdrop {
   position: absolute; inset: 0;
-  background:
-    radial-gradient(70% 52% at 50% 6%, var(--ng-aurora-1, rgb(121 192 206 / .2)), transparent 72%),
-    radial-gradient(48% 42% at 96% 98%, var(--ng-aurora-2, rgb(121 192 206 / .1)), transparent 70%),
-    radial-gradient(44% 38% at 2% 72%, var(--ng-aurora-2, rgb(121 192 206 / .1)), transparent 70%),
-    var(--ng-veil, rgb(24 28 34 / .72));
-  -webkit-backdrop-filter: blur(22px) saturate(140%);
-  backdrop-filter: blur(22px) saturate(140%);
+  background: var(--ng-veil, rgb(24 28 34 / .72));
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
 }
 .screen[data-size="compact"] .backdrop {
-  background:
-    radial-gradient(90% 40% at 50% 0%, var(--ng-aurora-1, rgb(121 192 206 / .2)), transparent 72%),
-    var(--ng-panel, rgb(30 34 41 / .8));
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  backdrop-filter: blur(28px) saturate(160%);
+  background: var(--ng-panel, rgb(30 34 41 / .97));
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
 }
 .controls { position: absolute; top: 16px; z-index: 2; display: flex; gap: 4px; }
 .screen[data-size="compact"] .controls { top: 10px; gap: 2px; }
 .screen[data-size="compact"] .controls .icon { min-width: 44px; min-height: 44px; }
-/* The corner controls: small glass discs, so they stay findable over whatever the aurora is doing. */
-.controls .icon {
-  background: var(--ng-glass, rgb(23 27 33 / .56));
-  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
-  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 8px 20px -12px var(--ng-shadow, rgb(0 0 0 / .6));
-}
-.controls .icon:hover { background: var(--ng-glass-strong, rgb(23 27 33 / .82)); }
+/* The corner controls: plain icon buttons, as the app's own toolbars have. */
+.controls .icon { background: transparent; box-shadow: none; }
+.controls .icon:hover { background: var(--ng-hover, rgb(255 255 255 / .06)); }
 .controls-start { left: 16px; }
 .controls-end { right: 16px; }
 .screen[data-size="compact"] .controls-start { left: 10px; }
@@ -319,8 +372,10 @@ const CSS = `
 .screen[data-size="compact"] .stage { gap: 12px; padding: 64px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
 .screen[data-size="compact"][data-conversation="true"] .stage { gap: 6px; padding-top: 12px; }
 .screen[data-size="compact"] .slot { width: min(112px, 18vh); }
-/* A chat panel's composer lives at its bottom edge, where the eye looks for it — before the first question too. */
+/* A chat panel's composer lives at its bottom edge, where the eye looks for it — before the first question
+   too. The orb and the greeting sit centred in the space above it (ADR-035), not dropped onto it. */
 .screen[data-size="compact"][data-conversation="false"] .slot { margin-top: auto; }
+.screen[data-size="compact"][data-conversation="false"] .thread { margin-bottom: auto; }
 .screen[data-size="compact"][data-conversation="true"] .slot { width: 44px; }
 .screen[data-size="compact"][data-conversation="false"] .greeting { font-size: 1.25rem; }
 .screen[data-size="compact"] .greeting-hint { font-size: .875rem; }
@@ -349,16 +404,15 @@ const CSS = `
 .msg.user { justify-content: flex-end; margin-top: 16px; }
 .msg.intro + .msg.user { margin-top: 8px; }
 .msg-body { min-width: 0; max-width: min(88%, 36rem); padding: 11px 16px; border-radius: 20px; overflow-wrap: anywhere; }
-/* Messages are lit glass, not blurred glass: dozens of them scrolling, each with its own backdrop filter,
-   would stutter a phone, and over a smooth aurora a blur would add nothing anyway. */
+/* Messages are flat fills, not blurred glass: dozens of them scrolling, each with its own backdrop filter,
+   would stutter a phone. */
 .msg.user .msg-body {
-  background: linear-gradient(150deg, var(--ng-accent-line, rgb(121 192 206 / .34)), var(--ng-accent-soft, rgb(121 192 206 / .16)));
+  background: var(--ng-accent-soft, rgb(121 192 206 / .16));
   color: var(--ng-text, #e6e9ee); border-bottom-right-radius: 6px;
-  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset 0 0 0 1px var(--ng-accent-soft, rgb(121 192 206 / .16)), 0 10px 24px -16px var(--ng-glow, rgb(121 192 206 / .5));
 }
 .msg.assistant .msg-body {
-  background: var(--ng-glass, rgb(23 27 33 / .56)); border-bottom-left-radius: 6px;
-  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 14px 32px -20px var(--ng-shadow, rgb(0 0 0 / .6));
+  background: var(--ng-raised, #171b21); border-bottom-left-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--ng-border, rgb(255 255 255 / .1));
 }
 .msg-text { margin: 0; }
 
@@ -395,7 +449,7 @@ const CSS = `
 .chip.lead {
   flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; min-height: 0;
   margin: 12px 0 0; padding: 12px 14px; border-radius: 14px;
-  background: linear-gradient(155deg, var(--ng-accent-line, rgb(121 192 206 / .28)), var(--ng-accent-soft, rgb(121 192 206 / .16)) 58%);
+  background: var(--ng-accent-soft, rgb(121 192 206 / .16));
   box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset 0 0 0 1px var(--ng-accent-line, rgb(121 192 206 / .28)), 0 10px 26px -16px var(--ng-glow, rgb(121 192 206 / .5));
   transition: box-shadow 160ms ease, background-color 160ms ease;
 }
@@ -427,17 +481,18 @@ const CSS = `
 
 .composer {
   width: min(720px, 100%); display: flex; align-items: center; gap: 2px; margin: 6px 0 0;
-  padding: 4px; border-radius: var(--ng-field-radius, 999px);
-  background: var(--ng-glass-strong, rgb(26 30 36 / .82));
-  -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
-  box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 28px 70px -24px var(--ng-shadow, rgb(0 0 0 / .8));
+  /* Round, whatever the page's own fields are (ADR-035 addendum): a chat box reads as one. */
+  padding: 4px; border-radius: 999px;
+  background: var(--ng-field, #1b2027);
+  box-shadow: inset 0 0 0 1px var(--ng-border, rgb(255 255 255 / .1));
   transition: box-shadow 200ms ease;
 }
 .composer:focus-within {
-  box-shadow: inset 0 0 0 1px var(--ng-accent, #79c0ce), 0 0 0 4px var(--ng-accent-soft, rgb(121 192 206 / .16)), 0 28px 70px -24px var(--ng-shadow, rgb(0 0 0 / .8));
+  /* A focused field, as the app shows one: its accent as the border, no halo (ADR-035). */
+  box-shadow: inset 0 0 0 1px var(--ng-accent, #79c0ce);
 }
 .composer input {
-  flex: 1; min-width: 0; min-height: 48px; margin: 0; padding: 0 8px 0 12px; border: 0; outline: 0;
+  flex: 1; min-width: 0; min-height: 48px; margin: 0; padding: 0 8px 0 18px; border: 0; outline: 0;
   background: transparent; color: var(--ng-text, #e6e9ee); font: inherit; font-size: 1rem;
 }
 .composer input::placeholder { color: var(--ng-muted, #848d99); }
@@ -451,7 +506,7 @@ const CSS = `
 .attach-item {
   flex: none; display: flex; align-items: center; gap: 10px; max-width: 250px; padding: 6px 2px 6px 6px; border-radius: 18px;
   background: var(--ng-glass-strong, rgb(23 27 33 / .82));
-  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
   box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 10px 24px -14px var(--ng-shadow, rgb(0 0 0 / .6));
   animation: nextgen-rise 260ms cubic-bezier(.22,1,.36,1) both;
 }
@@ -492,24 +547,19 @@ ${BEAM_CSS}
 .icon:hover { background: var(--ng-hover, rgb(255 255 255 / .06)); color: var(--ng-text, #e6e9ee); }
 .glyph { position: relative; display: grid; place-items: center; pointer-events: none; }
 .glyph svg { display: block; }
-/* The primary actions are metal: the host's accent, lit from above and shaded below, in a bright-edged rim
-   — and a sweep of light across it when it is reached for. */
+/* The primary actions are the host's accent, filled — shaded only faintly, with no bright rim and no sweep of
+   light, so they read as the app's own buttons (ADR-034). */
 .send .glyph,
 .mic[aria-pressed="true"] .glyph,
 .pill.primary {
   color: var(--ng-on-accent, #07171b); border: 1px solid transparent; overflow: hidden;
   background:
-    linear-gradient(165deg, var(--ng-metal-hi, #a9d8e2), var(--ng-accent, #79c0ce) 48%, var(--ng-metal-lo, #52858f)) padding-box,
-    conic-gradient(from 200deg, rgb(255 255 255 / .85), rgb(255 255 255 / .1) 22%, var(--ng-metal-hi, #a9d8e2) 42%, rgb(255 255 255 / .06) 60%, var(--ng-metal-lo, #52858f) 78%, rgb(255 255 255 / .8)) border-box;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 -1px 1px rgb(0 0 0 / .25), 0 8px 18px -8px var(--ng-glow, rgb(121 192 206 / .5));
+    linear-gradient(180deg, var(--ng-metal-hi, #86c6d3), var(--ng-metal-lo, #6fb2bf)) padding-box;
+  box-shadow: 0 1px 2px var(--ng-shadow, rgb(0 0 0 / .3));
 }
-.send .glyph, .mic[aria-pressed="true"] .glyph { width: 38px; height: 38px; border-radius: var(--ng-radius, 999px); }
-.send .glyph::before, .mic[aria-pressed="true"] .glyph::before, .pill.primary::before {
-  content: ''; position: absolute; inset: -1px; pointer-events: none;
-  background: linear-gradient(115deg, transparent 32%, rgb(255 255 255 / .45) 50%, transparent 68%);
-  transform: translateX(-125%); transition: transform 720ms cubic-bezier(.22,1,.36,1);
-}
-.send:hover .glyph::before, .mic[aria-pressed="true"]:hover .glyph::before, .pill.primary:hover::before { transform: translateX(125%); }
+.send .glyph, .mic[aria-pressed="true"] .glyph { width: 38px; height: 38px; border-radius: 50%; }
+/* Inside the round box, its buttons are round too. */
+.composer .icon { border-radius: 999px; }
 .send:hover, .mic[aria-pressed="true"]:hover { background: transparent; }
 .sound[aria-pressed="false"] .glyph::after {
   content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 2px; margin: -1px 0 0 -12px;
@@ -537,7 +587,7 @@ ${BEAM_CSS}
 .guide {
   position: fixed; z-index: 2147483001; margin: 0;
   background: var(--ng-glass-strong, rgb(23 27 33 / .82)); color: var(--ng-text, #e6e9ee);
-  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
   box-shadow: inset 1px 1px 0 var(--ng-edge-hi, rgb(255 255 255 / .26)), inset -1px -1px 0 var(--ng-edge-lo, rgb(255 255 255 / .04)), 0 18px 44px -14px var(--ng-shadow, rgb(0 0 0 / .65));
   font: 500 14px/1.4 var(--ng-font, ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif);
 }
@@ -561,6 +611,50 @@ ${BEAM_CSS}
 .pill:hover { background: var(--ng-glass-strong, rgb(23 27 33 / .82)); }
 .pill.primary { font-weight: 600; }
 
+/* The panel's options (ADR-033): the app's assistant and its tours, named, just above the composer. */
+/* The panel's two views (ADR-035): a segmented switch just above the composer, always one tap back. */
+.tabs {
+  width: min(720px, 100%); display: flex; gap: 4px; margin: 8px 0 0; padding: 4px;
+  border-radius: 14px; background: var(--ng-hover, rgb(255 255 255 / .06));
+}
+.tabs[hidden] { display: none; }
+.tab {
+  flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px;
+  margin: 0; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ng-muted, #9aa3af);
+  font: inherit; font-size: .8125rem; font-weight: 500; cursor: pointer; transition: background-color 160ms ease, color 160ms ease;
+}
+.tab .glyph { display: inline-flex; }
+.tab .glyph svg { width: 16px; height: 16px; }
+.tab:hover { color: var(--ng-text, #e6e9ee); }
+.tab[aria-selected="true"] {
+  background: var(--ng-raised, #171b21); color: var(--ng-text, #e6e9ee);
+  box-shadow: inset 0 0 0 1px var(--ng-border, rgb(255 255 255 / .1));
+}
+.tab[aria-selected="true"] .glyph { color: var(--ng-accent-text, #79c0ce); }
+
+/* The tours: the page's own, in the space the conversation has, and scrolling like it. */
+.tours-view {
+  flex: 1 1 auto; min-height: 0; width: min(720px, 100%); overflow-y: auto; overscroll-behavior: contain;
+  padding: 12px 2px 4px; scrollbar-width: thin; scrollbar-color: var(--ng-border, rgb(255 255 255 / .16)) transparent;
+}
+.tours-view[hidden], .tours-where[hidden], .tours-list[hidden], .tours-empty[hidden] { display: none; }
+.screen[data-view="tours"] .thread, .screen[data-view="tours"] .caption { display: none; }
+.tours-heading { margin: 0 4px; font-size: 1rem; font-weight: 600; }
+.tours-where { margin: 2px 4px 0; font-size: .8125rem; color: var(--ng-muted, #9aa3af); }
+.tours-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.tour-item {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px;
+  min-height: 56px; margin: 0; padding: 10px 14px; border: 0; border-radius: 12px; cursor: pointer; text-align: start;
+  background: var(--ng-raised, #171b21); color: var(--ng-text, #e6e9ee); font: inherit;
+  box-shadow: inset 0 0 0 1px var(--ng-border, rgb(255 255 255 / .1)); transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+.tour-item:hover { background: var(--ng-hover-strong, #20262e); box-shadow: inset 0 0 0 1px var(--ng-accent-line, rgb(121 192 206 / .34)); }
+.tour-name { grid-column: 1; font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
+.tour-note { grid-column: 1; font-size: .75rem; color: var(--ng-muted, #9aa3af); }
+.tour-go { grid-column: 2; grid-row: 1 / span 2; color: var(--ng-accent-text, #79c0ce); transition: transform 180ms ease; }
+.tour-item:hover .tour-go { transform: translateX(3px); }
+.tours-empty { margin: 28px 12px 0; text-align: center; font-size: .875rem; color: var(--ng-muted, #9aa3af); }
+
 .ring {
   position: fixed; z-index: 2147482999; pointer-events: none;
   left: var(--rx, 0); top: var(--ry, 0); width: var(--rw, 0); height: var(--rh, 0);
@@ -574,7 +668,7 @@ ${BEAM_CSS}
 /* Glass is only ever an enhancement: where the browser cannot blur, or the visitor has asked for no
    transparency, every surface is the host's own solid raised colour, exactly as it was before. */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .composer, .guide, .controls .icon, .pill, .msg.assistant .msg-body { background: var(--ng-raised, #171b21); }
+  .composer, .guide, .controls .icon, .pill, .tab[aria-selected="true"], .msg.assistant .msg-body { background: var(--ng-raised, #171b21); }
   .backdrop, .screen[data-size="compact"] .backdrop { background: var(--ng-backdrop, rgb(8 9 12)); }
 }
 /* A phone: four buttons and a box in one row must still be four 44px targets and a box you can type in.
@@ -585,21 +679,20 @@ ${BEAM_CSS}
   }
   .composer { gap: 0; }
   .composer .icon { min-width: 44px; min-height: 44px; }
-  .composer input { padding: 0 6px; }
+  .composer input { padding: 0 6px 0 14px; }
   .attach-name { max-width: 96px; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .attach-item { background: var(--ng-raised, #171b21); -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .composer, .guide, .controls .icon, .pill, .msg.assistant .msg-body { background: var(--ng-raised, #171b21); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .composer, .guide, .controls .icon, .pill, .tab[aria-selected="true"], .msg.assistant .msg-body { background: var(--ng-raised, #171b21); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .backdrop, .screen[data-size="compact"] .backdrop { background: var(--ng-backdrop, rgb(8 9 12)); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (forced-colors: active) {
   .backdrop, .screen[data-size="compact"] .backdrop { background: Canvas; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .screen[data-size="compact"] { border: 1px solid CanvasText; }
-  .composer, .msg-body, .guide, .pill, .controls .icon, .attach-item { background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .composer, .msg-body, .guide, .pill, .tab, .tour-item, .controls .icon, .attach-item { background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .chip, .chip.lead, .chip.card { color: LinkText; box-shadow: none; }
-  .send .glyph::before, .mic .glyph::before, .pill.primary::before { display: none; }
-  .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary { background: Highlight; color: HighlightText; box-shadow: none; }
+    .send .glyph, .mic[aria-pressed="true"] .glyph, .pill.primary { background: Highlight; color: HighlightText; box-shadow: none; }
   .orb { border: 1px solid ButtonText; }
   .ring { border-color: Highlight; }
 }
@@ -615,6 +708,7 @@ const svg = (body: string, size = 20): string =>
 const ICON_EXPAND = svg('<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>');
 const ICON_COLLAPSE = svg('<path d="M20 10h-6V4M4 14h6v6M14 10l7-7M10 14l-7 7"/>');
 const ICON_CHAT = svg('<path d="M5 5h14v10H9l-4 4z"/><path d="M9 9.5h6M9 12h4"/>');
+const ICON_TOUR = svg('<path d="M6 21V4"/><path d="M6 4h11l-2.5 4.5L17 13H6"/>');
 const ICON_CLOSE = svg('<path d="M6 6l12 12M18 6L6 18"/>');
 const ICON_MIC = svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>');
 const ICON_SEND = svg('<path d="M12 19V5M6 11l6-6 6 6"/>', 18);
@@ -658,6 +752,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     if (!safeRoute(route)) return true;
     if (options.navigate) {
       options.navigate(route);
+      if (viewing === 'tours') later(renderTours, 0);
       return true;
     }
     if (view && offerMove(view, route)) return true;
@@ -675,7 +770,11 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const acting = options.act === 'point' || options.act === 'off' ? options.act : 'open';
   const navigation = options.navigation?.trim() || null;
   const reducedMotion = Boolean(view?.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-  const env = options.voice === false ? null : options.voiceEnv !== undefined ? options.voiceEnv : view ? voiceEnv(view) : null;
+  const pageVoice = options.voice === false ? null : options.voiceEnv !== undefined ? options.voiceEnv : view ? voiceEnv(view) : null;
+  // The app's own speech-to-text (ADR-037): where the browser has no on-device recogniser — most browsers,
+  // for most languages — what is said goes to this site's endpoint, and never to a speech vendor.
+  const serverRecogniser = pageVoice && options.transcribe && view ? serverRecognition(options.transcribe, serverVoiceEnv(view)) : null;
+  const env = pageVoice && serverRecogniser ? { ...pageVoice, Recognition: serverRecogniser } : pageVoice;
   const canListen = Boolean(env?.getUserMedia);
   const canSpeak = Boolean(env?.synth && env.Utterance);
 
@@ -725,6 +824,17 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     button.append(text, glyph(icon));
     return button;
   };
+  /** One of the panel's two views, as a tab: an icon and a visible name (ADR-035). */
+  const tabButton = (name: string, text: string, icon: string): HTMLButtonElement => {
+    const button = make('button', `tab ${name}`);
+    button.type = 'button';
+    button.id = `nextgen-tab-${name}`;
+    button.setAttribute('role', 'tab');
+    const label = make('span', 'tab-label');
+    label.textContent = text;
+    button.append(glyph(icon), label);
+    return button;
+  };
   const pill = (className: string, text: string): HTMLButtonElement => {
     const button = make('button', `pill ${className}`);
     button.type = 'button';
@@ -767,6 +877,28 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   const companionButton = iconButton('companion', words.openCompanion(companionName), ICON_CHAT);
   companionButton.hidden = typeof companion?.open !== 'function';
   startControls.append(companionButton);
+  // Two views of one panel (ADR-035): the conversation, and the app's tours for the page the visitor is on.
+  // Tabs, so the way back to the conversation is always one tap away, and the conversation is kept meanwhile.
+  const viewTabs = make('div', 'tabs');
+  viewTabs.setAttribute('role', 'tablist');
+  viewTabs.setAttribute('aria-label', words.views);
+  const chatTab = tabButton('chat', words.chat, ICON_CHAT);
+  chatTab.setAttribute('aria-controls', 'nextgen-thread');
+  const toursTab = tabButton('tours', words.tutorials, ICON_TOUR);
+  toursTab.setAttribute('aria-controls', 'nextgen-tours');
+  viewTabs.append(chatTab, toursTab);
+  viewTabs.hidden = typeof companion?.tours !== 'function';
+  // The tours view: what this page offers, read again whenever the page changes (`renderTours`).
+  const toursView = make('section', 'tours-view');
+  toursView.id = 'nextgen-tours';
+  toursView.setAttribute('role', 'tabpanel');
+  toursView.setAttribute('aria-labelledby', 'nextgen-tab-tours');
+  toursView.hidden = true;
+  const toursHeading = make('h3', 'tours-heading');
+  const toursWhere = make('p', 'tours-where');
+  const toursList = make('ul', 'tours-list');
+  const toursEmpty = make('p', 'tours-empty');
+  toursView.append(toursHeading, toursWhere, toursList, toursEmpty);
   const endControls = make('div', 'controls controls-end');
   const soundButton = iconButton('sound', words.readAloud, ICON_SOUND);
   soundButton.hidden = !canSpeak;
@@ -785,6 +917,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   // (`aria-busy` while a turn is being worked out). It opens with the greeting, which is also
   // what names the dialog.
   const thread = make('div', 'thread');
+  thread.id = 'nextgen-thread';
   thread.setAttribute('role', 'log');
   const greeting = make('h2', 'greeting');
   greeting.id = 'nextgen-greeting';
@@ -849,7 +982,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   tray.setAttribute('aria-label', words.attach);
 
   screen.dataset.conversation = 'false';
-  stage.append(slot, caption, thread, tray, form);
+  stage.append(slot, caption, thread, toursView, tray, viewTabs, form);
 
   screen.append(backdrop, startControls, endControls, stage);
 
@@ -1153,7 +1286,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     return a;
   }
 
-  function listItems(links: readonly HTMLAnchorElement[]): HTMLLIElement[] {
+  function listItems(links: readonly HTMLElement[]): HTMLLIElement[] {
     return links.map((a) => {
       const li = make('li');
       li.append(a);
@@ -1434,6 +1567,96 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     addMessage('assistant', '', nodes).dataset.tone = shown.tone;
   }
 
+  /** The app's tours for the page the visitor is on, as it lists them; nothing when it cannot say. */
+  function toursHere(): CompanionTour[] {
+    if (typeof companion?.tours !== 'function') return [];
+    try {
+      const listed = companion.tours(currentPath());
+      if (!Array.isArray(listed)) return [];
+      return listed
+        .filter((t): t is CompanionTour => typeof t?.id === 'string' && t.id !== '' && typeof t.title === 'string' && t.title.trim() !== '')
+        .slice(0, MAX_TOURS);
+    } catch {
+      return [];
+    }
+  }
+
+  // ------------------------------------------------------------------ views --
+
+  /** Which of the panel's two views is showing (ADR-035). The conversation is kept while tours show. */
+  let viewing: 'chat' | 'tours' = 'chat';
+  /** The tour buttons now in the tours view, for the keyboard. */
+  let tourStops: HTMLElement[] = [];
+
+  /** A tour, as a row to press: its name, where the visitor left it, and an arrow. It starts it. */
+  function tourButton(tour: CompanionTour): HTMLButtonElement {
+    const button = make('button', 'tour-item');
+    button.type = 'button';
+    button.dataset.tour = tour.id;
+    const name = make('span', 'tour-name');
+    name.textContent = tour.title;
+    button.append(name);
+    if (tour.note?.trim()) {
+      const note = make('span', 'tour-note');
+      note.textContent = tour.note.trim();
+      button.append(note);
+    }
+    const go = make('span', 'tour-go');
+    go.setAttribute('aria-hidden', 'true');
+    go.textContent = '→';
+    button.append(go);
+    button.addEventListener('click', () => {
+      dock(false);
+      if (companion?.tour?.(currentPath(), tour.id) === false) notice(words.noTours);
+    });
+    return button;
+  }
+
+  /**
+   * The tours view, for the page the visitor is on now. Read again on every call — the page may have
+   * changed since (`refresh`), and so may where they left each tour. A button that had focus keeps it.
+   */
+  function renderTours(): void {
+    const focused = root.activeElement as HTMLElement | null;
+    const hadFocus = focused ? toursList.contains(focused) : false;
+    const focusedTour = hadFocus ? focused?.dataset.tour : undefined;
+    const tours = toursHere();
+    const page = capabilityAt(currentPath());
+    toursHeading.textContent = words.toursTitle;
+    toursWhere.textContent = page ? words.toursOn(page.title) : '';
+    toursWhere.hidden = !page;
+    tourStops = tours.map(tourButton);
+    toursList.replaceChildren(...listItems(tourStops));
+    toursList.hidden = tourStops.length === 0;
+    toursEmpty.textContent = words.noTours;
+    toursEmpty.hidden = tourStops.length > 0;
+    if (hadFocus) (tourStops.find((b) => b.dataset.tour === focusedTour) ?? tourStops[0] ?? toursTab).focus();
+  }
+
+  /** Where the keyboard starts in the view showing: the first tour, or the composer. */
+  function viewStart(): HTMLElement {
+    return viewing === 'tours' ? (tourStops[0] ?? toursTab) : input;
+  }
+
+  /**
+   * Show the conversation or the tours. The tours take the conversation's layout — the orb small at the
+   * top — and going back restores whichever the conversation had: the greeting, or the thread.
+   */
+  function setView(next: 'chat' | 'tours', moveFocus = true): void {
+    if (next === 'tours' && viewTabs.hidden) return;
+    viewing = next;
+    screen.dataset.view = next;
+    for (const [tab, on] of [[chatTab, next === 'chat'], [toursTab, next === 'tours']] as const) {
+      tab.setAttribute('aria-selected', String(on));
+      tab.tabIndex = on ? 0 : -1;
+    }
+    toursView.hidden = next !== 'tours';
+    if (next === 'tours') renderTours();
+    screen.dataset.conversation = next === 'tours' || thread.children.length > 1 ? 'true' : 'false';
+    place();
+    if (moveFocus) viewStart().focus();
+  }
+
   const canCopy = typeof view?.navigator?.clipboard?.writeText === 'function';
 
   /** Copy an answer as plain text, and say whether it worked in the status line. */
@@ -1457,6 +1680,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     dropTyping();
     thread.replaceChildren(intro);
     threadStops = [];
+    if (viewing === 'tours') setView('chat', false);
     thread.removeAttribute('aria-busy');
     setCaption('');
     input.value = '';
@@ -1527,7 +1751,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     later(() => {
       if (mode !== 'stage') return;
       place();
-      input.focus();
+      viewStart().focus();
     }, 30);
     if (handsFree) void startConversation(fromTap);
   }
@@ -1552,6 +1776,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   }
 
   const close = (): void => dock(true);
+  /** Set while the app's own UI has the corner (`stepAside`, ADR-038): whether to reopen on `comeBack`. */
+  let aside: { readonly wasOpen: boolean } | null = null;
 
   // ----------------------------------------------------------------- arrival --
 
@@ -1864,6 +2090,16 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
           if (final) void ask(text);
         },
         onTranscriptionLost: () => setCaption(words.voiceTypeInstead),
+        // Say why, every time (ADR-037): a silent failure left visitors unsure the microphone worked at all.
+        onTranscriptionError: (code) => {
+          if (busy) return;
+          if (code === 'not-allowed') setCaption(words.micDenied);
+          else if (code === 'audio-capture') setCaption(words.voiceNoMic);
+          else if (code === 'network' || code === 'service-not-allowed') setCaption(words.voiceServiceDown);
+        },
+        onTranscribing: () => {
+          if (!busy) setCaption(words.transcribing);
+        },
       });
     } catch {
       // Refused, or no microphone. Turn it off so the next landing does not ask again unbidden.
@@ -1915,6 +2151,12 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       case 'tour': {
         // The app's own tour first (ADR-026); else the steps this page declares; else it is a question.
         const here = currentPath();
+        // More than one to choose from: the visitor picks, in the tours view (ADR-033, ADR-035).
+        if (toursHere().length > 1) {
+          open();
+          setView('tours');
+          return true;
+        }
         if (typeof companion?.tour === 'function') {
           dock(false);
           if (companion.tour(here) !== false) return true;
@@ -1974,6 +2216,29 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     }
   }
 
+  /** The app's rule claims this question for its own assistant (ADR-038). Its failure keeps the question here. */
+  function handsOver(text: string, route: string): boolean {
+    if (typeof companion?.handOver !== 'function' || typeof companion.ask !== 'function') return false;
+    // Mashing is nobody's question (ADR-039): not worth the app's rule, nor its model.
+    if (isMashing(text, assistant.registry)) return false;
+    try {
+      return companion.handOver(text, { route }) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** `nextgen:companion`: what the app's assistant was asked, and why — the record of a turn no router decided. */
+  function announceCompanion(utterance: string, handedOverBy: CompanionTurn['handedOverBy'], started: number, answered: boolean): void {
+    if (!view) return;
+    const detail: CompanionTurn = { utterance, handedOverBy, latencyMs: Math.round(performance.now() - started), answered };
+    try {
+      view.dispatchEvent(new (view as Window & typeof globalThis).CustomEvent(COMPANION_EVENT, { detail }));
+    } catch {
+      // a page that cannot take the event loses nothing the visitor sees
+    }
+  }
+
   /**
    * What this assistant cannot place, and the app's own might: a question that matched nothing, or a topic
    * the registry says is outside the app. Never a declared limit on *acting* — a payment, changing a record
@@ -1991,6 +2256,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
    * search and its own assistant are for, and a question worth teaching (`learn`).
    */
   function nothingPlaced(trace: TurnTrace): boolean {
+    // Keyboard mashing is not a question nothing matched: nothing to search, hand over or learn (ADR-039).
+    if (trace.mashing) return false;
     if (trace.outcome === 'clarify') return barelyMatched(trace.candidates);
     return trace.outcome === 'out_of_scope' && !trace.capabilityId;
   }
@@ -2020,6 +2287,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     const filesToCompanion = files.length > 0 && typeof companion?.ask === 'function';
     // Nothing to wait for when there is nothing to work out.
     const instant = !filesToCompanion && (chatty || filesOnly || reply !== null);
+    // A question asked from the tours view is a conversation again.
+    if (viewing === 'tours') setView('chat', false);
     open();
     stopSpeaking();
     const mine = ++latest;
@@ -2055,6 +2324,14 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       try {
         const where = currentPath();
         const companionAnswer = filesToCompanion ? await consult(utterance, files, where) : null;
+        // The app's own rule, before any routing (ADR-038, Rule 18): what its assistant can do for this user
+        // goes straight to it — no screen scoring, no model of ours. Declined, and it is routed as usual.
+        const routing = !companionAnswer && !filesOnly && !reply && !(talk && chatty);
+        const question0 = talk ? talk.rest : utterance;
+        const ruleStarted = performance.now();
+        const claimed = routing && handsOver(question0, where);
+        const byRule = claimed ? await consult(question0, [], where) : null;
+        if (claimed) announceCompanion(question0, 'rule', ruleStarted, byRule !== null);
         // Otherwise handed to the page, and only to the page: the router below is given the words and
         // nothing else, and nothing attached is ever sent anywhere by this assistant.
         const handed =
@@ -2077,6 +2354,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
         } else if (talk && chatty) {
           const starts = talk.kind === 'help' || talk.kind === 'thisPage' ? startingPoints() : [];
           shown = smalltalkView(talk.kind, seen, where, words, starts, hints);
+        } else if (byRule) {
+          shown = byRule;
         } else {
           const question = talk ? talk.rest : utterance;
           taskFrom = question;
@@ -2094,7 +2373,10 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
           const nothingMatched = trace.outcome === 'clarify' && trace.candidates.every((c) => c.score <= 0);
           // What this assistant cannot place goes to the app's own, when there is one; the answer below
           // stands if it declines (ADR-026).
-          const placed = forCompanion(trace) ? await consult(question, [], where) : null;
+          const unplacedStarted = performance.now();
+          const toCompanion = forCompanion(trace) && typeof companion?.ask === 'function';
+          const placed = toCompanion ? await consult(question, [], where) : null;
+          if (toCompanion) announceCompanion(question, 'unplaced', unplacedStarted, placed !== null);
           shown = placed ?? present(trace, seen, where, words, nothingMatched ? startingPoints() : [], hints, decide);
           const unplaced = nothingPlaced(trace);
           // What no screen matched may be content — a person, a post, a product — and the app's own search
@@ -2188,6 +2470,11 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
 
   // ------------------------------------------------------------------ events --
 
+  screen.dataset.view = 'chat';
+  chatTab.setAttribute('aria-selected', 'true');
+  toursTab.setAttribute('aria-selected', 'false');
+  toursTab.tabIndex = -1;
+
   orb.addEventListener('click', () => {
     if (mode === 'docked') open(true);
     else toggleVoice();
@@ -2201,6 +2488,26 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     dock(false);
     companion?.open?.();
   });
+  chatTab.addEventListener('click', () => setView('chat'));
+  toursTab.addEventListener('click', () => setView('tours'));
+  // The arrow keys move between the two tabs, as in any tab list.
+  viewTabs.addEventListener('keydown', (event) => {
+    const e = event as KeyboardEvent;
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const next = e.key === 'Home' ? 'chat' : e.key === 'End' ? 'tours' : viewing === 'chat' ? 'tours' : 'chat';
+    setView(next, false);
+    (next === 'chat' ? chatTab : toursTab).focus();
+  });
+  // Typing is talking: reaching for the composer from the tours goes back to the conversation.
+  input.addEventListener('focus', () => {
+    if (viewing === 'tours') setView('chat', false);
+  });
+  // A page that moves with the browser's own history: the tours follow it.
+  const onHistory = (): void => {
+    if (viewing === 'tours') renderTours();
+  };
+  view?.addEventListener('popstate', onHistory);
   closeButton.addEventListener('click', close);
   restartButton.addEventListener('click', startOver);
   // Expanded, the only part of the page left uncovered is its navigation. Reaching for it means the
@@ -2287,7 +2594,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     conversation?.wake();
     if (e.key === 'Escape') {
       e.preventDefault();
-      close();
+      // From the tours, Escape is "back to the conversation"; from the conversation, it closes.
+      if (viewing === 'tours') setView('chat');
+      else close();
       return;
     }
     // Only a modal keeps Tab in. The corner panel sits beside the page, and Tab walks on into it.
@@ -2298,7 +2607,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       restartButton,
       ...(soundButton.hidden ? [] : [soundButton]),
       closeButton,
-      ...threadStops,
+      ...(viewing === 'chat' ? threadStops : tourStops),
+      ...(viewTabs.hidden ? [] : [viewing === 'chat' ? chatTab : toursTab]),
       ...(attachButton.hidden ? [] : [attachButton]),
       ...(cameraButton.hidden ? [] : [cameraButton]),
       input,
@@ -2370,6 +2680,11 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       button.children[0]!.textContent = text;
     };
     name(companionButton, words.openCompanion(companionName));
+    // A tab's name is on show, beside its icon (`tabButton`).
+    chatTab.children[1]!.textContent = words.chat;
+    toursTab.children[1]!.textContent = words.tutorials;
+    viewTabs.setAttribute('aria-label', words.views);
+    if (viewing === 'tours') renderTours();
     name(soundButton, words.readAloud);
     name(closeButton, words.close);
     name(restartButton, words.startOver);
@@ -2418,9 +2733,27 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     close,
     ask: (utterance) => ask(utterance),
     setLanguage,
+    refresh() {
+      if (!destroyed && viewing === 'tours') renderTours();
+    },
+    stepAside() {
+      if (destroyed || aside) return;
+      aside = { wasOpen: mode === 'stage' };
+      if (mode === 'stage') dock(false);
+      // Hidden outright, orb included: the app's own panel sits in the same corner.
+      host.style.setProperty('display', 'none', 'important');
+    },
+    comeBack() {
+      if (destroyed || !aside) return;
+      const { wasOpen } = aside;
+      aside = null;
+      host.style.removeProperty('display');
+      if (wasOpen) open(false);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      view?.removeEventListener('popstate', onHistory);
       langWatch?.disconnect();
       stopConversation();
       stopSpeaking();

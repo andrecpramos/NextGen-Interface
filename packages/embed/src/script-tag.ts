@@ -68,6 +68,11 @@ function autostart(): void {
   if (data.nextgenSearch && !searchChoice(data.nextgenSearch.trim(), 'x', WORDS.en)) {
     warn(`ignoring data-nextgen-search="${data.nextgenSearch}"; use a path on this app with {query} in it, e.g. "/search?q={query}"`);
   }
+  // A path on this site, for the app's own speech-to-text (ADR-037). The widget refuses another site's.
+  const transcribe = data.nextgenTranscribe?.trim() ?? '';
+  if (transcribe && !(transcribe.startsWith('/') && !transcribe.startsWith('//'))) {
+    warn(`ignoring data-nextgen-transcribe="${transcribe}"; use a path on this site, e.g. "/api/transcribe"`);
+  }
   const hide = (data.nextgenHide ?? '')
     .split(',')
     .map((selector) => selector.trim())
@@ -94,6 +99,7 @@ function autostart(): void {
       ...(decide ? { decide } : {}),
       ...(data.nextgenSearch ? { search: data.nextgenSearch.trim() } : {}),
       ...(data.nextgenNavigation ? { navigation: data.nextgenNavigation.trim() } : {}),
+      ...(transcribe.startsWith('/') && !transcribe.startsWith('//') ? { transcribe: { path: transcribe } } : {}),
     };
     start(base, role, options).catch((error: unknown) => {
       warn(`the assistant did not start: ${error instanceof Error ? error.message : String(error)}`);
