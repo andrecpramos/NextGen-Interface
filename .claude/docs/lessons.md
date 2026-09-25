@@ -470,6 +470,35 @@ property that broke.
 
 ---
 
+## L16 · A gate that accepts any change regenerated with its cause accepts the harmful ones too
+
+**What happened.** 2026-09-23, ADR-032 changed how stage 2 scores a screen and reported its
+gains: right-screen moves on the family fixture 39 → 45 of 55, out-of-scope refused
+64.3% → 71.4%, "none wrongly refused". All true. Not reported, because no column asked:
+**wrong moves rose from 1 to 4, and an out-of-scope request was executed for the first
+time.** The golden gate compares every per-turn decision with the committed scorecard, and
+its message says what to do when they differ on purpose: regenerate and commit it with the
+cause. That was done, and the gate went green on a change that sent visitors to the wrong
+screen. It was found two days later, by an unrelated measurement.
+
+**Why it was hard to see.** The gate was strict: every turn, not an average. But a strict
+comparison with a baseline the author regenerates checks only that the author *noticed*,
+not that the change was *acceptable*. The ADR's table was chosen by the author too, and a
+metric nobody tabulates is invisible in review. A wrong move and a new right move look the
+same in a diff of 69 decisions.
+
+**The durable lesson.** **Some outcomes must be judged against a fixed standard, not against
+the last run.** A diff gate is right for "did anything move", and wrong for "is this
+allowed". For what must never happen, write the rule as its own check, independent of the
+baseline, so regenerating the baseline cannot waive it. And a measurement table for a
+routing change always has a *wrong* column, even when it is zero.
+
+**Enforcement: level 1.** Rule 19 (ADR-041): `evaluate-golden.mjs --check` fails on any
+wrong move, model-free, before and apart from the scorecard comparison, in CI. The table
+convention is level 4: written down here only.
+
+---
+
 ## Adding a lesson
 
 Add an entry when a bug's cause was **not locally obvious** — when someone
