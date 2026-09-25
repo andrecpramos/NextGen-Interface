@@ -37,7 +37,8 @@ export { toSparse, isSparse, dotStored, type SparseVector, type StoredVector } f
 export { HashingEmbedder, makeEmbedder, cosine } from './embedder.ts';
 export { resolveSlots, buildEnumIndex } from './slots.ts';
 export { normalize, tokens, features, contentTokens } from './text.ts';
-export { isActionRequest, isExplanationRequest, actionSignalApplies, actionVocabularyOf } from './action.ts';
+export { isActionRequest, isChangeRequest, isExplanationRequest, actionSignalApplies, actionVocabularyOf } from './action.ts';
+export { isMashing } from './mashing.ts';
 export { THRESHOLDS, THRESHOLD_PROFILES, thresholdsFor, OUT_OF_SCOPE_ID } from './config.ts';
 export { OUTCOME, STAGE } from './types.ts';
 export type {

@@ -54,7 +54,8 @@ export { normalize, tokens, features } from './text.ts';
 // Registry by hand has to build it — the field is not optional, deliberately: a
 // registry that forgot it would silently lose the guard and start refusing
 // things the application does.
-export { isActionRequest, actionSignalApplies, actionVocabularyOf } from './action.ts';
+export { isActionRequest, isChangeRequest, actionSignalApplies, actionVocabularyOf } from './action.ts';
+export { isMashing } from './mashing.ts';
 export {
   THRESHOLD_PROFILES,
   thresholdsFor,

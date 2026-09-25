@@ -107,13 +107,24 @@ for (const entry of entries) {
 
   const chosenRoute = trace.capabilityId ? (loaded.routeOf.get(trace.capabilityId) ?? null) : null;
   const expectedRoute = entry.expect.route ?? null;
+  // Rule 20 (ADR-041): a request to change something ends with its screen offered, not opened. That is
+  // the right answer when the offered screen is the expected one.
+  const offered = trace.changeRequest && trace.outcome === OUTCOME.OUT_OF_SCOPE ? chosenRoute : null;
+  // A question the owner judged genuinely ambiguous in the app names every screen that answers it (Rule 12).
+  const accepted = expectedRoute ? [expectedRoute, ...(entry.expect.alsoAccept ?? [])] : [];
   const correct = expectedRoute
-    ? trace.outcome === OUTCOME.EXECUTE && chosenRoute === expectedRoute
+    ? (trace.outcome === OUTCOME.EXECUTE && accepted.includes(chosenRoute)) || accepted.includes(offered)
     : trace.outcome === OUTCOME.OUT_OF_SCOPE;
 
   results.push({
     ...entry,
-    got: { outcome: trace.outcome, capability: trace.capabilityId, route: chosenRoute, stage: trace.decidedAt },
+    got: {
+      outcome: trace.outcome,
+      capability: trace.capabilityId,
+      route: chosenRoute,
+      stage: trace.decidedAt,
+      ...(trace.changeRequest ? { changeRequest: true } : {}),
+    },
     correct,
     modelFree: trace.decidedAt !== STAGE.LLM,
     ms: elapsed,
@@ -169,7 +180,8 @@ console.log(`  refused:            ${share(outOfScope, (r) => r.correct)}`);
 console.log(`  refused model-free: ${share(outOfScope, (r) => r.correct && r.modelFree)}`);
 console.log(`  wrongly executed:   ${share(outOfScope, (r) => r.got.outcome === OUTCOME.EXECUTE)}`);
 
-const wronglyRefused = inScope.filter((r) => r.got.outcome === OUTCOME.OUT_OF_SCOPE);
+// A change request whose screen was offered (Rule 20) was answered, not refused.
+const wronglyRefused = inScope.filter((r) => r.got.outcome === OUTCOME.OUT_OF_SCOPE && !r.correct);
 console.log(`\n  in-scope turns wrongly refused: ${wronglyRefused.length}/${inScope.length} = ${pct(wronglyRefused.length, inScope.length)}`);
 
 const sorted = results.map((r) => r.ms).sort((a, b) => a - b);
@@ -210,6 +222,23 @@ const scorecard = {
  * compared is every rate and every per-entry decision.
  */
 if (process.argv.includes('--check')) {
+  // Rule 19 (ADR-041): with no model, the router never moves a visitor to a wrong screen and never
+  // follows an out-of-scope request. Checked on its own, BEFORE the scorecard comparison: a regenerated
+  // scorecard would otherwise accept a new wrong move as "intended", which is how ADR-032's four got in.
+  if (!STAGE3_MODEL) {
+    const wrongMoves = results.filter(
+      (r) => r.got.outcome === OUTCOME.EXECUTE && !r.correct,
+    );
+    if (wrongMoves.length > 0) {
+      console.error(`\n  WRONG MOVES (Rule 19): ${wrongMoves.length} turn(s) executed where they should not have:`);
+      for (const r of wrongMoves) {
+        console.error(`    ${r.id}  "${r.utterance}" -> ${r.got.route} (expected ${r.expect.route ?? 'a refusal'}, ${r.got.stage})`);
+      }
+      console.error('\n  Without a model, a turn the router is not sure of is asked about, never moved on. Fix the');
+      console.error('  scoring, the thresholds (by their sweep, Rule 14) or the declarations — not this check.\n');
+      process.exit(1);
+    }
+  }
   const file = join(HERE, name);
   if (!existsSync(file)) {
     console.error(`\n  MISSING: ${name} — run this without --check and commit the result.\n`);

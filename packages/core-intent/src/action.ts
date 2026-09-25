@@ -180,6 +180,43 @@ export function isActionRequest(utterance: string): boolean {
   return actionConceptsIn(utterance).length > 0;
 }
 
+/**
+ * The concepts that START something new — a booking, a record, a form — which the visitor then does on
+ * the screen that starts it (ADR-031). Every other concept asks for something that exists to be changed,
+ * sent, paid or removed, or for the assistant to do a job itself (ADR-041).
+ */
+const START_CONCEPTS: ReadonlySet<string> = new Set(['book', 'create', 'fill']);
+
+/** Asking where a thing is done is asking for a place: "where do I change my email", "onde mudo a conta". */
+const WHERE_FRAME = /\b(where|onde)\b/iu;
+
+/**
+ * Does this utterance ask the assistant to change something that exists, or to do a job for the visitor,
+ * rather than to start something new or to find where a thing is done? (Rule 20, ADR-041.)
+ *
+ * The assistant never acts, so such a request is never followed to a screen as if it were a destination:
+ * the visitor is told it cannot be done for them and offered the screen where it is handled. A request to
+ * *start* something ("marcar um treino", "add a player") is not one of these: it still moves and opens
+ * the form, because the visitor does the task there. Model-free, a closed list, like everything here.
+ */
+export function isChangeRequest(utterance: string): boolean {
+  if (WHERE_FRAME.test(utterance) || HOW_TO_FRAME.test(utterance)) return false;
+  const words = utterance.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  return words.some((word, i) => {
+    const concept = CONCEPT_OF.get(word);
+    if (!concept || START_CONCEPTS.has(concept)) return false;
+    // "avisos por email", "any new messages", "my orders" name a thing, not a job: a word that is
+    // also a noun counts only as a command — first, or after "please", "you" or "to".
+    return !NOUN_TOO.has(word) || i === 0 || COMMAND_LEAD.has(words[i - 1]!);
+  });
+}
+
+/** Action words that are as often the name of a thing. Counted by `isChangeRequest` only as a command. */
+const NOUN_TOO: ReadonlySet<string> = new Set([
+  'email', 'message', 'call', 'post', 'order', 'change', 'update', 'transfer', 'process', 'print',
+]);
+const COMMAND_LEAD: ReadonlySet<string> = new Set(['please', 'you', 'to', 'favor']);
+
 /** The action CONCEPTS this utterance carries, or none if it is an instructional frame. */
 function actionConceptsIn(utterance: string): string[] {
   if (HOW_TO_FRAME.test(utterance)) return [];

@@ -294,6 +294,18 @@ export interface TurnTrace {
    * caption regardless.
    */
   explanationRequest: boolean;
+  /**
+   * The visitor asked the assistant to change something that exists, or to do a job for them
+   * (`isChangeRequest`, Rule 20, ADR-041). Such a turn is never executed as navigation: it ends
+   * `out_of_scope` with `capabilityId` naming the screen where it is handled, which the widget offers
+   * as a link beneath "I can't do that for you".
+   */
+  changeRequest: boolean;
+  /**
+   * Keyboard mashing, not a question (`isMashing`, ADR-039): the turn ends `clarify` before stage 1, with
+   * no candidates and no model call, and is not something to learn from or hand to anyone.
+   */
+  mashing: boolean;
   latency: StageLatency;
   notes: string[];
   /**

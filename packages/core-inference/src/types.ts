@@ -38,6 +38,13 @@ export interface CompletionRequest {
   readonly timeoutMs?: number;
   readonly maxTokens?: number;
   /**
+   * Whether a reasoning ("thinking") model may reason before it answers. Absent: the model's own
+   * default. `false` for a choice from a short list, where reasoning is paid for in `maxTokens`
+   * and in time: measured on qwen3:14b, stage 3's reasoning used ~150 of its 200 tokens and the
+   * answer was cut off mid-JSON. A runtime or model with no such switch ignores it.
+   */
+  readonly think?: boolean;
+  /**
    * Base64-encoded image bytes (no data-URI prefix), for a vision-capable
    * model. Additive and optional — a runtime or model that doesn't support
    * vision simply ignores it rather than failing; degrade, don't throw, is

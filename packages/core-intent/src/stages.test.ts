@@ -181,3 +181,64 @@ describe('stage3 — what the owner says about the application', () => {
     expect(prompt).not.toContain('educando');
   });
 });
+
+/**
+ * The stage-3 schema offers only the fields this turn will read. The model generates every field
+ * it is offered, so a field nobody reads is time — and, on a reasoning model under a token
+ * budget, a cut-off answer that fails to parse. Measured on qwen3:14b over the family fixture:
+ * 8 of 9 stage-3 turns clarified after ~5 s with the full schema, all 9 were decided in ~0.9 s lean.
+ */
+describe('stage3 — a lean request', () => {
+  const candidatesOf = (registry: Registry) => registry.capabilities.map((c) => ({ capabilityId: c.id, score: 1 }));
+
+  async function requestFor(registry: Registry, prose?: boolean): Promise<CompletionRequest> {
+    const runtime = new RecordingRuntime();
+    await stage3('what is the thing', candidatesOf(registry), registry, ctx, { runtime, ...(prose !== undefined ? { prose } : {}) });
+    return runtime.lastRequest!;
+  }
+
+  it('asks for the choice and its confidence, capabilityId first, and never for reasoning nobody reads', async () => {
+    const request = await requestFor(registryWith('A toy app.'));
+    expect(Object.keys(request.schema.properties as object)).toEqual(['capabilityId', 'confidence']);
+    expect(request.schema.required).toEqual(['capabilityId', 'confidence']);
+  });
+
+  it('asks a reasoning model not to reason: a choice from a short list is not worth the budget', async () => {
+    expect((await requestFor(registryWith('A toy app.'))).think).toBe(false);
+  });
+
+  it('offers prose, and says how to write it, only when asked', async () => {
+    const lean = await requestFor(registryWith('A toy app.'));
+    expect(lean.system).not.toContain('"prose"');
+    const asked = await requestFor(registryWith('A toy app.'), true);
+    expect(Object.keys(asked.schema.properties as object)).toEqual(['capabilityId', 'confidence', 'prose']);
+    expect(asked.system).toContain('You may also write "prose"');
+    expect(asked.schema.required).toEqual(['capabilityId', 'confidence']);
+  });
+
+  it('offers params, and the rules for extracting them, only when a candidate has any', async () => {
+    const lean = await requestFor(registryWith('A toy app.'));
+    expect(lean.system).not.toMatch(/Extract only parameters/);
+    const withParams: Registry = (() => {
+      const base = registryWith('A toy app.');
+      const cap = defineCapability({
+        id: 'thing.find', kind: 'read', route: '/thing/find', title: 'Find a thing', description: 'Find one thing by name',
+        explanation: 'Where one thing is found by its name.',
+        params: { name: { type: 'string', required: true } }, examples: ex(3),
+      });
+      const capabilities = [...base.capabilities, cap];
+      return { ...base, capabilities, byId: new Map(capabilities.map((c) => [c.id, c])), documents: capabilities.map(capabilityDocument), vectors: capabilities.map(() => []) };
+    })();
+    const request = await requestFor(withParams);
+    expect(Object.keys(request.schema.properties as object)).toEqual(['capabilityId', 'confidence', 'params']);
+    expect(request.system).toMatch(/Extract only parameters/);
+  });
+
+  it('keeps the knowledge rule about unsaid details, without pointing at a prose field that is not offered', async () => {
+    const context: RegistryContext = { rules: ['A session is scheduled on the sessions screen.'] };
+    const lean = await requestFor(registryWith('A toy app.', context));
+    expect(lean.system).toMatch(/choose the screen where that is settled\./);
+    const asked = await requestFor(registryWith('A toy app.', context), true);
+    expect(asked.system).toMatch(/choose the screen where that is settled, and say so in "prose"\./);
+  });
+});
