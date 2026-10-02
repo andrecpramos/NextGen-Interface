@@ -113,16 +113,21 @@ describe('the script tag starts itself from its own attributes', () => {
     expect(orbSide(cornered.window)).toBe('left');
   });
 
-  it('offers attachments unless data-nextgen-attach says "off" — an app with nowhere to send a file should not offer one', async () => {
+  it('offers attachments only when data-nextgen-attach says "on" — an app with nowhere to send a file should not offer one', async () => {
     const offered = (window: Page['window']) => {
       const root = window.document.querySelector('[data-nextgen]')?.shadowRoot;
       return { paperclip: !root?.querySelector('.attach')?.hasAttribute('hidden'), camera: root?.querySelector('.camera') ?? null };
     };
-    const on = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' });
-    await settle(() => on.window.document.querySelector('[data-nextgen]') !== null);
-    expect(offered(on.window).paperclip).toBe(true);
+    const plain = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen' });
+    await settle(() => plain.window.document.querySelector('[data-nextgen]') !== null);
+    expect(offered(plain.window).paperclip).toBe(false);
 
-    for (const value of ['off', 'false', 'no', '0']) {
+    for (const value of ['on', 'true', 'yes', '1', ' ON ']) {
+      const on = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-attach': value });
+      await settle(() => on.window.document.querySelector('[data-nextgen]') !== null);
+      expect(offered(on.window).paperclip, value).toBe(true);
+    }
+    for (const value of ['off', 'false', 'no', '0', 'maybe']) {
       const off = page({ 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-attach': value });
       await settle(() => off.window.document.querySelector('[data-nextgen]') !== null);
       expect(offered(off.window).paperclip, value).toBe(false);

@@ -59,7 +59,7 @@ export function splitByRole(
 // ------------------------------------------------------------------- reports --
 
 const REASON_HEADINGS: Record<SkippedRoute['reason'], string> = {
-  'unresolved-roles': 'Role guard could not be read — omitted rather than guessed (Rule 17)',
+  'unresolved-roles': 'Role guard could not be read — omitted rather than guessed, so no role is shown a screen it cannot open',
   'no-roles': 'No role can reach the route',
   'dev-only': 'Not in a production route table',
   'declared-legacy': 'The application says it is legacy or superseded',
@@ -88,7 +88,7 @@ export function formatSkipReport(skipped: readonly SkippedRoute[]): string {
     '',
     `${skipped.length} route(s) were discovered and deliberately not turned into capabilities.`,
     '',
-    'A missing capability degrades safely: Rule 7 guarantees every screen stays reachable',
+    'A missing capability degrades safely: every screen stays reachable, as it always was,',
     'without the assistant. A wrongly declared one sends a user confidently to the wrong',
     'place. Where this generator was unsure, it omitted — and said so here.',
     '',
@@ -128,7 +128,7 @@ export function formatInferredReport(entries: readonly ReviewInferredEntry[]): s
     '# Inferred rules not shipped',
     '',
     `${entries.length} candidate(s) were found in this application's own submit handlers and`,
-    'disabled-submit conditions, and none of them reached a visitor. ADR-020: a rule inferred',
+    'disabled-submit conditions, and none of them reached a visitor. A rule inferred',
     'from behaviour can be wrong in a way a declared one cannot, so only an exactly recognised',
     'shape ships (see the read-tier ones instead, in every capability\'s own `rules`). Everything',
     'below was found, and none of it was confident enough — read it, and either it is nothing,',
@@ -187,7 +187,7 @@ export function writeOutput(outputDir: string, appRoot: string, output: Generato
   const inside = relative(source, target);
   if (inside === '' || (!inside.startsWith('..') && !/^[a-zA-Z]:/.test(inside))) {
     throw new Error(
-      `Rule 16: refusing to write inside the application's own source (${source}). ` +
+      `The generator never writes inside your app: refusing to write inside the application's own source (${source}). ` +
         `Choose an output directory outside it; the installer only ever adds files of its own.`,
     );
   }

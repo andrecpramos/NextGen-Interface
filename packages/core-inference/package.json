@@ -9,7 +9,7 @@
   },
   "name": "@nextgen/core-inference",
   "main": "./src/index.ts",
-  "description": "LLM runtime adapters: Ollama (desktop), llama.rn (mobile), WebGPU (web).",
+  "description": "LLM runtime adapters: Ollama, and the fenced-prompt helpers every runtime shares. llama.rn and WebGPU are declared stubs that refuse to construct.",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"

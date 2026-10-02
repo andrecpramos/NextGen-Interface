@@ -14,8 +14,9 @@
 //   data-nextgen-target    a CSS selector to mount inside, instead of a corner
 //   data-nextgen-position  bottom-right (default), bottom-left, top-right or top-left
 //   data-nextgen-lang      the widget's language. Default: <html lang>
-//   data-nextgen-attach    "off" removes the photo and file buttons. Default: on. What a visitor attaches
-//                          never leaves their device: it reaches the page as a `nextgen:attach` event
+//   data-nextgen-attach    "on" offers the photo and file buttons. Default: off, because most apps have
+//                          nowhere to send a file. What a visitor attaches never leaves their device: it
+//                          reaches the page as a `nextgen:attach` event, which the page must handle
 //
 // A failure is reported with console.warn and never thrown. A script tag has no
 // caller to catch a rejection, and an unhandled one is noise in the adopter's error
@@ -53,8 +54,8 @@ function autostart(): void {
       ...(target ? { target } : {}),
       ...(position ? { position } : {}),
       ...(data.nextgenLang ? { lang: data.nextgenLang } : {}),
-      // Attachments are on unless the adopter says the app has nowhere to send a file.
-      ...(/^(?:off|false|no|0)$/i.test(data.nextgenAttach?.trim() ?? '') ? { attach: false } : {}),
+      // Attachments are off unless the adopter says the page takes a file (ADR-024 addendum).
+      ...(/^(?:on|true|yes|1)$/i.test(data.nextgenAttach?.trim() ?? '') ? { attach: true } : {}),
     };
     start(base, role, options).catch((error: unknown) => {
       warn(`the assistant did not start: ${error instanceof Error ? error.message : String(error)}`);

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, resolve } from 'node:path';
 
-import { BUNDLE_DIR, REVIEW_DIR } from './paths.ts';
+import { arg, BUNDLE_DIR, REVIEW_DIR, self, shown } from './paths.ts';
 
 /**
  * `nextgen preview`: try the assistant on your own app before wiring anything in
@@ -59,7 +59,7 @@ function page(roles: readonly string[], role: string, appUrl: string | null): st
 <header>
 <h1>What a <strong>${escapeHtml(role)}</strong> user can ask</h1>
 <p class="warning">Local preview. Every role's files are served here so you can switch between them.
-In production, serve each signed-in user only their own role's files (Rule 17).</p>
+In production, serve each signed-in user only their own role's files: a role's file lists the screens it can reach.</p>
 <nav aria-label="Roles"><ul>${links}</ul></nav>
 </header>
 <main>
@@ -145,7 +145,7 @@ export async function preview(kitDir: string, options: PreviewOptions = {}): Pro
   const bundle = join(kit, BUNDLE_DIR);
   const recordFile = join(kit, REVIEW_DIR, 'build.json');
   if (!existsSync(recordFile) || !existsSync(join(bundle, 'nextgen.js'))) {
-    throw new Error(`Nothing to preview in ${kit}. Run "node scan.mjs build" first.`);
+    throw new Error(`Nothing to preview in ${kit}. Run "${self()} build ${arg(shown(kit))}" first.`);
   }
   const roles = (JSON.parse(readFileSync(recordFile, 'utf8')) as { roles: string[] }).roles;
   if (roles.length === 0) throw new Error(`The build in ${kit} has no roles to preview.`);

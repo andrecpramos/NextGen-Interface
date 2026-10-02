@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Registry, TurnTrace } from '@nextgen/core-intent/browser';
 
 import { mountAssistant, type AssistantOptions } from './assistant.ts';
+import { WORDS } from './present.ts';
 import { css, GRAPHITE } from './theme.ts';
 import { FakeDocument, MemoryStorage, type FakeElement } from './test-support/fake-dom.ts';
 import type { Recognition, RecognitionCtor, VoiceEnv } from './voice.ts';
@@ -130,6 +131,9 @@ function setup(assistant: Routable, options: AssistantOptions = {}, { reloads = 
   };
 }
 
+/** `setup` under another name, for a block that shadows it with its own defaults. */
+const baseSetup = setup;
+
 /** The adopter's page: a header navigation, and a footer one that is not the menu. */
 function clubPage(doc: FakeDocument): void {
   const nav = doc.createElement('nav');
@@ -251,6 +255,27 @@ describe('the assistant layer — at rest', () => {
     expect(screen.hasAttribute('inert')).toBe(true);
   });
 
+  it('says what it is when pointed at or reached by keyboard — a globe in a corner says nothing to a stranger', () => {
+    const { orb, bubble } = setup(answering({}));
+    orb.fire('pointerenter', { pointerType: 'mouse' } as never);
+    expect(bubble.dataset.show).toBe('true');
+    expect(bubble.textContent).toBe('Ask where to go');
+    // The orb's own name already says it to a screen reader; the hint is not announced twice.
+    expect(bubble.getAttribute('aria-hidden')).toBe('true');
+    orb.fire('pointerleave');
+    expect(bubble.dataset.show).toBe('false');
+    expect(bubble.hasAttribute('aria-hidden')).toBe(false);
+
+    orb.fire('focus');
+    expect(bubble.dataset.show).toBe('true');
+    orb.fire('blur');
+    expect(bubble.dataset.show).toBe('false');
+
+    // A finger has no hover: a tap opens the screen, and a hint would only flash on the way.
+    orb.fire('pointerenter', { pointerType: 'touch' } as never);
+    expect(bubble.dataset.show).toBe('false');
+  });
+
   it('offers no microphone and no read-aloud where the browser can do neither', () => {
     const { mic, sound } = setup(answering({}));
     expect(mic.hidden).toBe(true);
@@ -308,6 +333,9 @@ describe('opening the screen', () => {
     expect(doc.documentElement.style.overflow).toBe('hidden');
     expect(orb.getAttribute('aria-hidden')).toBe('true');
     expect(byClass('greeting').textContent).toBe('Ready when you are.');
+    // …and, beneath it, what this is for — to someone who has never seen it. A sentence, not a question.
+    expect(byClass('greeting-hint').textContent).toBe(WORDS.en.greetingHint);
+    expect(screen.getAttribute('aria-describedby')).toBe('nextgen-greeting-hint');
     expect(host.findAll((el) => el.tagName === 'a')).toHaveLength(0);
   });
 
@@ -757,6 +785,9 @@ describe('a visitor who knows nothing about the app', () => {
  * to the page it sits in (`nextgen:attach`), which may want it; and the visitor is told which happened.
  */
 describe('attachments — a photo or a file, kept on the device', () => {
+  // Off unless the adopter turns it on (ADR-024 addendum): everything below is about an app that did.
+  const setup = (assistant: Routable, options: AssistantOptions = {}, rest: Setup = {}) =>
+    baseSetup(assistant, { attach: true, ...options }, rest);
   const text = (el: FakeElement): string => String(el.textContent);
   const settle = (ms: number) => vi.advanceTimersByTimeAsync(ms * 3);
   const file = (name: string, type = 'image/png', size = 2048) => ({ name, type, size }) as unknown as File;
@@ -828,6 +859,30 @@ describe('attachments — a photo or a file, kept on the device', () => {
     camera.click = () => void opened++;
     phone.byClass('camera').fire('click');
     expect(opened).toBe(1);
+  });
+
+  // Found reading the tab trap for the NVDA pass, 2026-09-22: the trap lists its stops, the paperclip was
+  // not among them, and "at <= 0" took an unlisted control for the first one — so Shift+Tab from the
+  // paperclip jumped to Send, the far end of the screen.
+  it('lets Shift+Tab step back from the paperclip, not throw focus to the far end', async () => {
+    const { orb, screen, doc, byClass, input } = setup(answering({}), {}, { page: fitted(true).page });
+    orb.fire('click');
+    await settle(50);
+    const paperclip = byClass('attach');
+    paperclip.focus();
+    expect(screen.fire('keydown', { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(false);
+    expect(doc.activeElement).toBe(paperclip);
+    // …and it is a stop of the screen's own, so Tab from the camera reaches the box as the page draws it.
+    byClass('camera').focus();
+    expect(screen.fire('keydown', { key: 'Tab' }).defaultPrevented).toBe(false);
+    input.focus();
+    expect(doc.activeElement).toBe(input);
+  });
+
+  it('is off unless the adopter turns it on — a button that goes nowhere is a dead end', () => {
+    const { byClass } = baseSetup(answering(toCalendar), {}, { page: fitted(true).page });
+    expect(byClass('attach').hidden).toBe(true);
+    expect(byClass('camera').hidden).toBe(true);
   });
 
   it('is left out entirely when the adopter says the app has nowhere to send a file', () => {
@@ -1385,7 +1440,7 @@ describe('the conversation is a chat', () => {
     }
     const all = messages(thread);
     expect(all.length).toBeLessThanOrEqual(60);
-    expect(all[0]!.textContent).toBe('Ready when you are.');
+    expect(all[0]!.textContent).toMatch(/^Ready when you are\./);
     expect(all[all.length - 1]!.textContent).toContain('Two places could help with that:');
     expect(all[all.length - 2]!.textContent).toBe('question 44');
   });
@@ -1422,7 +1477,7 @@ describe('chat extras — start over, copy, recall', () => {
     expect(messages(thread)).toHaveLength(3);
     byClass('restart').fire('click');
     await settle(10);
-    expect(messages(thread).map((m) => m.textContent)).toEqual(['Ready when you are.']);
+    expect(messages(thread).map((m) => m.textContent)).toEqual([`Ready when you are.${WORDS.en.greetingHint}`]);
     expect(screen.dataset.conversation).toBe('false');
     expect(byClass('restart').hidden).toBe(true);
     expect(all('chip')).toHaveLength(0);

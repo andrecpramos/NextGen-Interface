@@ -9,6 +9,7 @@
 export {
   isCapabilityKind,
   isExecutableKind,
+  isLocaleParam,
   exampleText,
   type Capability,
   type CapabilityExample,

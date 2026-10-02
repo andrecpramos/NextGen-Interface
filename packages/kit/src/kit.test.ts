@@ -110,7 +110,7 @@ describe('build refuses a model rather than ignoring the flag', () => {
 describe('Rule 16 — the kit only writes into its own folder', () => {
   it('refuses a kit folder inside the application source, before writing anything', () => {
     const inside = join(TINY, 'src', 'nextgen');
-    expect(() => init(TINY, inside)).toThrow(/Rule 16/);
+    expect(() => init(TINY, inside)).toThrow(/never writes inside your app/);
     expect(existsSync(inside)).toBe(false);
   });
 
@@ -165,10 +165,20 @@ describe('init → build → doctor, end to end', () => {
     // …and that the first thing to do about it, on a small or thinly described app, is to say what the
     // screens are for: a screen the visitor's words never match cannot win (FIELD-NOTES §5).
     expect(doctor(kit).text).toMatch(/small app[\s\S]*knowledge\.json/);
-    // …and it says what a visitor's attachment does: reaches the page as an event, or is switched off.
+    // …and it says what a visitor's attachment does: off unless turned on, and then reaches the page as
+    // an event.
     expect(doctor(kit).text).toMatch(/nextgen:attach/);
-    expect(doctor(kit).text).toMatch(/data-nextgen-attach="off"/);
+    expect(doctor(kit).text).toMatch(/Off unless you turn it on[\s\S]*data-nextgen-attach="on"/);
     expect(doctor(kit).text).toMatch(/never leaves their device/);
+    // …and it ends with what to do, in order, with commands that are real ones.
+    const text = doctor(kit).text;
+    expect(text).toMatch(/Next steps\n {2}1\. /);
+    expect(text).toMatch(/Answer review\/KNOWLEDGE-GAPS\.md/);
+    expect(text).toMatch(/scan\.mjs calibrate \S+ --golden/);
+    expect(text).toMatch(/scan\.mjs preview /);
+    expect(text).not.toMatch(/nextgen calibrate|<kit folder>/);
+    // An adopter has no ADRs, work packages or rule numbers to look up.
+    expect(text).not.toMatch(/ADR-\d|WP-\d|Rule \d/);
   }, 60_000);
 
   // `adapter/VERSION` is written by tooling/scripts/build-adapter.mjs: an id of the two shipped files, so an
@@ -238,7 +248,7 @@ describe('init → build → doctor, end to end', () => {
     init(TINY, kit);
     const record = await build(kit);
     expect(record.rules).toBeGreaterThan(0);
-    expect(doctor(kit).text).toMatch(/Rules read from validation schemas and control attributes: \d+ \(ADR-020, WP-54\)/);
+    expect(doctor(kit).text).toMatch(/Rules read from validation schemas and control attributes: [1-9]\d*\n/);
   }, 60_000);
 
   it('reports the inferred tier too, and writes review/INFERRED.md whether or not anything shipped (ADR-020, WP-55)', async () => {
@@ -249,7 +259,7 @@ describe('init → build → doctor, end to end', () => {
     // the honest zero, not an untested line.
     expect(record.inferredRules).toBe(0);
     expect(record.reviewInferred).toBe(0);
-    expect(doctor(kit).text).toMatch(/Rules inferred from a handler or a disabled control, shipped: 0 \(ADR-020, WP-55\)/);
+    expect(doctor(kit).text).toMatch(/Rules inferred from a handler or a disabled control, shipped: 0\n/);
     expect(existsSync(join(kit, 'review', 'INFERRED.md'))).toBe(true);
   }, 60_000);
 

@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve } from 'node:path';
+import { basename, isAbsolute, relative, resolve } from 'node:path';
 
 /**
  * The kit's own folder, and the one rule about where it may be.
@@ -30,7 +30,7 @@ export function assertOutsideApp(kitDir: string, appRoot: string): void {
   const inside = relative(resolve(appRoot), resolve(kitDir));
   if (inside === '' || (!inside.startsWith('..') && !isAbsolute(inside))) {
     throw new Error(
-      `Rule 16: the kit folder (${resolve(kitDir)}) is inside the application's source ` +
+      `The kit never writes inside your app, and this kit folder (${resolve(kitDir)}) is inside the application's source ` +
         `(${resolve(appRoot)}). The kit only ever adds files of its own, outside your source. ` +
         `Choose another folder with --out.`,
     );
@@ -39,6 +39,33 @@ export function assertOutsideApp(kitDir: string, appRoot: string): void {
 
 export function toPosix(path: string): string {
   return path.split('\\').join('/');
+}
+
+/**
+ * A folder as the person at the terminal would type it: relative to where they are, when it is
+ * below it. Every "Next:" line is copied and pasted, so it has to run from the folder it was printed
+ * in — an absolute scratch path is correct and unreadable, and a bare `nextgen` is readable and wrong
+ * when they are elsewhere.
+ */
+export function shown(dir: string, cwd: string = process.cwd()): string {
+  const rel = relative(cwd, resolve(dir));
+  if (rel === '') return '.';
+  return rel.startsWith('..') || isAbsolute(rel) ? resolve(dir) : toPosix(rel);
+}
+
+/**
+ * How to run this tool again, as it was run: `node nextgen-tool/scan.mjs`, not `node scan.mjs` — the
+ * adopter runs it from their app's root, where there is no `scan.mjs`. Falls back to the bare name
+ * when it was not started from a file called `scan.mjs` (tests, the repository's own CLI).
+ */
+export function self(argv1: string | undefined = process.argv[1], cwd: string = process.cwd()): string {
+  if (!argv1 || basename(argv1) !== 'scan.mjs') return 'node scan.mjs';
+  return `node ${arg(shown(argv1, cwd))}`;
+}
+
+/** A path as one shell argument: quoted when it has a space in it. */
+export function arg(path: string): string {
+  return /\s/.test(path) ? `"${path}"` : path;
 }
 
 export function stripBom(text: string): string {

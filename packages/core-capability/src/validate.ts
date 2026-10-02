@@ -1,6 +1,7 @@
 import {
   exampleText,
   isCapabilityKind,
+  isLocaleParam,
   type Capability,
   type RegistryFile,
 } from './types.ts';
@@ -318,9 +319,11 @@ function validateOne(cap: Capability, ctx: Ctx): void {
 
   // --- route/param coherence --------------------------------------------------
   // A path segment like /budget/:id is a promise that `id` is fillable. If the
-  // capability does not declare it, the route can never be built.
+  // capability does not declare it, the route can never be built. A locale prefix
+  // is the exception: the page fills it, so it is never declared (`isLocaleParam`).
   for (const segment of (cap.route ?? '').split('/')) {
     if (!segment.startsWith(':')) continue;
+    if (isLocaleParam(segment) && !cap.params?.[segment.slice(1).replace(/\?$/, '')]) continue;
     const paramName = segment.slice(1);
     if (!cap.params?.[paramName]) {
       err(id, 'route-param-declared', `"${id}" route "${cap.route}" needs "${paramName}", which is not a declared param`);

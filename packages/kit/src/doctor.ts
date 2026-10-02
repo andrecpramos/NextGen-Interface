@@ -7,7 +7,7 @@ import type { SkipReason } from '@nextgen/generator';
 
 import { readConfig, type BuildRecord } from './build.ts';
 import type { Finding } from './detect.ts';
-import { BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
+import { arg, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR, self, shown } from './paths.ts';
 import { describeSweep, sweepingTools } from './tooling.ts';
 
 /**
@@ -111,8 +111,10 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     say();
   }
 
+  const tool = self();
+  const here = arg(shown(kit));
   if (!existsSync(join(kit, CONFIG_FILE))) {
-    return { ok: false, text: `No kit here (${kit}). Run "node scan.mjs init <your app folder>" first.` };
+    return { ok: false, text: `No kit here (${kit}). Run "${tool} init <your app folder>" first.` };
   }
   const detect = readJson<{ findings: Finding[]; warnings: string[]; projectDir?: string }>(join(kit, REVIEW_DIR, 'detect.json'));
   const projectDir = detect?.projectDir !== undefined ? resolve(kit, detect.projectDir) : null;
@@ -137,7 +139,7 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   }
 
   if (!record) {
-    say('Not built yet. Run "node scan.mjs build" next.');
+    say(`Not built yet. Run "${tool} build ${here}" next.`);
     return { ok: false, text: lines.join('\n') };
   }
 
@@ -146,8 +148,8 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   say(`  ${record.capabilities} screen(s) the assistant can take people to, plus ${record.boundaries} declared limit(s)`);
   for (const role of record.roles) say(`    ${role.padEnd(14)} ${record.perRole[role] ?? 0} screen(s)`);
   say(`  Descriptions: ${record.prose}`);
-  say(`  Rules read from validation schemas and control attributes: ${record.rules} (ADR-020, WP-54)`);
-  say(`  Rules inferred from a handler or a disabled control, shipped: ${record.inferredRules} (ADR-020, WP-55)`);
+  say(`  Rules read from validation schemas and control attributes: ${record.rules}`);
+  say(`  Rules inferred from a handler or a disabled control, shipped: ${record.inferredRules}`);
   // Older builds have no knowledge block; say nothing rather than something wrong.
   const knowledge = (record as { knowledge?: BuildRecord['knowledge'] }).knowledge;
   if (knowledge) {
@@ -191,27 +193,23 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     // Measured, not assumed: an experiment script deleted with the pilot's evidence, ADR-018. An earlier
     // version of this text said an uncalibrated build "will work, but ask more
     // clarifying questions". On a 145-screen app that was false.
-    say('  NOT calibrated for this app. It is using default settings tuned on a different,');
-    say('  7-screen app. On a 145-screen app, those defaults sent 2 of 7 confident answers to');
-    say('  the wrong screen, and refused 1 real question in 105. Calibrated for that app, it');
-    say('  made neither mistake. The kit cannot calibrate from its own example questions:');
-    say('  that was measured too, and it was worse — it wrongly refused 7 real requests in 105.');
-    say('  A small app, or one described only by its own labels, fares worse: on a 2-route');
-    say('  landing page, 7 of 12 everyday questions (written by the tool’s author, so an');
-    say('  anecdote) were refused. So until you calibrate, a declared limit must score at least');
-    say('  a floor of 0.15 of its own before it may refuse — it asks the visitor instead, and');
-    say('  refuses fewer out-of-scope requests. Say what each screen is for first —');
-    say('  knowledge.json, see review/KNOWLEDGE-GAPS.md — because a screen the visitor’s words');
-    say('  never match cannot win.');
-    say('  Calibrating needs real questions you wrote, each with the screen it should reach:');
+    say('  NOT calibrated for this app. It uses default settings tuned on a different, 7-screen app.');
+    say('  What that costs, measured: on a 145-screen app the defaults sent 2 of 7 confident answers');
+    say('  to the wrong screen and refused 1 real question in 105; calibrated, it made neither mistake.');
+    say('  A small app, or one described only by its own labels, fares worse (a 2-route landing page');
+    say('  refused 7 of 12 everyday questions). So until you calibrate, a declared limit must score a');
+    say('  floor of 0.15 on its own before it may refuse: the assistant asks the visitor instead.');
     say('');
-    say('    nextgen calibrate <kit folder> --golden your-questions.jsonl');
-    say('    node scan.mjs build <kit folder>        # picks up the calibration');
-    say('');
-    say('  One JSON object per line: {"utterance": "...", "route": "/where", "role": "ADMIN"}.');
-    say('  Use "route": null for a question it should refuse, and include both kinds — a sweep');
-    say('  with nothing to refuse cannot find the refusal threshold. About 20 turns is the');
-    say('  minimum that means anything; fewer and it fits noise.');
+    say('  Two things fix this, in this order:');
+    say('    1. Say what each screen is for, in knowledge.json (review/KNOWLEDGE-GAPS.md has the');
+    say('       questions). A screen the visitor\'s words never match cannot win.');
+    say('    2. Calibrate on 20 or more real questions you wrote, each with the screen it should reach:');
+    say(`         ${tool} calibrate ${here} --golden your-questions.jsonl`);
+    say(`         ${tool} build ${here}`);
+    say('       One JSON object per line: {"utterance": "...", "route": "/where", "role": "ADMIN"}.');
+    say('       Add some it should refuse, with "route": null — a sweep with nothing to refuse cannot');
+    say('       find where refusing starts. The kit cannot calibrate from its own example questions:');
+    say('       measured, that wrongly refused 7 real requests in 105.');
   }
   say();
 
@@ -233,19 +231,23 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   const served = existsSync(bundle) ? readdirSync(bundle) : [];
   for (const role of record.roles) {
     for (const file of [`registry.${role}.json`, `index.${role}.json`]) {
-      if (!served.includes(file)) problems.push(`bundle/${file} is missing. Run "node scan.mjs build" again`);
+      if (!served.includes(file)) problems.push(`bundle/${file} is missing. Run "${tool} build ${here}" again`);
     }
   }
   if (!served.includes('thresholds.hashing.json')) problems.push('bundle/thresholds.hashing.json is missing');
   if (served.includes('nextgen.js')) {
     const broken = scriptTagIsBroken(readFileSync(join(bundle, 'nextgen.js'), 'utf8'));
-    if (broken) problems.push(`bundle/nextgen.js is broken: ${broken}. Delete packages/embed/dist and run "node scan.mjs build" again`);
+    if (broken) {
+      problems.push(
+        `bundle/nextgen.js is broken: ${broken}. Copy the tool folder again (its runtime/nextgen.js is what build copies), then run "${tool} build ${here}"`,
+      );
+    }
   }
   if (served.includes('master.json')) problems.push('bundle/ contains master.json, which lists every role. Delete it; it must never be served');
   for (const file of served.filter((f) => /^registry\..+\.json$/.test(f))) {
     const registry = readJson<{ capabilities: Array<Record<string, unknown>> }>(join(bundle, file));
     if (registry?.capabilities.some((c) => 'roles' in c)) {
-      problems.push(`bundle/${file} carries role annotations. It would tell a user who else can see each screen (Rule 17)`);
+      problems.push(`bundle/${file} carries role annotations. It would tell a user who else can see each screen`);
     }
   }
   for (const report of record.invalid) problems.push(`a registry failed validation:\n${report}`);
@@ -254,10 +256,10 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   // 7. How to mount it.
   const role = record.roles[0] ?? 'PUBLIC';
   say('How to put it in your app');
-  say(`  1. Serve ${join(kit, BUNDLE_DIR)} at a path of your choice, for example /nextgen.`);
+  say(`  1. Serve ${shown(join(kit, BUNDLE_DIR))} at a path of your choice, for example /nextgen.`);
   if (record.roles.length > 1) {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
-    say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
+    say('     A role\'s file lists the screens that role can reach; no other role may read it.');
     say('     Ready-made handlers for Express and Next.js, under "Serving it", in');
     say('     AGENTS.md, beside this tool.');
     say('     The role comes from your session, never from the request.');
@@ -268,8 +270,8 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
       if (/^(?:[\w-]+\/)?(?:public|static)\//.test(served)) {
         problems.push(
           `${served} is served to everyone: it sits in a folder your app serves as-is, and this app has ` +
-            `${record.roles.length} roles, so every user could read every role's screen list (Rule 17). ` +
-            'Build the kit outside it (node scan.mjs init --out) and serve each role its own files',
+            `${record.roles.length} roles, so every user could read every role's screen list. ` +
+            `Build the kit outside it (${tool} init <your app folder> --out <another folder>) and serve each role its own files`,
         );
       }
     }
@@ -281,23 +283,25 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   if (record.roles.length > 1) {
     say("     Write the signed-in user's role into data-nextgen-role on the server, HTML-escaped.");
   }
-  say('     Optional: data-nextgen-target="#an-element" to place it yourself,');
-  say('     data-nextgen-position="bottom-left" (or top-left, top-right) to move the corner.');
+  say('     Optional: data-nextgen-target="#an-element" to place it yourself, and');
+  say('     data-nextgen-position="bottom-left" (or bottom-right, top-left, top-right) to choose the side;');
+  say('     without it the button rests on the emptier side of your page.');
   say('  3. In a single-page app, stop its links reloading the page. In your own code:');
   say("       window.addEventListener('nextgen:navigate', (event) => {");
   say('         event.preventDefault();');
   say('         router.navigate(event.detail.route);');
   say('       });');
-  say('  4. Photos and files. The box has a paperclip (and a camera, on a phone). What a visitor attaches');
-  say('     never leaves their device: it reaches YOUR page as an event, and nothing else. If the app can');
-  say('     use one — an upload form, an inbox — take it; if not, turn the buttons off:');
+  say('  4. Optional: photos and files. Off unless you turn it on, because most apps have nowhere to send');
+  say('     one. What a visitor attaches never leaves their device: it reaches YOUR page as an event, and');
+  say('     nothing else. If the app can use one — an upload form, an inbox — add data-nextgen-attach="on"');
+  say('     to the script tag (a paperclip, and a camera on a phone), and take the files in your own code:');
   say("       window.addEventListener('nextgen:attach', (event) => {");
   say('         const { files, utterance, route } = event.detail;   // File objects, what they typed, where they were');
   say('         event.preventDefault();                             // tells the visitor the app took it');
   say('       });');
-  say('     or  data-nextgen-attach="off"  on the script tag. Files are validated (type, size, count); the');
-  say("     page should still check what it is given — a file's name and type are the visitor's, not ours.");
-  say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
+  say('     Files are checked (type, size, count), but the page should still check what it is given: a');
+  say("     file's name and type are the visitor's, not ours.");
+  say(`  Never serve ${shown(join(kit, REVIEW_DIR))}. Its master.json lists every screen with every role.`);
   say();
 
   // Checks in the adopter's own project that would trip over this folder (readiness item 4).
@@ -336,5 +340,22 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   } else {
     say(warnings.length > 0 ? 'Built. Read the warnings above before you ship.' : 'Built, and nothing needs fixing.');
   }
+
+  // 8. What to do next, in order, from the state this build is in. Everything above is the detail;
+  // this is what someone who reads nothing else should still get right.
+  const steps: string[] = [];
+  if (problems.length > 0) steps.push(`Fix the PROBLEMS above, then run "${tool} build ${here}" again.`);
+  const guessed = detect?.findings.filter((f) => !f.confident).length ?? 0;
+  if (guessed > 0) steps.push(`Check the ${guessed} GUESSED line(s) at the top in ${CONFIG_FILE}; correct any that are wrong.`);
+  if (knowledge && knowledge.gaps > 0) {
+    steps.push(`Answer review/KNOWLEDGE-GAPS.md into knowledge.json (${knowledge.gaps} question(s)), then build again.`);
+  }
+  if (!record.calibrated) steps.push('Calibrate on real questions (see "How confident the assistant is allowed to be").');
+  steps.push(`Try it before wiring anything in: ${tool} preview ${here}`);
+  steps.push('Add the script line to your page ("How to put it in your app", step 2).');
+  say();
+  say('Next steps');
+  steps.forEach((step, i) => say(`  ${i + 1}. ${step}`));
+  say();
   return { ok: problems.length === 0, text: lines.join('\n') };
 }

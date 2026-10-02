@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { defineBoundary, defineCapability, defineRegistry } from './define.ts';
 import { validateRegistry } from './validate.ts';
 import { capabilityDocument, generateGoldenEntries, generateRouteTable } from './codegen.ts';
-import { isCapabilityKind, isExecutableKind } from './types.ts';
+import { isCapabilityKind, isExecutableKind, isLocaleParam } from './types.ts';
 import type { Capability, ExtractedRule, RegistryFile } from './types.ts';
 
 const ex = (n: number) => Array.from({ length: n }, (_, i) => `phrasing number ${i + 1}`);
@@ -134,6 +134,24 @@ describe('validateRegistry — route and param coherence', () => {
   it('accepts a required path parameter', () => {
     const c = ok({ id: 'budget.detail', route: '/budget/:id', params: { id: { type: 'string', required: true } } });
     expect(rules(registryOf(c))).not.toContain('route-param-declared');
+  });
+
+  // An i18n router's prefix (next-intl `[locale]`) is filled from the page the visitor is on, never
+  // asked of them, so the generator does not declare it. Demanding it failed `doctor` on every screen
+  // of a locale-routed app (judo_app rehearsal, 2026-09-22).
+  it('accepts an undeclared locale prefix, which the page fills', () => {
+    for (const route of ['/:locale/portal', '/:lang/auth/login', '/:locale?/about', '/:LNG']) {
+      expect(rules(registryOf(ok({ id: 'portal.overview', route })))).not.toContain('route-param-declared');
+    }
+  });
+
+  it('still rejects an undeclared parameter after a locale prefix', () => {
+    expect(rules(registryOf(ok({ id: 'budget.detail', route: '/:locale/budget/:id' })))).toContain('route-param-declared');
+  });
+
+  it('knows a locale parameter by name, with or without its colon and optional mark', () => {
+    for (const name of ['locale', ':locale', ':lang?', 'Language', 'lng']) expect(isLocaleParam(name)).toBe(true);
+    for (const name of ['id', ':childId', 'locales', 'slang', ':localeId']) expect(isLocaleParam(name)).toBe(false);
   });
 
   it('rejects a param naming an enum the registry does not declare', () => {

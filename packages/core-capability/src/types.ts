@@ -60,6 +60,20 @@ export interface ParamSpec {
 }
 
 /**
+ * The parameter an i18n router puts in front of every route: next-intl's `[locale]`, `[lang]`.
+ *
+ * It is not a slot. The visitor never supplies it — the widget fills it from the page they are on — so
+ * a route may carry it without declaring it in `params`. One definition, read by the validator, the
+ * generator and the widget, so the three cannot disagree about which names it covers.
+ */
+const LOCALE_PARAM = /^:?(?:locale|lang|language|lng)\??$/i;
+
+/** True for a locale route parameter, named with or without its `:` and optional `?`. */
+export function isLocaleParam(name: string): boolean {
+  return LOCALE_PARAM.test(name);
+}
+
+/**
  * An example utterance.
  *
  * Per architecture.md the examples block "is not documentation. It is the test

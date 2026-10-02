@@ -1,9 +1,11 @@
 import { relative } from 'node:path';
 
+import { isLocaleParam } from '@nextgen/core-capability';
+
 import { discoverRoutes, importResolver } from './discover.ts';
 import { readManifests, readSourceLabels, readTranslations, translate, type Translations } from './labels.ts';
 import { EMPTY_FACTS, readLocalScreen, readScreen } from './pages.ts';
-import { synthesiseId, routeSegments, featureOf, LOCALE_PARAMETER } from './ids.ts';
+import { synthesiseId, routeSegments, featureOf } from './ids.ts';
 import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
 import {
@@ -550,7 +552,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       skipped.push({
         path: route.path,
         reason: 'unresolved-roles',
-        detail: `role guard ${route.roleKey ? `"${route.roleKey}" ` : ''}could not be evaluated — omitted rather than guessed (Rule 17)`,
+        detail: `role guard ${route.roleKey ? `"${route.roleKey}" ` : ''}could not be evaluated — omitted rather than guessed, so no role is shown a screen it cannot open`,
       });
       continue;
     }
@@ -675,7 +677,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     // on — so it is not a slot the router may find "missing" (it made every screen of a locale-routed app
     // a question, "sign in" included). It stays in the route.
     const parameters = routeSegments(route.path)
-      .filter((segment) => segment.startsWith(':') && !LOCALE_PARAMETER.test(segment))
+      .filter((segment) => segment.startsWith(':') && !isLocaleParam(segment))
       .map((segment) => segment.slice(1));
     const dictionary = translations.get(config.languages[0] ?? 'en');
     const language = config.languages[0] ?? 'en';

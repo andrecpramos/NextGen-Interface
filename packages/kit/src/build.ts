@@ -28,7 +28,7 @@ import {
 } from '@nextgen/generator';
 
 import { knowledgeQuestions } from './knowledge-report.ts';
-import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, stripBom } from './paths.ts';
+import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, self, stripBom } from './paths.ts';
 
 /**
  * The shape of `bundle/thresholds.hashing.json`'s `stage3` field (WP-52, ADR-017).
@@ -109,7 +109,7 @@ export interface BuildRecord {
 export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: string } {
   const file = join(resolve(kitDir), CONFIG_FILE);
   if (!existsSync(file)) {
-    throw new Error(`No ${CONFIG_FILE} in ${resolve(kitDir)}. Run "node scan.mjs init <your app folder>" first.`);
+    throw new Error(`No ${CONFIG_FILE} in ${resolve(kitDir)}. Run "${self()} init <your app folder>" first.`);
   }
   const config = JSON.parse(stripBom(readFileSync(file, 'utf8'))) as GeneratorConfig;
   // Relative to the config file, not to wherever the command was run from.

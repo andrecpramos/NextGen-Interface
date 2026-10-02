@@ -14,7 +14,7 @@ import {
   type Scorer,
 } from '@nextgen/core-intent/calibrate';
 
-import { BUNDLE_DIR, CALIBRATION_FILE, stripBom } from './paths.ts';
+import { arg, BUNDLE_DIR, CALIBRATION_FILE, self, shown, stripBom } from './paths.ts';
 
 /**
  * `nextgen calibrate`: Rule 14 for an application this repository has never seen.
@@ -91,14 +91,14 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
   const kit = resolve(kitDir);
   const bundle = join(kit, BUNDLE_DIR);
   if (!existsSync(bundle)) {
-    throw new Error(`No ${BUNDLE_DIR}/ in ${kit}. Run \`node scan.mjs build ${kitDir}\` first: calibration needs the registries.`);
+    throw new Error(`No ${BUNDLE_DIR}/ in ${kit}. Run \`${self()} build ${arg(shown(kit))}\` first: calibration needs the registries.`);
   }
 
   const golden = readGolden(resolve(goldenFile));
   if (golden.length === 0) throw new Error(`${goldenFile} is empty.`);
 
   const registryFiles = readdirSync(bundle).filter((f) => /^registry\..+\.json$/.test(f));
-  if (registryFiles.length === 0) throw new Error(`No registry.*.json in ${bundle}. Run \`node scan.mjs build\` first.`);
+  if (registryFiles.length === 0) throw new Error(`No registry.*.json in ${bundle}. Run \`${self()} build ${arg(shown(kit))}\` first.`);
   const roles = registryFiles.map((f) => f.replace(/^registry\.(.+)\.json$/, '$1'));
 
   // One embedder per registry. A shared, re-fitted encoder leaves every registry
@@ -154,7 +154,7 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
       `Only ${entries.length} usable turn(s); calibration needs at least ${MINIMUM_ENTRIES}.\n` +
         '  A sweep over a handful of turns fits noise, and the held-out numbers that would\n' +
         '  tell you so are themselves too small to believe. Keep the default profile until\n' +
-        '  you have more — `node scan.mjs doctor` says plainly that it is not yours.',
+        `  you have more — \`${self()} doctor\` says plainly that it is not yours.`,
     );
   }
 
@@ -250,7 +250,7 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
     '',
     ...warnings.flatMap((w) => [`  ! ${w}`, '']),
     `  Wrote ${file}`,
-    `  It is used from the next \`node scan.mjs build ${kitDir}\` onward — build again, then doctor.`,
+    `  It is used from the next \`${self()} build ${arg(shown(kit))}\` onward — build again, then doctor.`,
     '',
   ];
 

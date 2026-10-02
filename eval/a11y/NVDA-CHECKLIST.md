@@ -16,8 +16,12 @@ judgement about what a person hears, sees or can reach.
 - Turn the **speech viewer** on (NVDA menu → Tools → Speech viewer). It prints
   what NVDA says, so you can copy the words into the "heard" column instead of
   remembering them.
-- Put the widget on a page: run `node <tool>/scan.mjs preview` on an app the tool has built, or drop
-  the kit's `nextgen` folder into an app and add the one-line script tag.
+- Put the widget on a page. In this repository: `pnpm preview`, then open
+  `http://127.0.0.1:4173/dashboard?role=PARENT` — the mock app, with the real widget, in Portuguese and with
+  attachments turned on. (On an adopter's app: `node <tool>/scan.mjs preview`.)
+- **What you are testing** (rewritten 2026-09-22; the first version of this list described the old inline
+  search box): a round button in a corner of the page — the orb — which opens a full-screen dialog with a
+  greeting, a conversation and a question box at the bottom.
 - **Keep your hands off the mouse for the whole pass.** If you reach for it, that
   is itself a finding — write down what made you reach.
 
@@ -31,24 +35,24 @@ down what you heard and it matches the "should".
 
 | # | Do this | It should | Heard / saw | ✅ / ❌ |
 |---|---|---|---|---|
-| 1 | `Tab` from the top of the page until you reach the assistant | Announce a labelled search: the words "Ask where to go" (or Portuguese "Pergunte para onde quer ir"), that it is an edit field, and that it is in a search region | | |
-| 2 | Count the tab stops it took | Be the same number before and after the widget is on the page, plus two (the field and the button). The widget must not reorder the host page | | |
-| 3 | Type a question and press `Enter` — do **not** click | Submit. You should never need the button | | |
-| 4 | Listen while it is working | Say nothing, or say "Looking…" once. It must not chatter or repeat | | |
-| 5 | Listen when the answer lands | Read the answer **without you doing anything** — this is the `aria-live` region. If you had to go looking for it, that is ❌ | | |
-| 6 | Ask something ambiguous ("jogos", "calendar") | Announce a list, and say **how many** items are in it | | |
-| 7 | `Tab` to a choice and press `Enter` | Go to that screen. `Shift+Tab` back — you should be able to leave the list | | |
-| 8 | Ask a question, and while it is still working `Tab` into the **previous** answer's links. Let the new answer land | Put you back in the question field — not at the top of the page. *(This is the defect the automated run found. It is fixed; this item is here to confirm it with a real screen reader.)* | | |
-| 9 | Press `Escape` in the question field | Clear the field and the answer, and leave you in the field | | |
-| 10 | Ask for something the app cannot do ("book me a flight") | State the limit as a fact, in one sentence. It must not apologise in a loop or read like an error | | |
-| 11 | `Insert+F7`, then "Landmarks" | List the host page's landmarks. The widget adds a search region and must not add a second `main` or steal the page's heading structure | | |
-| 12 | Look at the screen: `Tab` through every control | Show a **visible** focus ring on each — 3px, high contrast. Nothing may be focusable with no visible ring | | |
-| 13 | Windows Settings → Accessibility → Contrast themes → apply **Night sky** (or any) | The widget follows it: readable text, visible borders, visible focus. It paints in system colours, so this should work — it has never been looked at | | |
+| 1 | `Tab` from the top of the page until you reach the assistant | Announce **one button**, "Abrir o assistente" ("Open the assistant"), collapsed. It is the last stop on the page; the widget must not reorder the host page's own stops | | |
+| 2 | Press `Enter` on it | Open a **dialog**, announced by its name "Pronto quando quiser." and its description ("Diga o que quer fazer, por palavras suas…"), with you in the question box, which is announced as "Pergunte para onde quer ir", an edit field | | |
+| 3 | Type a question and press `Enter` — do **not** reach for the send button | Submit. You should never need the button | | |
+| 4 | Listen while it is working | Say "A procurar…" ("Looking…") once, or nothing. It must not chatter or repeat | | |
+| 5 | Listen when the answer lands | Read the answer **without you doing anything** — the conversation is a log that announces what is added. If you had to go looking for it, that is ❌ | | |
+| 6 | Ask something ambiguous ("jogos", "calendário") | Announce the two options as a list, and say **how many** items are in it, each with what it is for | | |
+| 7 | `Tab` to an option and press `Enter` | Go to that screen. Before that, `Shift+Tab` back up — you should be able to leave the list | | |
+| 8 | Ask a question, and while it is still working `Tab` into the **previous** answer's links. Let the new answer land | Leave you where you were: earlier answers stay in the conversation, so nothing is removed from under you, and focus is not thrown to the top of the page | | |
+| 9 | Keep pressing `Tab`, then `Shift+Tab`, all the way round | Stay **inside the dialog**, wrapping from the send button to the menu button and back. Nothing on the page behind it may be reached | | |
+| 10 | Ask for something the app cannot do ("quero pagar a mensalidade", "book me a flight") | State the limit as a fact, in one sentence, then what it *can* do. It must not apologise in a loop or read like an error | | |
+| 11 | Press `Escape` | Close the dialog and put you back on the orb button, now announced collapsed. With the menu open, the first `Escape` closes only the menu | | |
+| 12 | Look at the screen: `Tab` through every control in the dialog, and the orb outside it | Show a **visible** focus ring on each — 2px, in the page's accent colour. Nothing may be focusable with no visible ring. (Mouse users see "Pergunte para onde quer ir" beside the orb on hover; keyboard focus shows it too — it is hidden from NVDA, which already hears the button's name) | | |
+| 13 | Windows Settings → Accessibility → Contrast themes → apply **Night sky** (or any) | The widget follows it: solid system colours instead of glass, readable text, visible borders and focus, the primary buttons in the highlight colour | | |
 | 14 | Browser zoom to **200%**, then 400% | Stay usable, no horizontal scrolling to read, nothing clipped or overlapping | | |
-| 15 | Windows Settings → Accessibility → Visual effects → **Animation effects off**. Use the widget | Behave identically. Nothing fades, slides or moves | | |
-| 16 | Measure the field, button and each link (any on-screen ruler, or zoom and eyeball) | Be at least 48×48 CSS px | | |
+| 15 | Windows Settings → Accessibility → Visual effects → **Animation effects off**. Use the widget | Behave identically, with nothing fading, sliding or pulsing. (The orb still draws, but does not animate) | | |
+| 16 | Measure the question box, each button and each option (any on-screen ruler, or zoom and eyeball) | Be at least 48×48 CSS px on a desktop. On a phone-width screen the four buttons beside the box are 44×44 by design, so the box stays wide enough to type in — note it, do not fail it | | |
 | 17 | On a phone, or Chrome DevTools device mode with TalkBack/VoiceOver if you have it | Work. Note honestly if untested — mobile screen readers are a different pass | | |
-| 18 | *(added 2026-09-21)* `Tab` to the paperclip, and on a phone the camera | Announce "Attach a photo or file" (and "Take a photo") as buttons. The hidden file inputs must **not** be announced or take a tab stop | | |
+| 18 | *(added 2026-09-21)* `Tab` to the paperclip, and on a phone the camera. Then `Shift+Tab` | Announce "Anexar uma foto ou ficheiro" (and "Tirar uma fotografia") as buttons. The hidden file inputs must **not** be announced or take a tab stop. `Shift+Tab` goes back one control — it must not jump to the send button (a defect fixed 2026-09-22) | | |
 | 19 | Press `Enter` on the paperclip and choose a photo and a PDF | The system file dialog opens. Back in the widget, hear "2 files attached" without going looking for it, and reach each chip's "Remove <name>" button with `Tab` | | |
 | 20 | Attach a fifth file, or a `.exe` | Hear why it was refused, in a sentence with the real limit in it — not silence, and not a generic error | | |
 | 21 | Send a message with an attachment | The visitor's own message lists the file names (a photo has no visible name, so its name must be read), and the answer says whether the app took it or it stayed on the device | | |
@@ -60,9 +64,11 @@ Items 12–16 are the ones **no automated check in this repository can make**, a
 they are here for that reason:
 
 - **Colour contrast.** The automated run reports it as *incomplete*, not *pass*.
-  jsdom computes no layout and no cascade, and the widget paints in system
-  colours (`Canvas`, `CanvasText`, `LinkText`, `Highlight`) — whose values are
-  the user's, not this code's. Only a real browser at real settings can judge it.
+  jsdom computes no layout and no cascade, and the widget's glass is computed from
+  the host page's own colours, blurred over whatever is behind it — so only a real
+  browser can judge it. It was sampled once on the real pixels in Edge (every label
+  ≥ 4.96:1 dark, ≥ 5.09:1 light, 2026-09-21); your eyes at your settings are the
+  check that counts. In a contrast theme it switches to system colours (item 13).
 - **Announcement order and interruption.** Whether a live region interrupts, and
   in what order two changes are read, is a screen-reader behaviour. axe checks
   that the region is correctly marked, never how it sounds.

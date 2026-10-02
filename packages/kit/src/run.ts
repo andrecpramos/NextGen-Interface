@@ -5,6 +5,7 @@ import { build } from './build.ts';
 import { calibrate } from './calibrate.ts';
 import { init } from './detect.ts';
 import { doctor } from './doctor.ts';
+import { arg, self, shown } from './paths.ts';
 import { preview } from './preview.ts';
 import { report } from './report.ts';
 
@@ -81,7 +82,7 @@ export async function run(): Promise<number> {
     console.log('  Anything marked GUESSED can be corrected in that file.');
     console.log('\n  If an AI agent is running these next steps: read AGENTS.md, in the folder this');
     console.log('  tool came from, first. It lists the decisions that are the developer\'s to make.');
-    console.log(`\n  Next: node scan.mjs build ${result.kitDir}\n`);
+    console.log(`\n  Next: ${self()} build ${arg(shown(result.kitDir))}\n`);
     return 0;
   }
 
@@ -109,7 +110,11 @@ export async function run(): Promise<number> {
     if (record.stage3) {
       console.log(`  Stage 3 is ON: unsettled turns will POST to "${record.stage3.path}" on your own origin.`);
     }
-    console.log(`  Next: node scan.mjs doctor ${kit}\n`);
+    // Exit 1 alone is invisible to a person: say it, and say where the reason is.
+    if (record.invalid.length > 0) {
+      console.log(`  ! ${record.invalid.length} role file(s) failed validation. Do not serve this build: doctor says why.`);
+    }
+    console.log(`  Next: ${self()} doctor ${arg(shown(kit))}\n`);
     return record.invalid.length > 0 ? 1 : 0;
   }
 

@@ -31,8 +31,8 @@ cp -r path/to/AI-Interface/adapter  your-app/nextgen-tool
 ```
 
 It is about 4 MB and it is a tool, not application code. **Commit it**, so your CI and your
-teammates have exactly the version you used. It has no version number: what identifies it is
-the commit of this repository you copied it from.
+teammates have exactly the version you used. `VERSION` inside it identifies the build (it is not a
+release number), and `doctor` prints it on its first line: quote it when you report a problem.
 
 ## 2 · Generate
 
@@ -50,7 +50,10 @@ node nextgen-tool/scan.mjs doctor nextgen
 - **`build`** writes `nextgen/bundle/`, which you will serve, and `nextgen/review/`, which
   you never serve.
 - **`doctor`** tells you what it read, what it left out and why, and the exact line to add
-  to your page. **Read all of it.**
+  to your page. **Read all of it.** It ends with a numbered "Next steps" list for the state your
+  build is in.
+
+Every command prints the next one, written to run from where you are.
 
 **Next.js, Remix, SvelteKit or Nuxt with role-restricted screens?** The tool cannot see roles
 in a folder layout, so add them to the config by path prefix, then build again:
@@ -91,9 +94,11 @@ Optional attributes:
 
 | Attribute | What it does |
 |---|---|
+| `data-nextgen-base` | where you serve the files, if not the folder `nextgen.js` came from |
 | `data-nextgen-target` | a CSS selector to place the box inside, instead of a corner |
-| `data-nextgen-position` | `bottom-right` (the default), `bottom-left`, `top-right` or `top-left` |
+| `data-nextgen-position` | which side the button rests on: `bottom-right`, `bottom-left`, `top-right` or `top-left`. By default, the emptier side of your page |
 | `data-nextgen-lang` | the box's language; by default, your page's `<html lang>` |
+| `data-nextgen-attach` | `on` offers a paperclip (and a camera, on a phone). **Off by default** — see d. |
 
 **c. In a single-page app, keep navigation inside your router:**
 
@@ -104,12 +109,38 @@ window.addEventListener('nextgen:navigate', (event) => {
 });
 ```
 
+**d. Only if your app can use a file a visitor attaches** (an upload form, a claims inbox), add
+`data-nextgen-attach="on"` and take the files in your own code. Nothing attached ever leaves the
+visitor's device: the assistant does not read it or send it anywhere, it only hands it to your page.
+
+```js
+window.addEventListener('nextgen:attach', (event) => {
+  const { files, utterance, route } = event.detail; // File objects, what they typed, where they were
+  event.preventDefault();                           // tells the visitor your app took it
+});
+```
+
+Check what you are given: a file's name and type come from the visitor.
+
 ## 5 · Tune it to your app (recommended)
 
-Out of the box it uses general thresholds, and `doctor` says so. To tune them:
+Out of the box it knows each screen only by its title and the text on it, and it uses general
+thresholds. `doctor` says both. Two things fix that, in this order.
 
-1. Write at least 20 real questions into `questions.jsonl`, one per line. Include some your
-   app cannot answer, marked with `"route": null`:
+**a. Tell it what your app is for.** `build` writes `nextgen/review/KNOWLEDGE-GAPS.md`: the
+questions only you can answer — what each screen is for, the words your users say that never appear
+on a screen, and what the app cannot do. Write the answers into `nextgen/knowledge.json` (the shape is
+at the end of that file) and run `build` again. On the reference app this took the right screen from
+first place in 6 of 10 everyday questions to 9 of 10 — measured on a fixture, with answers written by
+the tool's author, so an upper bound until a real app confirms it. Write only what is true: every purpose you
+give is shown to visitors as fact. A coding agent will run this as an interview with you
+([adapter/AGENTS.md](../adapter/AGENTS.md), ASK 9).
+
+**b. Calibrate.**
+
+1. Write at least 20 real questions into `questions.jsonl`, one per line — not the phrases you
+   put in `knowledge.json`, or you measure memory, not understanding. Include some your app
+   cannot answer, marked with `"route": null`:
 
    ```json
    {"utterance": "where do I see the invoices?", "route": "/billing", "role": "ADMIN"}
@@ -127,8 +158,8 @@ Out of the box it uses general thresholds, and `doctor` says so. To tune them:
 
 - **Your routes change:** run `node nextgen-tool/scan.mjs build nextgen`, then `doctor`, again.
 - **A newer version of the tool:** delete `nextgen-tool/`, copy `adapter/` from the commit you
-  want in its place, and run `build` again. There is no version number to compare, only the
-  commit you copied from.
+  want in its place, and run `build` again. `VERSION` changes exactly when the tool does, so
+  comparing it tells you whether there is anything new.
 - **Removing it:**
   1. Delete the script line.
   2. Delete `nextgen/` and `nextgen-tool/`.

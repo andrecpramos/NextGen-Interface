@@ -90,7 +90,7 @@ writeFileSync(
 <head><meta charset="utf-8"><title>Clube — área do encarregado</title><script src="/probe.js"></script></head>
 <body>
 <main><h1>Área do encarregado</h1><p>Uma página do clube.</p></main>
-<script src="/nextgen/nextgen.js" data-nextgen-role="${ROLE}" defer></script>
+<script src="/nextgen/nextgen.js" data-nextgen-role="${ROLE}" data-nextgen-attach="on" defer></script>
 </body>
 </html>
 `,
