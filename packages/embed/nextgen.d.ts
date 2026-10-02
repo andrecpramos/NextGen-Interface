@@ -1,9 +1,9 @@
 // Types for `nextgen.js`, the NextGen Interface script tag — the part of its API an app calls.
 //
-// Copy this file beside your code, or reference it, to type `window.NextGen` (Pilot-A field report,
-// 2026-09-23, P2-1: an integrator had to read the minified bundle to find these). It is written by
-// hand and held to the real exports by `src/declarations.check.ts`: a change to the widget that this
-// file no longer describes fails the widget's own typecheck.
+// Copy this file beside your code, or reference it, to type `window.NextGen`, so nobody has to read
+// the minified bundle to find these. It is written by hand and held to the real exports by
+// `src/declarations.check.ts`: a change to the widget that this file no longer describes fails the
+// widget's own typecheck.
 
 export type Corner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
 
@@ -43,7 +43,7 @@ export interface TurnRecord {
   readonly capabilityId: string | null;
   readonly decidedAt: string;
   readonly candidates: readonly { readonly capabilityId: string; readonly score: number }[];
-  /** Asked to change something (Rule 20): `outcome` is `out_of_scope` and `capabilityId` the screen offered. */
+  /** Asked to change something, which it never does: `outcome` is `out_of_scope` and `capabilityId` the screen offered. */
   readonly changeRequest: boolean;
   /** Keyboard mashing, answered without routing (no candidates, no model). */
   readonly mashing: boolean;
@@ -139,7 +139,7 @@ export interface StartOptions {
   readonly companion?: Companion;
   readonly decide?: Decide;
   /**
-   * Asked to start something, what it does with the control that starts it (ADR-031): `'open'` (default)
+   * Asked to start something, what it does with the control that starts it: `'open'` (default)
    * presses it when it can only open something and points at it otherwise; `'point'` only points; `'off'`
    * neither. It never types, and never presses what saves, sends, pays or deletes.
    */

@@ -5,28 +5,25 @@ into someone else's application, on their behalf. Someone copied this folder int
 repository and gave you its path. Everything needed is here: no package to install, no
 registry to reach, no account, no network.
 
-**Say this to the developer before anything else: no model is used unless they turn on stage 3
-(ASK 8).** Without it the assistant matches questions against what the app declares, in the
-browser, and answers from fixed wording. Owners who imagine a generative assistant are
-disappointed by the first answer otherwise (Pilot-A field report, 2026-09-23). If the app already
-has a model-backed assistant of its own, ASK 6 merges it in.
+Tell the developer two things before anything else:
 
-**And say this right after: the developer can make it better for their own app, in six numbered
-steps** — "Make it smarter, or more careful — step by step", below. The first build is a starting
-point, not the ceiling; `doctor` shows which step is next.
+1. **No model is used unless they turn on stage 3 (ASK 8).** Without it the assistant matches
+   questions against what the app declares, in the browser, and answers from fixed wording.
+   Owners who expect a generative assistant are otherwise disappointed by its first answer. If
+   the app already has a model-backed assistant of its own, ASK 6 merges it in.
+2. **They can make it better for their own app, in six numbered steps** ("Make it smarter, or
+   more careful — step by step", below). The first build is a starting point, not the ceiling;
+   `doctor` shows which step is next.
 
-**The one rule this file asks of you:** each section below marked `ASK` is a decision that
-belongs to the developer, not to you. Put it to them in your own words, wait for an actual
-answer, and only then act on it — even if you are confident you already know what they
-will say. A default is suggested for each so you have something concrete to propose, not
-so you can skip asking.
+**The one rule this file asks of you:** each section marked `ASK` is a decision that belongs to
+the developer, not to you. Put it to them in your own words, wait for an actual answer, and only
+then act on it — even if you are confident you know what they will say. Each has a suggested
+default so you have something concrete to propose, not so you can skip asking. Say what you are
+about to do before you do it.
 
-This exists because of a real field test. An agent ran every step end to end, unattended,
-including editing the app's own `index.html` and `.gitignore`. Every individual step was
-defensible and the developer still came out of it feeling like a bystander in their own
-project. That is a bad trade even when it works.
-
-Say what you are about to do before you do it.
+This exists because, in a real field test, an agent ran every step unattended, including edits
+to the app's own `index.html` and `.gitignore`. Each step was defensible, and the developer still
+came out of it feeling like a bystander in their own project.
 
 ---
 
@@ -57,28 +54,25 @@ node <here>/scan.mjs teach nextgen --from lessons.jsonl           # later: what 
 `preview` serves every role's files at once so the developer can compare them. It binds to this machine
 only, and it is never how the bundle is served for real (see "Serving it").
 
-**There is a fifth step, and it is not a command: ASK 9, an interview.** Run it after the
-first `build` and before calibration. Read from the source alone, a screen is a title and a
-template sentence, so an ordinary question ("my son got hurt in training") does not find
-the medical screen. Only the developer knows what each screen is for and how their users
-talk. `build` writes `nextgen/review/KNOWLEDGE-GAPS.md` — the questions to ask them — and
-`doctor` says how much of the app is covered.
+**One step is not a command: ASK 9, an interview,** run after the first `build` and before
+calibration. Only the developer knows what each screen is for and how their users talk. `build`
+writes `nextgen/review/KNOWLEDGE-GAPS.md`, the questions to ask them, and `doctor` says how much
+of the app is covered.
 
 ### This tool does not reach the network — the widget it builds may, if you turn that on
 
-Two different things, and it matters which one you mean when you talk to the developer:
+Keep the two apart when you talk to the developer:
 
-**`scan.mjs` — what runs on your machine, right now.** Not "by default" — **at all**.
-There is no `--model` in this folder and no client for one in the bundle; `build --model`
-is refused with a reason. This is checked rather than claimed: the whole
-pipeline is run on every commit with `fetch`, `net`, `tls`, `http`, `https` and DNS all
-throwing, and it completes. Do not offer to "enable the model" for *description writing* —
-there is nothing to enable.
-
-**`runtime/nextgen.js` — what runs in a visitor's browser, later.** This is a separate
-question, ASK 8 below: whether *that* file, once served, may POST a turn it cannot settle
-to a path on the developer's **own** origin. Off unless `build --stage3 <path>` is run.
-Nothing about `scan.mjs`'s own no-network property changes either way.
+- **`scan.mjs`, on this machine: never — not "by default", at all.** There is no `--model` in
+  this folder and no client for one in the bundle; `build --model` is refused with a reason. This
+  is checked, not claimed: the whole pipeline is run on every commit with `fetch`, `net`, `tls`,
+  `http`, `https` and DNS all throwing, and it completes. Do not offer to "enable the model" for
+  writing descriptions. There is nothing to enable, and it would not help: on a real application,
+  model-written example phrasings routed *worse* than ones derived from the app's own labels,
+  because those repeat the screen's own words (`FIELD-NOTES.md` §4).
+- **`runtime/nextgen.js`, in a visitor's browser, later: only if ASK 8 says so.** Then it may POST
+  a turn it cannot settle to a path on the developer's **own** origin. It is off unless
+  `build --stage3 <path>` is run.
 
 **`doctor`'s full output goes to the developer — do not summarize it away.** It states
 plainly what was found, what was guessed, whether the assistant is calibrated for this
@@ -217,13 +211,13 @@ and the developer knows about all three:
   `inset: { x, y }`, and pick the side with `data-nextgen-position`. *Look* at the running app before
   choosing: one integration chose from reading code and covered the account menu.
 - **An assistant of its own** — a model-backed chat. Do not ship two assistants with two entry points. The
-  orb becomes the one entry point, and theirs is merged in (`companion`, ADR-026): what this assistant cannot
+  orb becomes the one entry point, and theirs is merged in (`companion`): what this assistant cannot
   place — a question about the app's data, one that matches no screen — and anything attached goes to theirs,
   and its answer appears in the same conversation under its own name; a button in the panel opens theirs
   whole, with its history and everything else it has; its own launcher is hidden while this one runs.
-  - **What theirs can *do*, give it first** (`companion.handOver(text, { route })`, ADR-038). The orb never
+  - **What theirs can *do*, give it first** (`companion.handOver(text, { route })`). The orb never
     acts: asked to cancel, move, pay or delete, it answers "I can't do that for you" and points at the
-    screen (Rule 20). If their assistant can prepare that change for this user, write a rule that claims
+    screen. If their assistant can prepare that change for this user, write a rule that claims
     it (for example `/\b(cancel|move|reschedule)\b/i`, only for roles whose tools can do it), plus
     questions of fact ("how many…", "who scored…"). A claimed question goes straight to theirs, with no
     routing and no model call of ours. Keep the rule cheap and synchronous: it runs on every question. Test
@@ -238,8 +232,8 @@ and the developer knows about all three:
 - **A guided tour** — "tutorial" or "visita guiada" said to the assistant starts it (`companion.tour`), and its
   prompt can be hidden the same way. **Several tours** (a role tour, a "what's new" tour): list them with
   `companion.tours(route)` → `[{ id, title, note? }]`, and the panel's **Tutorials** option shows them to pick
-  from; the pick comes back as `tour(route, id)` (ADR-033). The panel then has two tabs, **Chat** and
-  **Tutorials** (ADR-035); call the handle's `refresh()` whenever the app changes page with its own
+  from; the pick comes back as `tour(route, id)`. The panel then has two tabs, **Chat** and
+  **Tutorials**; call the handle's `refresh()` whenever the app changes page with its own
   router or a tour's progress changes, so the Tutorials view follows. The app's own tour menu can then go.
 
 Ask: *"Does this app already have UI in a screen corner, its own assistant, or a guided tour? I can place the
@@ -249,13 +243,9 @@ with token auth" below); say so, and wait for a yes.
 
 ## ASK 7 — Calibration
 
-**Descriptions are not a question here.** This folder derives them from the application's
-own labels — `scan.mjs` has no way to call a model at all, see "This tool does not reach
-the network" above. That is not a downgrade: measured on a real application, model-written
-example phrasings routed *worse* than derived ones, because the derived ones repeat the
-screen's own words and that is what the shipped encoder rewards (`FIELD-NOTES.md` §4).
-
-**Calibration is.** An uncalibrated build uses thresholds tuned on a small reference app.
+Descriptions are not a question here: they come from the app's own labels (see "This tool does
+not reach the network", above). **Calibration is.** An uncalibrated build uses thresholds tuned
+on a small reference app.
 `doctor` states the measured error rate for an app this size in plain words; read that to
 the developer rather than letting silence imply it is fine to ship.
 
@@ -267,10 +257,9 @@ There is deliberately **no** option to calibrate from the tool's own example que
 Measured on a real application, that made routing worse, not better.
 
 **A calibration made before 2026-09-23 is out of date.** The way a question is scored changed then
-(each screen is now compared with all of it *and* with its closest example; ADR-032). It understands
-more questions outright: 48 → 55 of 69 on the test app, with none wrongly refused. But thresholds
-swept under the old score no longer fit. If `nextgen/calibration.json` exists, run `calibrate` again
-with the same questions.
+(each screen is now compared with all of it *and* with its closest example), and thresholds swept
+under the old score no longer fit. If `nextgen/calibration.json` exists, run `calibrate` again with
+the same questions.
 
 ## ASK 8 — Turn on model-backed answers?
 
@@ -288,21 +277,19 @@ This is opt-in, off unless that flag is passed, and it is not a decision to make
   calls a model is something anyone loading the page can spend money or GPU time against.
   A reference proxy with basic rate limiting is in "Turn on model-backed answers" below —
   offer to wire it, do not silently assume they want it running unlimited.
-- **It never leaves their origin, structurally, not by promise.** The transport resolves
-  the configured path against the page it is running on and refuses to POST anywhere else
-  — checked on every commit of this tool, in its source repository, by building a bundle
-  with an off-origin path and confirming nothing is fetched. That check is not in this
-  folder; what the developer can verify here is the behaviour: build with `--stage3`, open
-  the browser's network panel, and see that the only POST goes to their own origin.
+- **It cannot leave their origin — by construction, not by promise.** The transport resolves
+  the path against the page it runs on and refuses to POST anywhere else; this tool's own
+  repository checks that on every commit. What the developer can verify here: build with
+  `--stage3`, open the browser's network panel, and see the only POST go to their own origin.
 
-**Recommend it when the developer can run a model** (the owner's decision, 2026-09-25): a
-model on their own GPU or a hosted one, behind their own server. Measured on the reference
+**Recommend it when the developer can run a model**: one on their own GPU or a hosted one,
+behind their own server. Measured on the reference
 fixture with qwen3:14b: the right screen for 92.7% of questions with it against 81.8%
 without, at about 0.9 s for a turn that needs it. Most turns never need it: they settle in
 the browser first. Without a model to run, the default is fine. Say so, and don't press.
 
 What it does not do, whatever the model says: it never moves the visitor for a request to
-change something (Rule 20). "Cancel tomorrow's session" is answered with where that is done,
+change something. "Cancel tomorrow's session" is answered with where that is done,
 not by opening the screen as if it were done.
 
 Ask: *"Right now, a question the assistant can't place gets a quick question back instead of
@@ -318,15 +305,13 @@ implementation (Express, with rate limiting) or already have their own preferenc
 ## ASK 9 — What does this app know that the scanner cannot? (the interview)
 
 This is the single biggest lever on whether the assistant feels intelligent, and the only
-one that costs the developer a conversation instead of a flag. Read from source alone,
-every screen is a title and a template sentence ("*Estado Médico is a screen in the
-guardian area of this application*"). The matcher can only recognise words that appear in
-the registry, so a question in ordinary words never reaches the screen it means. Measured
-on the reference app, writing down what a developer knows lifted the right screen from
-ranked-first in 6 of 10 everyday questions to 9 of 10, and the share of the golden set it
-acts on directly from 26% to 62%, with no screen executed wrongly. That was
-knowledge written by the author of the tool, not by a developer, on a fixture — the owner's
-run on a real application is the real test.
+one that costs the developer a conversation instead of a flag. Read from source alone, every
+screen is a title and a template sentence ("*Estado Médico is a screen in the guardian area of
+this application*"), and the matcher only recognises words that appear in the registry, so "my
+son got hurt in training" never reaches the medical screen. On the reference app, writing down
+what a developer knows lifted the right screen to first place in 9 of 10 everyday questions
+(from 6), with no screen opened wrongly. That knowledge was written by this tool's author, on a
+fixture; a real developer's answers are the real test.
 
 **Run this after the first `build` and before calibration (ASK 7).** Open
 `nextgen/review/KNOWLEDGE-GAPS.md`: `build` wrote it, and it lists what the tool does not
@@ -434,8 +419,10 @@ Two rules, and the first one is a security property rather than a preference.
 
 1. **Each signed-in user gets only their own role's `registry.<ROLE>.json` and
    `index.<ROLE>.json`.** A role's registry *is* its entitlement — a screen that role
-   cannot reach is absent from what it receives, not hidden in it. The role comes from
-   their session, never from the request.
+   cannot reach is absent from what it receives, not hidden in it. **The role comes from
+   their session, never from the request**: a role in a query string or a header is a role
+   the visitor chooses. A user who holds several roles is served each of their roles' files,
+   and the script tag names them all: `data-nextgen-role="COACH PARENT"`.
 2. **Never serve `review/`,** in any environment, for any reason.
 
 `nextgen.js` and `thresholds.hashing.json` go to everyone. The script tag uses no inline script or style, so a strict Content-Security-Policy is fine.
@@ -455,10 +442,6 @@ the app):
 
 It is also light at rest. The orb is drawn at the size it is shown and goes still after 12 s idle.
 Nothing animates while the panel is closed, and the start-up work waits until the browser is idle.
-
-**The role must come from the session, never from the request** — a role in a query string
-or a header is a role the visitor chooses. A user who holds several roles is served each of
-their roles' files, and the script tag names them all: `data-nextgen-role="COACH PARENT"`.
 
 **Express**, after the app's own session middleware:
 
@@ -547,14 +530,35 @@ The handle it resolves to is the whole API:
 | `setLanguage(tag)` | the app switched language without changing `<html lang>`: follow it (`'en'`, `'pt-PT'`) |
 | `refresh()` | the app changed page with its own router, or its tours changed: the Tutorials view reads them again |
 | `destroy()` | remove it — **call this on sign-out** |
+| `host` | the element it lives in |
+
+`start()` rejects with a `StartError` (`reason`: `bundle-unavailable`, `bundle-invalid` or
+`mount-failed`) and also announces it as `nextgen:error` on the window. **Never swallow it**
+with an empty `catch`: log it in development at least. One integration's `.catch(() => {})`
+turned a 404 into an hour of "there is no orb".
+
+**A user with several roles** (a coach who is also a parent): pass them all —
+`start(base, ['COACH', 'PARENT'])`, or `data-nextgen-role="COACH PARENT"` — and serve each of
+their roles' `registry.<ROLE>.json`. The widget merges them and computes the index for the merged
+registry itself. Do **not** merge them on the server by concatenating registries and indexes:
+each role's index is its own vector space, and a concatenated one routes confidently to the wrong
+screens. A phrase two roles' screens both claim ("nutrição") names neither; the assistant asks.
+
+**Types.** `runtime/nextgen.d.ts` types `window.NextGen`, the options above, the handle, and the
+`nextgen:error`, `nextgen:learn`, `nextgen:turn`, `nextgen:navigate` and `nextgen:attach` events. Copy it beside the
+app's code if it uses TypeScript.
+
+## What it does on the page
+
+This holds however it is started, script tag or `start()`.
 
 **One language on screen.** The visitor reads the page's language only — the assistant's words and the
 app's screen names and descriptions alike. For that, list **every** language the app ships in
 `nextgen.config.json` (`"languages": ["pt-PT", "en"]`, the main one first): the registry is written in the
 first and carries the others. A page in a language not listed gets English if it is listed, otherwise
-the first. The assistant itself speaks English (the default) and Portuguese.
+the first.
 
-**It uses the app as a user would** (ADR-031). Asked to *start* something — *"I want to schedule an
+**It uses the app as a user would.** Asked to *start* something — *"I want to schedule an
 event"*, *"quero adicionar um jogador"* — it goes to the right screen, finds the control that starts
 it by what the page shows (its accessible name, like a screen reader does), and:
 
@@ -584,23 +588,6 @@ to the page as `nextgen:turn` (`{ trace }`: how it decided, what it weighed, the
 tune — `window.addEventListener('nextgen:turn', (e) => console.debug(e.detail.trace))` — or build your
 own "why" for staff from it. It holds the visitor's own question: do not forward it to analytics or any
 third party without the app's privacy terms allowing it.
-| `host` | the element it lives in |
-
-`start()` rejects with a `StartError` (`reason`: `bundle-unavailable`, `bundle-invalid` or
-`mount-failed`) and also announces it as `nextgen:error` on the window. **Never swallow it**
-with an empty `catch`: log it in development at least. One integration's `.catch(() => {})`
-turned a 404 into an hour of "there is no orb".
-
-**A user with several roles** (a coach who is also a parent): pass them all —
-`start(base, ['COACH', 'PARENT'])`, or `data-nextgen-role="COACH PARENT"` — and serve each of
-their roles' `registry.<ROLE>.json`. The widget merges them and computes the index for the merged
-registry itself. Do **not** merge them on the server by concatenating registries and indexes:
-each role's index is its own vector space, and a concatenated one routes confidently to the wrong
-screens. A phrase two roles' screens both claim ("nutrição") names neither; the assistant asks.
-
-**Types.** `runtime/nextgen.d.ts` types `window.NextGen`, the options above, the handle, and the
-`nextgen:error`, `nextgen:learn`, `nextgen:turn`, `nextgen:navigate` and `nextgen:attach` events. Copy it beside the
-app's code if it uses TypeScript.
 
 ## Make it smarter, or more careful — step by step
 
@@ -670,7 +657,7 @@ token budget reasoning, and its answer is cut off before the JSON closes. Pass `
 is: it asks only for the fields this turn reads, and the proxy should not add any. It decides which model to call and how; this
 tool never assumes a provider. The reference below is Express, with rate limiting, because
 an unauthenticated endpoint that calls a model is something anyone loading the page can
-spend money or GPU time against — ADR-017's own warning, not a hypothetical:
+spend money or GPU time against:
 
 ```js
 import path from 'node:path';
@@ -737,7 +724,7 @@ Out of the box the microphone works only where the browser recognises speech **o
 For most languages that is almost nowhere: Brave has the API with nothing behind it, Firefox has
 none, and Chrome and Edge send audio to Google or Microsoft unless an on-device pack is installed.
 The orb never uses a cloud recogniser: a visitor's voice must not reach a vendor the app has no
-agreement with (Rule 8).
+agreement with.
 
 `transcribe` changes that. What a visitor says is recorded, sent to **a path on the developer's own
 site**, and turned into text by a speech-to-text server they run. A path on another site is
@@ -793,16 +780,17 @@ phones included. Want that?"*
   when one screen is plainly ahead, "Do you mean Plantel, or Convocatória?" when two are close;
   "yes" or "the second one" answers it. That is one reply more than a perfect guess, and a
   question moves nobody to a wrong place. It does move on its own when it is sure, and sure is
-  not always right: on the reference app, 1 of 55 in-scope questions opened a neighbouring screen
-  instead of the one expected. `decide: 'confirm'` removes even that; `'eager'` trades more of it
+  not always right: on the reference app it now opens no wrong screen, but those questions were
+  written by this tool's author, so expect a few on a real app. `decide: 'confirm'` removes even that; `'eager'` trades more of it
   for fewer questions. With stage 3 on (ASK 8), or the app's own assistant merged in (ASK 6), fewer
   turns end in a question back. The better the answers to ASK 9, the fewer questions it has to ask.
 - **It moves at once, and is silent unless asked.** A clear request opens the screen straight
   away, with the chat panel still open beside it. Answers are read aloud only once the visitor
   turns the speaker on, or talks to it hands-free.
-- **It does not decline everything it should.** Roughly half of out-of-scope requests are
-  declined; the rest become clarifying questions. None are executed. `FIELD-NOTES.md` §5
-  explains why, and what to do about it.
-- **It performs no actions.** It moves between screens and shows links. It does not save,
-  send or delete anything.
+- **It does not decline everything it should.** On an app whose limits nobody described, about
+  half of out-of-scope requests are declined; with limits written down in ASK 9, the reference app
+  declines 10 of 14. The rest become clarifying questions, and none are carried out.
+  `FIELD-NOTES.md` §5 explains why, and what to do about it.
+- **It changes nothing.** It moves between screens, shows links, and may open a form the visitor
+  asked to start. It never saves, sends, pays or deletes anything.
 - **Every screen it can reach stays reachable without it.** That one is not negotiable.
