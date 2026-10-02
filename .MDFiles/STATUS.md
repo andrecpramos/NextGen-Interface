@@ -1,7 +1,8 @@
 # Status
 
-**As of 2026-09-25, branch `feature/assistant-understanding`** (uncommitted work on it; earlier:
-`feature/ship-readiness-review`, PRs #38–#40). One page. If it disagrees with the code,
+**As of 2026-10-02, branch `feature/assistant-understanding`.** It is pushed, and it is PR
+[#41](https://github.com/andrecpramos/AI-Interface/pull/41), stacked on #40; see row 8 for the
+merge order. One page. If it disagrees with the code,
 the code wins and this page is the bug. The plan, the rules and the full work-package log are
 in [PLAN.md](PLAN.md); this is what you read first.
 
@@ -9,7 +10,7 @@ in [PLAN.md](PLAN.md); this is what you read first.
 
 From the first production integration's findings (a 130-screen pt-PT app on qwen3:14b), and the owner's
 decisions in session. **Rules 18–20 added, Rule 8 reworded, Rules 5–6 marked dormant; ADR-025 to 033 and
-035 to 040 accepted; ADR-041 proposed.**
+035 to 041 accepted (034 superseded by 035).**
 
 - **Stage 3 asks only for what the turn reads** (Rule 18, ADR-036). It had also asked for `reasoning`,
   which nothing read, and for prose on every turn, and qwen3 reasoned first. **8 of 9 stage-3 turns on the
@@ -121,7 +122,7 @@ the adopter's is modified.
 | Runs | Where | Source | Ships as |
 |---|---|---|---|
 | **Scanner** — `init`, `build`, `doctor`, `calibrate` | once, on the adopter's machine | `kit` + `generator` | `adapter/scan.mjs` (3.6 MB, no dependencies) |
-| **Assistant** — the three-stage router and the widget | in each visitor's browser | `embed` + `core-intent` | `adapter/runtime/nextgen.js` (140 KB, 51.2 KB gzipped) |
+| **Assistant** — the three-stage router and the widget | in each visitor's browser | `embed` + `core-intent` | `adapter/runtime/nextgen.js` (173 KB, 62.8 KB gzipped; budget 70 KB) |
 
 `preview/` is a bench for judging the result and is never exported. `core-capability`,
 `core-inference` and `core-intent` are the engine both artefacts are built from, and sit below
@@ -129,14 +130,27 @@ everything else. No package is installable or published
 ([ADR-021](../.claude/decisions/ADR-021.md)). The structure and the one dependency rule are in
 [architecture.md](../.claude/docs/architecture.md).
 
-## What was verified today
+## What was verified, 2026-10-02
 
-Run on this branch, not quoted: typecheck clean; all unit tests pass; the Rule 1, egress,
-prompt-fencing and model-numerics gates; documentation links; registry validation;
-`adapter/` is current and **a copy of it runs in a directory with no `node_modules` and every
-network path throwing**; stage-3 interop; derived artefacts and thresholds; the accessibility
-audit of the built widget; the widget under a strict CSP in a real browser; the golden-set
-gate; and the bench in a headless browser.
+These were run on this branch at `ff330b8`, not quoted from earlier runs. **All 20 blocking
+gates in `sdlc.config.json` pass:**
+
+- typecheck is clean, and all 1,334 unit tests pass;
+- the Rule 1, egress, prompt-fencing and model-numerics gates;
+- documentation links and registry validation;
+- `adapter/` is current, and **a copy of it runs in a directory with no `node_modules` and
+  every network path throwing**;
+- stage-3 interop, derived artefacts and thresholds;
+- the accessibility audit of the built widget (41 checks);
+- the widget under a strict CSP in a real browser;
+- the golden-set gate and the scorecard comparison;
+- `pnpm audit`;
+- `adversarial-live` against three local models. It found no new violations, and `gs-0175`
+  and `gs-0181` now pass, so both can be removed from the baseline.
+
+`router-floor` still fails. It is non-blocking, and it runs against the legacy
+`eval/fixture-registry.json`. The bench in a headless browser (`preview:check`) was not run
+this time.
 
 **Run against a model server on 2026-09-21** (Ollama was reachable): `adversarial-live` — which had been
 reporting OK without running; repaired, and its first real run recorded one new violation, `gs-0175`,
@@ -183,8 +197,14 @@ Quoted from the repository, not re-measured today.
   limit sharing a word-fragment with a real screen — now golden entry `fam-0069`. It is not yet a
   field result: FIELD-NOTES §4 found the opposite for model-written *replacement* phrasing on a real
   app, and the golden set is easy. The interview that produces the file is `adapter/AGENTS.md` ASK 9.
-- **Routing quality**, on the reference fixture with no model: 0% sent to a wrong screen, 3.7%
-  of in-scope questions wrongly refused, 50% of out-of-scope requests refused
+- **Routing quality**, on the reference fixture with no model, re-measured 2026-10-02:
+  - 0% sent to a wrong screen;
+  - 70.9% sent straight to the right one;
+  - 0% of in-scope questions wrongly refused;
+  - 71.4% of out-of-scope requests refused.
+
+  These include the fixture's author-written `knowledge.json`. Before it existed, the figures
+  were 3.7% of in-scope questions wrongly refused and 50% of out-of-scope requests refused
   ([README](../README.md)). For most questions it *offers* two screens rather than deciding
   (three until 2026-09-21: the right screen was among the first two in 21 of the 21 fixture turns
   the router would not act on, and a visitor who knows nothing of the app cannot rank three
@@ -196,14 +216,14 @@ Quoted from the repository, not re-measured today.
 
 | | Item | Who |
 |---|---|---|
-| 1 | **The owner's acceptance run** on a real application ([ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md), WP-35). Also the first time anyone but the author uses it, and the first measurement of the 15.7% on real questions. **It should include the interview (ASK 9) with the real developer answering** — the one thing the fixture numbers cannot show | **owner** |
+| 1 | **The owner's acceptance run** on a real application ([ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md), WP-35). Also the first time anyone but the author uses it, and the first measurement of the 15.7% on real questions. **It should include the interview (ASK 9) with the real developer answering** — the one thing the fixture numbers cannot show. **Partly done on 2026-09-23.** The first real integration was Pilot-A (130 screens, 10 roles, pt-PT). It was integrated by an agent and used by the owner, and its field report produced ADR-026 to ADR-041. It has not yet produced any real visitors' questions, a calibration on them, or the 15.7% measured on real use. Whether this run closes WP-35 is the owner's call | **owner** |
 | 2 | **The screen-reader pass** ([NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md), about 15 minutes). Until then the claim is *"automated checks pass; no screen reader has confirmed it"* | **owner** |
 | 3 | ~~Accept or reject ADR-021~~ — **done 2026-09-22: accepted by the owner in session** ([ADR-021](../.claude/decisions/ADR-021.md), retiring the tarball path and repointing Rule 1) | done |
 | 4 | ~~Decide whether Rules 5 (dispatcher policy) and 6 (money) stay~~ — **decided 2026-09-25: kept as dormant tripwires**, marked "DORMANT until WP-48" in PLAN.md §2 and in the register, so no one cites them as protections | done |
 | 5 | `core-capability` exports code for hand-declared capabilities that nothing outside it calls (23 of its 41 exports are used by no production code outside the package). Removing it changes the engine's public surface, so it waits on a decision about the capability ladder | **owner** |
 | 6 | ~~`adapter/` carries no version~~ — **done 2026-09-21:** `adapter/VERSION`, an id of the two shipped files (their hashes; no date, so the staleness check stays a byte comparison), printed on `doctor`'s first line. It identifies a *build*, not a release number: there is still no release process, and no one has been given a release to name | done |
 | 7 | WP-48, the prompt-injection defence — must land **before** any `write` or `destructive` capability ships | deferred, hard trigger |
-| 8 | ~~Push and open the PRs~~ — **done 2026-09-22**, three stacked PRs into `develop`, to merge in order: [#38](https://github.com/andrecpramos/AI-Interface/pull/38) `feature/drop-in-reset`, [#39](https://github.com/andrecpramos/AI-Interface/pull/39) `feature/ui-polish-and-reasoning`, [#40](https://github.com/andrecpramos/AI-Interface/pull/40) `feature/ship-readiness-review`. Each targets the branch below it and is retargeted to `develop` when that merges. #37 (`chore/repo-cleanup`) is contained in #38 and can be closed. **Owner:** review and merge | **owner** — merge |
+| 8 | ~~Push and open the PRs~~ — **done 2026-09-22**, three stacked PRs into `develop`, to merge in order: [#38](https://github.com/andrecpramos/AI-Interface/pull/38) `feature/drop-in-reset`, [#39](https://github.com/andrecpramos/AI-Interface/pull/39) `feature/ui-polish-and-reasoning`, [#40](https://github.com/andrecpramos/AI-Interface/pull/40) `feature/ship-readiness-review`. Each targets the branch below it and is retargeted to `develop` when that merges. #37 (`chore/repo-cleanup`) is contained in #38 and can be closed. **Added 2026-10-02:** [#41](https://github.com/andrecpramos/AI-Interface/pull/41) `feature/assistant-understanding`, stacked on #40, which is everything since 2026-09-22. Until it was pushed that day, its 26 commits existed only on one machine. **Owner:** review and merge #38 → #39 → #40 → #41 | **owner** — merge |
 | 9 | ~~Accept or reject ADR-022, 023 and 024~~ — **done 2026-09-22: all three accepted by the owner in session** ([ADR-022](../.claude/decisions/ADR-022.md), the orb's dependency; [ADR-023](../.claude/decisions/ADR-023.md), the `knowledge.json` contract, accepted on fixture evidence with the real-app run still the test that counts; [ADR-024](../.claude/decisions/ADR-024.md), attachments never leave the device and are off by default, the look in CSS) | done |
 | 10 | **Declared limits are sticky.** A limit wins whenever it beats the best screen at all (`boundaryMargin` 0, calibrated on a golden set with no counter-example), so a limit sharing a word-fragment with a real screen refuses real questions (ADR-023). Needs a calibrated floor for declared limits, and more golden entries of this kind to calibrate on. The interview has the agent test each limit by hand meanwhile. **Worse on an unseen app (2026-09-21 rehearsal on WeFitAll, a 2-route landing page, uncalibrated, no `knowledge.json`):** every real screen scored ~0.00, so limits scoring 0.07–0.16 won — 7 of 12 everyday questions refused; genuine out-of-scope controls scored 0.19–0.32. A floor on a limit's *absolute* score would separate them there but not on the club fixture (in-scope reaches 0.15, true refusals start at 0.14), and any such number is a hand-set default under Rule 14 until a sweep decides it. **Done (option b, 2026-09-21):** a bundle built with *no calibration* carries `boundaryFloor` 0.15, so a limit must score that in its own right to refuse; calibrated apps and the calibrated reference profile are unchanged, and a calibration replaces it. On WeFitAll, refusals of the 12 everyday questions fell 7 → 1 and all 7 out-of-scope controls were still refused. It is a hand-set stand-in chosen after seeing that data, listed as such in [critical-infrastructure.md](../.claude/docs/critical-infrastructure.md) — the Rule 14 gate cannot see it. **Still open:** replace it with a swept floor once a real adopter's golden set exists; the structural stickiness on a *calibrated* app (a limit sharing a word-fragment with a screen) is unchanged. **Partly addressed 2026-09-22 ([ADR-025](../.claude/decisions/ADR-025.md), Proposed):** the generator's three *acting* limits now refuse only a request to act, which removed 2 of 4 wrong refusals in an everyday probe with no golden decision moving; a limit about a subject (the adopter's own, or "questions about anything else") still refuses on topic | owner, when a real golden set exists |
 | 11 | **Measured 2026-09-21: the knowledge context does not visibly help the model stage — and the model stage itself is the bigger finding.** Stage 3 reads the app summary, glossary, `rules` and limits, fenced and role-scoped (ADR-023 addendum). llama3.1:8b, the club fixture's 69 labelled turns, each routed through the full cascade with and without the registry's `context`: **51 right either way**; of the 3 turns that differ, one got worse (`fam-0015`, `/settings/notifications` → `/settings`), one better (`fam-0036`), one out-of-scope request newly refused (`fam-0065`) — noise. Only **24 of 69 turns reach the model at all**; the rest settle in stages 1–2. Median model latency 1.5 s without, 2.0 s with; one call with context hit the 30 s timeout and degraded to a question. **What the numbers do not say:** one run (no repeat, and Finding 10 says identical 8B runs flip), one model, and the fixture's golden set is the one its knowledge was written against — so this can find a harm but not prove a benefit. **What they do say, and it matters more:** with the model on, **3 of 55 in-scope turns were executed on the wrong screen (5.5%) and 2–3 of 14 out-of-scope requests were executed**, with or without context — the model-free cascade wrongly executes none. Stage 3 is off by default (ASK 8) and that is the right default; it is not "better by knowing more". Not done: a second model, a repeat, and any app but this fixture. Script: not committed (scratch). **Decided 2026-09-25: recommend it when the developer can run a model** (ASK 8), off by default still. Re-measured with the lean request (ADR-036) on qwen3:14b: top-1 92.7%; a request to change something is no longer executed (Rule 20) | done — owner decided |

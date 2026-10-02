@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-20 · **Branch:** `feature/drop-in-reset`, based on `develop` · **7 workspace projects · 724 tests,
+**Verified against disk:** 2026-10-02 · **Branch:** `feature/assistant-understanding` (PR #41, stacked on #40) · **7 workspace projects · 1,334 tests,
 all passing** · **No application this repository does not own is measured inside it** (§1.1, ADR-018).
 
 **What is the state right now? → [STATUS.md](STATUS.md).** This file is the plan, the rules and
@@ -92,8 +92,8 @@ table, are in [PLAN-archive.md](PLAN-archive.md). For the state as it is, read
 
 | # | Item | Who | State |
 |---|---|---|---|
-| 1 | **WP-35 · the owner's acceptance run** on any real application — [ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md). The only thing an agent cannot do; also the first use by anyone but the author, and the first measurement of the 15.7% (stages 1 and 2 settling a turn outright) on real questions | **owner** | open |
-| 2 | **WP-45 · the screen-reader pass** — [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md), about 15 minutes. The automated half is done (18 checks, 0 serious or critical); the claim is withheld until this is | **owner** | open |
+| 1 | **WP-35 · the owner's acceptance run** on any real application — [ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md). The only thing an agent cannot do; also the first use by anyone but the author, and the first measurement of the 15.7% (stages 1 and 2 settling a turn outright) on real questions. **Partly done on 2026-09-23:** the first real integration (Pilot-A), integrated by an agent and used by the owner, whose field report produced ADR-026 to ADR-041. There are no real visitors' questions yet, so there is no calibration on them and no 15.7% measured on real use ([STATUS.md](STATUS.md) row 1) | **owner** | partly done |
+| 2 | **WP-45 · the screen-reader pass** — [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md), about 15 minutes. The automated half is done (41 checks, 0 serious or critical); the claim is withheld until this is | **owner** | open |
 | 3 | **WP-48 · the prompt-injection defence.** Must land before any `write` or `destructive` capability ships to an adopter (§7.5, §8). The trigger has not fired | — | deferred, hard trigger |
 | 4 | Role guards written *inside* a page component are not read (FIELD-NOTES §1; [tutor-app/RESULT.md](../eval/tutor-app/RESULT.md)). Sized only once someone wants it | — | deferred |
 
@@ -105,14 +105,18 @@ device) and WP-42's owner marking (generalised into FIELD-NOTES §3).
 
 ### Decisions
 
-**Open, and all the owner's.** None blocks the engine.
+**Open, and the owner's.** It does not block the engine.
 
 | Decision | Options |
 |---|---|
-| **[ADR-021](../.claude/decisions/ADR-021.md)** — retire the tarball path, repoint Rule 1 | Accept, or reject and restore |
-| **Rules 5 and 6** govern code that no longer exists (the dispatcher; money). §2 now says so | Keep as tripwires for when WP-48's trigger fires, or retire them — which needs an entry in `critical-infrastructure.md` |
 | **`core-capability`'s hand-declaration API.** 23 of its 41 exports are used by no production code outside the package (`generateRouteTable`, `generateCapabilitiesJson`, `registry-owner`, …) | Remove, or keep for a capability-ladder rung (§1.6) that needs it. Changes the engine's public surface |
-| **A version identity for `adapter/`** (an ADR-021 consequence) | Nothing until there is an adopter; then an additive change to `build-adapter.mjs` |
+
+**Decided since this table was written:**
+- **ADR-021** (retire the tarball path, repoint Rule 1) was accepted on 2026-09-22.
+- **Rules 5 and 6** were kept as dormant tripwires on 2026-09-25 ("DORMANT until WP-48" in §2).
+- **A version identity for `adapter/`** shipped on 2026-09-21 as `adapter/VERSION`.
+
+[STATUS.md](STATUS.md) rows 3, 4 and 6 have the record.
 
 Every earlier decision — Rule 7's meaning, language scope, the generator's confidence policy,
 D-1 to D-5 — is resolved and recorded in §7 and §13, and the 2026-09-18 decisions table is in
