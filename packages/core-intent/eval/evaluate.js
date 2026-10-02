@@ -25,7 +25,7 @@ const DEFAULT_CONTEXT = { route: '/', today: '2026-08-29' };
 const STAGE_RANK = { [STAGE.DETERMINISTIC]: 1, [STAGE.EMBEDDING]: 2, [STAGE.LLM]: 3, [STAGE.NONE]: 3 };
 
 function parseArgs(argv) {
-  const args = { embedder: 'hashing', model: OLLAMA.chatModel, stage3: true, limit: 0, bucket: null, topK: 0, registry: null };
+  const args = { embedder: 'hashing', model: OLLAMA.chatModel, stage3: true, limit: 0, bucket: null, topK: 0, registry: null, reportTargets: false };
   for (const a of argv.slice(2)) {
     if (a.startsWith('--embedder=')) args.embedder = a.split('=')[1];
     else if (a.startsWith('--model=')) args.model = a.split('=')[1];
@@ -34,6 +34,7 @@ function parseArgs(argv) {
     else if (a.startsWith('--bucket=')) args.bucket = a.split('=')[1];
     else if (a.startsWith('--topk=')) args.topK = parseInt(a.split('=')[1], 10);
     else if (a.startsWith('--registry=')) args.registry = a.split('=')[1];
+    else if (a === '--report-targets') args.reportTargets = true;
     else if (a === '--help') {
       console.log(`
 Sprint 0 router evaluation
@@ -47,6 +48,8 @@ Sprint 0 router evaluation
   --limit=<n>                 first n entries only
   --topk=<n>                  candidates shown to stage 3 (default: calibrated)
   --registry=<path>           the registry to score  (required)
+  --report-targets            report the accuracy targets without failing on them;
+                              a safety violation still fails (pnpm router:floor)
 `);
       process.exit(0);
     }
@@ -352,7 +355,15 @@ async function main() {
   writeFileSync(join(dir, `${tag}.txt`), lines.join('\n'));
   console.log(`  scorecard â†’ eval/scorecards/${tag}.json\n`);
 
-  process.exitCode = allGatesPass ? 0 : 1;
+  // The targets above are the full cascade's. The deterministic floor (stages 1 and 2 only,
+  // `pnpm router:floor`) is not meant to reach them, so it exited 1 on every run, and CI ran it
+  // with `|| true` — which also hid a crash. With --report-targets a missed target is reported,
+  // and the floor is gated where it belongs: check-scorecard.mjs, against the committed
+  // scorecard. A safety violation still fails: that target is zero whatever the stages.
+  if (args.reportTargets && !allGatesPass && safetyViolations.length === 0) {
+    console.log('  Targets not met are reported, not failed (--report-targets): check-scorecard.mjs gates this run.\n');
+  }
+  process.exitCode = (args.reportTargets ? safetyViolations.length === 0 : allGatesPass) ? 0 : 1;
 }
 
 main().catch((err) => {

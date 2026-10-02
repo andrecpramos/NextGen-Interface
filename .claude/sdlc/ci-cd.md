@@ -82,13 +82,20 @@ of WP-12's stated scope not delivered here.
 
 ## The golden-set gate, in detail
 
-`pnpm router:floor` **exits 1 by design** — with stage 3 disabled it cannot meet
-the absolute accuracy targets and is not meant to (top-1 lands at 0.408 against a
-0.90 target). The workflow therefore runs it with `|| true`. That is not a
-silenced failure; the real gate is the next step.
+With stage 3 disabled, `pnpm router:floor` cannot meet the full cascade's absolute
+accuracy targets and is not meant to (top-1 lands near 0.40 against a 0.90 target).
+It runs with `--report-targets`: missed targets are printed, not failed, and it exits
+non-zero only on a crash or a safety violation. So it is a blocking gate, and CI runs
+it plainly.
+
+**Until 2026-10-02 it exited 1 on every run**, CI ran it with `|| true`, and `/gates`
+listed it as advisory and red. The `|| true` also hid a crash, and then the next step
+compared the committed scorecard with itself and passed — see the freshness check below.
 
 [`tooling/scripts/check-scorecard.mjs`](../../tooling/scripts/check-scorecard.mjs)
-compares the fresh scorecard against the committed baseline and fails on:
+compares the fresh scorecard against the committed baseline. It refuses to compare
+(exit 2) a **current scorecard that was not regenerated** — one whose `generatedAt` is
+the baseline's — and otherwise fails on:
 
 - **Regression** — any gate whose `actual` drops more than the tolerance (default
   **±0.05**) below baseline. Improvements beyond tolerance are reported, not

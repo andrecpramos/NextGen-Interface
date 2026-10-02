@@ -186,6 +186,23 @@ would have failed, but only in CI, on a push.
 the one change that can make a gate vacuous without touching the gate. And read the
 numbers a passing gate prints — "0 assets checked" is a failure wearing a pass.
 
+**A fifth time, found 2026-10-02: a producer allowed to fail.** The golden-set gate is two
+steps: `pnpm router:floor` writes a fresh scorecard, then `check-scorecard.mjs` compares it
+with the committed one. The floor exited 1 on every run by design (stages 1 and 2 cannot
+reach the full cascade's targets), so CI ran it with `|| true` and `/gates` listed it as
+advisory. A crash was therefore invisible: no scorecard was written, the committed one stayed
+in place, and the comparison printed *"OK — no accuracy regression"* on both paths, CI's and
+`/gates`'. It was found by asking what the always-red gate was for, and was shown by running
+the comparison with no regeneration. The gate had never failed in that state, so nobody knew.
+Fixed twice: `check-scorecard.mjs` refuses a scorecard whose `generatedAt` is the baseline's,
+and the floor reports its targets instead of failing on them (`--report-targets`). That made
+it green, blocking, and run without `|| true`, so a crash is red again.
+
+**The lesson this adds: a gate that is red on every run hides the run that matters.** Once a
+step's failure is expected, its exit code carries no information, and anything that depends on
+its output inherits that blindness. Make a step's exit code mean one thing, and have the step
+that consumes its output check that the output is new.
+
 **Enforcement:** the "Gates seen failing on purpose" table in
 [critical-infrastructure.md](critical-infrastructure.md). Still mostly empty,
 which is the honest state.

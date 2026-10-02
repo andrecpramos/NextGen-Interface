@@ -148,9 +148,12 @@ gates in `sdlc.config.json` pass:**
 - `adversarial-live` against three local models. It found no new violations, and `gs-0175`
   and `gs-0181` now pass, so both can be removed from the baseline.
 
-`router-floor` still fails. It is non-blocking, and it runs against the legacy
-`eval/fixture-registry.json`. The bench in a headless browser (`preview:check`) was not run
-this time.
+`router-floor` failed on that run, as it had on every run: it was advisory and failed the full
+cascade's targets by design. **Fixed later the same day.** The check behind it, `scorecard`,
+was found to pass vacuously whenever `router-floor` crashed, because that step's failure was
+ignored (lessons.md L6, its fifth instance). `scorecard` now refuses an unregenerated
+scorecard. `router-floor` reports its targets instead of failing on them, and is now blocking
+and green. The bench in a headless browser (`preview:check`) was not run this time.
 
 **Run against a model server on 2026-09-21** (Ollama was reachable): `adversarial-live` — which had been
 reporting OK without running; repaired, and its first real run recorded one new violation, `gs-0175`,
