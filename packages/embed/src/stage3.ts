@@ -34,6 +34,14 @@ export interface Stage3Config {
 const DEFAULT_TIMEOUT_MS = 8000;
 
 /**
+ * How the POST is sent: the page's `fetch`, or the adopter's own authenticated client. A single-page
+ * app that keeps a bearer token in memory cannot authenticate a bare `fetch`, and an endpoint that
+ * calls a model should not be left open because of it. It is handed only the URL this file already
+ * resolved and checked same-origin — it can sign the request, never choose where it goes.
+ */
+export type Stage3Fetch = (url: string, init: RequestInit) => Promise<Response>;
+
+/**
  * The two fields this file reads off `location` — named locally rather than typed as the
  * DOM `Location` interface. Every other file in this package can assume DOM lib; this one
  * is imported for its *type* by `packages/kit` (a Node CLI with no DOM lib at all, so it
@@ -59,10 +67,12 @@ export class SameOriginLlmRuntime implements LlmRuntime {
   readonly #blockedReason: string | null;
   readonly #model: string | undefined;
   readonly #timeoutMs: number;
+  readonly #fetch: Stage3Fetch;
 
-  constructor(config: Stage3Config) {
+  constructor(config: Stage3Config, send?: Stage3Fetch) {
     this.#model = config.model;
     this.#timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.#fetch = send ?? ((url, init) => fetch(url, init));
     this.name = config.model ? `stage3:${config.model}` : 'stage3';
 
     // Absent only outside a real page — a Node harness, a sandboxed test context
@@ -108,7 +118,7 @@ export class SameOriginLlmRuntime implements LlmRuntime {
       // A proxy that only implements POST still degrades correctly — isAvailable() is
       // advisory (used to decide whether to *offer* model-dependent affordances), never
       // load-bearing for whether a turn can be answered.
-      const res = await fetch(this.#url, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
+      const res = await this.#fetch(this.#url.href, { method: 'HEAD', signal: AbortSignal.timeout(2000) });
       return res.ok;
     } catch {
       return false;
@@ -124,7 +134,7 @@ export class SameOriginLlmRuntime implements LlmRuntime {
 
     let res: Response;
     try {
-      res = await fetch(this.#url, {
+      res = await this.#fetch(this.#url.href, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -132,6 +142,9 @@ export class SameOriginLlmRuntime implements LlmRuntime {
           prompt: request.prompt,
           schema: request.schema,
           model: request.model ?? this.#model,
+          // Whether a reasoning model may reason first. The proxy passes it to its model (Ollama's
+          // `think`); a proxy that ignores it still works, only slower on a reasoning model.
+          ...(request.think !== undefined ? { think: request.think } : {}),
           ...(request.images && request.images.length > 0 ? { images: request.images } : {}),
         }),
         signal: AbortSignal.timeout(request.timeoutMs ?? this.#timeoutMs),

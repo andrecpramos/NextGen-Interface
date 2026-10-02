@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { capabilityDocument } from '@nextgen/core-capability';
-import { normalize } from './text.ts';
+import { buildTriggerIndex } from './triggers.ts';
 import { buildEnumIndex } from './slots.ts';
 import { actionVocabularyOf } from './action.ts';
 import { similarityAudit as audit } from '@nextgen/core-capability';
-import type { Capability, Embedder, EnumIndex, Registry, RegistryFile, Vector } from './types.ts';
+import type { StoredVector } from './sparse.ts';
+import type { Capability, Embedder, EnumIndex, Registry, RegistryFile } from './types.ts';
 
 /**
  * Loads registry.json and prepares the derived structures each stage needs.
@@ -21,7 +22,8 @@ import type { Capability, Embedder, EnumIndex, Registry, RegistryFile, Vector } 
 export async function loadRegistry(path: string, embedder: Embedder): Promise<Registry> {
   const raw = JSON.parse(readFileSync(path, 'utf8')) as RegistryFile;
 
-  const enums: Record<string, EnumIndex> = {};
+  // A null prototype: a name in the file can only ever be a key ("__proto__" included).
+  const enums: Record<string, EnumIndex> = Object.create(null);
   for (const [name, def] of Object.entries(raw.enums ?? {})) {
     enums[name] = buildEnumIndex(def);
   }
@@ -29,18 +31,8 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
   const capabilities = raw.capabilities;
 
   // --- stage 1 index: exact surface forms -> capability id
-  const triggerIndex = new Map<string, string>();
-  for (const cap of capabilities) {
-    for (const trigger of cap.triggers ?? []) {
-      const key = normalize(trigger);
-      // First registration wins; a collision means two capabilities claim the
-      // same phrase, which is a registry defect worth surfacing loudly.
-      if (triggerIndex.has(key) && triggerIndex.get(key) !== cap.id) {
-        console.warn(`[registry] trigger collision on "${key}": ${triggerIndex.get(key)} vs ${cap.id}`);
-      }
-      triggerIndex.set(key, cap.id);
-    }
-  }
+  // A phrase two capabilities claim names neither: stage 2 decides between them (triggers.ts).
+  const { index: triggerIndex } = buildTriggerIndex(capabilities);
 
   // --- stage 2 documents.
   // Built by core-capability, not here. Codegen precomputes the embedding index
@@ -54,6 +46,7 @@ export async function loadRegistry(path: string, embedder: Embedder): Promise<Re
   return {
     schemaVersion: raw.schemaVersion,
     domainDescription: raw.domainDescription,
+    ...(raw.language ? { language: raw.language } : {}),
     ...(raw.context ? { context: raw.context } : {}),
     capabilities,
     byId: new Map<string, Capability>(capabilities.map((c) => [c.id, c])),
@@ -78,7 +71,7 @@ export type { SimilarPair } from '@nextgen/core-capability';
 
 export function similarityAudit(
   registry: Registry,
-  cosine: (a: Vector, b: Vector) => number,
+  cosine: (a: StoredVector, b: StoredVector) => number,
   threshold = 0.55,
 ) {
   return audit(registry.capabilities.map((c) => c.id), registry.vectors, cosine, threshold);

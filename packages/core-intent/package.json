@@ -23,7 +23,7 @@
     "test:watch": "vitest",
     "eval": "node eval/evaluate.js --embedder=ollama --model=qwen2.5:1.5b --topk=3",
     "eval:baseline": "node eval/evaluate.js --embedder=ollama --model=llama3.1:8b",
-    "eval:floor": "node eval/evaluate.js --embedder=hashing --no-stage3",
+    "eval:floor": "node eval/evaluate.js --embedder=hashing --no-stage3 --report-targets",
     "compare": "node eval/compare.js",
     "calibrate": "node eval/calibrate.js --embedder=ollama --defer-oos",
     "inspect": "node eval/inspect.js --embedder=ollama"

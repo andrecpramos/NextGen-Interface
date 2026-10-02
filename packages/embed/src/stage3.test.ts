@@ -141,6 +141,50 @@ describe('SameOriginLlmRuntime — degradation (LlmRuntime must never throw)', (
   });
 });
 
+/**
+ * A single-page app with a bearer token in memory cannot authenticate the page's bare `fetch`, so
+ * it hands in its own client. That client signs the request; it never decides where it goes.
+ */
+describe('SameOriginLlmRuntime — the adopter\'s own fetch', () => {
+  const answer = async (): Promise<Response> => new Response(JSON.stringify({ capabilityId: 'x' }), { status: 200 });
+
+  it('sends the POST and the HEAD through it, to the URL already resolved same-origin, and not through the page\'s', async () => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+    const send = vi.fn((_url: string, _init: RequestInit) => answer());
+    const runtime = new SameOriginLlmRuntime({ path: '/api/stage3' }, send);
+
+    await runtime.complete(request);
+    await runtime.isAvailable();
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(send.mock.calls.map(([url, init]) => [url, init.method])).toEqual([
+      ['https://adopter.example/api/stage3', 'POST'],
+      ['https://adopter.example/api/stage3', 'HEAD'],
+    ]);
+  });
+
+  it('is never called when the path resolves off-origin', async () => {
+    const send = vi.fn(answer);
+    const runtime = new SameOriginLlmRuntime({ path: 'https://attacker.example/steal' }, send);
+
+    const result = await runtime.complete(request);
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.unavailable).toMatch(/off-origin|refused/);
+  });
+
+  it('degrades like an unreachable server when it throws — a refused refresh is not a crash', async () => {
+    const runtime = new SameOriginLlmRuntime({ path: 'stage3' }, async () => {
+      throw new Error('session expired');
+    });
+
+    const result = await runtime.complete(request);
+
+    expect(result.value).toBeNull();
+    expect(result.unavailable).toBe('session expired');
+  });
+});
+
 describe('SameOriginLlmRuntime — the wire contract', () => {
   it('sends system, prompt, schema and model as the POST body, and the request as JSON', async () => {
     globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ capabilityId: 'x' }), { status: 200 })) as unknown as typeof fetch;
@@ -152,6 +196,18 @@ describe('SameOriginLlmRuntime — the wire contract', () => {
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body).toEqual({ system: 'sys', prompt: 'prompt', schema: request.schema, model: 'house-model' });
     expect((init as RequestInit).method).toBe('POST');
+  });
+
+  it('passes on whether a reasoning model may reason first, and sends nothing when the request does not say', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ capabilityId: 'x' }), { status: 200 })) as unknown as typeof fetch;
+    const runtime = new SameOriginLlmRuntime({ path: 'stage3' });
+
+    await runtime.complete({ ...request, think: false });
+    await runtime.complete(request);
+
+    const bodies = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+    expect(bodies[0].think).toBe(false);
+    expect('think' in bodies[1]).toBe(false);
   });
 
   it('a per-request model wins over the configured default', async () => {

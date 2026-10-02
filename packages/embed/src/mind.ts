@@ -95,6 +95,9 @@ function tone(from: Rgb, to: Rgb, k: number, alpha: number): string {
   return `rgba(${c(0)},${c(1)},${c(2)},${Math.min(1, Math.max(0, alpha)).toFixed(3)})`;
 }
 
+/** How strongly the dots show (ADR-035): enough to read the state, not a glittering ball. */
+const QUIET = 0.55;
+
 const WHITE: Rgb = [255, 255, 255];
 const BLACK: Rgb = [0, 0, 0];
 
@@ -139,7 +142,7 @@ export function createMind(): Mind {
 
         for (const line of frame.lines) {
           const [near, alpha] = strength(line.white, line.a);
-          ctx.strokeStyle = tone(ink, toward, (light ? 0.15 : 0.2) + 0.5 * near, alpha);
+          ctx.strokeStyle = tone(ink, toward, (light ? 0.1 : 0.12) + 0.22 * near, alpha * QUIET);
           ctx.lineWidth = line.w * k;
           ctx.beginPath();
           ctx.moveTo(cx + (line.x1 - MIDDLE) * k, cy + (line.y1 - MIDDLE) * k);
@@ -148,7 +151,7 @@ export function createMind(): Mind {
         }
         for (const dot of frame.dots) {
           const [near, alpha] = strength(dot.white, dot.a);
-          ctx.fillStyle = tone(ink, toward, (light ? 0.15 : 0.2) + 0.5 * near, alpha);
+          ctx.fillStyle = tone(ink, toward, (light ? 0.1 : 0.12) + 0.22 * near, alpha * QUIET);
           ctx.beginPath();
           ctx.arc(cx + (dot.x - MIDDLE) * k, cy + (dot.y - MIDDLE) * k, dot.r * k, 0, Math.PI * 2);
           ctx.fill();

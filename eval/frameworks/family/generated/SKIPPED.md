@@ -2,7 +2,7 @@
 
 2 route(s) were discovered and deliberately not turned into capabilities.
 
-A missing capability degrades safely: Rule 7 guarantees every screen stays reachable
+A missing capability degrades safely: every screen stays reachable, as it always was,
 without the assistant. A wrongly declared one sends a user confidently to the wrong
 place. Where this generator was unsure, it omitted — and said so here.
 

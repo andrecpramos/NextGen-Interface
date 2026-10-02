@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 import { validateRegistry, formatValidation, capabilityDocument, type Capability, type RegistryContext, type RegistryFile } from '@nextgen/core-capability';
-import { makeEmbedder } from '@nextgen/core-intent';
+import { indexFor, makeEmbedder } from '@nextgen/core-intent';
 
 import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleName, SkippedRoute } from './types.ts';
 
@@ -41,16 +41,28 @@ export function splitByRole(
    * filtered out of it at read time.
    */
   contextFor?: (role: RoleName) => RegistryContext | null,
+  /** The language every capability's own words are in: the app's first (ADR-030). */
+  language?: string,
 ): Map<RoleName, RegistryFile> {
   const out = new Map<RoleName, RegistryFile>();
   for (const role of roles) {
     const reachable = master.filter((capability) => capability.roles.includes(role)).map(withoutRoles);
     const context = contextFor?.(role) ?? null;
+    // A limit goes to every role, but where it points (helpAt) is a screen: kept only where this role
+    // can open it, and dropped when none is left — Rule 17, and no link to nowhere.
+    const routes = new Set(reachable.map((capability) => capability.route).filter(Boolean));
+    const limits = boundaries.map((limit): Capability => {
+      if (!limit.helpAt) return limit;
+      const { helpAt, ...rest } = limit;
+      const open = helpAt.filter((route) => routes.has(route));
+      return open.length > 0 ? { ...rest, helpAt: open } : rest;
+    });
     out.set(role, {
       schemaVersion: SCHEMA_VERSION,
       domainDescription,
+      ...(language ? { language } : {}),
       ...(context ? { context } : {}),
-      capabilities: [...reachable, ...boundaries],
+      capabilities: [...reachable, ...limits],
     });
   }
   return out;
@@ -263,6 +275,14 @@ export async function writeIndexes(
   const written: string[] = [];
 
   for (const [role, registry] of registries) {
+    // The hashing index is the runtime's own `indexFor`: the file the browser downloads and the index it
+    // would compute for a merged, multi-role registry are made by one function, so they cannot drift.
+    if (encoderName === 'hashing') {
+      const name = `index.${role}.json`;
+      writeFileSync(join(target, name), `${JSON.stringify(indexFor(registry))}\n`, 'utf8');
+      written.push(name);
+      continue;
+    }
     const documents = registry.capabilities.map(capabilityDocument);
 
     // A fresh encoder for this registry, every time. See the warning above.

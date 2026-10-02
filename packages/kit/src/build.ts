@@ -23,12 +23,12 @@ import {
   writeOutput,
   type GeneratorConfig,
   type KnowledgeCoverage,
-  type ProseCache,
   type SkippedRoute,
 } from '@nextgen/generator';
 
 import { knowledgeQuestions } from './knowledge-report.ts';
-import { assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, self, stripBom } from './paths.ts';
+import { ladder, ladderMarkdown } from './ladder.ts';
+import { arg, assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, self, shown, stripBom } from './paths.ts';
 
 /**
  * The shape of `bundle/thresholds.hashing.json`'s `stage3` field (WP-52, ADR-017).
@@ -103,8 +103,16 @@ export interface BuildRecord {
     readonly gaps: number;
   };
   /** `null` when this bundle was built without `--stage3` — the default, and what most reviews will see. */
-  readonly stage3: { readonly path: string; readonly model: string | null } | null;
+  readonly stage3: { readonly path: string; readonly model: string | null; readonly timeoutMs?: number } | null;
 }
+
+/** How long the widget waits for a stage-3 answer when the build does not say (embed/src/stage3.ts). */
+export const STAGE3_DEFAULT_TIMEOUT_MS = 8000;
+/**
+ * The bounds on `--stage3-timeout`. Below a second no model answers; above thirty seconds the visitor
+ * has given up long before the answer arrives, and a clarifying question sooner serves them better.
+ */
+export const STAGE3_TIMEOUT_BOUNDS = { min: 1000, max: 30_000 } as const;
 
 export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: string } {
   const file = join(resolve(kitDir), CONFIG_FILE);
@@ -179,8 +187,9 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
   mkdirSync(bundleDir, { recursive: true });
   mkdirSync(reviewDir, { recursive: true });
 
-  const cacheFile = join(reviewDir, 'prose-cache.json');
-  const cache: ProseCache = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as ProseCache) : {};
+  // With no model there is no prose to cache: the file could only ever say `{}`.
+  // A copy an older kit left behind is removed rather than kept as clutter.
+  rmSync(join(reviewDir, 'prose-cache.json'), { force: true });
   // What the adopter wrote about their own app: beside the config, or where the config says.
   const loaded = loadKnowledge(join(kit, CONFIG_FILE), config.knowledge);
   const output = await generate({
@@ -190,7 +199,6 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     // There is no model to pass here, and no client for one in this bundle (ADR-018 D-6,
     // ADR-021). The generator's own CLI still takes `--model`, for work in this repository.
     model: null,
-    cache,
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
   });
 
@@ -201,7 +209,6 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     if (/^registry\..+\.json$/.test(file)) renameSync(join(reviewDir, file), join(bundleDir, file));
   }
   await writeIndexes(bundleDir, output.registries);
-  writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`, 'utf8');
 
   // Rule 14: thresholds belong to a registry. A calibration the adopter produced
   // wins. Otherwise the shipped profile is used, and says it is not theirs.
@@ -230,6 +237,15 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
   // a flag: `embed`'s `create()` never constructs a runtime unless this key exists.
   if (options.stage3 && !options.stage3.path.trim()) {
     throw new Error('--stage3 needs a path — the address on your own origin to POST completion requests to.');
+  }
+  const timeoutMs = options.stage3?.timeoutMs;
+  if (
+    timeoutMs !== undefined &&
+    (!Number.isInteger(timeoutMs) || timeoutMs < STAGE3_TIMEOUT_BOUNDS.min || timeoutMs > STAGE3_TIMEOUT_BOUNDS.max)
+  ) {
+    throw new Error(
+      `--stage3-timeout must be a whole number of milliseconds from ${STAGE3_TIMEOUT_BOUNDS.min} to ${STAGE3_TIMEOUT_BOUNDS.max}; got ${timeoutMs}.`,
+    );
   }
   if (options.stage3) {
     warnings.push(
@@ -281,11 +297,20 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     calibrated,
     thresholdsSource,
     knowledge: { found: loaded.found, path: loaded.path, coverage, gaps: gaps.length },
-    stage3: options.stage3 ? { path: options.stage3.path, model: options.stage3.model ?? null } : null,
+    stage3: options.stage3
+      ? {
+          path: options.stage3.path,
+          model: options.stage3.model ?? null,
+          ...(options.stage3.timeoutMs !== undefined ? { timeoutMs: options.stage3.timeoutMs } : {}),
+        }
+      : null,
     prose: 'derived from the app’s own labels (no model)',
     bundleFiles: readdirSync(bundleDir).sort(),
     warnings,
   };
   writeFileSync(join(reviewDir, 'build.json'), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  // How to make it better, numbered, with where this build stands on each (ladder.ts) — for the developer
+  // to read without running anything else.
+  writeFileSync(join(reviewDir, 'IMPROVE.md'), ladderMarkdown(ladder(kit, record, self(), arg(shown(kit)))), 'utf8');
   return record;
 }

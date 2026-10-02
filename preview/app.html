@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-PT">
+<html lang="<!--LANG-->">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,6 +27,14 @@
   main { padding: 36px 44px; }
   .path { margin: 0; color: #6b7384; font-size: 13px; font-family: ui-monospace, Consolas, monospace; }
   h1 { margin: 4px 0 28px; font-size: 28px; letter-spacing: -.02em; }
+  .toolbar { margin: -12px 0 20px; }
+  .new { padding: 8px 14px; border: 0; border-radius: 8px; background: #1f6e7e; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+  dialog { border: 1px solid #e3e6eb; border-radius: 14px; padding: 20px 22px; min-width: 320px; }
+  dialog::backdrop { background: rgb(20 24 32 / .25); }
+  .dialog-title { margin: 0 0 12px; font-weight: 600; }
+  dialog label { display: grid; gap: 4px; font-size: 13px; }
+  dialog input { padding: 8px 10px; border: 1px solid #cfd4dc; border-radius: 8px; font: inherit; }
+  .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; margin: 16px 0 0; }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
   .card { min-height: 132px; padding: 18px; background: #fff; border: 1px solid #e3e6eb; border-radius: 14px; }
   .card b { display: block; width: 45%; height: 12px; border-radius: 6px; background: #d9dde4; }
@@ -47,11 +55,21 @@
     <p class="bench-roles">
       <a href="/bench?role=<!--ROLE-->">← bench</a>
       <span><!--ROLES--></span>
+      <span aria-label="Page language"><!--LANGS--></span>
     </p>
   </nav>
   <main>
     <p class="path"><!--PATH--></p>
     <h1><!--TITLE--></h1>
+    <!-- A control that only opens a form, as most apps have one (ADR-031): what the assistant presses. -->
+    <p class="toolbar"><button type="button" class="new" id="new-item" aria-haspopup="dialog"></button></p>
+    <dialog id="new-dialog">
+      <form method="dialog">
+        <p class="dialog-title"></p>
+        <label>Title <input name="title" autocomplete="off"></label>
+        <p class="dialog-actions"><button value="cancel">Cancel</button> <button value="ok">Save</button></p>
+      </form>
+    </dialog>
     <div class="cards" aria-hidden="true">
       <div class="card"><b></b><i></i><i></i><i></i></div>
       <div class="card"><b></b><i></i><i></i><i></i></div>

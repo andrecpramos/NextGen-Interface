@@ -83,14 +83,9 @@ export const BEAM_CSS = `
 .beam { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
 .beam > span { position: absolute; opacity: 0; transition: opacity 420ms ease; }
 
-/* Idle: the accent breathing around the composer, so a page at rest is not dead. */
-.beam-breath {
-  inset: -1px; border-radius: inherit;
-  box-shadow: 0 0 34px -2px var(--ng-beam-2, #79c0ce), inset 0 0 0 1px var(--ng-beam-2, #79c0ce);
-  animation: nextgen-breathe 5.2s ease-in-out infinite;
-}
-@keyframes nextgen-breathe { 0%, 100% { opacity: .1; } 50% { opacity: .46; } }
-.composer:not([data-state="idle"]) .beam-breath { animation-play-state: paused; opacity: 0; }
+/* Idle: nothing. A field at rest looks like the app's other fields (ADR-035). */
+.beam-breath { display: none; }
+.composer[data-state="idle"] .beam > span { opacity: 0; }
 
 /* Thinking: a lit segment travelling the bottom edge, and the bloom it throws below it. */
 .beam-line, .beam-bloom {
@@ -105,10 +100,10 @@ export const BEAM_CSS = `
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
-.beam-bloom { bottom: -10px; height: 22px; filter: blur(11px); }
+.beam-bloom { display: none; }
 @keyframes nextgen-sweep { from { background-position: 0% 0; } to { background-position: 100% 0; } }
 .composer[data-state="thinking"] .beam-line { opacity: 1; animation-play-state: running; }
-.composer[data-state="thinking"] .beam-bloom { opacity: 1; animation-play-state: running; }
+.composer[data-state="thinking"] .beam-bloom { opacity: .3; animation-play-state: running; }
 
 /* Listening and speaking: a glow at the centre of the bottom edge, as tall as the sound. */
 .beam-voice {
@@ -118,7 +113,7 @@ export const BEAM_CSS = `
   filter: blur(5px); transition: opacity 120ms linear;
 }
 .composer[data-state="listening"] .beam-voice,
-.composer[data-state="speaking"] .beam-voice { opacity: calc(.55 + .45 * var(--ng-level, 0)); }
+.composer[data-state="speaking"] .beam-voice { opacity: calc(.15 + .25 * var(--ng-level, 0)); }
 .composer[data-state="listening"] .beam-line,
 .composer[data-state="speaking"] .beam-line {
   opacity: 1; animation: none;
@@ -131,11 +126,10 @@ export const BEAM_CSS = `
   opacity: .9; animation: none; background-size: 100% 100%;
   background-image: linear-gradient(90deg, transparent, var(--ng-beam-e, #d87c6b) 30%, var(--ng-beam-e, #d87c6b) 70%, transparent);
 }
-.composer[data-state="error"] .beam-bloom { opacity: .5; }
+.composer[data-state="error"] .beam-bloom { opacity: .25; }
 
 @media (prefers-reduced-motion: reduce) {
   .beam-line, .beam-bloom { background-size: 100% 100%; }
-  .beam-breath { animation: none; opacity: .12; }
 }
 @media (forced-colors: active) {
   .beam { display: none; }

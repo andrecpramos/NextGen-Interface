@@ -5,14 +5,17 @@
 // becoming a question the router has to guess at. Deliberately a short, closed list in both
 // languages the product speaks: anything longer is a question, and goes to the router as one.
 
-export type Command = 'close' | 'menu' | 'back' | 'home' | 'stop' | 'repeat' | 'mute';
+// There is no `menu`: the assistant has no navigation of its own to open — the app's is always in view
+// (ADR-026). "Menu" is a question like any other.
+export type Command = 'close' | 'tour' | 'back' | 'home' | 'stop' | 'repeat' | 'mute';
 
 type Phrases = Readonly<Record<Command, readonly string[]>>;
 
 // Written already normalised: lower case, no accents, no punctuation.
 const PT: Phrases = {
   close: ['fechar', 'fecha', 'fechar assistente', 'fecha o assistente', 'sair', 'sai'],
-  menu: ['menu', 'abrir menu', 'abrir o menu', 'abre o menu', 'mostrar menu', 'mostra o menu'],
+  // The app's own tour, or the steps this page declares. Only when it is the whole request.
+  tour: ['tutorial', 'tour', 'visita guiada', 'fazer a visita guiada', 'mostra me como funciona', 'mostre me como funciona', 'guia me'],
   back: ['voltar', 'volta', 'voltar atras', 'volta atras', 'pagina anterior'],
   home: ['inicio', 'voltar ao inicio', 'volta ao inicio', 'ir para o inicio', 'pagina inicial'],
   stop: ['parar', 'para', 'silencio', 'cala te', 'chega'],
@@ -22,7 +25,7 @@ const PT: Phrases = {
 
 const EN: Phrases = {
   close: ['close', 'close assistant', 'close the assistant', 'exit', 'dismiss'],
-  menu: ['menu', 'open menu', 'open the menu', 'show menu', 'show the menu'],
+  tour: ['tutorial', 'tour', 'take the tour', 'start the tour', 'guided tour', 'show me around', 'walk me through this page'],
   back: ['back', 'go back', 'previous page'],
   home: ['home', 'go home', 'home page', 'start page'],
   stop: ['stop', 'quiet', 'be quiet', 'enough'],

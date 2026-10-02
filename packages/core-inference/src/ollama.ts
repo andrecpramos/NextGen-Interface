@@ -74,7 +74,9 @@ export class OllamaLlmRuntime implements LlmRuntime {
           stream: false,
           // Ollama's `format` is the equivalent of llama.cpp's GBNF grammar.
           format: request.schema,
-          options: { temperature: 0, num_predict: request.maxTokens ?? 200 },
+          // Ollama accepts `think` on every model, reasoning or not, so it is sent only when asked.
+          ...(request.think !== undefined ? { think: request.think } : {}),
+          options:{ temperature: 0, num_predict: request.maxTokens ?? 200 },
           messages: [
             { role: 'system', content: request.system },
             {

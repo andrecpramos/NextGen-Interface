@@ -40,4 +40,19 @@ describe('synthesiseBoundaries — the catalogue', () => {
     }
   });
 
+  // Pilot-A field report, 2026-09-23 (P3-1): a Portuguese app refused its visitors in English.
+  it('speaks the application’s primary language where the catalogue has it, and English otherwise', () => {
+    const routes = [route('/finance/invoices', 'finance')];
+    const pt = synthesiseBoundaries(routes, 'pt-PT');
+    const en = synthesiseBoundaries(routes, 'en');
+    expect(pt.map((b) => b.id)).toEqual(en.map((b) => b.id));
+    expect(pt.find((b) => b.id === 'unsupported.payments')).toMatchObject({ title: 'Processar um pagamento' });
+    expect((pt.find((b) => b.id === 'unsupported.payments') as { refusal: string }).refusal).toMatch(/não processo pagamentos/);
+    for (const [a, b] of pt.map((p, i) => [p, en[i]!] as const)) {
+      expect(a.title, a.id).not.toBe(b.title);
+      // The examples are what recognises a request, in either language: they do not change.
+      expect(a.examples).toEqual(b.examples);
+    }
+    expect(synthesiseBoundaries(routes, 'de-DE').map((b) => b.title)).toEqual(en.map((b) => b.title));
+  });
 });

@@ -65,3 +65,44 @@ describe('validateRegistry — the owner’s context', () => {
     expect(result.issues.some((i) => i.severity === 'warning' && i.rule === 'context-unknown-key')).toBe(true);
   });
 });
+
+/** ADR-030: a registry's language, and its capabilities' words in the app's other languages — shown as text. */
+describe('validateRegistry — languages', () => {
+  const withTranslations = (translations: unknown, language: unknown = 'pt-PT'): RegistryFile =>
+    ({ ...base(), language, capabilities: base().capabilities.map((c) => ({ ...c, translations })) }) as RegistryFile;
+
+  it('accepts a language tag, and translations of the three things a visitor reads', () => {
+    expect(errors(withTranslations({ en: { title: 'Settings', explanation: 'Where you change things.' }, 'pt-BR': { title: 'Configurações' } }))).toEqual([]);
+  });
+
+  it('refuses a language that is not a tag', () => {
+    expect(errors(withTranslations(undefined, 'Portuguese!'))).toContain('language-tag');
+  });
+
+  it('refuses anything else in translations: another field, a non-string, a key that is not a language', () => {
+    for (const bad of [
+      { en: { title: 'x', route: '/elsewhere' } },
+      { en: { title: 42 } },
+      JSON.parse('{"__proto__": {"title": "x"}}'),
+      ['en'],
+      { en: { explanation: 'x'.repeat(2001) } },
+    ]) {
+      expect(errors(withTranslations(bad)), JSON.stringify(bad)).toContain('translations-shape');
+    }
+  });
+});
+
+/** ADR-031: the names of controls the widget may press — short strings, and only on a screen. */
+describe('validateRegistry — what a screen opens', () => {
+  const withOpens = (opens: unknown): RegistryFile => ({ ...base(), capabilities: base().capabilities.map((c) => ({ ...c, opens })) }) as RegistryFile;
+
+  it('accepts a few short names', () => {
+    expect(errors(withOpens(['New event', 'Novo evento']))).toEqual([]);
+  });
+
+  it('refuses anything else', () => {
+    for (const bad of ['New event', [42], [''], ['x'.repeat(81)], Array.from({ length: 21 }, (_, i) => `n${i}`)]) {
+      expect(errors(withOpens(bad)), JSON.stringify(bad).slice(0, 40)).toContain('opens-shape');
+    }
+  });
+});

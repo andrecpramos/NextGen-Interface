@@ -1,5 +1,6 @@
 import type { LlmRuntime } from '@nextgen/core-inference';
-import { isExplanationRequest } from './action.ts';
+import { isChangeRequest, isExplanationRequest } from './action.ts';
+import { isMashing } from './mashing.ts';
 import { stage1, stage2, stage3 } from './stages.ts';
 import { resolveSlots } from './slots.ts';
 import { validateClaims } from './validate-claims.ts';
@@ -74,6 +75,8 @@ export async function route(
     // decides, so it is set here rather than in `settle` and is available even
     // when the turn ends in a clarify or a refusal.
     explanationRequest: isExplanationRequest(utterance),
+    changeRequest: isChangeRequest(utterance),
+    mashing: false,
     latency: {},
     notes: [],
     prose: null,
@@ -128,9 +131,27 @@ export async function route(
       return finish(OUTCOME.CLARIFY);
     }
 
+    // Rule 20 (ADR-041). The assistant does not act, so "cancel tomorrow's session" is not a request to
+    // be taken to the sessions screen as if the cancelling were done: the screen is offered, never opened.
+    // Policy in code, on every stage's way out (Rule 5's shape), not a line in a prompt. A capability that
+    // acts itself (`write`, `destructive`) keeps its own confirmation path (ADR-004).
+    if (trace.changeRequest && (cap.kind === 'navigate' || cap.kind === 'read')) {
+      trace.notes.push('a request to change something — its screen is offered, not opened (Rule 20)');
+      return finish(OUTCOME.OUT_OF_SCOPE);
+    }
+
     trace.requiresConfirmation = cap.kind === 'write' || cap.kind === 'destructive';
     return finish(OUTCOME.EXECUTE);
   };
+
+  // ---- before stage 1: keyboard mashing (ADR-039, Rule 18) -----------------
+  // Not a question, so not a routing decision: answered at once, with no candidate and no model call.
+  if (isMashing(utterance, registry)) {
+    trace.mashing = true;
+    trace.decidedAt = STAGE.DETERMINISTIC;
+    trace.notes.push('keyboard mashing — most of its letter pairs are ones this app never uses (ADR-039)');
+    return finish(OUTCOME.CLARIFY);
+  }
 
   // ---- stage 1 -------------------------------------------------------------
   const s1Start = performance.now();
@@ -154,7 +175,8 @@ export async function route(
     // A stage-1 phrase match that leaves required slots empty is not a failure
     // of stage 1 — it identified the capability correctly. Let stage 3 try to
     // fill the gap before giving up and asking.
-    if (result.outcome === OUTCOME.EXECUTE || !stage3Enabled) return result;
+    // Only an incomplete settle (a clarify) escalates; an execute or a Rule-20 offer is final.
+    if (result.outcome !== OUTCOME.CLARIFY || !stage3Enabled) return result;
     trace.notes.push('stage1 identified capability but slots incomplete — escalating');
   }
 
@@ -165,6 +187,9 @@ export async function route(
   trace.candidates = s2.candidates;
   trace.margin = s2.margin;
   trace.topScore = s2.top.score;
+  if (s2.sharedWords) {
+    trace.notes.push(`not moved: "${s2.sharedWords.join('", "')}" belong to the runner-up too (Rule 19)`);
+  }
 
   if (s2.decision === 'refuse' && s2.boundaryId) {
     // Retrieved, not judged: no model was consulted, so this behaves the same on
@@ -187,7 +212,8 @@ export async function route(
 
   if (s2.decision === 'accept' && !hit) {
     const result = settle(s2.top.capabilityId, STAGE.EMBEDDING);
-    if (result.outcome === OUTCOME.EXECUTE || !stage3Enabled) return result;
+    // Only an incomplete settle (a clarify) escalates; an execute or a Rule-20 offer is final.
+    if (result.outcome !== OUTCOME.CLARIFY || !stage3Enabled) return result;
     trace.notes.push('stage2 accepted but slots incomplete — escalating');
   }
 
@@ -200,7 +226,9 @@ export async function route(
   // ---- stage 3 -------------------------------------------------------------
   let s3;
   try {
-    s3 = await stage3(utterance, s2.candidates, registry, ctx, { runtime: runtime!, model });
+    // A written answer only when one was asked for: "what is X", "how do I Y". Anything else is
+    // answered by the destination, and prose would only be waited for (see `Stage3Options.prose`).
+    s3 = await stage3(utterance, s2.candidates, registry, ctx, { runtime: runtime!, model, prose: trace.explanationRequest });
   } catch (err) {
     // Model unavailable is a normal case, not an exception path. Degrade to a
     // clarify built from what stage 2 already knows (sdlc/design.md).

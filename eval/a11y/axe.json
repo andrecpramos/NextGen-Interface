@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-21T19:04:58.132Z",
+  "checkedAt": "2026-09-23T20:08:48.036Z",
   "artefact": "packages/embed/dist/nextgen.js",
   "data": "eval/frameworks/family/generated (PARENT)",
   "tool": "axe-core 4.13.0 in jsdom",
@@ -96,27 +96,45 @@
     {
       "ok": true,
       "label": "screen open: 0 serious/critical",
-      "detail": ""
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
     },
     {
       "ok": true,
       "label": "screen, 2 files attached: 0 serious/critical",
-      "detail": ""
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
     },
     {
       "ok": true,
-      "label": "screen, menu open (7 links): 0 serious/critical",
+      "label": "screen expanded: 0 serious/critical",
       "detail": ""
     },
     {
       "ok": true,
       "label": "screen answered (2 links): 0 serious/critical",
-      "detail": ""
+      "detail": "incomplete (jsdom cannot judge): color-contrast"
     },
     {
       "ok": true,
-      "label": "the screen is a named modal dialog",
-      "detail": "aria-labelledby → \"Pronto quando quiser.\""
+      "label": "the panel is a named dialog",
+      "detail": "aria-labelledby → \"Do que precisa?\""
+    },
+    {
+      "ok": true,
+      "label": "the corner panel is not modal; expanded, it is — and the toggle says which it is",
+      "detail": "aria-modal false → true → false"
+    },
+    {
+      "ok": true,
+      "label": "the expand toggle has an accessible name that says what it will do",
+      "detail": "\"Ecrã inteiro\" / \"Mais pequeno\""
+    },
+    {
+      "ok": true,
+      "label": "expanded, Tab stays inside the dialog"
+    },
+    {
+      "ok": true,
+      "label": "no navigation of its own: the app's stays in view"
     },
     {
       "ok": true,
@@ -140,17 +158,8 @@
     },
     {
       "ok": true,
-      "label": "the menu is a real disclosure, and focus moves into it",
-      "detail": "aria-expanded=true while open · 7 link(s)"
-    },
-    {
-      "ok": true,
-      "label": "Escape closes the menu first, and focus returns to its button"
-    },
-    {
-      "ok": true,
-      "label": "an answer explains itself from its own record — a native \"Why?\" disclosure",
-      "detail": "\"Porquê?\" · 3 candidate(s)"
+      "label": "an answer shows no mechanics, and its record reaches the page as nextgen:turn",
+      "detail": "1 turn(s) announced · 5 candidate(s) in the last"
     },
     {
       "ok": true,
@@ -219,12 +228,12 @@
     {
       "ok": true,
       "label": "assistant.ts: every declared motion is cancelled under reduced motion",
-      "detail": "21 animated rule(s), all guarded"
+      "detail": "17 animated rule(s), all guarded"
     },
     {
       "ok": true,
       "label": "assistant.ts: declares 48px targets",
-      "detail": "7 rule(s) at 48px"
+      "detail": "6 rule(s) at 48px"
     },
     {
       "ok": true,

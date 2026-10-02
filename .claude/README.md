@@ -29,7 +29,7 @@ bug.
 1. **[`decisions/`](decisions/)** — binding. Superseded ADRs stay with a
    forward-pointing `Status:`. Cited from production source — `cascade.ts`,
    `core-capability/src/types.ts`.
-2. **[PLAN.md](../.MDFiles/PLAN.md) §2** — the seventeen non-negotiable rules. Their
+2. **[PLAN.md](../.MDFiles/PLAN.md) §2** — the twenty non-negotiable rules (5 and 6 dormant until WP-48). Their
    enforcement is mapped in the register below, not restated here.
 3. **[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md)** — read
    this before assuming a rule is protected. It maps every rule to the gate, hook
@@ -80,7 +80,7 @@ Review with `/hooks`. A newly created `settings.json` may not be picked up until
 | Command | Does |
 |---|---|
 | `/gates` | Runs every gate locally, PASS/FAIL with causes. |
-| `/rules-check` | Audits the working diff against the seventeen rules. |
+| `/rules-check` | Audits the working diff against the twenty rules. |
 | `/sdlc-audit` | Finds every rule written down and enforced by nothing. |
 | `/handoff` | End-of-session: state, drift, where the next session picks up. |
 

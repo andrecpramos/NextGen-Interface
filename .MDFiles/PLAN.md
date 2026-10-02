@@ -1,6 +1,6 @@
 # PLAN.md — Implementation Plan & Agent Handoff
 
-**Verified against disk:** 2026-09-20 · **Branch:** `feature/drop-in-reset`, based on `develop` · **7 workspace projects · 724 tests,
+**Verified against disk:** 2026-10-02 · **Branch:** `feature/assistant-understanding` (PR #41, stacked on #40) · **7 workspace projects · 1,334 tests,
 all passing** · **No application this repository does not own is measured inside it** (§1.1, ADR-018).
 
 **What is the state right now? → [STATUS.md](STATUS.md).** This file is the plan, the rules and
@@ -92,8 +92,8 @@ table, are in [PLAN-archive.md](PLAN-archive.md). For the state as it is, read
 
 | # | Item | Who | State |
 |---|---|---|---|
-| 1 | **WP-35 · the owner's acceptance run** on any real application — [ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md). The only thing an agent cannot do; also the first use by anyone but the author, and the first measurement of the 15.7% (stages 1 and 2 settling a turn outright) on real questions | **owner** | open |
-| 2 | **WP-45 · the screen-reader pass** — [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md), about 15 minutes. The automated half is done (18 checks, 0 serious or critical); the claim is withheld until this is | **owner** | open |
+| 1 | **WP-35 · the owner's acceptance run** on any real application — [ACCEPTANCE-RUN.md](ACCEPTANCE-RUN.md). The only thing an agent cannot do; also the first use by anyone but the author, and the first measurement of the 15.7% (stages 1 and 2 settling a turn outright) on real questions. **Partly done on 2026-09-23:** the first real integration (Pilot-A), integrated by an agent and used by the owner, whose field report produced ADR-026 to ADR-041. There are no real visitors' questions yet, so there is no calibration on them and no 15.7% measured on real use ([STATUS.md](STATUS.md) row 1) | **owner** | partly done |
+| 2 | **WP-45 · the screen-reader pass** — [NVDA-CHECKLIST.md](../eval/a11y/NVDA-CHECKLIST.md), about 15 minutes. The automated half is done (41 checks, 0 serious or critical); the claim is withheld until this is | **owner** | open |
 | 3 | **WP-48 · the prompt-injection defence.** Must land before any `write` or `destructive` capability ships to an adopter (§7.5, §8). The trigger has not fired | — | deferred, hard trigger |
 | 4 | Role guards written *inside* a page component are not read (FIELD-NOTES §1; [tutor-app/RESULT.md](../eval/tutor-app/RESULT.md)). Sized only once someone wants it | — | deferred |
 
@@ -105,14 +105,18 @@ device) and WP-42's owner marking (generalised into FIELD-NOTES §3).
 
 ### Decisions
 
-**Open, and all the owner's.** None blocks the engine.
+**Open, and the owner's.** It does not block the engine.
 
 | Decision | Options |
 |---|---|
-| **[ADR-021](../.claude/decisions/ADR-021.md)** — retire the tarball path, repoint Rule 1 | Accept, or reject and restore |
-| **Rules 5 and 6** govern code that no longer exists (the dispatcher; money). §2 now says so | Keep as tripwires for when WP-48's trigger fires, or retire them — which needs an entry in `critical-infrastructure.md` |
 | **`core-capability`'s hand-declaration API.** 23 of its 41 exports are used by no production code outside the package (`generateRouteTable`, `generateCapabilitiesJson`, `registry-owner`, …) | Remove, or keep for a capability-ladder rung (§1.6) that needs it. Changes the engine's public surface |
-| **A version identity for `adapter/`** (an ADR-021 consequence) | Nothing until there is an adopter; then an additive change to `build-adapter.mjs` |
+
+**Decided since this table was written:**
+- **ADR-021** (retire the tarball path, repoint Rule 1) was accepted on 2026-09-22.
+- **Rules 5 and 6** were kept as dormant tripwires on 2026-09-25 ("DORMANT until WP-48" in §2).
+- **A version identity for `adapter/`** shipped on 2026-09-21 as `adapter/VERSION`.
+
+[STATUS.md](STATUS.md) rows 3, 4 and 6 have the record.
 
 Every earlier decision — Rule 7's meaning, language scope, the generator's confidence policy,
 D-1 to D-5 — is resolved and recorded in §7 and §13, and the 2026-09-18 decisions table is in
@@ -384,10 +388,10 @@ control, in front of users we will never meet.**
 | 2 | The model **never computes a number the user sees.** It phrases; code computes. | [ADR-003](../.claude/decisions/ADR-003.md) — and a real bug caught by it, §6 |
 | 3 | The model **never emits SQL** and never a raw route. It selects an id + typed slots. | [ADR-007](../.claude/decisions/ADR-007.md) |
 | 4 | Every model-produced identifier is **validated against the registry** before use — **including one inside prose a visitor will read.** A sentence naming a screen this role does not have is removed before display, and the removal is recorded. | [ADR-003](../.claude/decisions/ADR-003.md), widened by [ADR-019](../.claude/decisions/ADR-019.md). Until 2026-09-18 the only identifier was the selected id; free text produces them too |
-| 5 | Policy is **code in the dispatcher**, never prompt text. read→execute, write→confirm, destructive→confirm+undo, unclassified→**refuse**. | [ADR-004](../.claude/decisions/ADR-004.md). **Scope note (2026-09-20):** the dispatcher package was deleted by ADR-018 and nothing ships a `write` or `destructive` capability to an adopter, so this rule currently governs no code. It binds again the moment WP-48's trigger fires; it stays because that is when it matters |
-| 6 | Money is **integer minor units + currency code**. Never float. | [ADR-007](../.claude/decisions/ADR-007.md) · [ADR-010](../.claude/decisions/ADR-010.md). **Scope note (2026-09-20):** it governed `domain-finance` and `packages/data`, both deleted by ADR-018 — no code in this repository holds money now. Not a rule of the navigation layer — but it becomes one the moment an adopter declares a capability carrying an amount, so it stays |
+| 5 | **DORMANT until WP-48.** Policy is **code in the dispatcher**, never prompt text. read→execute, write→confirm, destructive→confirm+undo, unclassified→**refuse**. | [ADR-004](../.claude/decisions/ADR-004.md). **Dormant (owner, 2026-09-25):** the dispatcher was deleted by ADR-018 and nothing ships a `write` or `destructive` capability, so this rule protects nothing today — do not cite it as a protection. It is a tripwire: it binds again, unchanged, with the first capability that acts (WP-48). Its *shape* — policy in code, not in a prompt — is what Rules 19 and 20 follow today |
+| 6 | **DORMANT until WP-48.** Money is **integer minor units + currency code**. Never float. | [ADR-007](../.claude/decisions/ADR-007.md) · [ADR-010](../.claude/decisions/ADR-010.md). **Dormant (owner, 2026-09-25):** it governed `domain-finance` and `packages/data`, both deleted by ADR-018; no code here holds money. A tripwire: it binds again the moment a capability carries an amount |
 | 7 | Every screen reachable by AI is reachable **without** it. | [ADR-005](../.claude/decisions/ADR-005.md). **Now a promise to adopters** — installing this must not make any part of their site AI-only |
-| 8 | **Nothing on the critical path requires network.** Stages 1–2 always work in the browser with nothing installed. Escalation may, and only to **the adopter's own origin**, off by default. | [ADR-008](../.claude/decisions/ADR-008.md) · [ADR-017](../.claude/decisions/ADR-017.md), **accepted 2026-09-18**. Also held by running it: `check-adapter.mjs` runs the whole build pipeline with every outbound path throwing |
+| 8 | **Nothing on the critical path requires network.** Stages 1–2 always work in the browser with nothing installed. Escalation may — a stage-3 turn, or a spoken question sent to be transcribed — and only to **the adopter's own origin**, off by default. **Never a third party's service**: no visitor's words or voice go to a vendor the adopter has no agreement with (a browser's cloud speech recogniser included). | [ADR-008](../.claude/decisions/ADR-008.md) · [ADR-017](../.claude/decisions/ADR-017.md), **accepted 2026-09-18** · [ADR-037](../.claude/decisions/ADR-037.md) (voice, accepted 2026-09-25: "on the device" became "never a third party's"). Also held by running it: `check-adapter.mjs` runs the whole build pipeline with every outbound path throwing |
 | 9 | Every turn produces a **TurnTrace**, and *why it did that* is answered from the record — never from the model narrating its own reasoning. **The model may now write to the visitor; the record then also holds what it wrote and what the validator removed.** | [architecture.md](../.claude/docs/architecture.md) · [ADR-019](../.claude/decisions/ADR-019.md). Restated 2026-09-18 and **not weakened**: this rule was always about explainability, and had been read as "no model text at all" |
 | 10 | Every capability ships with **≥3 examples** and golden-set entries. | [.claude/docs/coding-standards.md](../.claude/docs/coding-standards.md), enforced by `pnpm registry:check`. **WP-25's generator must satisfy this mechanically** |
 | 11 | Deterministic slot values **always win** over model-extracted ones. | §6; enforced by nominal types |
@@ -397,6 +401,9 @@ control, in front of users we will never meet.**
 | 15 | **An application's content is untrusted the moment it crosses into a prompt.** | [security.md](../.claude/docs/security.md). **Now third-party page and component text we never reviewed** |
 | 16 | **The installer never modifies the adopter's source.** It reads their code and writes only new, additive artefacts. **An agent installing on their behalf may edit, with the developer's answer first, and only these five: the script line in the page; a handler serving `bundle/` per role; a `nextgen:navigate` listener in their router; a `.gitignore` entry; a stage-3 endpoint if they enable one.** Anything else means the agent has misunderstood. | Decided 2026-09-09; the five enumerated by [ADR-020](../.claude/decisions/ADR-020.md) on 2026-09-18 — *"seamless"* must not become *"helpful with someone else's repository"*. The tool half is gated: `check-adapter.mjs` fingerprints the whole source tree before and after a run |
 | 17 | **A capability the current user cannot reach is not in the registry they receive.** Not filtered at render — **absent**, so an unreachable route is never offered and its existence is never revealed. | Decided 2026-09-09, forced by `fut-app`'s role-gated routes. Shipping one registry to every role would leak the shape of the admin surface to a guardian. This is a security property, not a UX filter |
+| 18 | **Efficiency: settle each turn at the cheapest layer that can decide it.** A rule before a model, the browser before the network. A model call asks only for the fields the turn reads, never lets a model reason before a choice from a list, and a change to a prompt or schema is measured for latency and accuracy before it ships. | [ADR-036](../.claude/decisions/ADR-036.md), made binding by the owner 2026-09-25 ("efficiency is key"). Measured: the lean stage-3 request took qwen3:14b from 8 of 9 turns failing at ~5 s to 9 of 9 decided at ~0.9 s. [ADR-038](../.claude/decisions/ADR-038.md) (hand-over by rule) and [ADR-039](../.claude/decisions/ADR-039.md) (mashing, no model) follow it |
+| 19 | **Without a model, the router never moves a visitor to a wrong screen, and never follows an out-of-scope request.** When the question's words do not tell the top screen from the runner-up, it asks. | [ADR-041](../.claude/decisions/ADR-041.md), owner 2026-09-25 ("zero, gated"). Found: ADR-032's scoring had added 4 wrong moves and 1 executed out-of-scope request, and the golden gate accepted them with a regenerated scorecard. Now 0, and the gate fails on any |
+| 20 | **The assistant never acts — so a request to change something is offered its screen, never followed there.** "I can't do that for you. Try here:" and a link. A request to *start* something (schedule, add, create) still moves and opens the form, because the visitor does it there. | [ADR-041](../.claude/decisions/ADR-041.md), owner 2026-09-25 ("say so, then offer", split by verb). Extends [ADR-025](../.claude/decisions/ADR-025.md) to every change request, declared limit or not; bounds [ADR-031](../.claude/decisions/ADR-031.md) |
 
 ---
 

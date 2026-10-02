@@ -156,6 +156,41 @@ export interface Capability {
   readonly examples?: readonly (string | CapabilityExample)[];
   /** Required on `unsupported`: what the user is told, and why. */
   readonly refusal?: string;
+  /**
+   * Only on `unsupported`. `'action'`: this limit is about the assistant *doing* something — acting in
+   * another system, changing a record, moving money — so it refuses only a request to act, never a
+   * question that merely shares its topic ("injury info for my kid" is not "book a physio for my son").
+   * Absent: it refuses on topic, as every limit did before (ADR-025).
+   */
+  readonly refuses?: 'action';
+  /**
+   * Only on `unsupported`. Where the visitor can do it themselves, or get help with it: routes of screens
+   * in this same registry, which the widget offers beneath the refusal — the assistant helps, it does not
+   * act. From the adopter's `knowledge.json` (`cannot[].instead`), kept per role: a screen the role cannot
+   * open is never named in its registry (Rule 17). Never embedded: it changes no score.
+   */
+  readonly helpAt?: readonly string[];
+  /**
+   * The same visitor-facing words in the app's other languages, keyed by language tag —
+   * `{ "en": { "title": "Payments" } }` — so a visitor reads one language, the page's (ADR-030).
+   * `title`, `explanation` and `refusal` above are in the registry's `language`. Display only: never
+   * embedded, never matched, so it changes no score and no threshold (Rule 14).
+   */
+  readonly translations?: Readonly<Record<string, CapabilityText>>;
+  /**
+   * The names of controls on this screen that only **open** something — "Novo evento", "New event", "Filtros":
+   * a dialog, a drawer, a form — in any of the app's languages (ADR-031). Read from the page's source, or
+   * written by the adopter in knowledge.json. The widget may press one of these for a visitor who asked to
+   * start what it opens; any other control it only points at. Never embedded: it changes no score.
+   */
+  readonly opens?: readonly string[];
+}
+
+/** What a visitor reads about a capability, in one language (ADR-030). Any field absent falls back. */
+export interface CapabilityText {
+  readonly title?: string;
+  readonly explanation?: string;
+  readonly refusal?: string;
 }
 
 /**
@@ -259,6 +294,11 @@ export interface RegistryFile {
    * defect this field exists to fix.
    */
   readonly domainDescription: string;
+  /**
+   * The language `title`, `explanation` and `refusal` are written in — the app's first (ADR-030).
+   * Absent in a registry written before it: the widget then assumes the page's.
+   */
+  readonly language?: string;
   readonly capabilities: readonly Capability[];
   readonly enums?: Readonly<Record<string, EnumDefinition>>;
   /** What the owner says about the app: its words, its rules, its limits. Optional; see `RegistryContext`. */

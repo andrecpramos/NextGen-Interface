@@ -289,16 +289,9 @@ export function deriveProse(request: ProseRequest): Prose {
   // and without a template sentence. (It was "X is a screen in the auth area of this application, at
   // /:locale/auth/login." — English on a Portuguese app, and no information.) The area and the route
   // stay in `description`, which is what retrieval matches on and no visitor reads.
-  const words = DERIVED_WORDS[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? DERIVED_WORDS.en!;
-  const shown = request.copy
-    .filter((text) => text.trim().toLowerCase() !== primary.trim().toLowerCase())
-    .slice(0, 4)
-    .map((text) => clip(text));
-  const explanation =
-    shown.length > 0
-      ? // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
-        `${words.shows} ${shown.join(', ').replace(/[.!?…]+$/, '')}.`
-      : words.only(primary, request.feature === 'app' ? null : request.feature);
+  const words = derivedWords(request.languages[0]);
+  const content = request.copy.filter((text) => text.trim().toLowerCase() !== primary.trim().toLowerCase() && worthShowing(text));
+  const explanation = showsSentence(request.languages[0], primary, request.copy) ?? words.only(primary, request.feature === 'app' ? null : request.feature);
   // Each title with its own language's words for "take me there". The first version put
   // "open" before the first title and "abre" before the second, whatever their languages
   // were: a Portuguese application was given "open finanças", and an English one
@@ -310,7 +303,64 @@ export function deriveProse(request: ProseRequest): Prose {
     for (const verb of verbs) examples.push(`${verb} ${title.toLowerCase()}`);
   }
   if (examples.length === 0) for (const verb of ASK_TO_GO.en!) examples.push(`${verb} ${primary.toLowerCase()}`);
+  // "open X", "take me to X", "go to X" repeat the title and add no word a visitor might use (Pilot-A field
+  // report, 2026-09-23, P3-1). What the page itself shows does: a column, a section, a label — "ver
+  // elegibilidade", "see match squad". Short lines only, and only the first two: a page's own words as a
+  // request, never a sentence someone wrote, so nothing is invented.
+  const see = SEE[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? SEE.en!;
+  for (const text of content.filter(isLabel).slice(0, 2)) examples.push(`${see} ${text.trim().toLowerCase()}`);
   return { description, explanation, examples: [...new Set(examples)], source: 'derived' };
+}
+
+const derivedWords = (language: string | undefined) =>
+  DERIVED_WORDS[(language ?? 'en').split('-')[0]!.toLowerCase()] ?? DERIVED_WORDS.en!;
+
+/**
+ * "This screen shows: A, B, C." — what the page itself says, in `language`, or `null` when it says
+ * nothing worth showing. No filler sentence: a translation with nothing to say says nothing (ADR-030).
+ */
+export function showsSentence(language: string | undefined, title: string, copy: readonly string[]): string | null {
+  const shown = copy
+    // "No announcements." is the page saying it is empty. Filtered here, where it is only shown, and not
+    // in `worthShowing`, whose examples are embedded (a change there moves calibrated scores, Rule 14).
+    .filter((text) => text.trim().toLowerCase() !== title.trim().toLowerCase() && worthShowing(text) && !/^no \S+( \S+)?[.!]?$/i.test(text.trim()))
+    .slice(0, 4)
+    .map((text) => clip(text));
+  // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
+  return shown.length > 0 ? `${derivedWords(language).shows} ${shown.join(', ').replace(/[.!?…]+$/, '')}.` : null;
+}
+
+/** How a user asks to see something, per language: the verb before a page's own label in a derived example. */
+const SEE: Readonly<Record<string, string>> = { en: 'see', pt: 'ver' };
+
+/** A label, not a sentence: a few words, no full stop — what a column, a tab or a section heading says. */
+function isLabel(text: string): boolean {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const count = flat.split(' ').length;
+  return count >= 1 && count <= 4 && flat.length >= 4 && !/[.!?…:]$/.test(flat);
+}
+
+/**
+ * What the page renders that says nothing about what the screen is for (Pilot-A field report, 2026-09-23):
+ * a unit ("min"), a control ("+ Princípio", "Mover para cima"), and an empty state ("Sem equipas
+ * registadas", "Cria a primeira equipa…") — the page saying it has nothing yet. Served as "This screen
+ * shows: min, Mover para cima", they read as broken. Coarse and bilingual, like the rest of this file.
+ */
+export function worthShowing(text: string): boolean {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat.length < 3) return false;
+  // A unit or an abbreviation in lower case: "min", "kg", "km/h", "%".
+  if (/^[a-z%°/.]{1,4}$/.test(flat)) return false;
+  // A control: starts with a symbol, or is — as the whole label — a verb for moving, reordering or
+  // dismissing. The whole label only: "Next fixtures" is content, "Next" is a button.
+  if (/^[+\-−×✕←→↑↓•·»›]/.test(flat)) return false;
+  if (/^(mover|move|subir|descer)( para)? ?(cima|baixo|up|down)?$|^(fechar|close|cancelar|cancel|voltar|back|anterior|previous|seguinte|next|carregar mais|load more|ver mais|see more|mostrar mais|show more|guardar|save|editar|edit|apagar|delete|remover|remove)[\s»›→.…]*$/i.test(flat)) return false;
+  // An empty state: the page saying there is nothing, or asking you to make the first one.
+  if (/^(sem |nenhum|nenhuma|não há|ainda não|ainda sem|no [a-z]+ (yet|found|registered)|there (are|is) no|nothing (here|yet)|none yet|you (have|don't have) no)/i.test(flat)) return false;
+  if (/^(cria|crie|adiciona|adicione|create|add) (a|o|as|os|your|the)? ?(primeir|first)/i.test(flat)) return false;
+  // A loading or error placeholder.
+  if (/^(a carregar|carregando|loading|erro|error)\b/i.test(flat)) return false;
+  return true;
 }
 
 /** A line of page copy for a list: a paragraph is cut at a word, so four of them cannot run to a wall of text. */
@@ -334,11 +384,44 @@ const DERIVED_WORDS: Readonly<
   },
 };
 
+/** "open X", "take me to X", "go to X" in the application's primary language: Rule 10's three for a title alone. */
+export function askToGo(language: string, title: string): string[] {
+  const verbs = ASK_TO_GO[language.split('-')[0]!.toLowerCase()] ?? ASK_TO_GO.en!;
+  return verbs.map((verb) => `${verb} ${title.toLowerCase()}`);
+}
+
 /** How a user asks to be taken to a screen. Three each, so a derived capability still meets Rule 10's minimum. */
 const ASK_TO_GO: Readonly<Record<string, readonly string[]>> = {
   en: ['open', 'take me to', 'go to'],
   pt: ['abre', 'leva-me para', 'ir para'],
 };
+
+/** How a user asks to start something, per language: paired with what a control starts (ADR-031). */
+const ASK_TO_START: Readonly<Record<string, readonly string[]>> = {
+  en: ['create', 'add'],
+  pt: ['criar', 'adicionar'],
+};
+
+/** The word a control's name starts with when it starts something: "New", "Novo", "Add"… */
+const STARTS = /^(\+\s*)?(new|add|create|novo|nova|novos|novas|adicionar|criar|agendar|marcar|registar|registrar)\s+/i;
+
+/**
+ * How a visitor asks for what a control starts, in the control's language (ADR-031): its own label —
+ * "novo evento" — and, when the label is a start word and a thing, that thing with the usual verbs —
+ * "criar evento", "adicionar evento". Measured on the family fixture, 2026-09-23: "quero criar um anúncio"
+ * went from a question (0.22) to decided (0.27) with no golden decision changed. Only the app's own words,
+ * and one verb pattern per language: never a sentence nobody wrote.
+ */
+export function startExamples(label: string, language: string): string[] {
+  const flat = label.replace(/\s+/g, ' ').trim();
+  if (!flat) return [];
+  const out = [flat.toLowerCase()];
+  const thing = STARTS.test(flat) ? flat.replace(STARTS, '').trim().toLowerCase() : '';
+  if (thing && thing.split(' ').length <= 4) {
+    for (const verb of ASK_TO_START[language.split('-')[0]!.toLowerCase()] ?? []) out.push(`${verb} ${thing}`);
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------- cache --
 

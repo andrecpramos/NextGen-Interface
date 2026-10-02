@@ -160,8 +160,25 @@ export interface Liquid {
   /** 0..1 — the bead behind the liquid, for when it sits on someone else's page. */
   setBacking(amount: number): void;
   refresh(): void;
+  /**
+   * The size it is shown at, in CSS pixels: the canvas is drawn at that resolution rather than its full
+   * size. Docked at 92 px, a 320 px canvas at 2x was 12 times the pixels anyone could see, redrawn every
+   * frame on the adopter's page. Growing applies at once; shrinking waits for the flight to finish.
+   */
+  setResolution(cssPixels: number): void;
+  /** Start moving again after it went still at rest — the visitor pointed at it, or something changed. */
+  wake(): void;
   destroy(): void;
 }
+
+/**
+ * How long it keeps moving at rest, docked, before it goes still: one last frame, and no work at all on
+ * the adopter's page until something wakes it. It is a guest there, and a loop that never stops costs
+ * every visitor battery on every page, whether anyone looks at the corner or not.
+ */
+const REST_MS = 12_000;
+/** At rest, docked, one frame in this many is drawn: a slow turn needs no more. */
+const REST_STRIDE = 4;
 
 export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions): Liquid {
   const { size, view, reducedMotion } = options;
@@ -179,21 +196,30 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
   let t = 0;
   let last = 0;
   let raf = 0;
-  let skip = false;
+  let frame = 0;
+  let restedMs = 0;
+  let asleep = false;
   let destroyed = false;
   let reported = 0;
+  let resolution = size;
+  let shrink = 0;
 
   const mind = options.mind === false ? null : createMind();
 
   const xs = new Float64Array(POINTS);
   const ys = new Float64Array(POINTS);
 
-  if (ctx) {
+  /** Draw at `px` CSS pixels: the backing store shrinks, and drawing, still in `size` units, is scaled to it. */
+  function resize(px: number): void {
+    if (!ctx) return;
+    resolution = px;
     const dpr = Math.min(2, view?.devicePixelRatio || 1);
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const backing = Math.max(1, Math.round(px * dpr));
+    canvas.width = backing;
+    canvas.height = backing;
+    ctx.setTransform(backing / size, 0, 0, backing / size, 0, 0);
   }
+  resize(size);
 
   function readPalette(): void {
     const palette = options.palette();
@@ -240,10 +266,7 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'source-over';
 
-    const aura = ctx.createRadialGradient(c, c, R * 0.6, c, c, R * 1.95);
-    aura.addColorStop(0, rgba(accent, (light ? 0.1 : 0.12) + (light ? 0.16 : 0.2) * lv));
-    aura.addColorStop(1, rgba(accent, 0));
-    circle(ctx, c, c, R * 1.95, aura);
+    // No aura (ADR-035): the body is the whole of it.
 
     // A bead behind the light, in the page's own raised colour, so the orb reads
     // on whatever it is docked over.
@@ -262,10 +285,10 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     }
 
     // Four masses of the same liquid, each drifting a little off the centre and
-    // turning its own way. On a dark page `screen` lets them brighten where they
-    // overlap; on a light one they are laid down as translucent ink instead.
-    ctx.globalCompositeOperation = light ? 'source-over' : 'screen';
-    const density = light ? 0.72 : 1;
+    // turning its own way.
+    // Laid down as flat ink on any page (ADR-035): `screen` made the overlaps glow.
+    ctx.globalCompositeOperation = 'source-over';
+    const density = light ? 0.6 : 0.62;
     const drift = R * (0.1 + 0.08 * lv);
     const layers = [
       { scale: 1.02, spin: 0.5, col: deep, a: 0.95, fx: 0.7, fy: 0.6 },
@@ -279,9 +302,10 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
       const r = R * layer.scale;
       const a = layer.a * density;
       blob(ctx, ox, oy, r, t * current.spin * layer.spin, i, lv);
-      const g = ctx.createRadialGradient(ox - r * 0.3, oy - r * 0.35, r * 0.05, ox, oy, r * 1.3);
-      g.addColorStop(0, rgba(bright, a * 0.42));
-      g.addColorStop(0.45, rgba(layer.col, a * 0.8));
+      // Centred, and the same colour throughout: lit off-centre it read as a polished sphere (ADR-035).
+      const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, r * 1.2);
+      g.addColorStop(0, rgba(layer.col, a * 0.8));
+      g.addColorStop(0.55, rgba(layer.col, a * 0.7));
       g.addColorStop(1, rgba(layer.col, 0));
       ctx.fillStyle = g;
       ctx.fill();
@@ -305,15 +329,9 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     // read as liquid held together rather than as a glow.
     blob(ctx, c + Math.sin(t * 0.49) * drift * 0.5, c + Math.cos(t * 0.43) * drift * 0.5, R * 1.04, t * current.spin * 0.4, 0, lv);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = rgba(light ? deep : bright, (light ? 0.3 : 0.2) + 0.2 * lv);
+    ctx.strokeStyle = rgba(light ? deep : accent, (light ? 0.22 : 0.18) + 0.15 * lv);
     ctx.stroke();
-
-    const sx = c - R * 0.32;
-    const sy = c - R * 0.4;
-    const spec = ctx.createRadialGradient(sx, sy, 0, sx, sy, R * 0.34);
-    spec.addColorStop(0, `rgba(255,255,255,${light ? '0.35' : '0.16'})`);
-    spec.addColorStop(1, 'rgba(255,255,255,0)');
-    circle(ctx, sx, sy, R * 0.34, spec);
+    // No specular highlight: a white spot on the body read as polished metal, not as the app (ADR-034).
   }
 
   function report(): void {
@@ -336,17 +354,33 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     backing += (targetBacking - backing) * k;
     mind?.step(dt, level);
     report();
-    // Docked and at rest, half the frames are plenty — this runs on someone else's page.
-    const resting = target === STATE_PARAMS.idle && targetBacking > 0.5 && level < 0.01;
-    skip = resting ? !skip : false;
-    if (!skip) draw();
+    // At rest — this runs on someone else's page — it goes still after a while (`REST_MS` docked, longer
+    // with the panel open and someone perhaps reading it), and docked it turns at a quarter of the frames.
+    const idle = target === STATE_PARAMS.idle && level < 0.01 && targetLevel === 0;
+    const docked = targetBacking > 0.5;
+    restedMs = idle ? restedMs + dt * 1000 : 0;
+    frame = idle && docked ? frame + 1 : 0;
+    if (!(idle && docked) || frame % REST_STRIDE === 0) draw();
+    if (idle && restedMs >= (docked ? REST_MS : REST_MS * 5)) {
+      draw();
+      asleep = true;
+      return;
+    }
     schedule();
   }
 
   function schedule(): void {
-    if (!ctx || reducedMotion || destroyed || raf || !view?.requestAnimationFrame) return;
+    if (!ctx || reducedMotion || destroyed || raf || asleep || !view?.requestAnimationFrame) return;
     if (view.document?.hidden) return;
     raf = view.requestAnimationFrame(tick);
+  }
+
+  function wake(): void {
+    restedMs = 0;
+    if (!asleep) return schedule();
+    asleep = false;
+    last = 0;
+    schedule();
   }
 
   const onVisibility = (): void => {
@@ -374,21 +408,44 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
       mind?.setState(state);
       options.onState?.(state);
       still();
+      wake();
     },
     setLevel(value) {
       targetLevel = clamp01(value);
+      if (targetLevel > 0) wake();
     },
     setBacking(amount) {
       targetBacking = clamp01(amount);
       still();
+      wake();
     },
     refresh() {
       readPalette();
       draw();
     },
+    setResolution(cssPixels) {
+      const px = Math.max(16, Math.min(size, Math.round(cssPixels)));
+      if (px === resolution) return;
+      if (shrink) view?.clearTimeout?.(shrink);
+      shrink = 0;
+      // Growing now, so it is never drawn blurred; shrinking once it has finished shrinking on screen.
+      if (px > resolution || !view?.setTimeout) {
+        resize(px);
+        draw();
+        return;
+      }
+      shrink = view.setTimeout(() => {
+        shrink = 0;
+        if (destroyed) return;
+        resize(px);
+        draw();
+      }, 820);
+    },
+    wake,
     destroy() {
       destroyed = true;
       if (raf) view?.cancelAnimationFrame?.(raf);
+      if (shrink) view?.clearTimeout?.(shrink);
       raf = 0;
       view?.document?.removeEventListener?.('visibilitychange', onVisibility);
     },

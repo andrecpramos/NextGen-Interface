@@ -231,12 +231,11 @@
       "id": "router-floor",
       "title": "Deterministic router floor (stages 1+2, hashing encoder)",
       "command": "pnpm router:floor",
-      "blocking": false,
-      "expectNonZero": true,
+      "blocking": true,
       "when": [
         "packages/core-intent/**"
       ],
-      "fix": "Exits non-zero BY DESIGN — with stage 3 disabled it cannot meet absolute accuracy targets and is not meant to. What gates is the scorecard comparison below."
+      "fix": "It reports the full cascade's accuracy targets without failing on them (--report-targets): with stage 3 disabled it is not meant to reach them, and the scorecard comparison below gates accuracy. So a failure here is a crash, or a safety violation in the golden set — read the output. Until 2026-10-02 it exited 1 on every run and was advisory, which also hid a crash."
     },
     {
       "id": "scorecard",
@@ -247,7 +246,7 @@
         "packages/core-intent/**",
         "packages/core-intent/eval/fixture-registry.json"
       ],
-      "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold. This compares your working tree against the scorecard committed at HEAD, so it only has something to say after `pnpm router:floor` has re-run; CI does the same with a baseline copied aside before the run."
+      "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold. This compares your working tree against the scorecard committed at HEAD, so it only has something to say after `pnpm router:floor` has re-run — and it refuses (exit 2) a scorecard whose generatedAt is the baseline's, since then nothing was measured. CI does the same with a baseline copied aside before the run."
     },
     {
       "id": "audit",

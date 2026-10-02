@@ -87,6 +87,23 @@ const loadFromGit = (ref, p) => {
 const baselineLabel = baselineRef ? `${currentPath} at ${baselineRef}` : baselinePath;
 const baseline = baselineRef ? loadFromGit(baselineRef, baselinePath ?? currentPath) : load(baselinePath);
 const current = load(currentPath);
+
+// ---------------------------------------------------------------- freshness --
+// The current run has to be a run. `pnpm router:floor` writes the current scorecard, and CI ran
+// it with `|| true`: if it crashed or never ran, the file left in place was the committed one,
+// every delta was zero, and this gate printed OK on 2026-10-02 without one question having been
+// routed — on both paths, `--baseline` in CI and `--baseline-ref HEAD` in /gates. The same
+// failure as the same-path case above, by another route (lessons.md L6, its fifth instance).
+// Every scorecard is stamped with when it was generated; the baseline's stamp on the current file
+// means nothing was measured.
+if (!current.generatedAt || current.generatedAt === baseline.generatedAt) {
+  console.error(
+    `\n  ${currentPath} was not regenerated: its generatedAt (${current.generatedAt ?? 'missing'}) is the baseline's.\n` +
+      '  Nothing was measured, so there is nothing to compare. Run `pnpm router:floor` first, and check that it succeeded.\n',
+  );
+  process.exit(2);
+}
+
 const failures = [];
 const notes = [];
 

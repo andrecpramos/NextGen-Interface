@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "domainDescription": "A aplicação de um clube desportivo de formação: os encarregados de educação acompanham os seus filhos, os jogadores veem o que o clube lhes diz e o seu estado, e os treinadores gerem o plantel e os treinos. / A youth sports club app: guardians follow their children, players see what the club tells them, and coaches run the squad and training.",
+  "language": "pt-PT",
   "context": {
     "glossary": [
       {
@@ -95,6 +96,7 @@
         "open dashboard",
         "take me to dashboard",
         "go to dashboard",
+        "ver painel do treinador",
         "ir para o início",
         "voltar ao painel",
         "página inicial do treinador",
@@ -103,7 +105,13 @@
       "triggers": [
         "painel",
         "dashboard"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Dashboard",
+          "explanation": "This screen shows: Coach dashboard."
+        }
+      }
     },
     {
       "id": "notifications.my_notifications",
@@ -128,7 +136,12 @@
       "triggers": [
         "notificacoes",
         "notifications"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Notifications"
+        }
+      }
     },
     {
       "id": "settings.notifications",
@@ -145,6 +158,8 @@
         "open my preferences · notifications",
         "take me to my preferences · notifications",
         "go to my preferences · notifications",
+        "ver as minhas preferências",
+        "ver notificações",
         "não quero receber emails",
         "desligar os avisos por email",
         "mudar o email onde recebo os avisos",
@@ -163,7 +178,13 @@
             "selector": "#notify-email"
           }
         }
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "My Preferences · Notifications",
+          "explanation": "This screen shows: My Preferences, Notifications, Email address."
+        }
+      }
     },
     {
       "id": "settings.overview",
@@ -188,7 +209,12 @@
       "triggers": [
         "definicoes",
         "settings"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Settings"
+        }
+      }
     },
     {
       "id": "squad.overview",
@@ -205,6 +231,7 @@
         "open squad · overview",
         "take me to squad · overview",
         "go to squad · overview",
+        "ver resumo do plantel",
         "ver os meus jogadores",
         "como está a minha equipa",
         "lista do plantel",
@@ -213,7 +240,13 @@
       "triggers": [
         "plantel visao geral",
         "squad overview"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Squad · Overview",
+          "explanation": "This screen shows: Squad summary."
+        }
+      }
     },
     {
       "id": "training.overview",
@@ -230,6 +263,7 @@
         "open training · overview",
         "take me to training · overview",
         "go to training · overview",
+        "ver resumo do treino",
         "quando é o próximo treino",
         "ver as sessões planeadas",
         "plano de treino da semana",
@@ -238,52 +272,78 @@
       "triggers": [
         "treino visao geral",
         "training overview"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Training · Overview",
+          "explanation": "This screen shows: Training summary."
+        }
+      }
     },
     {
       "id": "unsupported.external_actions",
       "kind": "unsupported",
       "route": null,
-      "title": "Acting outside this application",
-      "description": "Booking an appointment, sending an email or a message, or doing something in another system on the user’s behalf. This assistant works inside this application only.",
-      "refusal": "I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you.",
+      "title": "Agir fora desta aplicação",
+      "description": "Marcar uma consulta, enviar um email ou uma mensagem, ou fazer algo noutro sistema em nome do utilizador. Este assistente trabalha apenas dentro desta aplicação.",
+      "refusal": "Posso levá-lo a qualquer ecrã desta aplicação e explicar o que lá encontra, mas não marco consultas, não envio mensagens nem ajo noutro sistema por si.",
       "examples": [
         "book a physio appointment for my son",
         "send an email to the coach about this",
         "schedule a doctor’s visit for this injury",
         "marca uma consulta para o meu filho",
         "envia um email ao treinador"
-      ]
+      ],
+      "refuses": "action",
+      "translations": {
+        "en": {
+          "title": "Acting outside this application",
+          "refusal": "I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you."
+        }
+      }
     },
     {
       "id": "unsupported.data_changes",
       "kind": "unsupported",
       "route": null,
-      "title": "Changing records for you",
-      "description": "Creating, editing or deleting a record. This assistant takes the user to the screen where they can do it themselves; it never fills a form or saves a change on their behalf.",
-      "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself.",
+      "title": "Alterar registos por si",
+      "description": "Criar, editar ou apagar um registo. Este assistente leva o utilizador ao ecrã onde o pode fazer; nunca preenche um formulário nem grava uma alteração em seu nome.",
+      "refusal": "Posso levá-lo ao ecrã certo e dizer-lhe o que fazer lá, mas não crio, altero nem apago registos por conta própria.",
       "examples": [
         "delete this record for me",
         "change the date on this for me",
         "fill in this form for me",
         "apaga este registo por mim",
         "altera a data disto por mim"
-      ]
+      ],
+      "refuses": "action",
+      "translations": {
+        "en": {
+          "title": "Changing records for you",
+          "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself."
+        }
+      }
     },
     {
       "id": "unsupported.other_applications",
       "kind": "unsupported",
       "route": null,
-      "title": "Questions about anything else",
-      "description": "General knowledge, other software, or any subject this application does not cover. The assistant answers about this application and nothing else.",
-      "refusal": "I only know this application — I can’t help with things outside it.",
+      "title": "Perguntas sobre outros assuntos",
+      "description": "Cultura geral, outras aplicações, ou qualquer assunto que esta aplicação não cobre. O assistente responde sobre esta aplicação e mais nada.",
+      "refusal": "Só conheço esta aplicação — não consigo ajudar com assuntos fora dela.",
       "examples": [
         "what’s the weather tomorrow",
         "write me a poem",
         "what’s in my email inbox",
         "como está o tempo amanhã",
         "escreve-me um poema"
-      ]
+      ],
+      "translations": {
+        "en": {
+          "title": "Questions about anything else",
+          "refusal": "I only know this application — I can’t help with things outside it."
+        }
+      }
     },
     {
       "id": "unsupported.declared.pagamentos_quotas_e_faturas",

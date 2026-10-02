@@ -1,21 +1,21 @@
 {
-  "generatedAt": "2026-09-11T13:22:18.102Z",
+  "generatedAt": "2026-09-25T20:01:24.841Z",
   "config": {
     "embedder": "hashing",
     "model": null,
     "thresholds": {
       "tauAct": 0.55,
-      "tauHigh": 0.456,
+      "tauHigh": 0.636,
       "delta": 0.01,
       "tauFloor": 0,
       "topK": 5,
-      "boundaryMargin": 0.065
+      "boundaryMargin": 0.1
     }
   },
   "entries": 85,
   "gates": {
     "Top-1 capability accuracy": {
-      "actual": 0.34782608695652173,
+      "actual": 0.391304347826087,
       "target": 0.9,
       "pass": false
     },
@@ -30,7 +30,7 @@
       "pass": true
     },
     "Out-of-scope detected": {
-      "actual": 0.6923076923076923,
+      "actual": 0.5384615384615384,
       "target": 0.95,
       "pass": false
     },
@@ -54,12 +54,12 @@
       "stage3p95": null
     },
     "paraphrase": {
-      "pass": 7,
+      "pass": 10,
       "total": 24,
-      "rate": 0.2916666666666667,
-      "top1Correct": 7,
+      "rate": 0.4166666666666667,
+      "top1Correct": 10,
       "top1Total": 24,
-      "top1": 0.2916666666666667,
+      "top1": 0.4166666666666667,
       "stage3Calls": 0,
       "stage3p50": null,
       "stage3p95": null
@@ -76,20 +76,20 @@
       "stage3p95": null
     },
     "multiturn": {
-      "pass": 3,
+      "pass": 2,
       "total": 10,
-      "rate": 0.3,
-      "top1Correct": 1,
+      "rate": 0.2,
+      "top1Correct": 0,
       "top1Total": 8,
-      "top1": 0.125,
+      "top1": 0,
       "stage3Calls": 0,
       "stage3p50": null,
       "stage3p95": null
     },
     "out_of_scope": {
-      "pass": 9,
+      "pass": 7,
       "total": 13,
-      "rate": 0.6923076923076923,
+      "rate": 0.5384615384615384,
       "top1Correct": 0,
       "top1Total": 0,
       "top1": null,
@@ -134,56 +134,14 @@
   },
   "modelFreeRate": 1,
   "latency": {
-    "p50": 0.0502000000000038,
-    "p95": 0.3526999999999987,
-    "stage1p95": 0.02049999999999841,
-    "stage2p95": 0.3301999999999907,
+    "p50": 0.09010000000000673,
+    "p95": 0.39800000000001035,
+    "stage1p95": 0.03300000000000125,
+    "stage2p95": 0.2453000000000003,
     "stage3p95": null
   },
   "registryOverlap": [],
   "failures": [
-    {
-      "id": "gs-0009",
-      "bucket": "paraphrase",
-      "utterance": "remember that my passport expires in June 2027",
-      "expected": {
-        "capability": "module.capture",
-        "maxStage": "embedding"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.capture"
-      ]
-    },
-    {
-      "id": "gs-0010",
-      "bucket": "paraphrase",
-      "utterance": "save this: the wifi password is on the router label",
-      "expected": {
-        "capability": "module.capture",
-        "maxStage": "embedding"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.capture"
-      ]
-    },
     {
       "id": "gs-0011",
       "bucket": "paraphrase",
@@ -344,6 +302,7 @@
         "decidedAt": "embedding",
         "params": {},
         "notes": [
+          "not moved: \"save\", \"passport\", \"renewal\" belong to the runner-up too (Rule 19)",
           "stage3 disabled"
         ]
       },
@@ -364,26 +323,7 @@
         "decidedAt": "embedding",
         "params": {},
         "notes": [
-          "stage3 disabled"
-        ]
-      },
-      "failures": [
-        "capability none != module.search"
-      ]
-    },
-    {
-      "id": "gs-0021",
-      "bucket": "paraphrase",
-      "utterance": "look up what I wrote about the car insurance",
-      "expected": {
-        "capability": "module.search"
-      },
-      "got": {
-        "capabilityId": null,
-        "outcome": "clarify",
-        "decidedAt": "embedding",
-        "params": {},
-        "notes": [
+          "not moved: \"note\", \"wifi\", \"password\" belong to the runner-up too (Rule 19)",
           "stage3 disabled"
         ]
       },
@@ -538,6 +478,28 @@
       ]
     },
     {
+      "id": "gs-0133",
+      "bucket": "multiturn",
+      "utterance": "remove that module",
+      "expected": {
+        "capability": "module.delete",
+        "requiresConfirmation": true,
+        "forbidUnconfirmedDestructive": true
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "capability none != module.delete"
+      ]
+    },
+    {
       "id": "gs-0134",
       "bucket": "multiturn",
       "utterance": "undo that",
@@ -644,6 +606,46 @@
       },
       "failures": [
         "capability none != module.capture"
+      ]
+    },
+    {
+      "id": "gs-0154",
+      "bucket": "out_of_scope",
+      "utterance": "read me the news",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
+      ]
+    },
+    {
+      "id": "gs-0158",
+      "bucket": "out_of_scope",
+      "utterance": "order me a new charger",
+      "expected": {
+        "outcome": "out_of_scope"
+      },
+      "got": {
+        "capabilityId": null,
+        "outcome": "clarify",
+        "decidedAt": "embedding",
+        "params": {},
+        "notes": [
+          "stage3 disabled"
+        ]
+      },
+      "failures": [
+        "outcome clarify != out_of_scope"
       ]
     },
     {

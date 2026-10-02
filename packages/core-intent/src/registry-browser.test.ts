@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { defineBoundary, defineCapability, defineRegistry, capabilityDocument } from '@nextgen/core-capability';
 
-import { registryFromIndex, assertIndexMatches, IndexMismatchError, type ShippedIndex } from './registry-browser.ts';
+import { readFileSync } from 'node:fs';
+
+import { registryFromIndex, assertIndexMatches, IndexMismatchError, indexFor, mergeRegistryFiles, RegistryMergeError, type ShippedIndex } from './registry-browser.ts';
+import { buildTriggerIndex } from './triggers.ts';
 import { HashingEmbedder } from './embedder.ts';
 import { route } from './cascade.ts';
 import { THRESHOLD_PROFILES } from './config.ts';
@@ -125,6 +128,13 @@ describe('assertIndexMatches — refusing an index that cannot belong here', () 
     );
   });
 
+  it('says which is a string when the versions only look alike', () => {
+    const stringly = { ...shippedIndexSync, schemaVersion: String(registryFile.schemaVersion) } as unknown as typeof shippedIndexSync;
+    expect(() => assertIndexMatches(registryFile, stringly)).toThrow(
+      `schema "${registryFile.schemaVersion}" (string) against registry schema ${registryFile.schemaVersion} (number)`,
+    );
+  });
+
   it('refuses vectors of inconsistent width', () => {
     const ragged = {
       ...shippedIndexSync,
@@ -196,5 +206,110 @@ describe('stages 1+2 make no network call', () => {
     const trace = await route('something entirely unrelated qqqq', { route: '/', today: '2026-09-10' }, await deps());
     expect(trace.outcome).toBe(OUTCOME.CLARIFY);
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Pilot-A field report, 2026-09-23 (P2-2, P2-5). A user who holds several roles needs one registry, and a
+ * registry needs its own index: each role's is its own vector space. So the index must be computable
+ * from the registry alone, identically to the file the build ships — and a phrase two roles' screens
+ * both claim must name neither.
+ */
+describe('indexFor — the shipped index is a cache of a pure function', () => {
+  const GENERATED = new URL('../../../eval/frameworks/family/generated/', import.meta.url);
+  const read = (file: string): unknown => JSON.parse(readFileSync(new URL(file, GENERATED), 'utf8'));
+
+  it('reproduces every committed index of the reference app, byte for byte but the timestamp', () => {
+    for (const role of ['COACH', 'PARENT', 'PLAYER']) {
+      const shipped = read(`index.${role}.json`) as ShippedIndex;
+      const computed = indexFor(read(`registry.${role}.json`) as RegistryFile, shipped.generatedAt);
+      expect(computed, role).toEqual(shipped);
+    }
+  });
+
+  it('is what registryFromIndex accepts, and routes the same as a shipped one', async () => {
+    const trace = (index: ShippedIndex) =>
+      route('squad overview', { route: '/', today: '2026-09-10' }, {
+        registry: registryFromIndex(registryFile, index),
+        embedder: (() => {
+          const e = new HashingEmbedder();
+          e.fit(registryFile.capabilities.map(capabilityDocument));
+          return e;
+        })(),
+        thresholds: THRESHOLD_PROFILES.hashing,
+        useStage3: false,
+      });
+    expect((await trace(indexFor(registryFile))).capabilityId).toBe((await trace(await shippedIndex())).capabilityId);
+  });
+});
+
+describe('mergeRegistryFiles — one registry for a user with several roles', () => {
+  const other: RegistryFile = defineRegistry({
+    domainDescription: 'A club application.',
+    capabilities: [
+      defineCapability({
+        id: 'squad.overview', kind: 'navigate', route: '/squad',
+        title: 'Squad overview', description: 'See every player in the squad and their status',
+        explanation: 'Everyone in the squad, with their current status.',
+        triggers: ['squad overview'], examples: ex(3),
+      }),
+      defineCapability({
+        id: 'guardian.nutrition', kind: 'navigate', route: '/my/children/nutrition',
+        title: 'My children’s nutrition', description: 'Meal plans for your children',
+        explanation: 'What your children eat, week by week.',
+        triggers: ['nutrition'], examples: ex(3),
+      }),
+    ],
+  });
+
+  it('keeps every capability once, in the first registry’s order, then the new ones', () => {
+    const merged = mergeRegistryFiles([registryFile, other]);
+    expect(merged.capabilities.map((c) => c.id)).toEqual(['squad.overview', 'training.sessions', 'unsupported.payments', 'guardian.nutrition']);
+    expect(merged.domainDescription).toBe(registryFile.domainDescription);
+    expect(mergeRegistryFiles([registryFile])).toBe(registryFile);
+  });
+
+  it('keeps a "__proto__" enum a key — it changes no prototype (ADR-029)', () => {
+    const hostile = JSON.parse('{"__proto__": {"values": [{"value": "x", "synonyms": ["y"]}]}}') as NonNullable<RegistryFile['enums']>;
+    const merged = mergeRegistryFiles([{ ...registryFile, enums: hostile }, other]);
+    expect(Object.getPrototypeOf(merged.enums)).toBeNull();
+    expect(Object.keys(merged.enums!)).toEqual(['__proto__']);
+    expect(({} as Record<string, unknown>).values).toBeUndefined();
+  });
+
+  it('refuses registries of different schemas, and an empty list', () => {
+    expect(() => mergeRegistryFiles([])).toThrow(RegistryMergeError);
+    expect(() => mergeRegistryFiles([registryFile, { ...other, schemaVersion: 99 }])).toThrow(/schema 99/);
+  });
+
+  it('routes the merged registry against its own computed index', async () => {
+    const merged = mergeRegistryFiles([registryFile, other]);
+    const embedder = new HashingEmbedder();
+    embedder.fit(merged.capabilities.map(capabilityDocument));
+    const trace = await route('meal plans for my children', { route: '/', today: '2026-09-10' }, {
+      registry: registryFromIndex(merged, indexFor(merged)),
+      embedder,
+      thresholds: THRESHOLD_PROFILES.hashing,
+      useStage3: false,
+    });
+    expect(trace.candidates[0]?.capabilityId).toBe('guardian.nutrition');
+  });
+});
+
+describe('buildTriggerIndex — a contested phrase names neither screen', () => {
+  it('drops a phrase two capabilities claim, and keeps the rest', () => {
+    const caps = [
+      { id: 'nutrition.overview', triggers: ['Nutrição', 'plano alimentar'] },
+      { id: 'guardian.nutrition', triggers: ['nutricao'] },
+    ] as unknown as RegistryFile['capabilities'];
+    const { index, contested } = buildTriggerIndex(caps);
+    expect(index.has('nutricao')).toBe(false);
+    expect([...contested.values()]).toEqual([['nutrition.overview', 'guardian.nutrition']]);
+    expect(index.get('plano alimentar')).toBe('nutrition.overview');
+  });
+
+  it('is not contested by the same capability claiming a phrase twice', () => {
+    const caps = [{ id: 'a', triggers: ['calendar', 'Calendar'] }] as unknown as RegistryFile['capabilities'];
+    expect(buildTriggerIndex(caps).index.get('calendar')).toBe('a');
   });
 });

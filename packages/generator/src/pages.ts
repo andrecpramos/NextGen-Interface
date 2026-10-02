@@ -458,6 +458,67 @@ function childText(node: ts.Node): { text: string | null; key: string | null } {
   return { text: null, key: null };
 }
 
+/** `setOpen(true)`, `setShowForm(!showForm)`, `setOpen((v) => !v)`: state that shows something. */
+function showsState(call: ts.CallExpression): boolean {
+  if (!ts.isIdentifier(call.expression)) return false;
+  const name = call.expression.text;
+  if (/^(open|show|toggle)[A-Z]?\w*$/.test(name) && call.arguments.length === 0) return true;
+  if (!/^set[A-Z]\w*$/.test(name) || call.arguments.length !== 1) return false;
+  const [arg] = call.arguments as unknown as [ts.Expression];
+  if (arg.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.ExclamationToken) return true;
+  return ts.isArrowFunction(arg) && !ts.isBlock(arg.body) && ts.isPrefixUnaryExpression(arg.body) && arg.body.operator === ts.SyntaxKind.ExclamationToken;
+}
+
+/** A handler that does nothing but show something: every statement in it is `showsState`. */
+function onlyShows(handler: ts.Expression): boolean {
+  if (ts.isIdentifier(handler)) return /^(open|show|toggle|handleOpen|handleShow)[A-Z]?\w*$/.test(handler.text);
+  if (!ts.isArrowFunction(handler) && !ts.isFunctionExpression(handler)) return false;
+  const body = handler.body;
+  const calls = ts.isBlock(body)
+    ? body.statements.map((s) => (ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) ? s.expression : null))
+    : [ts.isCallExpression(body) ? body : null];
+  return calls.length > 0 && calls.every((call) => call !== null && showsState(call));
+}
+
+/**
+ * The controls a page renders whose only job is to show something (ADR-031): a `…Trigger` (Radix, shadcn:
+ * `DialogTrigger`, `SheetTrigger` — never an `AlertDialog`'s, which asks to confirm something), or an
+ * element whose `onClick` does nothing but set state that shows something. Named by their own visible
+ * text or `t('…')` key; a control named any other way is left out rather than guessed.
+ */
+function openers(source: ts.SourceFile): { label: string | null; labelKey: string | null }[] {
+  const out: { label: string | null; labelKey: string | null }[] = [];
+  const named = (node: ts.Node): void => {
+    let { text, key } = childText(node);
+    // `<DialogTrigger asChild><Button>New event</Button></DialogTrigger>`: the name is the child's.
+    if (!text && !key && ts.isJsxElement(node)) {
+      const inner = node.children.find((c): c is ts.JsxElement => ts.isJsxElement(c));
+      if (inner) ({ text, key } = childText(inner));
+    }
+    // `<IconButton aria-label="New event" onClick={…} />`: named by its label.
+    const attributes = attributesOf(node);
+    if (!text && !key && attributes) text = literalAttr(attributes, 'aria-label');
+    if (text || key) out.push({ label: text, labelKey: key });
+  };
+  const visit = (node: ts.Node): void => {
+    const tag = tagNameOf(node);
+    if (tag && /Trigger$/.test(tag) && !/^AlertDialog/.test(tag)) {
+      named(node);
+    } else if (tag) {
+      const attributes = attributesOf(node);
+      for (const attribute of attributes?.properties ?? []) {
+        if (!ts.isJsxAttribute(attribute) || attribute.name.getText() !== 'onClick') continue;
+        const value = attribute.initializer;
+        if (value && ts.isJsxExpression(value) && value.expression && onlyShows(value.expression)) named(node);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return out.slice(0, 20);
+}
+
 /**
  * The form controls a page renders, with whatever names them (WP-27).
  *
@@ -657,6 +718,10 @@ function readComponent(file: string, props: ReadonlyMap<string, string>): Compon
     // WP-55, ADR-020's inferred tier: matched against the same, un-namespaced
     // fields — a candidate's `field` is a `name`/`id`, never a label key.
     inferredCandidates: inferredCandidates(source, fields),
+    // ADR-031. Namespaced as the fields are, so a `t('events.new')` resolves against the page's own copy.
+    openers: openers(source).map((o) =>
+      o.labelKey && namespace && !o.labelKey.includes(':') ? { ...o, labelKey: `${namespace}:${o.labelKey}` } : o,
+    ),
   };
   return { facts, titleKeysFromProps: titleKeysFromProps(source, keyOf, fromProps) };
 }
@@ -796,6 +861,8 @@ function readThrough(file: string, source: ts.SourceFile, root: ts.Node, own: Pa
     i18nKeys: flat((reading) => reading.facts.i18nKeys),
     headings: flat((reading) => reading.facts.headings).slice(0, 12),
     fields: own.fields.length > 0 ? own.fields : children.flatMap((reading) => reading.facts.fields),
+    // What opens something may be in the page or in what it renders: a toolbar, a list's header.
+    openers: [...(own.openers ?? []), ...children.flatMap((reading) => reading.facts.openers ?? [])].slice(0, 20),
     doc: own.doc ?? children.find((reading) => reading.facts.doc)?.facts.doc ?? null,
   };
 }

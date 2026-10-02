@@ -5,9 +5,35 @@ import vm from 'node:vm';
 
 import type { SkipReason } from '@nextgen/generator';
 
-import { readConfig, type BuildRecord } from './build.ts';
+import { readConfig, STAGE3_DEFAULT_TIMEOUT_MS, type BuildRecord } from './build.ts';
+
+/** Where doctor looks for what visitors taught the assistant (`nextgen:learn`, one JSON object per line). */
+export const LESSONS_FILE = 'lessons.jsonl';
+/** How many real questions `calibrate` asks for (ADR-040). */
+const CALIBRATION_MINIMUM = 20;
+
+/**
+ * Questions visitors settled — picked a place, or said neither — in the kit folder's lessons file, or `null`
+ * when there is none. A question nothing matched is not counted: it settles nothing to calibrate on.
+ */
+function settledLessons(kit: string): number | null {
+  const file = join(kit, LESSONS_FILE);
+  if (!existsSync(file)) return null;
+  let settled = 0;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const lesson = JSON.parse(line) as { how?: unknown; question?: unknown };
+      if (typeof lesson.question === 'string' && (lesson.how === 'chose' || lesson.how === 'rejected')) settled++;
+    } catch {
+      // a line that is not JSON is not a lesson
+    }
+  }
+  return settled;
+}
 import type { Finding } from './detect.ts';
 import { arg, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR, self, shown } from './paths.ts';
+import { ladder, ladderLines } from './ladder.ts';
 import { describeSweep, sweepingTools } from './tooling.ts';
 
 /**
@@ -100,6 +126,30 @@ export function adapterVersion(dir: string = dirname(fileURLToPath(import.meta.u
   }
 }
 
+/**
+ * Where a signed-in user probably lands: the assistant opens by itself there. In most authenticated
+ * apps "/" is a public page outside the shell the assistant lives in, so the default never fires (Pilot-A
+ * field report, 2026-09-23, P1-3). A guess from route names alone, and printed as one.
+ */
+export function landingCandidate(kit: string): string | null {
+  const master = readJson<{ capabilities?: { kind?: string; route?: string | null }[] }>(join(kit, REVIEW_DIR, 'master.json'));
+  const routes = new Set((master?.capabilities ?? []).filter((c) => c.kind === 'navigate' && typeof c.route === 'string').map((c) => c.route!));
+  for (const name of ['/dashboard', '/home', '/inicio', '/painel', '/overview', '/app', '/my', '/feed', '/start']) {
+    if (routes.has(name)) return name;
+  }
+  return null;
+}
+
+/** Whether the project's own `.gitignore` ignores every AGENTS.md. Only the root file, only exact patterns. */
+export function ignoresAgentsMd(projectDir: string): boolean {
+  const file = join(projectDir, '.gitignore');
+  if (!existsSync(file)) return false;
+  const lines = readFileSync(file, 'utf8').split(/\r?\n/).map((l) => l.trim());
+  const ignored = lines.some((l) => /^(\*\*\/)?\/?AGENTS\.md$/.test(l));
+  const excepted = lines.some((l) => l.startsWith('!') && l.endsWith('AGENTS.md'));
+  return ignored && !excepted;
+}
+
 export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   const kit = resolve(kitDir);
   const lines: string[] = [];
@@ -185,6 +235,17 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     say();
   }
 
+  // 3b. What kind of assistant this is — said plainly, because owners who imagine a generative AI are
+  // disappointed by the first templated answer (Pilot-A field report, 2026-09-23, P1-4).
+  say('How it answers');
+  say(
+    record.stage3
+      ? `  Matches questions against what your app declares, in the browser; what that cannot settle goes to a model through "${record.stage3.path}" on your own server.`
+      : '  No model is used. It matches questions against what your app declares, in the visitor\'s browser, and answers in fixed wording.',
+  );
+  say('  You can make it smarter, or more careful: see "Make it better, step by step" at the end.');
+  say();
+
   // 4. Calibration.
   say('How confident the assistant is allowed to be');
   if (record.calibrated) {
@@ -210,6 +271,22 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     say('       Add some it should refuse, with "route": null — a sweep with nothing to refuse cannot');
     say('       find where refusing starts. The kit cannot calibrate from its own example questions:');
     say('       measured, that wrongly refused 7 real requests in 105.');
+    // ADR-040: calibration from what real visitors settled, not a hand-set rule — so say when there is enough.
+    const lessons = settledLessons(kit);
+    if (lessons !== null) {
+      say('');
+      say(`  Your visitors have settled ${lessons} question(s) the assistant asked them about (${LESSONS_FILE}).`);
+      say(`    Teach them:  ${tool} teach ${here} --from ${LESSONS_FILE}   (add --write once the report reads right)`);
+      if (lessons >= CALIBRATION_MINIMUM) {
+        say(`    That is enough to calibrate: copy them into your questions file with the role each was asked`);
+        say('    in, and run calibrate. Real questions, settled by real visitors, are the best there is.');
+      } else {
+        say(`    ${CALIBRATION_MINIMUM - lessons} more and there are enough real questions to calibrate on.`);
+      }
+    } else {
+      say(`  Keep what visitors teach it: each "nextgen:learn" event, one JSON object per line, in`);
+      say(`  ${LESSONS_FILE} in this folder. doctor counts them and says when there are enough to calibrate.`);
+    }
   }
   say();
 
@@ -223,6 +300,10 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     say('  serve, rate-limit and secure. See "Turn on model-backed answers" in AGENTS.md or');
     say('  the kit README for a reference proxy with rate limiting.');
     if (record.stage3.model) say(`  Requests name the model "${record.stage3.model}"; your proxy decides what that means.`);
+    const waits = record.stage3.timeoutMs ?? STAGE3_DEFAULT_TIMEOUT_MS;
+    say(`  Waits ${waits / 1000} s for an answer${record.stage3.timeoutMs === undefined ? ' (the default)' : ''}; a later one is dropped and the`);
+    say('  visitor is asked instead. A model on your own GPU can take longer when it is busy: raise it');
+    say('  with --stage3-timeout <ms>, and have your proxy give up a second sooner so the widget still asks.');
     say();
   }
 
@@ -277,15 +358,24 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     }
   }
   const roleValue = record.roles.length > 1 ? 'CURRENT_USER_ROLE' : role;
-  say('  2. Add one line to your page. It puts an accessible "ask where to go" box in a corner.');
+  const home = landingCandidate(kit);
+  say('  2. Add one line to your page. It puts an orb in a corner that opens a chat panel.');
   say('     It needs no inline script or style, so it works under a strict Content-Security-Policy:');
-  say(`       <script src="/nextgen/nextgen.js" data-nextgen-role="${roleValue}" defer></script>`);
+  say(`       <script src="/nextgen/nextgen.js" data-nextgen-role="${roleValue}"${home ? ` data-nextgen-home="${home}"` : ''} defer></script>`);
   if (record.roles.length > 1) {
-    say("     Write the signed-in user's role into data-nextgen-role on the server, HTML-escaped.");
+    say("     Write the signed-in user's role into data-nextgen-role on the server, HTML-escaped. A user who");
+    say('     holds several roles: all of them, space-separated ("COACH PARENT"); serve each of their files.');
   }
-  say('     Optional: data-nextgen-target="#an-element" to place it yourself, and');
-  say('     data-nextgen-position="bottom-left" (or bottom-right, top-left, top-right) to choose the side;');
-  say('     without it the button rests on the emptier side of your page.');
+  say(
+    home
+      ? `     It opens by itself on ${home} — GUESSED from your routes as where a signed-in user lands. Correct it, or remove it.`
+      : '     It opens by itself only on "/". If signed-in users land elsewhere, add data-nextgen-home="/that/page".',
+  );
+  say('     Optional attributes: data-nextgen-position (bottom-left, bottom-right) and data-nextgen-inset="x,y" to');
+  say('     clear your own corner buttons; data-nextgen-hide="#your-chat-button" for launchers it replaces;');
+  say('     data-nextgen-decide="confirm|balanced|eager" for how readily it moves; data-nextgen-search=');
+  say('     "/search?q={query}" for what no screen matches; data-nextgen-navigation for a sidebar that is not a <nav>.');
+  say('     A single-page app with token auth starts it from code instead: "A single-page app with token auth", AGENTS.md.');
   say('  3. In a single-page app, stop its links reloading the page. In your own code:');
   say("       window.addEventListener('nextgen:navigate', (event) => {");
   say('         event.preventDefault();');
@@ -301,6 +391,10 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   say('       });');
   say('     Files are checked (type, size, count), but the page should still check what it is given: a');
   say("     file's name and type are the visitor's, not ours.");
+  say('  5. Let real use teach it. Every question it could not settle, and how the visitor settled it, arrives');
+  say('     as a nextgen:learn event. Keep them (one JSON object per line), then:');
+  say(`       ${tool} teach ${here} --from lessons.jsonl          # read review/TAUGHT.md, then add --write`);
+  say('     They are the visitor\'s own words: keep them only as your privacy terms allow.');
   say(`  Never serve ${shown(join(kit, REVIEW_DIR))}. Its master.json lists every screen with every role.`);
   say();
 
@@ -327,7 +421,14 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
     (w) => !(acted && w.startsWith("The app's language is a guess")),
   );
 
-  const warnings = [...detected, ...record.warnings, ...sweeps];
+  // A `.gitignore` that ignores AGENTS.md everywhere (a Codex convention) silently keeps this tool's own
+  // instructions out of the repository it was copied into (Pilot-A field report, 2026-09-23, P3-3).
+  const agentsIgnored = projectDir ? ignoresAgentsMd(projectDir) : false;
+  const ignoredWarning = agentsIgnored
+    ? ['Your .gitignore ignores AGENTS.md, so this tool\'s instructions (AGENTS.md beside scan.mjs) will not be committed with it. Add an exception for it, e.g. "!tools/nextgen-tool/AGENTS.md", with the path you copied the tool to.']
+    : [];
+
+  const warnings = [...detected, ...record.warnings, ...sweeps, ...ignoredWarning];
   if (warnings.length > 0) {
     say('Read these before you ship');
     for (const w of warnings) say(`  ! ${w}`);
@@ -347,15 +448,15 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   if (problems.length > 0) steps.push(`Fix the PROBLEMS above, then run "${tool} build ${here}" again.`);
   const guessed = detect?.findings.filter((f) => !f.confident).length ?? 0;
   if (guessed > 0) steps.push(`Check the ${guessed} GUESSED line(s) at the top in ${CONFIG_FILE}; correct any that are wrong.`);
-  if (knowledge && knowledge.gaps > 0) {
-    steps.push(`Answer review/KNOWLEDGE-GAPS.md into knowledge.json (${knowledge.gaps} question(s)), then build again.`);
-  }
-  if (!record.calibrated) steps.push('Calibrate on real questions (see "How confident the assistant is allowed to be").');
   steps.push(`Try it before wiring anything in: ${tool} preview ${here}`);
   steps.push('Add the script line to your page ("How to put it in your app", step 2).');
+  steps.push('Then make it better for your app, step by step — below, and in review/IMPROVE.md.');
   say();
   say('Next steps');
   steps.forEach((step, i) => say(`  ${i + 1}. ${step}`));
+  say();
+  // 9. How to make it better — numbered, in order, with where this app stands on each (ladder.ts).
+  for (const line of ladderLines(ladder(kit, record, tool, here))) say(line);
   say();
   return { ok: problems.length === 0, text: lines.join('\n') };
 }

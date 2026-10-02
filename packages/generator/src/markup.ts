@@ -195,6 +195,47 @@ export function readAngularComponent(file: string): PageFacts | null {
   return inline ? readMarkupText(inline[1]!) : EMPTY;
 }
 
+/**
+ * A handler that does nothing but show something (ADR-031), in the idioms of Vue (`@click="open = true"`),
+ * Svelte (`on:click={() => (open = true)}`) and Angular (`(click)="openDialog()"`): every statement sets a
+ * flag true or toggles it, or calls `open…()`/`show…()`/`toggle…()` with nothing, or `setX(true)`.
+ */
+function onlyShows(handler: string): boolean {
+  const body = handler.trim().replace(/^\(\s*\)\s*=>\s*/, '').replace(/^\{([\s\S]*)\}$/, '$1').trim().replace(/^\(([\s\S]*)\)$/, '$1');
+  const statements = body.split(';').map((s) => s.trim()).filter(Boolean);
+  return (
+    statements.length > 0 &&
+    statements.every(
+      (s) =>
+        /^[\w$.]+\s*=\s*(true|!\s*[\w$.]+)$/.test(s) ||
+        /^(open|show|toggle)[A-Z]?\w*\s*\(\s*\)$/.test(s) ||
+        /^set[A-Z]\w*\s*\(\s*true\s*\)$/.test(s),
+    )
+  );
+}
+
+/** An opening tag, skipping `>` inside quoted or braced values (`on:click={() => …}`). */
+const OPEN_TAG = /<([a-zA-Z][\w-]*)((?:[^>"'{]|"[^"]*"|'[^']*'|\{[^}]*\})*)>/g;
+const CLICK_HANDLER = /(?:@click|v-on:click|\(click\)|onclick)(?:\.[\w.]+)?\s*=\s*(?:"([^"]*)"|'([^']*)')|on:click\s*=\s*\{([^}]*(?:\}[^}]*)?)\}/;
+
+/** Controls whose only job is to show something, named by their text, a translation key, or `aria-label` (ADR-031). */
+function openersOf(markup: string): { label: string | null; labelKey: string | null }[] {
+  const out: { label: string | null; labelKey: string | null }[] = [];
+  for (const match of markup.matchAll(OPEN_TAG)) {
+    const handler = CLICK_HANDLER.exec(match[2]!);
+    const code = handler ? (handler[1] ?? handler[2] ?? handler[3] ?? '') : '';
+    if (!handler || !onlyShows(code)) continue;
+    // What the control wraps: up to its own closing tag.
+    const after = match.index! + match[0].length;
+    const close = markup.indexOf(`</${match[1]}>`, after);
+    let { text, key } = textOrKey(close > after ? markup.slice(after, close) : '');
+    if (!text && !key) ({ text, key } = named(attributesOf(match[2]!), 'aria-label'));
+    if (text || key) out.push({ label: text, labelKey: key });
+    if (out.length === 20) break;
+  }
+  return out;
+}
+
 function readMarkupText(text: string): PageFacts {
   const markup = visibleMarkup(text);
   const keys = [...text.matchAll(TRANSLATION_CALL)].map((m) => m[2]!).filter((key) => !key.includes('${'));
@@ -211,5 +252,7 @@ function readMarkupText(text: string): PageFacts {
     // WP-55's extractor walks a TypeScript AST (`inferred-rules.ts`); this
     // regex-based reader for Vue/Svelte/HTML markup has no candidates to offer.
     inferredCandidates: [],
+    // Read from the raw text: `visibleMarkup` drops what a handler says.
+    openers: openersOf(text),
   };
 }

@@ -467,6 +467,17 @@ describe('cascade — the model may write, and the writing is checked', () => {
     expect(trace.proseRemoved[0]!.reason).toBe('action-claim');
   });
 
+  it('offers the model a prose field only when the visitor asked for an explanation', async () => {
+    const offered = async (utterance: string): Promise<string[]> => {
+      const runtime = new FakeLlmRuntime({ fallback: { capabilityId: 'spending.by_category', confidence: 0.9 } });
+      const trace = await route(utterance, ctx, await deps(runtime));
+      expect(trace.decidedAt, `"${utterance}" must reach stage 3 for this to test anything`).toBe(STAGE.LLM);
+      return Object.keys(runtime.lastRequest!.schema.properties as object);
+    };
+    expect(await offered('what did the weekend cost me')).not.toContain('prose');
+    expect(await offered('what is the weekend cost screen')).toContain('prose');
+  });
+
   it('leaves prose null and proseRemoved empty when the model writes none — identical to the pre-WP-53 shape', async () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'spending.by_category', confidence: 0.9 },

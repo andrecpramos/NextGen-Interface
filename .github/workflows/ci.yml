@@ -241,12 +241,15 @@ jobs:
       - name: Preserve the committed baseline
         run: cp packages/core-intent/eval/scorecards/hashing-nostage3.json "$RUNNER_TEMP/baseline.json"
 
-      # `|| true` is deliberate and is NOT silencing a failure. The floor run
-      # exits 1 by design: with stage 3 disabled it cannot meet the absolute
-      # accuracy targets, and is not meant to. What CI gates on is the
-      # comparison against the committed baseline in the next step.
+      # No `|| true`. With stage 3 disabled the floor cannot meet the full
+      # cascade's targets and is not meant to, so it reports them without
+      # failing (--report-targets); it exits non-zero only on a crash or a
+      # safety violation. Until 2026-10-02 this step ran with `|| true`, which
+      # also hid a crash, and the next step then compared the committed
+      # scorecard with itself and passed. That step now refuses a scorecard
+      # that was not regenerated, too.
       - name: Run the deterministic floor
-        run: pnpm router:floor || true
+        run: pnpm router:floor
 
       - name: Regression + staleness gate
         run: |

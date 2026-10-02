@@ -19,7 +19,8 @@
     {
       "about": "Contactar uma pessoa",
       "say": "Não consigo enviar mensagens nem contactar ninguém por si. Pode ler os anúncios do clube ou falar diretamente com o treinador ou a secretaria.",
-      "askedAs": ["quero falar com o treinador", "como contacto o clube", "fala com a secretaria por mim", "message the coach"]
+      "askedAs": ["quero falar com o treinador", "como contacto o clube", "fala com a secretaria por mim", "message the coach"],
+      "instead": ["/my/announcements"]
     }
   ],
   "rules": [

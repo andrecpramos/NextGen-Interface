@@ -30,6 +30,7 @@ export {
   type Capability,
   type CapabilityExample,
   type CapabilityKind,
+  type CapabilityText,
   type EnumDefinition,
   type ExecutableKind,
   type ParamSpec,
@@ -38,7 +39,7 @@ export {
 } from '@nextgen/core-capability';
 
 import { isCapabilityKind } from '@nextgen/core-capability';
-import type { Vector } from '@nextgen/core-inference';
+import type { StoredVector } from './sparse.ts';
 import type { Capability, RegistryContext } from '@nextgen/core-capability';
 
 /** Surface form → canonical value, plus leaf → parent for category roll-up. */
@@ -52,13 +53,16 @@ export interface Registry {
   readonly schemaVersion: number;
   /** What application stage 3 is routing for (WP-16, D-2). See `RegistryFile`. */
   readonly domainDescription: string;
+  /** The language its capabilities' own words are in (ADR-030). See `RegistryFile`. */
+  readonly language?: string;
   /** What the owner says about the app — its words, rules, limits — for stage 3. Absent for most registries. */
   readonly context?: RegistryContext;
   readonly capabilities: readonly Capability[];
   readonly byId: ReadonlyMap<string, Capability>;
   readonly triggerIndex: ReadonlyMap<string, string>;
   readonly documents: readonly string[];
-  readonly vectors: readonly Vector[];
+  /** One per capability, in order: dense from a real embedding model, sparse from the hashing encoder. */
+  readonly vectors: readonly StoredVector[];
   readonly enums: Readonly<Record<string, EnumIndex>>;
   /** Ids of the declared limits (ADR-009). Precomputed; consulted on every turn. */
   readonly boundaryIds: ReadonlySet<string>;
@@ -290,6 +294,18 @@ export interface TurnTrace {
    * caption regardless.
    */
   explanationRequest: boolean;
+  /**
+   * The visitor asked the assistant to change something that exists, or to do a job for them
+   * (`isChangeRequest`, Rule 20, ADR-041). Such a turn is never executed as navigation: it ends
+   * `out_of_scope` with `capabilityId` naming the screen where it is handled, which the widget offers
+   * as a link beneath "I can't do that for you".
+   */
+  changeRequest: boolean;
+  /**
+   * Keyboard mashing, not a question (`isMashing`, ADR-039): the turn ends `clarify` before stage 1, with
+   * no candidates and no model call, and is not something to learn from or hand to anyone.
+   */
+  mashing: boolean;
   latency: StageLatency;
   notes: string[];
   /**

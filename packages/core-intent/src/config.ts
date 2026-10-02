@@ -112,11 +112,15 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
   // `"undo"` passes. Was tauHigh 0.436 / boundaryMargin 0.055; at those values
   // gs-0111 ("…unrelated… xyzzy") was refused as a declared limit instead of
   // clarified. The sweep's own ambiguity constraint caught it and moved the margin.
-  hashing: { tauHigh: 0.456, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.065 },
+  //
+  // Recalibrated 2026-09-23 because stage 2's score changed (ADR-032): the average of a capability's whole
+  // document and its nearest own phrasing. Was tauHigh 0.456 / boundaryMargin 0.065, accepting 14.8% of
+  // routable turns at 100% precision with 9/13 out-of-scope caught; now 23.0% with 7/13.
+  hashing: { tauHigh: 0.636, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.1 },
 
-  // nomic-embed-text, recalibrated 2026-08-31 (WP-14) with --defer-oos.
-  // Accepts 27.6% of routable turns at 100% precision.
-  ollama: { tauHigh: 0.715, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.1 },
+  // nomic-embed-text, recalibrated 2026-09-23 with --defer-oos for ADR-032's score (was 0.715 / 0.1,
+  // 2026-08-31, WP-14). Accepts 34.4% of routable turns at 100% precision (was 27.6%), 5/13 out-of-scope caught.
+  ollama: { tauHigh: 0.768, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.165 },
 };
 
 /** Sentinel the model may return to mean "none of these capabilities". */

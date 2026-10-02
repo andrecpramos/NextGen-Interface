@@ -57,22 +57,29 @@ tells the installing agent to ask about exactly this.
 
 `pnpm eval:apps` runs the whole pipeline — generate, calibrate, route — over the fixture
 applications in [eval/frameworks](eval/frameworks), and is a CI gate. On the reference
-fixture (11 capabilities, 3 roles, 2 languages, 68 questions), with no model:
+fixture (11 capabilities, 3 roles, 2 languages, 69 questions), with no model, re-measured
+2026-10-02:
 
 | | |
 |---|---|
-| Sent straight to a wrong screen | **0%** |
-| In-scope questions wrongly refused | 3.7% |
-| Out-of-scope refused | 50.0% |
+| Sent straight to a wrong screen | **0%** — the gate fails on any ([ADR-041](.claude/decisions/ADR-041.md)) |
+| Sent straight to the right screen | 70.9% (39 of 55) |
+| In-scope questions wrongly refused | 0% |
+| Out-of-scope refused | 71.4% (10 of 14) |
 | Settled with no model call | 100% of turns reached a decision without one |
 
-**It offers rather than decides.** For most questions it offers at most two screens, the more
-likely one first, each with what it is for in the adopter's own words, and the person picks — a
-click more than a perfect guess, and it has sent nobody to a wrong place. Two, not three,
-because a visitor who has never seen the app cannot rank three unfamiliar names: on the
-reference app the right screen was among the first two in 21 of the 21 turns the router would
-not act on, and a third added none. (The measurements above were taken when it showed three;
-what is drawn changed, what was decided did not.)
+**These are an upper bound.** They include the fixture's `knowledge.json`
+([ADR-023](.claude/decisions/ADR-023.md)), which the tool's author wrote against these same
+questions. Before the fixture had one, the router refused 50% of out-of-scope requests and
+wrongly refused 3.7% of in-scope ones.
+
+**When it is not sure, it asks one question rather than guessing.** If one screen leads, it
+asks "Are you looking for X?". If two are close, it asks "Do you mean X, or Y?". It never
+shows a menu and never names a third screen, because a visitor who has never seen the app
+cannot rank unfamiliar names ([ADR-026](.claude/decisions/ADR-026.md)). That costs a tap
+more than a perfect guess, but it has sent nobody to a wrong place. When it was measured on
+2026-09-21, the right screen was among the first two in 21 of the 21 turns the router would
+not act on, and a third added none.
 
 ### The pilot, and why its numbers are no longer here
 
@@ -164,6 +171,7 @@ pnpm check                       # typecheck + every test + registry validation
 pnpm eval:apps                   # generate, calibrate and route over a fixture app
 pnpm adapter:build               # rebuild adapter/ after changing packages/
 pnpm adapter:check               # prove a copy of it runs with nothing installed
+pnpm export:adopter <folder>     # the folder an adopter is handed: adapter/, the docs, the licence, checksums
 ```
 
 `pnpm preview` is where to start: it serves the real widget on a mock application built
@@ -226,7 +234,7 @@ figure is meaningless.
 | What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) §0 |
 | How do I add it to my app? | [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) |
 | How do I run this repo itself (as a contributor)? | §Run it, above · [PLAN.md](.MDFiles/PLAN.md) §10 |
-| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 24 ADRs |
+| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 41 ADRs |
 | What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
 | What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · `pnpm eval:apps` |
 | Working in this repo as an agent? | [CLAUDE.md](CLAUDE.md) |
@@ -247,13 +255,35 @@ reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps
 public apps it had never seen it found every route in ground truth written beforehand and
 changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
 
-Not done: a live deployment, and a field test by someone other than its author. The owner
-runs both. Nothing here is production-ready.
+**The first real integration was on 2026-09-23.** An agent integrated the tool into a private
+130-screen application (React Router 7, 10 roles, pt-PT), and the owner used it there. They
+found six problems:
+
+- It waited 11 seconds before moving.
+- It added a second navigation to the app.
+- Two assistants shared one corner.
+- It answered with a menu of unfamiliar screens.
+- The model stage timed out on a reasoning model.
+- Voice was unavailable almost everywhere.
+
+Each is fixed and recorded in [ADR-026](.claude/decisions/ADR-026.md) to
+[ADR-041](.claude/decisions/ADR-041.md).
+
+Not done: real visitors' questions, a live deployment measured with its users, and a field
+test by someone other than its author. The owner runs these. Nothing here is
+production-ready.
 
 **A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do,
-and the assistant does not decline all of them. It declines roughly **half**, executes none
-of them, and asks a clarifying question for the rest — measured at 50.0% on the reference
-fixture and between 41% and 47% on the pilot, against a ~70% target.
+and the assistant does not decline all of them. It carries out none of them and asks a
+clarifying question for the ones it does not decline. Against a target of about 70%:
+
+- **On the reference fixture with its `knowledge.json`:** it declines 71.4% (10 of 14). That
+  file was written against the same questions, so this is the upper bound.
+- **On the same fixture without that file:** 50.0%.
+- **On the pilot:** between 41% and 47%.
+
+On an app whose developer has not described what it cannot do, expect it to decline about
+**half**.
 
 The cause is known and is a lesson for adopters rather than a bug: a declared limit is
 reached by *similarity*, so generic boundaries — "questions about anything else" — do not

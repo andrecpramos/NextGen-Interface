@@ -14,6 +14,7 @@ export {
   type Capability,
   type CapabilityExample,
   type CapabilityKind,
+  type CapabilityText,
   type EnumDefinition,
   type ExecutableKind,
   type ParamSpec,

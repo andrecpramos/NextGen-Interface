@@ -1,6 +1,6 @@
 import { relative } from 'node:path';
 
-import { isLocaleParam } from '@nextgen/core-capability';
+import { isLocaleParam, type CapabilityText } from '@nextgen/core-capability';
 
 import { discoverRoutes, importResolver } from './discover.ts';
 import { readManifests, readSourceLabels, readTranslations, translate, type Translations } from './labels.ts';
@@ -9,8 +9,11 @@ import { synthesiseId, routeSegments, featureOf } from './ids.ts';
 import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
 import {
+  askToGo,
   deriveProse,
   pruneCache,
+  showsSentence,
+  startExamples,
   synthesise,
   type Prose,
   type ProseCache,
@@ -18,7 +21,7 @@ import {
   type ProseRequest,
 } from './synthesise.ts';
 import { splitByRole } from './emit.ts';
-import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, type AppKnowledge } from './knowledge.ts';
+import { applyKnowledge, declaredScreens, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, type AppKnowledge } from './knowledge.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
 import { rulesEntry } from './field-rules.ts';
@@ -503,6 +506,36 @@ function resolveCopy(facts: PageFacts, dictionary: Translations | undefined): st
   return (own.length > 0 ? own : incidental).slice(0, 16);
 }
 
+/**
+ * A screen in the app's other languages (ADR-030): its own name there, and what it shows there — from
+ * its i18n keys only, since a literal heading is in whatever language it was typed in, and a sentence
+ * half in one language and half in another is the defect this exists to remove. Nothing is written for
+ * a language that has nothing of its own to say: the widget shows no explanation then, never another
+ * language's.
+ */
+function translationsOf(
+  titles: Readonly<Record<string, string>>,
+  facts: PageFacts,
+  dictionaries: ReadonlyMap<string, Translations>,
+  languages: readonly string[],
+): Record<string, CapabilityText> | null {
+  const primary = Object.values(titles)[0];
+  const out: Record<string, CapabilityText> = {};
+  for (const language of languages.slice(1)) {
+    const title = titles[language];
+    const dictionary = dictionaries.get(language);
+    const copy: string[] = [];
+    for (const key of dictionary ? facts.i18nKeys.slice(0, 40) : []) {
+      const value = translate(dictionary!, key);
+      if (value && value.length > 2 && !PLACEHOLDER.test(value) && !isIncidentalKey(key) && !copy.includes(value)) copy.push(value);
+    }
+    const explanation = title ? showsSentence(language, title, copy) : null;
+    const text: CapabilityText = { ...(title && title !== primary ? { title } : {}), ...(explanation ? { explanation } : {}) };
+    if (Object.keys(text).length > 0) out[language] = text;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 export interface GenerateOptions {
   readonly config: GeneratorConfig;
   /** Absent means "no model": prose is derived from the app's own labels. */
@@ -673,6 +706,21 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const found: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
+    const localized = translationsOf(request.titles, facts, translations, config.languages);
+    // ADR-031: what only opens something here, named in every language the app ships — and in which.
+    const openerNames = (facts.openers ?? [])
+      .flatMap((o): { name: string; language: string }[] =>
+        o.labelKey
+          ? config.languages.flatMap((language) => {
+              const dictionary = translations.get(language);
+              const name = dictionary ? translate(dictionary, o.labelKey!) : null;
+              return name ? [{ name, language }] : [];
+            })
+          : o.label ? [{ name: o.label, language: config.languages[0] ?? 'en' }] : [],
+      )
+      .filter(({ name }) => name.trim() && name.length <= 80);
+    const opens = [...new Set(openerNames.map(({ name }) => name))].slice(0, 20);
+    const startPhrases = [...new Set(openerNames.slice(0, 6).flatMap(({ name, language }) => startExamples(name, language)))].slice(0, 6);
     // A locale prefix is not something the visitor supplies — the widget fills it from the page they are
     // on — so it is not a slot the router may find "missing" (it made every screen of a locale-routed app
     // a question, "sign in" included). It stays in the route.
@@ -703,13 +751,17 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       ...(pageFile
         ? { explanationSource: relative(config.appRoot, pageFile).replace(/\\/g, '/') }
         : {}),
-      examples: [...written.examples],
+      // A control that starts something here names the task in the app's own words — "novo evento", and
+      // "criar evento" — which is how "quero criar um evento" finds this screen (ADR-031). Up to six.
+      examples: [...new Set([...written.examples, ...startPhrases])],
       ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),
       // WP-27: guided steps from the form this page renders, in the app's primary
       // language. Template-built at build time, never generated per turn (Rule 9).
       ...stepsEntry(facts.fields, dictionary, language),
       ...(rules.length > 0 ? { rules } : {}),
       roles: route.roles ?? [],
+      ...(localized ? { translations: localized } : {}),
+      ...(opens.length > 0 ? { opens } : {}),
       ...(parameters.length > 0
         ? {
             params: Object.fromEntries(
@@ -727,7 +779,9 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   // What the adopter knows about their screens and the source cannot: merged after the sort, so
   // the order never depends on what was written.
   const knowledge = options.knowledge ?? EMPTY_KNOWLEDGE;
-  const master = applyKnowledge(found, knowledge).capabilities;
+  // Screens the scanner could not read, declared by the adopter with a title and roles (ADR-028).
+  const declared = declaredScreens(found, knowledge, roles.allRoles, (title) => askToGo(config.languages[0] ?? 'en', title));
+  const master = applyKnowledge([...found, ...declared].sort((a, b) => a.id.localeCompare(b.id)), knowledge).capabilities;
   skipped.sort((a, b) => a.path.localeCompare(b.path));
 
   // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
@@ -737,7 +791,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   );
 
   // The generic catalogue, then the limits this adopter declared in their own words.
-  const boundaries = [...synthesiseBoundaries(routes), ...knowledgeBoundaries(knowledge)];
+  const boundaries = [...synthesiseBoundaries(routes, config.languages[0] ?? 'en', config.languages.slice(1)), ...knowledgeBoundaries(knowledge)];
   const domainDescription =
     config.domainDescription ?? knowledge.app.about ?? (await describeApplication(master, options.model ?? null, cache));
 
@@ -750,7 +804,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   }
 
   return {
-    registries: splitByRole(master, boundaries, domainDescription, roles.allRoles, (role) => knowledgeContext(knowledge, role)),
+    registries: splitByRole(master, boundaries, domainDescription, roles.allRoles, (role) => knowledgeContext(knowledge, role), config.languages[0]),
     master,
     boundaries,
     skipped,

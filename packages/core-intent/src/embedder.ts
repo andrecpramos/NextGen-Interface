@@ -5,6 +5,7 @@ import { features } from './text.ts';
 // resolve them (WP-29 found it; esbuild refuses at `platform: 'browser'`).
 // `ollama.ts` itself is `fetch` only.
 import { OllamaEmbeddingRuntime } from '@nextgen/core-inference/ollama';
+import { dotStored, type SparseVector, type StoredVector } from './sparse.ts';
 import type { Embedder, Vector } from './types.ts';
 
 /**
@@ -20,12 +21,6 @@ import type { Embedder, Vector } from './types.ts';
  * design; shipping it on ollama alone hides how much of the win is the encoder.
  */
 
-function dot(a: Vector, b: Vector): number {
-  let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i]! * b[i]!;
-  return s;
-}
-
 function l2norm(v: readonly number[]): number[] {
   let s = 0;
   for (const x of v) s += x * x;
@@ -34,9 +29,10 @@ function l2norm(v: readonly number[]): number[] {
   return v.map((x) => x / n);
 }
 
-export function cosine(a: Vector, b: Vector): number {
+/** Cosine of two stored vectors, dense or sparse (sparse.ts). */
+export function cosine(a: StoredVector, b: StoredVector): number {
   // Vectors are stored pre-normalised, so cosine is just the dot product.
-  return dot(a, b);
+  return dotStored(a, b);
 }
 
 // ---------------------------------------------------------------- hashing ---
@@ -97,6 +93,25 @@ export class HashingEmbedder implements Embedder {
       v[i] = (1 + Math.log(count)) * this.idf[i]!;
     }
     return l2norm(v);
+  }
+
+  /**
+   * The same vector as `embedSync`, as its non-zero entries only, without ever allocating the dense one.
+   * What an index is built from (`indexFor`): on a 2,000-screen registry the dense path allocated 73
+   * million zeros and took 10 s (sparse.ts).
+   */
+  embedSparse(text: string): SparseVector {
+    const tf = new Map<number, number>();
+    for (const t of features(text)) {
+      const i = this.vocab.get(t);
+      if (i !== undefined) tf.set(i, (tf.get(i) || 0) + 1);
+    }
+    const idx = [...tf.keys()].sort((a, b) => a - b);
+    const raw = idx.map((i) => (1 + Math.log(tf.get(i)!)) * this.idf[i]!);
+    let s = 0;
+    for (const x of raw) s += x * x;
+    const n = Math.sqrt(s);
+    return { dim: this.dim, idx, val: n === 0 ? raw : raw.map((x) => x / n) };
   }
 
   async embed(text: string): Promise<Vector> {

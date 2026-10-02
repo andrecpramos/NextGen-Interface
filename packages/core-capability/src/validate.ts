@@ -36,6 +36,9 @@ export interface ValidationResult {
 
 const ID_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)+$/;
 const MIN_EXAMPLES = 3;
+/** BCP 47, loosely: "en", "pt-PT", "zh-Hant". Also a key in `translations`, so nothing else gets in. */
+const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+const TRANSLATED = new Set(['title', 'explanation', 'refusal']);
 
 /** Text that goes into a model's prompt is bounded here, so no registry can make every turn enormous. */
 const CONTEXT_MAX_TEXT = 600;
@@ -127,6 +130,47 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
     validateOne(cap, { err, warn, seenIds, triggerOwners, routeOwners, enumNames });
   }
 
+  // Where a limit sends the visitor to help themselves must be a screen of *this* registry: a limit is
+  // given to every role, and a route this role cannot open named in its file is a Rule 17 leak — and a
+  // link to nowhere.
+  const screens = new Set(registry.capabilities.filter((c) => c.kind !== 'unsupported' && c.route).map((c) => c.route!));
+  for (const cap of registry.capabilities) {
+    const helpAt = (cap as { helpAt?: unknown }).helpAt;
+    if (helpAt === undefined) continue;
+    if (cap.kind !== 'unsupported') {
+      err(cap.id, 'help-at-misplaced', `"${cap.id}" is ${cap.kind} but declares "helpAt" — only a limit points elsewhere`);
+    } else if (!Array.isArray(helpAt) || helpAt.some((route) => typeof route !== 'string' || !screens.has(route))) {
+      err(cap.id, 'help-at-reachable', `"${cap.id}" helpAt names a route that is not a screen of this registry: ${JSON.stringify(helpAt)}`);
+    }
+  }
+
+  // A translation is shown to a visitor as text (ADR-030): a language tag, and short strings, or nothing.
+  const language = (registry as { language?: unknown }).language;
+  if (language !== undefined && !(typeof language === 'string' && LANGUAGE_TAG.test(language))) {
+    err(null, 'language-tag', `"language" must be a language tag such as "pt-PT", not ${JSON.stringify(language)}`);
+  }
+  for (const cap of registry.capabilities) {
+    const translations = (cap as { translations?: unknown }).translations;
+    if (translations === undefined) continue;
+    const fine =
+      typeof translations === 'object' && translations !== null && !Array.isArray(translations) &&
+      Object.entries(translations).every(([tag, text]) =>
+        LANGUAGE_TAG.test(tag) && typeof text === 'object' && text !== null && !Array.isArray(text) &&
+        Object.entries(text).every(([field, value]) => TRANSLATED.has(field) && typeof value === 'string' && value.length <= 2000));
+    if (!fine) err(cap.id, 'translations-shape', `"${cap.id}" translations must map language tags to { title, explanation, refusal } strings`);
+  }
+
+  // What the widget may press for a visitor (ADR-031): short names of controls on a screen, nothing else.
+  for (const cap of registry.capabilities) {
+    const opens = (cap as { opens?: unknown }).opens;
+    if (opens === undefined) continue;
+    if (cap.kind === 'unsupported' || !cap.route) {
+      err(cap.id, 'opens-misplaced', `"${cap.id}" declares "opens" but is not a screen — only a screen has controls to open`);
+    } else if (!Array.isArray(opens) || opens.length > 20 || opens.some((name) => typeof name !== 'string' || name.trim() === '' || name.length > 80)) {
+      err(cap.id, 'opens-shape', `"${cap.id}" opens must be at most 20 control names of at most 80 characters`);
+    }
+  }
+
   return summarise(issues);
 }
 
@@ -194,6 +238,13 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     if (cap.refusal) {
       err(id, 'refusal-misplaced', `"${id}" is ${cap.kind} but declares a refusal message — only unsupported capabilities refuse`);
     }
+  }
+  // ADR-025: a limit may be one that refuses only a request to act. Any other value is a typo that would
+  // silently leave it refusing on topic, and on anything but a limit it means nothing.
+  const refuses = (cap as { refuses?: unknown }).refuses;
+  if (refuses !== undefined) {
+    if (!isBoundary) err(id, 'refuses-misplaced', `"${id}" is ${cap.kind} but declares "refuses" — only unsupported capabilities refuse`);
+    else if (refuses !== 'action') err(id, 'refuses-known', `"${id}" declares refuses "${String(refuses)}" — the only value is "action"`);
   }
 
   // --- prose ------------------------------------------------------------------

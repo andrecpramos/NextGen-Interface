@@ -14,7 +14,11 @@
 
 import { normalise } from './commands.ts';
 
-export type Smalltalk = 'greeting' | 'thanks' | 'goodbye' | 'howAreYou' | 'identity' | 'help' | 'ok';
+/**
+ * `thisPage` is a question about where the visitor is standing ("what is this page?"): answered from the
+ * current screen's own description, not routed — routed, it scored every screen alike and offered two.
+ */
+export type Smalltalk = 'greeting' | 'thanks' | 'goodbye' | 'howAreYou' | 'identity' | 'help' | 'ok' | 'thisPage';
 
 export interface Said {
   readonly kind: Smalltalk;
@@ -49,6 +53,14 @@ const EN: Phrases = {
     'how does this app work', 'how does it work', 'how do i use this app',
   ],
   ok: ['ok', 'okay', 'k', 'sure', 'cool', 'got it', 'i see', 'understood', 'alright', 'fine', 'great', 'nice', 'yes', 'yeah', 'yep', 'no', 'nope'],
+  thisPage: [
+    'what is this page', 'what s this page', 'whats this page', 'what is this screen', 'what s this screen',
+    'what is this page for', 'what is this screen for', 'what s this page for', 'whats this page for',
+    'what s this screen for', 'whats this screen for', 'what does this page do', 'what does this screen do',
+    'what can i do here', 'what can i do on this page', 'what can i do on this screen', 'what am i looking at',
+    'where am i', 'what page is this', 'which page is this', 'explain this page', 'explain this screen',
+    'tell me about this page', 'what is here', 'what s here',
+  ],
 };
 
 const PT: Phrases = {
@@ -66,6 +78,13 @@ const PT: Phrases = {
     'estou perdido', 'estou perdida', 'nao faco ideia', 'por onde comeco', 'por onde comecar', 'por onde devo comecar', 'o que faco',
   ],
   ok: ['ok', 'okey', 'sim', 'nao', 'percebi', 'certo', 'pois', 'claro', 'entendi', 'beleza', 'esta bem', 'bom', 'otimo', 'boa'],
+  thisPage: [
+    'o que e esta pagina', 'o que e este ecra', 'que pagina e esta', 'que ecra e este', 'para que serve esta pagina',
+    'para que serve este ecra', 'o que faz esta pagina', 'o que faz este ecra', 'o que posso fazer aqui',
+    'o que posso fazer nesta pagina', 'o que posso fazer neste ecra', 'onde estou', 'onde e que estou',
+    'explica esta pagina', 'explica me esta pagina', 'explica este ecra', 'o que e que esta aqui', 'o que ha aqui',
+    'o que tem aqui', 'o que vejo aqui',
+  ],
 };
 
 const POLITE = /^(?:por favor|please)\s+|\s+(?:por favor|please)$/g;
