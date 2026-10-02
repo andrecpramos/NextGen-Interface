@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import ts from 'typescript';
 
+import { dedupeFieldRules, htmlFieldRules, localDeclaration, registerNameOf, schemaFieldRules } from './field-rules.ts';
+import { inferredCandidates } from './inferred-rules.ts';
 import { readAngularComponent, readMarkupPage } from './markup.ts';
 import type { FormField, PageFacts } from './types.ts';
 
@@ -141,7 +143,7 @@ type KeyOf = (node: ts.Node, keyOnly?: boolean) => string | null;
  *
  * `const { t } = useTranslation('squad')` binds `t` to one namespace, and a page that
  * reads a second binds it under another name: `const { t: tp } = useTranslation('player')`.
- * fut-app's announcements screen takes its title from `tp('announcements.title')`, and
+ * The pilot app's announcements screen takes its title from `tp('announcements.title')`, and
  * reading only calls to `t` lost it — the screen was named after its component, "My
  * Announcements", in English, in a Portuguese application.
  *
@@ -250,20 +252,6 @@ function insideIf(node: ts.Node): boolean {
   return false;
 }
 
-/** The `const` an identifier names, looked up through the blocks around it. */
-function localDeclaration(identifier: ts.Identifier): ts.VariableDeclaration | null {
-  for (let scope: ts.Node | undefined = identifier.parent; scope; scope = scope.parent) {
-    if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) continue;
-    for (const statement of scope.statements) {
-      if (!ts.isVariableStatement(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.name.text === identifier.text) return declaration;
-      }
-    }
-  }
-  return null;
-}
-
 /**
  * The i18n keys a page renders as its own heading, in source order.
  *
@@ -272,14 +260,14 @@ function localDeclaration(identifier: ts.Identifier): ts.VariableDeclaration | n
  * `*.title` keys a page renders — a dialog's, a card's, an empty state's — by where it is
  * rendered, rather than guessed from the shape of the key as `PAGE_TITLE_KEY` has to.
  *
- * fut-app's child medical page names itself through a variable,
+ * The pilot app's child medical page names itself through a variable,
  * `const title = childName ? tg('medical.titleFor', { name }) : tg('medical.title')`. The
  * variable is followed, and a call that interpolates a value is not a name: it is a
  * sentence with a child's name in it.
  *
  * A header rendered from inside an `if` is not read at all. That is an early return —
  * `if (isPending) return <PageHeader title={t('hub.loading')} />` — and it names a moment
- * rather than the screen: fut-app's match hub came out as "Jogo não encontrado" from its
+ * rather than the screen: the pilot app's match hub came out as "Jogo não encontrado" from its
  * not-found branch, and a team's page as "A carregar…".
  */
 function titleKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
@@ -445,6 +433,11 @@ function formFields(source: ts.SourceFile): FormField[] {
   };
   visit(source);
 
+  // WP-54: whatever a zod/yup schema constrains, read once for the whole file
+  // and joined to each control below by the same key `register('…')` and a
+  // literal `name="…"` both resolve to.
+  const schemaRules = schemaFieldRules(source);
+
   const out: FormField[] = [];
   for (const node of controls) {
     const attributes = attributesOf(node)!;
@@ -456,7 +449,7 @@ function formFields(source: ts.SourceFile): FormField[] {
     if (tag === 'button' && type !== 'submit') continue;
 
     const id = literalAttr(attributes, 'id');
-    const name = literalAttr(attributes, 'name');
+    const name = literalAttr(attributes, 'name') ?? registerNameOf(attributes);
 
     let named: { text: string | null; key: string | null } = {
       text: literalAttr(attributes, 'aria-label'),
@@ -467,7 +460,9 @@ function formFields(source: ts.SourceFile): FormField[] {
     if (!named.text && !named.key && tag === 'button') named = childText(node);
 
     if (!named.text && !named.key) continue;
-    out.push({ tag, label: named.text, labelKey: named.key, id, name, type });
+    const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
+    const rules = dedupeFieldRules([...(schemaRules.get(name ?? '') ?? []), ...htmlFieldRules(attributes, line + 1)]);
+    out.push({ tag, label: named.text, labelKey: named.key, id, name, type, rules });
   }
   return out;
 }
@@ -587,6 +582,7 @@ function readComponent(file: string, props: ReadonlyMap<string, string>): Compon
   const rendered = roots.filter((tag) => !TRANSPARENT_COMPONENTS.has(tag));
   const redirects = rendered.filter((tag) => REDIRECT_COMPONENTS.has(tag));
   const { namespace, keyOf, fromProps } = translationCalls(source, props);
+  const fields = formFields(source);
 
   const facts: PageFacts = {
     isPureRedirect: redirects.length > 0 && redirects.length === rendered.length,
@@ -598,9 +594,12 @@ function readComponent(file: string, props: ReadonlyMap<string, string>): Compon
     title: declaredTitle(source),
     // Same namespace rule as `i18nKeys`, so a label written as t('x.y') resolves
     // against the page's own namespace exactly as its other copy does.
-    fields: formFields(source).map((f) =>
+    fields: fields.map((f) =>
       f.labelKey && namespace && !f.labelKey.includes(':') ? { ...f, labelKey: `${namespace}:${f.labelKey}` } : f,
     ),
+    // WP-55, ADR-020's inferred tier: matched against the same, un-namespaced
+    // fields — a candidate's `field` is a `name`/`id`, never a label key.
+    inferredCandidates: inferredCandidates(source, fields),
   };
   return { facts, titleKeysFromProps: titleKeysFromProps(source, keyOf, fromProps) };
 }
@@ -633,7 +632,7 @@ const SHARED_UI = /[\\/](?:ui|design-system|primitives)[\\/]/i;
 /**
  * A screen, read through the components it renders when its own file says nothing.
  *
- * 19 of fut-app's 141 declared screens are wrappers. `/settings/notifications` is
+ * 19 of the pilot app's 141 declared screens are wrappers. `/settings/notifications` is
  * `<PersonalSettingsLayout active="notif"><PersonalNotificationsSection /></PersonalSettingsLayout>`
  * and nothing more. Read alone, such a page has no heading, no copy and no form: it was
  * named after its component, "Personal Notifications", and described from nothing. Its

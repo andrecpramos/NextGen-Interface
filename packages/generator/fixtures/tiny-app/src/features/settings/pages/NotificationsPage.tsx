@@ -11,7 +11,7 @@ export default function NotificationsPage() {
     <form>
       <PageHeader title={t('notifications.title')} />
       <label htmlFor="notify-email">{t('notifications.email')}</label>
-      <input id="notify-email" name="email" type="email" />
+      <input id="notify-email" name="email" type="email" required />
       <label htmlFor="notify-frequency">Digest frequency</label>
       <select id="notify-frequency" name="frequency" />
       <input name="quietHours" type="text" aria-label="Quiet hours" />

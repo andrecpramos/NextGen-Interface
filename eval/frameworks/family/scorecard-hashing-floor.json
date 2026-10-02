@@ -1,0 +1,1429 @@
+{
+  "generatedAt": "2026-09-17T21:23:39.550Z",
+  "embedder": "hashing",
+  "stage3": null,
+  "entries": 68,
+  "modelFreeRate": 1,
+  "top1": 0.25925925925925924,
+  "paletteFound": 0,
+  "outOfScopeRefused": 0.5,
+  "inScopeWronglyRefused": 0.037037037037037035,
+  "latencyP50": 0.06640000000000157,
+  "latencyP95": 0.2733000000000061,
+  "results": [
+    {
+      "id": "fam-0001",
+      "utterance": "onde vejo os anúncios do clube",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 1.9506000000000085
+    },
+    {
+      "id": "fam-0002",
+      "utterance": "há mensagens novas do clube?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.642399999999995
+    },
+    {
+      "id": "fam-0003",
+      "utterance": "o que são os anúncios?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "explain",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.1758000000000095
+    },
+    {
+      "id": "fam-0004",
+      "utterance": "where do I read club announcements",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08099999999998886
+    },
+    {
+      "id": "fam-0005",
+      "utterance": "quero ver o estado médico do meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/medical",
+        "capability": "guardian.my_children_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children_medical",
+        "route": "/my/children/medical",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.0257000000000005
+    },
+    {
+      "id": "fam-0006",
+      "utterance": "o meu educando está apto para treinar?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/medical",
+        "capability": "guardian.my_children_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08730000000001326
+    },
+    {
+      "id": "fam-0007",
+      "utterance": "estado de recuperação do meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/medical",
+        "capability": "guardian.my_children_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06919999999999504
+    },
+    {
+      "id": "fam-0008",
+      "utterance": "my child's medical status",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/medical",
+        "capability": "guardian.my_children_medical"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07290000000000418
+    },
+    {
+      "id": "fam-0009",
+      "utterance": "o que mostra o estado médico do educando?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "explain",
+      "expect": {
+        "route": "/my/children/medical",
+        "capability": "guardian.my_children_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children_medical",
+        "route": "/my/children/medical",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.026200000000002888
+    },
+    {
+      "id": "fam-0010",
+      "utterance": "lista dos meus educandos",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children",
+        "capability": "guardian.my_children"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06859999999998934
+    },
+    {
+      "id": "fam-0011",
+      "utterance": "onde estão os meus filhos inscritos",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children",
+        "capability": "guardian.my_children"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.061599999999998545
+    },
+    {
+      "id": "fam-0012",
+      "utterance": "show me my children",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children",
+        "capability": "guardian.my_children"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children",
+        "route": "/my/children",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.01680000000000348
+    },
+    {
+      "id": "fam-0013",
+      "utterance": "as minhas notificações",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "notifications.my_notifications",
+        "route": "/my/notifications",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.015199999999992997
+    },
+    {
+      "id": "fam-0014",
+      "utterance": "tenho avisos por ler",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.05660000000000309
+    },
+    {
+      "id": "fam-0015",
+      "utterance": "quero mudar como recebo os emails",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.other_applications",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08520000000000039
+    },
+    {
+      "id": "fam-0016",
+      "utterance": "desligar os avisos por email",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.10839999999998895
+    },
+    {
+      "id": "fam-0017",
+      "utterance": "change my notification preferences",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.09830000000000894
+    },
+    {
+      "id": "fam-0018",
+      "utterance": "abrir as definições",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.023200000000002774
+    },
+    {
+      "id": "fam-0019",
+      "utterance": "onde mudo a minha conta",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.0660000000000025
+    },
+    {
+      "id": "fam-0020",
+      "utterance": "levar-me ao painel",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08440000000000225
+    },
+    {
+      "id": "fam-0021",
+      "utterance": "página inicial",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.381299999999996
+    },
+    {
+      "id": "fam-0022",
+      "utterance": "marca uma consulta de fisioterapia para o meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.19499999999999318
+    },
+    {
+      "id": "fam-0023",
+      "utterance": "paga a mensalidade deste mês",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.data_changes",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.16440000000000055
+    },
+    {
+      "id": "fam-0024",
+      "utterance": "que tempo vai fazer no jogo de domingo",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.13389999999999702
+    },
+    {
+      "id": "fam-0025",
+      "utterance": "book a flight to the away game",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.10500000000000398
+    },
+    {
+      "id": "fam-0026",
+      "utterance": "apaga a ficha médica do meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a record change the application refuses to make",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.10009999999999764
+    },
+    {
+      "id": "fam-0027",
+      "utterance": "o meu estado médico",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/medical",
+        "capability": "player.my_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "player.my_medical",
+        "route": "/my/medical",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.02590000000000714
+    },
+    {
+      "id": "fam-0028",
+      "utterance": "estou apto para jogar?",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/medical",
+        "capability": "player.my_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08689999999999998
+    },
+    {
+      "id": "fam-0029",
+      "utterance": "ver a minha recuperação da lesão",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/medical",
+        "capability": "player.my_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.2733000000000061
+    },
+    {
+      "id": "fam-0030",
+      "utterance": "am I cleared to train",
+      "language": "en",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/medical",
+        "capability": "player.my_medical"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08079999999999643
+    },
+    {
+      "id": "fam-0031",
+      "utterance": "o que é o meu estado médico?",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "explain",
+      "expect": {
+        "route": "/my/medical",
+        "capability": "player.my_medical"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "player.my_medical",
+        "route": "/my/medical",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.024399999999999977
+    },
+    {
+      "id": "fam-0032",
+      "utterance": "mensagens do clube",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06640000000000157
+    },
+    {
+      "id": "fam-0033",
+      "utterance": "o clube anunciou alguma coisa?",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07559999999999434
+    },
+    {
+      "id": "fam-0034",
+      "utterance": "club announcements",
+      "language": "en",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.095799999999997
+    },
+    {
+      "id": "fam-0035",
+      "utterance": "os meus avisos",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06119999999999948
+    },
+    {
+      "id": "fam-0036",
+      "utterance": "notificações por ler",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.052300000000002456
+    },
+    {
+      "id": "fam-0037",
+      "utterance": "mudar o email das notificações",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.0625
+    },
+    {
+      "id": "fam-0038",
+      "utterance": "as minhas preferências",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.04779999999999518
+    },
+    {
+      "id": "fam-0039",
+      "utterance": "definições da conta",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.05389999999999873
+    },
+    {
+      "id": "fam-0040",
+      "utterance": "open settings",
+      "language": "en",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.024199999999993338
+    },
+    {
+      "id": "fam-0041",
+      "utterance": "o meu painel",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.my",
+        "route": "/my",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.03480000000000416
+    },
+    {
+      "id": "fam-0042",
+      "utterance": "voltar ao início",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06210000000000093
+    },
+    {
+      "id": "fam-0043",
+      "utterance": "inscreve-me no treino de amanhã",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06450000000000955
+    },
+    {
+      "id": "fam-0044",
+      "utterance": "manda uma mensagem ao treinador",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.0549000000000035
+    },
+    {
+      "id": "fam-0045",
+      "utterance": "quantos golos marquei na época passada",
+      "language": "pt-PT",
+      "role": "PLAYER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "data this application does not hold",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.05850000000000932
+    },
+    {
+      "id": "fam-0046",
+      "utterance": "order me new boots",
+      "language": "en",
+      "role": "PLAYER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.data_changes",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.04420000000000357
+    },
+    {
+      "id": "fam-0047",
+      "utterance": "resumo do plantel",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/squad",
+        "capability": "squad.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.04640000000000555
+    },
+    {
+      "id": "fam-0048",
+      "utterance": "quem tenho disponível no plantel",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/squad",
+        "capability": "squad.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.05000000000001137
+    },
+    {
+      "id": "fam-0049",
+      "utterance": "ver os jogadores da equipa",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/squad",
+        "capability": "squad.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.050699999999991974
+    },
+    {
+      "id": "fam-0050",
+      "utterance": "squad overview",
+      "language": "en",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/squad",
+        "capability": "squad.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "squad.overview",
+        "route": "/squad",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.012100000000003774
+    },
+    {
+      "id": "fam-0051",
+      "utterance": "o que é o resumo do plantel?",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "explain",
+      "expect": {
+        "route": "/squad",
+        "capability": "squad.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08499999999999375
+    },
+    {
+      "id": "fam-0052",
+      "utterance": "resumo do treino",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/training",
+        "capability": "training.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06799999999999784
+    },
+    {
+      "id": "fam-0053",
+      "utterance": "onde vejo os treinos",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/training",
+        "capability": "training.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07059999999999889
+    },
+    {
+      "id": "fam-0054",
+      "utterance": "training overview",
+      "language": "en",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/training",
+        "capability": "training.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "training.overview",
+        "route": "/training",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.011400000000008959
+    },
+    {
+      "id": "fam-0055",
+      "utterance": "o que mostra o resumo do treino?",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "explain",
+      "expect": {
+        "route": "/training",
+        "capability": "training.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08429999999999893
+    },
+    {
+      "id": "fam-0056",
+      "utterance": "painel do treinador",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/dashboard",
+        "capability": "dashboard.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.09940000000000282
+    },
+    {
+      "id": "fam-0057",
+      "utterance": "levar-me ao meu painel",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/dashboard",
+        "capability": "dashboard.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07039999999999225
+    },
+    {
+      "id": "fam-0058",
+      "utterance": "coach dashboard",
+      "language": "en",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/dashboard",
+        "capability": "dashboard.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.04430000000000689
+    },
+    {
+      "id": "fam-0059",
+      "utterance": "as minhas notificações",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "notifications.my_notifications",
+        "route": "/my/notifications",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.02729999999999677
+    },
+    {
+      "id": "fam-0060",
+      "utterance": "avisos por ler",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.18819999999999482
+    },
+    {
+      "id": "fam-0061",
+      "utterance": "preferências de notificação",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07170000000000698
+    },
+    {
+      "id": "fam-0062",
+      "utterance": "onde mudo o meu endereço de email",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.05920000000000414
+    },
+    {
+      "id": "fam-0063",
+      "utterance": "definições",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.007199999999997431
+    },
+    {
+      "id": "fam-0064",
+      "utterance": "convoca o plantel para domingo",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.05310000000000059
+    },
+    {
+      "id": "fam-0065",
+      "utterance": "altera o estado médico do jogador para apto",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a record change the application refuses to make",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.data_changes",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.06010000000000559
+    },
+    {
+      "id": "fam-0066",
+      "utterance": "envia um email a todos os encarregados de educação",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08189999999999031
+    },
+    {
+      "id": "fam-0067",
+      "utterance": "what is the offside rule",
+      "language": "en",
+      "role": "COACH",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06809999999998695
+    },
+    {
+      "id": "fam-0068",
+      "utterance": "compra bolas novas para o clube",
+      "language": "pt-PT",
+      "role": "COACH",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.061500000000009436
+    }
+  ]
+}

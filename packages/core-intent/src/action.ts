@@ -16,7 +16,7 @@
  *
  * ## Measured before it was proposed
  *
- * `eval/fut-app/experiment-action-verbs.mjs`, `nomic-embed-text`, held-out split:
+ * an experiment script deleted with the pilot's evidence, ADR-018, `nomic-embed-text`, held-out split:
  *
  * | | flagged as an action request |
  * |---|---|
@@ -62,7 +62,7 @@
  * rather than tidiness.
  *
  * WP-40 measured why. The guard below asks whether the application itself does
- * the thing being requested, and `fut-app` documents itself in Portuguese while
+ * the thing being requested, and the pilot app documents itself in Portuguese while
  * its users ask in both languages. The registry says *"pode **eliminar** uma
  * tarefa"*; the question says *"I want to **delete** a task"*. With two flat
  * per-language lists those never meet, so the guard could not see that the app
@@ -206,7 +206,7 @@ function actionConceptsIn(utterance: string): string[] {
  * generator emits `kind: 'navigate'` for every capability, because it derives
  * them from routes and a route has no verb. So the guard never fired, and four
  * of the five in-domain questions it should have protected were about
- * `fut-app`'s own *"Delete task"* screen:
+ * The pilot app's own *"Delete task"* screen:
  *
  * > *"I need to remove a task from the list."*
  * > *"What is the purpose of the 'Delete task?' screen?"*

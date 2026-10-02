@@ -67,6 +67,11 @@ export interface Words {
   readonly whyHow: (stage: string, ms: number | null) => string;
   readonly whyConsidered: string;
   readonly whyChosen: string;
+  /**
+   * ADR-019 (WP-53). A count only — never the removed text itself, which was judged
+   * unsafe or unverifiable to show and stays that way here.
+   */
+  readonly whyRemoved: (n: number) => string;
   readonly guideLabel: string;
   readonly guideStep: (n: number, total: number) => string;
   readonly guideBack: string;
@@ -114,6 +119,7 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     },
     whyConsidered: 'What it considered',
     whyChosen: 'chosen',
+    whyRemoved: (n) => (n === 1 ? 'Part of the answer was left out because it could not be checked.' : `${n} parts of the answer were left out because they could not be checked.`),
     guideLabel: 'Guide',
     guideStep: (n, total) => `Step ${n} of ${total}`,
     guideBack: 'Back',
@@ -159,6 +165,7 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     },
     whyConsidered: 'O que considerou',
     whyChosen: 'escolhido',
+    whyRemoved: (n) => (n === 1 ? 'Parte da resposta foi omitida por não ter sido possível confirmá-la.' : `${n} partes da resposta foram omitidas por não ter sido possível confirmá-las.`),
     guideLabel: 'Guia',
     guideStep: (n, total) => `Passo ${n} de ${total}`,
     guideBack: 'Anterior',
@@ -254,14 +261,22 @@ export function present(trace: TurnTrace, registry: Registry, currentPath: strin
   }
 
   // A declared limit is the system working, so it is stated as a limit, not as an apology.
+  // ADR-019 (WP-53): the model may have written something more specific than the
+  // registry's own fixed refusal text — *"can I change my child's medical status
+  // myself?"* deserves an answer synthesised from the limit, not the limit quoted back —
+  // and everything it wrote has already been checked against this role's registry
+  // before it ever reached this trace. `trace.prose` wins when present; the declared
+  // text is the fallback it has always been.
   if (trace.outcome === 'out_of_scope' || capability?.kind === 'unsupported') {
     const refusal = capability?.kind === 'unsupported' ? (capability as { refusal?: string }).refusal : undefined;
-    return { tone: 'limit', title: words.limitTitle, body: refusal ?? words.limitFallback, destination: null, choices: [] };
+    return { tone: 'limit', title: words.limitTitle, body: trace.prose ?? refusal ?? words.limitFallback, destination: null, choices: [] };
   }
 
   if (trace.outcome !== 'execute' || !capability) {
     // Clarify: offer the screens stage 2 ranked, as links the user picks. That is
-    // a choice the user makes, like a menu, so nothing moves without it.
+    // a choice the user makes, like a menu, so nothing moves without it. Prose can
+    // still accompany this — the model tried to help and stage 3 could not settle
+    // it alone — validated the same as every other branch.
     const seen = new Set<string>();
     const choices: Choice[] = [];
     for (const candidate of trace.candidates) {
@@ -273,11 +288,14 @@ export function present(trace: TurnTrace, registry: Registry, currentPath: strin
       choices.push({ label: c.title, route });
       if (choices.length === 3) break;
     }
-    return choices.length > 0 ? { tone: 'choose', title: words.whichOne, body: null, destination: null, choices } : unsure;
+    return choices.length > 0
+      ? { tone: 'choose', title: words.whichOne, body: trace.prose ?? null, destination: null, choices }
+      : unsure;
   }
 
   const route = fillParams(capability.route, currentPath, patterns);
-  const body = capability.explanation ?? null;
+  // Same preference: the model's own validated words over the fixed, build-time text.
+  const body = trace.prose ?? capability.explanation ?? null;
   const link: Choice[] = route ? [{ label: words.open(capability.title), route }] : [];
 
   // Anything that is not navigation is shown and never performed: there is no dispatcher here.

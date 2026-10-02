@@ -4,7 +4,7 @@
 // verified that, and no screen reader had ever been pointed at it.
 //
 // What this runs against is the SHIPPED artefact: packages/embed/dist/nextgen.js,
-// loaded into a real DOM the way a script tag loads it, driven with real fut-app
+// loaded into a real DOM the way a script tag loads it, driven with a generated fixture
 // registries, and inspected with axe-core in each state a user can actually reach.
 // Not a mock of the widget — the file an adopter serves.
 //
@@ -36,7 +36,7 @@ import { JSDOM } from 'jsdom';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const DIST = `${ROOT}/packages/embed/dist/nextgen.js`;
-const GEN = `${ROOT}/eval/fut-app/generated`;
+const GEN = `${ROOT}/eval/frameworks/family/generated`;
 const OUT = `${ROOT}/eval/a11y`;
 
 const asJson = process.argv.includes('--json');
@@ -386,7 +386,7 @@ if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/axe.json`, `${JSON.stringify({
   checkedAt: new Date().toISOString(),
   artefact: 'packages/embed/dist/nextgen.js',
-  data: 'eval/fut-app/generated (PARENT)',
+  data: 'eval/frameworks/family/generated (PARENT)',
   tool: `axe-core ${JSON.parse(readFileSync(`${ROOT}/node_modules/axe-core/package.json`, 'utf8')).version} in jsdom`,
   cannotCheck: ['colour contrast (no layout, and system colours)', 'announcement order', 'rendered focus and target size'],
   states: Object.fromEntries(states),

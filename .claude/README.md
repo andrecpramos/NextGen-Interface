@@ -19,17 +19,16 @@ bug.
 ├── agents/              delegated, context-isolated workers
 ├── commands/            /slash-commands, mechanical and on demand
 │
-├── decisions/           ADRs — the constitution. 16 of them
+├── decisions/           ADRs — the constitution. 21 of them
 ├── sdlc/                per-phase process definitions + agent-workflow
-├── roles/               role briefs: architect, backend, frontend, qa, devops, ai-engineer
-└── docs/                architecture, security, testing, standards, rules, lessons, …
+└── docs/                architecture, testing, standards, the enforcement register, lessons, …
 ```
 
 ## Where the truth lives
 
 1. **[`decisions/`](decisions/)** — binding. Superseded ADRs stay with a
    forward-pointing `Status:`. Cited from production source — `cascade.ts`,
-   `money.ts`, `core-capability/src/types.ts`.
+   `core-capability/src/types.ts`.
 2. **[PLAN.md](../.MDFiles/PLAN.md) §2** — the seventeen non-negotiable rules. Their
    enforcement is mapped in the register below, not restated here.
 3. **[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md)** — read
@@ -46,8 +45,8 @@ bug.
 | Hook | Fires | Does |
 |---|---|---|
 | [`branch-check.mjs`](hooks/branch-check.mjs) | `SessionStart`, `PreCompact` | Injects live branch state and the branching contract into every new context window. An instruction in a document is only followed by an agent that has read it — which is exactly not the case at the start of a fresh session. |
-| [`guard-git.mjs`](hooks/guard-git.mjs) | `PreToolUse` on `Bash` | Denies broad staging (this tree is shared), writes to production, branching from production, and `registry:build:finance`. **Heredoc bodies and `echo` arguments are stripped before matching**, so documentation that *mentions* those commands is not blocked. |
-| [`check-gates.mjs`](hooks/check-gates.mjs) | `PostToolUse` on `Edit`/`Write` | Runs the cheapest gate the edit could have broken. Rule 1 on a `core-*` write (~75ms), the codegen reminder on `capabilities.ts`, the calibration lesson on `eval/`. Silent otherwise — a hook that comments on everything becomes noise. |
+| [`guard-git.mjs`](hooks/guard-git.mjs) | `PreToolUse` on `Bash` | Denies broad staging (this tree is shared), writes to production, and branching from production. **Heredoc bodies and `echo` arguments are stripped before matching**, so documentation that *mentions* those commands is not blocked. |
+| [`check-gates.mjs`](hooks/check-gates.mjs) | `PostToolUse` on `Edit`/`Write` | Runs the cheapest gate the edit could have broken, as configured in `sdlc.config.json` `postEdit`: Rule 1 on a `core-*` write (~75ms), the registry reminder on a registry change, the calibration lesson on `eval/`. Silent otherwise — a hook that comments on everything becomes noise. |
 
 All three read `sdlc.config.json` and **fail open**: they swallow malformed input,
 return cleanly outside a git work tree, and never exit non-zero. A `SessionStart`
@@ -60,10 +59,8 @@ Review with `/hooks`. A newly created `settings.json` may not be picked up until
 
 | Skill | For |
 |---|---|
-| [`add-capability`](skills/add-capability/SKILL.md) | A new or changed capability: declaration, codegen, golden set, and the check that it did not crowd its neighbours. **The most common task in this repo.** |
-| [`new-domain`](skills/new-domain/SKILL.md) | A whole new domain package. The platform thesis under test — how little code, and did `core-*` have to change. |
 | [`router-regression`](skills/router-regression/SKILL.md) | Accuracy dropped. Diagnose from the scorecard, fix at the declaration, **never** by raising a threshold. |
-| [`new-feature`](skills/new-feature/SKILL.md) | The generic development loop, for work that is not a capability. |
+| [`new-feature`](skills/new-feature/SKILL.md) | The development loop — including changing what the generator emits and regenerating the committed registries, which is the most common task in this repo. |
 | [`ship-it`](skills/ship-it/SKILL.md) | Finished work → gates → explicit staging → conventional commit → PR into `develop`. |
 | [`write-adr`](skills/write-adr/SKILL.md) | An architectural choice was made. Includes the reversibility test. |
 | [`sdlc-bootstrap`](skills/sdlc-bootstrap/SKILL.md) | Install this SDLC into another repo. Needs the `sdlc-kit` folder, which lives **outside this repo** — ask the user for its path. |

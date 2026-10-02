@@ -18,6 +18,7 @@ node --experimental-strip-types packages/generator/src/cli.ts <config.json> \
 | `registry.<ROLE>.json` | A plain `RegistryFile` holding only what that role can reach, each capability carrying its declared `explanation`. This is what ships. |
 | `master.json` | Every capability with its `roles` annotation, for review and diffing. Never shipped to a browser. |
 | `SKIPPED.md` | Every discovered route that did **not** become a capability, with the application's own words as evidence. |
+| `INFERRED.md` | Every candidate rule found in a handler or control but not confidently recognised, held back rather than guessed (ADR-020, WP-55). |
 | `prose-cache.json` | Model-written descriptions and examples, keyed by a hash of the facts that produced them. This is what makes regeneration deterministic. |
 
 ## The two rules it exists to keep
@@ -131,7 +132,7 @@ A component's name is used only when the application names the screen in no lang
     that screen, and is skipped as `redirect-alias`. One that lands a section on its own
     first page is kept.
 
-Measured on fut-app: [eval/fut-app/TITLES.md](../../eval/fut-app/TITLES.md).
+How a screen is named was rebuilt against a real pilot; the failures it found, generalised, are in [FIELD-NOTES.md](../../adapter/FIELD-NOTES.md).
 
 ## Adapters
 
@@ -193,5 +194,5 @@ plus one for the submit button, in the app's first language. Each step carries a
 an element whose name contradicts the label, the step renders as text with nothing
 highlighted. It never points at the wrong field.
 
-See [`eval/fut-app/REPORT.md`](../../eval/fut-app/REPORT.md) for what it scored
+See [eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md) for what it scored on apps it had never seen
 against a 146-page application it was not designed for.

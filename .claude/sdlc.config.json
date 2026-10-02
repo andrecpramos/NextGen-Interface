@@ -26,14 +26,14 @@
     "convention": "conventional",
     "scopes": [
       "core-intent",
-      "core-dispatch",
       "core-inference",
       "core-capability",
-      "domain-modules",
-      "domain-finance",
+      "generator",
+      "embed",
+      "kit",
+      "adapter",
+      "preview",
       "ui",
-      "web",
-      "cli",
       "ci",
       "docs",
       "adr",
@@ -46,48 +46,50 @@
   "gates": [
     {
       "id": "import-boundaries",
-      "title": "Rule 1 — core never imports a domain",
+      "title": "Rule 1 — packages/core-* depend only on other core-* packages",
       "command": "node tooling/scripts/check-import-boundaries.mjs",
       "blocking": true,
       "rule": "1",
-      "fix": "The fix is a registration or a callback on the core side, never an import. If the gate is being worked around, that is the bug."
+      "fix": "The engine sits below the generator, the widget and the kit. The fix is a callback or a registration on the core side, never an import upward. If the gate is being worked around, that is the bug. See ADR-021."
     },
     {
-      "id": "packaging",
-      "title": "Every publishable package is importable by an adopter",
-      "command": "node tooling/scripts/check-packaging.mjs",
-      "blocking": true,
-      "when": [
-        "packages/*/package.json",
-        "packages/*/tsconfig.build.json"
-      ],
-      "fix": "An entry point in main/types/exports either does not exist, is not covered by `files`, or is TypeScript source. Run `pnpm build` first — the gate reads built output. A .ts entry point cannot work at all: Node refuses to strip types inside node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), which is what made every package in this repo uninstallable until 2026-09-11. If a package is not meant to be installed, mark it private."
-    },
-    {
-      "id": "release",
-      "title": "Releasable — one version, a CHANGELOG section and the LICENSE in every package",
-      "command": "node tooling/scripts/check-release.mjs",
-      "blocking": true,
-      "when": [
-        "packages/*/package.json",
-        "packages/*/LICENSE",
-        "LICENSE",
-        "CHANGELOG.md",
-        "package.json"
-      ],
-      "fix": "Every publishable package must carry the same version, the root package.json's license and a byte-identical copy of the root LICENSE, and CHANGELOG.md must have a non-empty section for that version. After editing LICENSE, copy it into each publishable package. The release workflow also runs this with --tag, which requires the tag to be v<version> and the section to carry a date instead of 'unreleased'."
-    },
-    {
-      "id": "install",
-      "title": "The packed tarballs install into a project outside this repository and run on Node 20",
-      "command": "pnpm build && node tooling/scripts/check-install.mjs",
+      "id": "adapter-stale",
+      "title": "adapter/ matches what packages/ builds",
+      "command": "node packages/embed/build.mjs && node tooling/scripts/build-adapter.mjs --check",
       "blocking": true,
       "when": [
         "packages/**",
-        "tooling/scripts/check-install.mjs",
-        "tooling/scripts/pack-release.mjs"
+        "tooling/scripts/build-adapter.mjs"
       ],
-      "fix": "Read which step failed and on which Node. A dependency that only resolves inside the workspace, a file reached by a checkout-only path, a Node API newer than 20, or a bin that is TypeScript source all install cleanly and fail on the adopter's first command. The scratch project is kept for inspection."
+      "fix": "adapter/ is committed build output — an adopter copies it as it sits and cannot regenerate it on their machine. Rebuild and commit it with the change that caused it: pnpm adapter:build. Committed build output with no staleness gate is a failure mode this repository has hit three times; see critical-infrastructure.md."
+    },
+    {
+      "id": "adapter-runs",
+      "title": "A copy of adapter/ runs with nothing installed, and writes nothing into the app",
+      "command": "node tooling/scripts/check-adapter.mjs",
+      "blocking": true,
+      "rule": "16",
+      "when": [
+        "adapter/**",
+        "packages/kit/**",
+        "packages/generator/**",
+        "packages/embed/**"
+      ],
+      "fix": "The premise of ADR-018 is \"copy the folder and run it\". This copies adapter/ and a fixture application into a scratch directory OUTSIDE the repository — no node_modules anywhere above it — and runs init, build and doctor for real, then fingerprints the application to prove Rule 16. Run it with --keep to inspect the scratch project. Every failure found while building the adapter was a failure of the BUNDLE in a bare directory rather than of the source, which is why no unit test replaces this."
+    },
+    {
+      "id": "stage3-interop",
+      "title": "A bundle built with --stage3 reaches the transport that reads it back, same-origin only",
+      "command": "node tooling/scripts/check-stage3.mjs",
+      "blocking": true,
+      "rule": "8",
+      "when": [
+        "packages/kit/src/build.ts",
+        "packages/kit/src/run.ts",
+        "packages/embed/src/stage3.ts",
+        "packages/embed/src/index.ts"
+      ],
+      "fix": "kit (Node, no DOM lib) and embed (DOM-typed) deliberately do not share the Stage3Config type across the package boundary — see the header comment in packages/kit/src/build.ts. This script proves they still agree on the wire by actually building a bundle with kit and loading it with embed, across a mocked network boundary: off by default, on reaches the exact same-origin URL, and an off-origin path in the manifest is refused before any fetch happens. Made to fail on purpose by disabling the origin check in stage3.ts — it caught it."
     },
     {
       "id": "prompt-fencing",
@@ -112,7 +114,7 @@
       "command": "node tooling/scripts/check-network-egress.mjs",
       "blocking": true,
       "rule": "8",
-      "fix": "A remote host in a runtime string literal falsifies the local-inference claim for every adopter. Loopback is fine. A model asset that must be downloaded belongs in packages/core-voice/src/assets.ts pinned by sha256, so a compromised host cannot substitute a different binary. Two things it cannot see: OLLAMA_HOST can be pointed anywhere by the environment, and a host assembled at run time from parts."
+      "fix": "A remote host in a runtime string literal falsifies the local-inference claim for every adopter. Loopback is fine. Nothing downloads assets any more (ADR-018), so there is no longer an exception for a pinned manifest — widening this gate to clear a failure is the wrong fix. Two things it cannot see: OLLAMA_HOST can be pointed anywhere by the environment, and a host assembled at run time from parts."
     },
     {
       "id": "model-numerics",
@@ -120,7 +122,7 @@
       "command": "node tooling/scripts/check-model-numerics.mjs",
       "blocking": true,
       "rule": "2",
-      "fix": "A number the model returns is a number the model computed. Have code compute it — the query engine sums, money.ts does the arithmetic — and let the model choose the capability and read values out of the utterance. If the number is genuinely never shown to a user, say why in the source with `// rule2-ok: <reason>`. This guards the model's output schema, not arithmetic our own code does on it: no user-visible number is rendered anywhere yet, so the render-path test the register used to propose would assert over an empty set."
+      "fix": "A number the model returns is a number the model computed. Have code compute it — the query engine sums, code does the arithmetic — and let the model choose the capability and read values out of the utterance. If the number is genuinely never shown to a user, say why in the source with `// rule2-ok: <reason>`. This guards the model's output schema, not arithmetic our own code does on it: no user-visible number is rendered anywhere yet, so the render-path test the register used to propose would assert over an empty set."
     },
     {
       "id": "doc-links",
@@ -139,22 +141,22 @@
         "packages/core-intent/src/**",
         "packages/core-capability/src/**",
         "packages/generator/src/**",
-        "eval/fut-app/**"
+        "eval/frameworks/**"
       ],
-      "fix": "Something upstream of eval/fut-app/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements."
+      "fix": "Something upstream of eval/frameworks/family/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements. Its fourth check (ADR-020, WP-54) is different in kind: an extracted rule's source no longer resolving means a page moved — rebuild the registry — or field-rules.ts computed the wrong line."
     },
     {
       "id": "generated-golden",
-      "title": "The committed fut-app scorecard still describes what the generated registries do",
-      "command": "node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing --check",
+      "title": "The committed scorecard still describes what the fixture apps decide",
+      "command": "node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check",
       "blocking": true,
       "rule": "12",
       "when": [
         "packages/core-intent/src/**",
         "packages/generator/src/**",
-        "eval/fut-app/**"
+        "eval/frameworks/**"
       ],
-      "fix": "Something changed what the router decides on the generated registries — a description, a trigger, normalize(), or a threshold. If it was intended, regenerate with `node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing` and commit the scorecard in the same commit as the cause. Timing is excluded from the comparison, so this is never a slow-machine failure."
+      "fix": "Something changed what the router decides on the generated registries — a description, a trigger, normalize(), or a threshold. If it was intended, regenerate with `node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing` and commit the scorecard in the same commit as the cause. Timing is excluded from the comparison, so this is never a slow-machine failure."
     },
     {
       "id": "accessibility",
@@ -213,22 +215,17 @@
     },
     {
       "id": "registry-check",
-      "title": "Rule 10 — >=3 examples per capability",
+      "title": "Rule 10 — >=3 examples per capability, across every registry in the tree",
       "command": "pnpm registry:check",
       "blocking": true,
       "rule": "10",
-      "fix": "Usually a capability with fewer than three examples. Add real paraphrases, not variations of one sentence."
-    },
-    {
-      "id": "registry-stale",
-      "title": "Generated artefacts match the committed ones",
-      "command": "pnpm registry:build && pnpm registry:build:finance && test -z \"$(git status --porcelain -- packages/domain-modules/generated packages/domain-finance/generated)\"",
-      "blocking": true,
       "when": [
-        "packages/domain-*/src/capabilities.ts",
-        "packages/domain-*/scripts/**"
+        "eval/**/registry.*.json",
+        "packages/core-intent/eval/fixture-registry.json",
+        "packages/core-capability/src/validate.ts",
+        "adapter/**"
       ],
-      "fix": "Run pnpm registry:build and pnpm registry:build:finance, then stage the generated files in the same commit as the declaration change. Untracked counts as stale: a domain's first registry.json has never been committed."
+      "fix": "Usually a capability with fewer than three examples. Add real paraphrases, not variations of one sentence. Since ADR-018 this validates every registry found by glob rather than one domain's, so a failure names the file: fix that registry, or the generator that emitted it."
     },
     {
       "id": "router-floor",
@@ -237,7 +234,6 @@
       "blocking": false,
       "expectNonZero": true,
       "when": [
-        "packages/domain-*/src/capabilities.ts",
         "packages/core-intent/**"
       ],
       "fix": "Exits non-zero BY DESIGN — with stage 3 disabled it cannot meet absolute accuracy targets and is not meant to. What gates is the scorecard comparison below."
@@ -248,8 +244,8 @@
       "command": "node tooling/scripts/check-scorecard.mjs --baseline-ref HEAD --current packages/core-intent/eval/scorecards/hashing-nostage3.json --tolerance 0.05",
       "blocking": true,
       "when": [
-        "packages/domain-*/src/capabilities.ts",
-        "packages/core-intent/**"
+        "packages/core-intent/**",
+        "packages/core-intent/eval/fixture-registry.json"
       ],
       "fix": "Identify which bucket dropped. The usual culprit is a new capability whose description overlaps an existing one. Fix at the declaration — NEVER by raising a threshold. This compares your working tree against the scorecard committed at HEAD, so it only has something to say after `pnpm router:floor` has re-run; CI does the same with a baseline copied aside before the run."
     },
@@ -283,9 +279,10 @@
     },
     {
       "paths": [
-        "packages/domain-*/src/capabilities.ts"
+        "packages/core-intent/eval/fixture-registry.json",
+        "eval/**/registry.*.json"
       ],
-      "remind": "Capability declaration changed. Rule 10 needs >=3 examples, and the generated artefacts are now stale: run `pnpm registry:build` and commit the result in the same commit. Then `pnpm router:floor` to check the new capability did not crowd its neighbours."
+      "remind": "A registry changed. Rule 10 needs >=3 examples — run `pnpm registry:check`. If this was the router's frozen fixture, the committed scorecards were produced from it and `check-scorecard.mjs` compares against them: see packages/core-intent/eval/README.md before changing it at all. Then `pnpm router:floor` to check nothing crowded its neighbours."
     },
     {
       "paths": [

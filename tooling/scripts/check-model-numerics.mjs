@@ -12,8 +12,8 @@
 // `formatMoney` has no consumer outside `data` and its own tests.
 // `AnswerRow.bar` is never produced by anything.
 //
-// So the rule is not currently violable through rendering, and a test written
-// against that path would assert over an empty set — a gate that passes
+// So the rule is not currently violable through rendering NUMBER-TYPED fields, and a test
+// written against that path would assert over an empty set — a gate that passes
 // vacuously, which this repo already has two recorded instances of.
 //
 // What IS writable is the check that fires the moment such a path is built, and
@@ -27,12 +27,19 @@
 //   model produces, and must be justified in the source:
 //       // rule2-ok: <why this number is never shown to a user>
 //
-// WHAT THIS DOES NOT CHECK
-//   Arithmetic performed on model output by our own code, or a number the model
-//   emits inside a string field. The first needs the render path to exist before
-//   it can be tested; the second is why `merge()`'s schema description tells the
-//   model never to alter a number from how its source stated it, which is
-//   instruction rather than mechanism, and is honestly recorded as such.
+// WHAT THIS DOES NOT CHECK, AND WHERE THAT GAP CLOSED (ADR-019, WP-53)
+//   Arithmetic performed on model output by our own code — still open, still needs a
+//   render path this static check cannot see.
+//
+//   A number the model emits inside a STRING field is the other half, and it is no
+//   longer merely "instruction rather than mechanism": `prose` (packages/core-intent/src/
+//   stages.ts) is exactly that string field, the render path for it now exists
+//   (`present.ts` renders `TurnTrace.prose`), and `validateClaims`
+//   (packages/core-intent/src/validate-claims.ts) is the RUNTIME check that drops any
+//   sentence containing a number before it reaches a visitor. This static gate still
+//   says nothing about it — `type: 'string'` is not `type: 'number'` — which is why
+//   `validate-claims.test.ts` exists: the enforcement moved to a different mechanism
+//   entirely, not into this file.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

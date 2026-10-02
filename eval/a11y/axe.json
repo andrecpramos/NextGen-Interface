@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-09-14T12:18:52.036Z",
+  "checkedAt": "2026-09-17T21:26:27.786Z",
   "artefact": "packages/embed/dist/nextgen.js",
-  "data": "eval/fut-app/generated (PARENT)",
+  "data": "eval/frameworks/family/generated (PARENT)",
   "tool": "axe-core 4.13.0 in jsdom",
   "cannotCheck": [
     "colour contrast (no layout, and system colours)",
@@ -85,7 +85,7 @@
     },
     {
       "ok": true,
-      "label": "screen, menu open (19 links): 0 serious/critical",
+      "label": "screen, menu open (7 links): 0 serious/critical",
       "detail": ""
     },
     {
@@ -121,7 +121,7 @@
     {
       "ok": true,
       "label": "the menu is a real disclosure, and focus moves into it",
-      "detail": "aria-expanded=true while open · 19 link(s)"
+      "detail": "aria-expanded=true while open · 7 link(s)"
     },
     {
       "ok": true,

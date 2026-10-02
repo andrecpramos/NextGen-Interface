@@ -78,32 +78,21 @@ git push origin main
 which means something was pushed to production out of band — stop and find out
 what before forcing anything.
 
-### Publishing it for adopters
+### What an adopter receives
 
-`main` moving is not yet something an adopter can install. That takes a version tag, and
-the tag, like `main`, moves only when the user asks for a release.
+`main` moving **is** the release. There is no tag, no version number and no attached
+artefact ([ADR-021](../decisions/ADR-021.md)): an adopter copies [`adapter/`](../../adapter/)
+from the commit they choose, and [GETTING-STARTED.md](../../.MDFiles/GETTING-STARTED.md) says
+so. Two things follow for whoever performs a release:
 
-1. **On `develop`, in the PR before the release:** set the same version in every
-   publishable package, and turn `## <version> — unreleased` in
-   [CHANGELOG.md](../../CHANGELOG.md) into `## <version> — YYYY-MM-DD`.
-   `node tooling/scripts/check-release.mjs --tag v<version>` must pass.
-2. **Merge `develop` into `main`**, as above.
-3. **Tag `main` and push the tag:**
+1. **`adapter/` must be current on `develop` before the merge.** It is committed build
+   output, and CI's `build-adapter.mjs --check` fails if it is stale, so a red `develop` is
+   the only way it reaches `main` stale.
+2. **Never move `main` backwards or rewrite it.** With no tag to point at, the commit an
+   adopter copied from is their only version identity, and it has to stay reachable.
 
-   ```bash
-   git fetch origin
-   git tag -a v0.1.0 -m "v0.1.0" origin/main
-   git push origin v0.1.0
-   ```
-
-4. **[`release.yml`](../../.github/workflows/release.yml) does the rest.** It refuses a
-   tag that is not on `main`, and re-runs the checks the tarballs depend on: version,
-   changelog and license; typecheck; tests; packaging; the install check on Node 20. Then
-   it attaches the eight `.tgz` files and `SHA256SUMS.txt` to a GitHub Release, with the
-   CHANGELOG section as its notes.
-
-A failed release workflow publishes nothing. Fix the cause on `develop`, release again, and
-tag the new commit. Never move a tag that has already been pushed.
+If adopters turn out to need a version to name, that is an additive change to
+`build-adapter.mjs`, decided in its own ADR. It is not a reason to restore the tarballs.
 
 ## Related
 

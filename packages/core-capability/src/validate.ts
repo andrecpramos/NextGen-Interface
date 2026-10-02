@@ -178,6 +178,26 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     }
   }
 
+  // --- extracted rules (ADR-020, WP-54) ---------------------------------------
+  // Rule 13 gains a sibling: a limit is declared, never judged by the model, and
+  // now an application rule is *extracted*, never judged by the model either.
+  // What makes an extracted rule trustworthy is exactly what makes an
+  // explanation trustworthy — a source a human can check.
+  if (isBoundary && (cap.rules?.length ?? 0) > 0) {
+    err(id, 'rules-on-boundary', `"${id}" is a declared limit and cannot have rules — there is no form to constrain`);
+  }
+  for (const [index, rule] of (cap.rules ?? []).entries()) {
+    const where = `"${id}" rule ${index + 1}`;
+    if (!rule.field?.trim()) err(id, 'rule-field-required', `${where} names no field`);
+    if (!rule.statement?.trim()) err(id, 'rule-statement-required', `${where} has no statement`);
+    if (!rule.source?.trim()) {
+      err(id, 'rule-untraceable', `${where} has no source — an extracted rule with no provenance cannot be checked (ADR-020)`);
+    }
+    if (rule.tier !== 'read' && rule.tier !== 'inferred') {
+      err(id, 'rule-tier-invalid', `${where} has an unrecognised tier "${String(rule.tier)}"`);
+    }
+  }
+
   // --- examples: the ≥3 rule from coding-standards.md -------------------------
   // Not documentation. They are the retrieval document, the few-shot pool and
   // the golden-set fixtures, so a capability with two of them is under-specified

@@ -1,0 +1,340 @@
+{
+  "schemaVersion": 1,
+  "domainDescription": "An application with 11 screens across 8 areas: dashboard, guardian, settings, communication, notifications, player, squad, training.",
+  "roles": [
+    "COACH",
+    "PLAYER",
+    "PARENT"
+  ],
+  "capabilities": [
+    {
+      "id": "communication.my_announcements",
+      "kind": "navigate",
+      "route": "/my/announcements",
+      "title": "Anúncios",
+      "description": "Anúncios — part of the communication area of the application, at /my/announcements.",
+      "explanation": "Anúncios is a screen in the communication area of this application, at /my/announcements. It shows: Enviado por, Anúncios, Mensagens do clube, Sem anúncios.",
+      "explanationSource": "features/communication/pages/MyAnnouncementsPage.tsx",
+      "examples": [
+        "abre anúncios",
+        "leva-me para anúncios",
+        "ir para anúncios",
+        "open announcements",
+        "take me to announcements",
+        "go to announcements"
+      ],
+      "triggers": [
+        "anuncios",
+        "announcements"
+      ],
+      "roles": [
+        "PLAYER",
+        "PARENT"
+      ]
+    },
+    {
+      "id": "dashboard.my",
+      "kind": "navigate",
+      "route": "/my",
+      "title": "Painel",
+      "description": "Painel — part of the dashboard area of the application, at /my.",
+      "explanation": "Painel is a screen in the dashboard area of this application, at /my. It shows: Início.",
+      "explanationSource": "features/dashboard/pages/MyHomePage.tsx",
+      "examples": [
+        "abre painel",
+        "leva-me para painel",
+        "ir para painel",
+        "open dashboard",
+        "take me to dashboard",
+        "go to dashboard"
+      ],
+      "triggers": [
+        "painel",
+        "dashboard"
+      ],
+      "roles": [
+        "PLAYER",
+        "PARENT"
+      ]
+    },
+    {
+      "id": "dashboard.overview",
+      "kind": "navigate",
+      "route": "/dashboard",
+      "title": "Painel",
+      "description": "Painel — part of the dashboard area of the application, at /dashboard.",
+      "explanation": "Painel is a screen in the dashboard area of this application, at /dashboard. It shows: A carregar…, Painel do treinador.",
+      "explanationSource": "features/dashboard/pages/CoachDashboardPage.tsx",
+      "examples": [
+        "abre painel",
+        "leva-me para painel",
+        "ir para painel",
+        "open dashboard",
+        "take me to dashboard",
+        "go to dashboard"
+      ],
+      "triggers": [
+        "painel",
+        "dashboard"
+      ],
+      "roles": [
+        "COACH"
+      ]
+    },
+    {
+      "id": "guardian.my_children",
+      "kind": "navigate",
+      "route": "/my/children",
+      "title": "Os Meus Educandos",
+      "description": "Os Meus Educandos — part of the guardian area of the application, at /my/children.",
+      "explanation": "Os Meus Educandos is a screen in the guardian area of this application, at /my/children. It shows: Os meus filhos.",
+      "explanationSource": "features/guardian/pages/MyChildrenPage.tsx",
+      "examples": [
+        "abre os meus educandos",
+        "leva-me para os meus educandos",
+        "ir para os meus educandos",
+        "open my children",
+        "take me to my children",
+        "go to my children"
+      ],
+      "triggers": [
+        "os meus educandos",
+        "my children"
+      ],
+      "roles": [
+        "PARENT"
+      ]
+    },
+    {
+      "id": "guardian.my_children_medical",
+      "kind": "navigate",
+      "route": "/my/children/medical",
+      "title": "Estado Médico",
+      "description": "Estado Médico — part of the guardian area of the application, at /my/children/medical.",
+      "explanation": "Estado Médico is a screen in the guardian area of this application, at /my/children/medical. It shows: Estado médico de {{name}}, Estado médico do educando, Estado de aptidão e recuperação (sem diagnóstico), Partilhar com o treinador?.",
+      "explanationSource": "features/guardian/pages/ChildMedicalPage.tsx",
+      "examples": [
+        "abre estado médico",
+        "leva-me para estado médico",
+        "ir para estado médico",
+        "open medical status",
+        "take me to medical status",
+        "go to medical status"
+      ],
+      "triggers": [
+        "estado medico",
+        "medical status"
+      ],
+      "roles": [
+        "PARENT"
+      ]
+    },
+    {
+      "id": "notifications.my_notifications",
+      "kind": "navigate",
+      "route": "/my/notifications",
+      "title": "Notificações",
+      "description": "Notificações — part of the notifications area of the application, at /my/notifications.",
+      "explanation": "Notificações is a screen in the notifications area of this application, at /my/notifications. It shows: Notificações.",
+      "explanationSource": "features/notifications/pages/NotificationsPage.tsx",
+      "examples": [
+        "abre notificações",
+        "leva-me para notificações",
+        "ir para notificações",
+        "open notifications",
+        "take me to notifications",
+        "go to notifications"
+      ],
+      "triggers": [
+        "notificacoes",
+        "notifications"
+      ],
+      "roles": [
+        "COACH",
+        "PLAYER",
+        "PARENT"
+      ]
+    },
+    {
+      "id": "player.my_medical",
+      "kind": "navigate",
+      "route": "/my/medical",
+      "title": "Estado Médico",
+      "description": "Estado Médico — part of the player area of the application, at /my/medical.",
+      "explanation": "Estado Médico is a screen in the player area of this application, at /my/medical. It shows: O meu estado médico.",
+      "explanationSource": "features/player/pages/MyMedicalPage.tsx",
+      "examples": [
+        "abre estado médico",
+        "leva-me para estado médico",
+        "ir para estado médico",
+        "open medical status",
+        "take me to medical status",
+        "go to medical status"
+      ],
+      "triggers": [
+        "estado medico",
+        "medical status"
+      ],
+      "roles": [
+        "PLAYER"
+      ]
+    },
+    {
+      "id": "settings.notifications",
+      "kind": "navigate",
+      "route": "/settings/notifications",
+      "title": "As Minhas Preferências · Notificações",
+      "description": "As Minhas Preferências · Notificações — part of the settings area of the application, at /settings/notifications.",
+      "explanation": "As Minhas Preferências · Notificações is a screen in the settings area of this application, at /settings/notifications. It shows: As Minhas Preferências, Notificações, Endereço de email.",
+      "explanationSource": "features/settings/pages/PersonalNotificationsPage.tsx",
+      "examples": [
+        "abre as minhas preferências · notificações",
+        "leva-me para as minhas preferências · notificações",
+        "ir para as minhas preferências · notificações",
+        "open my preferences · notifications",
+        "take me to my preferences · notifications",
+        "go to my preferences · notifications"
+      ],
+      "triggers": [
+        "as minhas preferencias notificacoes",
+        "my preferences notifications"
+      ],
+      "steps": [
+        {
+          "text": "Preencha “Endereço de email”.",
+          "anchor": {
+            "label": "Endereço de email",
+            "role": "textbox",
+            "selector": "#notify-email"
+          }
+        }
+      ],
+      "roles": [
+        "COACH",
+        "PLAYER",
+        "PARENT"
+      ]
+    },
+    {
+      "id": "settings.overview",
+      "kind": "navigate",
+      "route": "/settings",
+      "title": "Definições",
+      "description": "Definições — part of the settings area of the application, at /settings.",
+      "explanation": "Definições is a screen in the settings area of this application, at /settings.",
+      "explanationSource": "features/settings/pages/SettingsPage.tsx",
+      "examples": [
+        "abre definições",
+        "leva-me para definições",
+        "ir para definições",
+        "open settings",
+        "take me to settings",
+        "go to settings"
+      ],
+      "triggers": [
+        "definicoes",
+        "settings"
+      ],
+      "roles": [
+        "COACH",
+        "PLAYER",
+        "PARENT"
+      ]
+    },
+    {
+      "id": "squad.overview",
+      "kind": "navigate",
+      "route": "/squad",
+      "title": "Plantel · Visão geral",
+      "description": "Plantel · Visão geral — part of the squad area of the application, at /squad.",
+      "explanation": "Plantel · Visão geral is a screen in the squad area of this application, at /squad. It shows: Resumo do plantel.",
+      "explanationSource": "features/squad/pages/SquadOverviewPage.tsx",
+      "examples": [
+        "abre plantel · visão geral",
+        "leva-me para plantel · visão geral",
+        "ir para plantel · visão geral",
+        "open squad · overview",
+        "take me to squad · overview",
+        "go to squad · overview"
+      ],
+      "triggers": [
+        "plantel visao geral",
+        "squad overview"
+      ],
+      "roles": [
+        "COACH"
+      ]
+    },
+    {
+      "id": "training.overview",
+      "kind": "navigate",
+      "route": "/training",
+      "title": "Treino · Visão geral",
+      "description": "Treino · Visão geral — part of the training area of the application, at /training.",
+      "explanation": "Treino · Visão geral is a screen in the training area of this application, at /training. It shows: Resumo do treino.",
+      "explanationSource": "features/training/pages/TrainingOverviewPage.tsx",
+      "examples": [
+        "abre treino · visão geral",
+        "leva-me para treino · visão geral",
+        "ir para treino · visão geral",
+        "open training · overview",
+        "take me to training · overview",
+        "go to training · overview"
+      ],
+      "triggers": [
+        "treino visao geral",
+        "training overview"
+      ],
+      "roles": [
+        "COACH"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "unsupported.external_actions",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Acting outside this application",
+      "description": "Booking an appointment, sending an email or a message, or doing something in another system on the user’s behalf. This assistant works inside this application only.",
+      "refusal": "I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you.",
+      "examples": [
+        "book a physio appointment for my son",
+        "send an email to the coach about this",
+        "schedule a doctor’s visit for this injury",
+        "marca uma consulta para o meu filho",
+        "envia um email ao treinador"
+      ]
+    },
+    {
+      "id": "unsupported.data_changes",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Changing records for you",
+      "description": "Creating, editing or deleting a record. This assistant takes the user to the screen where they can do it themselves; it never fills a form or saves a change on their behalf.",
+      "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself.",
+      "examples": [
+        "delete this record for me",
+        "change the date on this for me",
+        "fill in this form for me",
+        "apaga este registo por mim",
+        "altera a data disto por mim"
+      ]
+    },
+    {
+      "id": "unsupported.other_applications",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Questions about anything else",
+      "description": "General knowledge, other software, or any subject this application does not cover. The assistant answers about this application and nothing else.",
+      "refusal": "I only know this application — I can’t help with things outside it.",
+      "examples": [
+        "what’s the weather tomorrow",
+        "write me a poem",
+        "what’s in my email inbox",
+        "como está o tempo amanhã",
+        "escreve-me um poema"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,6 @@ import { isAbsolute, relative, resolve } from 'node:path';
  */
 
 export const CONFIG_FILE = 'nextgen.config.json';
-export const AGENT_FILE = 'AGENT.md';
 export const BUNDLE_DIR = 'bundle';
 export const REVIEW_DIR = 'review';
 export const CALIBRATION_FILE = 'calibration/thresholds.hashing.json';

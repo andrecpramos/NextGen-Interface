@@ -67,7 +67,7 @@ export interface ProseModel {
  * Eight, most of them in the application's first language.
  *
  * Four, spread evenly over two languages, left a Portuguese screen two Portuguese
- * phrasings. On fut-app (2026-09-14) that model prose routed *worse* than the flat
+ * phrasings. On the pilot app (2026-09-14) that model prose routed *worse* than the flat
  * derived examples — "abre anúncios", "leva-me para anúncios" — which at least repeat
  * the screen's own words in the language users type.
  */

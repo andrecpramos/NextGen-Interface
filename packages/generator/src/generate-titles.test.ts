@@ -13,10 +13,10 @@ import { FAMILY_CONFIG, FAMILY_ROOT } from './fixture-app.ts';
 /**
  * Naming a screen in the application's own words, in its own language.
  *
- * Every case is a defect found by generating fut-app's registries and reading what a
+ * Every case is a defect found by generating the pilot app's registries and reading what a
  * guardian's assistant was given: "Communication my Announcements", "Guardian estado
  * Médico", "Settings personal Notifications", no trigger for their own home page, and two
- * capabilities for every page about a child. The fixture has fut-app's shapes, not its code.
+ * capabilities for every page about a child. The fixture has the pilot app's shapes, not its code.
  */
 
 const output = generate({ config: FAMILY_CONFIG, model: null });

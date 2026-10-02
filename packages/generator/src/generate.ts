@@ -18,12 +18,15 @@ import {
 import { splitByRole } from './emit.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
+import { rulesEntry } from './field-rules.ts';
+import { inferredRulesEntry, reviewInferredEntries } from './inferred-rules.ts';
 import type {
   AnnotatedCapability,
   DiscoveredRoute,
   GeneratorConfig,
   GeneratorOutput,
   PageFacts,
+  ReviewInferredEntry,
   SkippedRoute,
 } from './types.ts';
 
@@ -50,6 +53,7 @@ const EMPTY_FACTS: PageFacts = {
   titleKeys: [],
   doc: null,
   title: null,
+  inferredCandidates: [],
 };
 
 /** `/squad/players` and `/squad/players/:id` share a section; `/players/:id` does not. */
@@ -75,7 +79,7 @@ function isBookmarkRedirect(route: DiscoveredRoute, facts: PageFacts): boolean {
 /**
  * A redirect to a screen already declared at its own address is that screen's old name, not a place.
  *
- * fut-app's route table keeps eleven `<Navigate>` entries for addresses it has moved —
+ * The pilot app's route table keeps eleven `<Navigate>` entries for addresses it has moved —
  * `/my/schedule` to `/my/agenda`, `/medical/rtp` to a tab of the medical centre. Declared,
  * each was a capability named after the redirect component — "Navigate", "Medical
  * navigate" — competing with the very screen it points at. A redirect that lands a section
@@ -119,7 +123,7 @@ interface Accepted {
 /**
  * One screen at two addresses is declared once, at the address a user can be sent to.
  *
- * fut-app gives a guardian `/my/children/medical`, which picks the child itself — the only
+ * The pilot app gives a guardian `/my/children/medical`, which picks the child itself — the only
  * one, or the roster to choose from — and redirects to `/my/children/:childId/medical`.
  * Declared as two capabilities, they were one page described twice: every question about
  * a child's medical status scored both, neither won by a margin, and the guardian was
@@ -279,7 +283,7 @@ function firstReadable(dictionary: Translations, keys: readonly string[]): strin
  *
  * A wrapper page that is one tab of a shared layout is named the way the layout shows it —
  * "As Minhas Preferências · Notificações" — rather than by the tab alone, which names
- * fut-app's notifications inbox at `/my/notifications` just as well.
+ * The pilot app's notifications inbox at `/my/notifications` just as well.
  */
 function headingOf(dictionary: Translations, facts: PageFacts): string | null {
   const heading = firstReadable(dictionary, facts.titleKeys);
@@ -296,7 +300,7 @@ function headingOf(dictionary: Translations, facts: PageFacts): string | null {
  * the source.
  *
  * **A component name is never a title in a language.** It used to fill any language the
- * app had no words for, so fut-app's Portuguese registry named screens "Personal
+ * app had no words for, so the pilot app's Portuguese registry named screens "Personal
  * Notifications" and "Child Medical" — a developer's English identifier, served to a
  * Portuguese user as the name of a place. It is now used only when the application names
  * the screen in no language at all, which is also the only time it is the best name there is.
@@ -364,7 +368,7 @@ function humanise(text: string): string {
  * title is part of the document it embeds (`capabilityDocument`), so seventeen
  * identical ones are seventeen capabilities competing for the same score.
  *
- * Two corrections, both found in fut-app's generated registries:
+ * Two corrections, both found in the pilot app's generated registries:
  *
  * - **A title only competes inside a registry.** Stage 2 ranks one role's registry
  *   (ADR-014), so a guardian's "Estado Médico" and a player's are not duplicates: no
@@ -565,7 +569,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const cache = options.cache ?? {};
   const prose = await synthesise(requests, options.model ?? null, cache, options.onProgress);
 
-  // WP-38 lever 1. Stage 1 fired zero times across the whole fut-app
+  // WP-38 lever 1. Stage 1 fired zero times across the whole pilot app
   // measurement because no capability carried a trigger; the free stage was
   // switched off. A phrase two capabilities both claim is dropped rather than
   // assigned — see triggers.ts for why a stage-1 collision is the worst kind.
@@ -580,12 +584,22 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     new Map(accepted.map(({ id, route }) => [id, route.roles ?? []])),
   );
 
-  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile }, index) => {
+  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
     const parameters = routeSegments(route.path)
       .filter((segment) => segment.startsWith(':'))
       .map((segment) => segment.slice(1));
+    const dictionary = translations.get(config.languages[0] ?? 'en');
+    const language = config.languages[0] ?? 'en';
+    // WP-54 (ADR-020 read tier) and WP-55 (inferred tier) both produce rules for
+    // the same capability; one array carries both, told apart by `tier`.
+    const rules = pageFile
+      ? [
+          ...(rulesEntry(facts.fields, dictionary, language, config.appRoot, pageFile).rules ?? []),
+          ...(inferredRulesEntry(facts.inferredCandidates, facts.fields, dictionary, language, config.appRoot, pageFile).rules ?? []),
+        ]
+      : [];
 
     return {
       id,
@@ -604,7 +618,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),
       // WP-27: guided steps from the form this page renders, in the app's primary
       // language. Template-built at build time, never generated per turn (Rule 9).
-      ...stepsEntry(accepted[index]!.facts.fields, translations.get(config.languages[0] ?? 'en'), config.languages[0] ?? 'en'),
+      ...stepsEntry(facts.fields, dictionary, language),
+      ...(rules.length > 0 ? { rules } : {}),
       roles: route.roles ?? [],
       ...(parameters.length > 0
         ? {
@@ -621,6 +636,12 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   master.sort((a, b) => a.id.localeCompare(b.id));
   skipped.sort((a, b) => a.path.localeCompare(b.path));
+
+  // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
+  // own source, never a registry.
+  const reviewInferred: ReviewInferredEntry[] = accepted.flatMap(({ route, facts, pageFile }) =>
+    pageFile ? reviewInferredEntries(facts.inferredCandidates, route.path, config.appRoot, pageFile) : [],
+  );
 
   const boundaries = synthesiseBoundaries(routes);
   const domainDescription =
@@ -639,6 +660,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     master,
     boundaries,
     skipped,
+    reviewInferred,
     domainDescription,
     roles: roles.allRoles,
   };
@@ -747,7 +769,7 @@ async function describeApplication(
     // 2–6 points of top-1 accuracy on every model, on every turn.
     //
     // Matched on *phrases*, not on bare words. The first version rejected any
-    // description containing "assistant", and `fut-app` has a feature folder
+    // description containing "assistant", and the pilot app has a feature folder
     // called `assistant` — so a perfectly good summary was thrown away for
     // naming one of the application's own areas, and the derived fallback (a
     // list of folder names) shipped instead.

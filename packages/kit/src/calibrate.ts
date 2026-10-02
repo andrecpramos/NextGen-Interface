@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { makeEmbedder } from '@nextgen/core-intent';
+import { HashingEmbedder } from '@nextgen/core-intent';
 import { loadRegistry } from '@nextgen/core-intent';
 import {
   measure,
@@ -27,9 +27,9 @@ import { BUNDLE_DIR, CALIBRATION_FILE, stripBom } from './paths.ts';
  *
  * **This command requires a golden set the adopter wrote**, and deliberately
  * offers no way to calibrate from the generator's own examples. That is not an
- * oversight — it was measured on `fut-app`, where both kinds of data exist, and
+ * oversight — it was measured on the pilot app, where both kinds of data exist, and
  * the decision rule was written before the run
- * (`eval/fut-app/experiment-self-calibration.mjs`):
+ * (an experiment script deleted with the pilot's evidence, ADR-018):
  *
  * | arm | settled | accepts right | wrongly refused |
  * |---|---|---|---|
@@ -91,14 +91,14 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
   const kit = resolve(kitDir);
   const bundle = join(kit, BUNDLE_DIR);
   if (!existsSync(bundle)) {
-    throw new Error(`No ${BUNDLE_DIR}/ in ${kit}. Run \`nextgen build ${kitDir}\` first: calibration needs the registries.`);
+    throw new Error(`No ${BUNDLE_DIR}/ in ${kit}. Run \`node scan.mjs build ${kitDir}\` first: calibration needs the registries.`);
   }
 
   const golden = readGolden(resolve(goldenFile));
   if (golden.length === 0) throw new Error(`${goldenFile} is empty.`);
 
   const registryFiles = readdirSync(bundle).filter((f) => /^registry\..+\.json$/.test(f));
-  if (registryFiles.length === 0) throw new Error(`No registry.*.json in ${bundle}. Run \`nextgen build\` first.`);
+  if (registryFiles.length === 0) throw new Error(`No registry.*.json in ${bundle}. Run \`node scan.mjs build\` first.`);
   const roles = registryFiles.map((f) => f.replace(/^registry\.(.+)\.json$/, '$1'));
 
   // One embedder per registry. A shared, re-fitted encoder leaves every registry
@@ -106,7 +106,13 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
   // repository has paid for that once already (lessons.md L10).
   const scorers = new Map<string, Scorer>();
   for (const role of roles) {
-    const embedder = makeEmbedder('hashing');
+    // `HashingEmbedder` directly rather than `makeEmbedder('hashing')`, and the reason is
+    // the artefact rather than the API: `makeEmbedder` branches on a string, so a bundler
+    // cannot prove the Ollama branch unreachable and ships its HTTP client into
+    // `adapter/scan.mjs`. Naming the encoder that is actually wanted keeps the copied
+    // folder free of any client for a remote host (ADR-018 D-6). The sweep has always
+    // been hashing-only: a calibration must be reproducible with nothing installed.
+    const embedder = new HashingEmbedder();
     scorers.set(role, { registry: await loadRegistry(join(bundle, `registry.${role}.json`), embedder), embedder });
   }
 
@@ -148,7 +154,7 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
       `Only ${entries.length} usable turn(s); calibration needs at least ${MINIMUM_ENTRIES}.\n` +
         '  A sweep over a handful of turns fits noise, and the held-out numbers that would\n' +
         '  tell you so are themselves too small to believe. Keep the default profile until\n' +
-        '  you have more — `nextgen doctor` says plainly that it is not yours.',
+        '  you have more — `node scan.mjs doctor` says plainly that it is not yours.',
     );
   }
 
@@ -244,7 +250,7 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
     '',
     ...warnings.flatMap((w) => [`  ! ${w}`, '']),
     `  Wrote ${file}`,
-    `  It is used from the next \`nextgen build ${kitDir}\` onward — build again, then doctor.`,
+    `  It is used from the next \`node scan.mjs build ${kitDir}\` onward — build again, then doctor.`,
     '',
   ];
 

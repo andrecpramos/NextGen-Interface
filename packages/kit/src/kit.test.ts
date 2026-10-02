@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import {
   existsSync,
@@ -31,6 +32,7 @@ import { doctor } from './doctor.ts';
 const FIXTURES = fileURLToPath(new URL('../../generator/fixtures/', import.meta.url));
 const TINY = join(FIXTURES, 'tiny-app');
 const DATA_ROUTER = join(FIXTURES, 'data-router-app');
+const CLI_COPIED = fileURLToPath(new URL('./cli-copied.ts', import.meta.url));
 
 const kitFolder = (): string => join(mkdtempSync(join(tmpdir(), 'nextgen-kit-')), 'nextgen');
 
@@ -74,40 +76,34 @@ describe('init — detection', () => {
   });
 });
 
-describe('AGENT.md — the decisions this kit leaves to the developer', () => {
-  it('is written by init, for whichever agent runs the rest of these commands', () => {
+describe('init writes its own two files and no instructions for an agent', () => {
+  it('writes the config and the detection record, and nothing else', () => {
+    // Until ADR-021 it also wrote AGENT.md, a second copy of adapter/AGENTS.md for the npm
+    // path. That copy offered `--model`, which the copied tool refuses. There is one front
+    // door now, in the folder the tool came from, and init does not add another beside the
+    // adopter's code.
     const kit = kitFolder();
     init(TINY, kit);
-    const text = readFileSync(join(kit, 'AGENT.md'), 'utf8');
-    // The point of this file is that these are put to the developer, not
-    // assumed. If a heading goes missing, so does the question.
-    for (const heading of [
-      'ASK 1',
-      'ASK 2',
-      'ASK 3',
-      'ASK 4',
-      'ASK 5',
-      'ASK 6',
-      'ASK 7',
-      'never do without asking',
-    ]) {
-      expect(text).toContain(heading);
-    }
+    expect(existsSync(join(kit, 'nextgen.config.json'))).toBe(true);
+    expect(existsSync(join(kit, 'review', 'detect.json'))).toBe(true);
+    expect(existsSync(join(kit, 'AGENT.md'))).toBe(false);
   });
+});
 
-  it('is not clobbered by --force, which redoes detection, not a developer\'s edits to it', () => {
+describe('build refuses a model rather than ignoring the flag', () => {
+  it('names why, and exits non-zero, when --model is passed', async () => {
+    // There is no model to reach. A flag silently dropped would give someone who has seen
+    // it documented a build that did something other than what they asked for.
     const kit = kitFolder();
     init(TINY, kit);
-    writeFileSync(join(kit, 'AGENT.md'), 'a developer wrote this instead');
-    init(TINY, kit, { force: true });
-    expect(readFileSync(join(kit, 'AGENT.md'), 'utf8')).toBe('a developer wrote this instead');
-  });
-
-  it('doctor points an agent at it, when it exists', async () => {
-    const kit = kitFolder();
-    init(TINY, kit);
-    await build(kit);
-    expect(doctor(kit).text).toMatch(/AGENT\.md/);
+    const { status, stderr } = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', CLI_COPIED, 'build', kit, '--model', 'llama3.1:8b'],
+      { encoding: 'utf8' },
+    );
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/cannot use a model/);
+    expect(existsSync(join(kit, 'bundle'))).toBe(false);
   }, 60_000);
 });
 
@@ -204,8 +200,30 @@ describe('init → build → doctor, end to end', () => {
     expect(doctor(kit).text).toMatch(/data-nextgen-role="PUBLIC"/);
   }, 60_000);
 
+  it('counts rules read from the app\'s own controls, and doctor says so (ADR-020, WP-54)', async () => {
+    // tiny-app's notifications page declares `required` on its email input —
+    // a real constraint, read rather than guessed.
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit);
+    expect(record.rules).toBeGreaterThan(0);
+    expect(doctor(kit).text).toMatch(/Rules read from validation schemas and control attributes: \d+ \(ADR-020, WP-54\)/);
+  }, 60_000);
+
+  it('reports the inferred tier too, and writes review/INFERRED.md whether or not anything shipped (ADR-020, WP-55)', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit);
+    // tiny-app has no disabled-submit or guard-message shape at all — this is
+    // the honest zero, not an untested line.
+    expect(record.inferredRules).toBe(0);
+    expect(record.reviewInferred).toBe(0);
+    expect(doctor(kit).text).toMatch(/Rules inferred from a handler or a disabled control, shipped: 0 \(ADR-020, WP-55\)/);
+    expect(existsSync(join(kit, 'review', 'INFERRED.md'))).toBe(true);
+  }, 60_000);
+
   it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {
-    // Reproduces the exact failure found running the kit against fut-app:
+    // Reproduces the exact failure found running the kit against the pilot app:
     // `dist/nextgen.js` survived a later `embed/src` change untouched because
     // the old check only asked whether a bundle existed, not whether it was
     // current. `doctor` reported a clean build while `NextGen.start` did not
@@ -238,7 +256,7 @@ describe('init → build → doctor, end to end', () => {
     init(TINY, kit);
     const report = doctor(kit);
     expect(report.ok).toBe(false);
-    expect(report.text).toMatch(/nextgen build/);
+    expect(report.text).toMatch(/scan.mjs build/);
   });
 });
 
@@ -276,7 +294,7 @@ describe('calibrate', () => {
   it('refuses before a build, because there are no registries to calibrate against', async () => {
     const kit = kitFolder();
     init(TINY, kit);
-    await expect(calibrate(kit, goldenFor(kit, plausibleTurns()))).rejects.toThrow(/nextgen build/);
+    await expect(calibrate(kit, goldenFor(kit, plausibleTurns()))).rejects.toThrow(/scan.mjs build/);
   });
 
   it('refuses a golden set too small to mean anything, rather than fitting noise', async () => {
@@ -315,7 +333,7 @@ describe('calibrate', () => {
   }, 120_000);
 
   it('offers no way to calibrate from the generator\'s own examples', () => {
-    // Measured on fut-app: calibrating on the generator's examples wrongly
+    // Measured on the pilot app: calibrating on the generator's examples wrongly
     // refused 7 real requests in 105, against 1 for the default profile. A
     // command that offered it would offer a worse outcome than doing nothing,
     // wrapped in something that looks like diligence. This asserts the absence.
@@ -323,4 +341,70 @@ describe('calibrate', () => {
     expect(source).not.toMatch(/examples\s*\)/);
     expect(calibrate.length).toBe(2); // (kitDir, goldenFile) — there is no third way in
   });
+});
+
+describe('stage 3 (WP-52, ADR-017)', () => {
+  it('is off by default: no stage3 field, no doctor mention, thresholds unchanged', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit);
+
+    expect(record.stage3).toBeNull();
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect('stage3' in thresholds).toBe(false);
+    expect(doctor(kit).text).not.toMatch(/Model-backed answers|stage 3/i);
+  }, 60_000);
+
+  it('writes the configured path into the served thresholds file, and only when asked', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const record = await build(kit, { stage3: { path: '/api/nextgen-stage3', model: 'house-model' } });
+
+    expect(record.stage3).toEqual({ path: '/api/nextgen-stage3', model: 'house-model' });
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect(thresholds.stage3).toEqual({ path: '/api/nextgen-stage3', model: 'house-model' });
+  }, 60_000);
+
+  it('refuses an empty path rather than shipping an unreachable one', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await expect(build(kit, { stage3: { path: '   ' } })).rejects.toThrow(/needs a path/);
+  }, 60_000);
+
+  it('doctor states it is ON, names the path, and warns before the developer ships it', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3' } });
+
+    const text = doctor(kit).text;
+    expect(text).toMatch(/Model-backed answers \(stage 3\)/);
+    expect(text).toMatch(/ON.*stage3.*YOUR OWN/s);
+  }, 60_000);
+
+  it('rebuilding without --stage3 turns it back off — it is not sticky in the kit folder', async () => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3' } });
+    const record = await build(kit); // no stage3 this time
+
+    expect(record.stage3).toBeNull();
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect('stage3' in thresholds).toBe(false);
+  }, 60_000);
+
+  it('writes exactly {path, model} — the shape @nextgen/embed/src/stage3.ts declares as Stage3Config', async () => {
+    // Not a cross-package import: kit is a Node CLI with no DOM lib in its tsconfig, and
+    // @nextgen/embed's root pulls in theme.ts/widget.ts/voice.ts, which are genuinely
+    // DOM-typed. Real interoperation between what this writes and what embed reads back
+    // is proved at the process level, outside either package's typecheck boundary, by
+    // tooling/scripts/check-stage3.mjs — the same shape this repo already uses for
+    // check-adapter.mjs and preview/check-bench.mjs.
+    const kit = kitFolder();
+    init(TINY, kit);
+    await build(kit, { stage3: { path: 'stage3', model: 'house-model' } });
+
+    const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
+    expect(Object.keys(thresholds.stage3).sort()).toEqual(['model', 'path']);
+    expect(thresholds.stage3).toEqual({ path: 'stage3', model: 'house-model' });
+  }, 60_000);
 });

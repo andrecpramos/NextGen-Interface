@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -9,9 +9,28 @@ import { validateRegistry } from '@nextgen/core-capability';
 import { generate } from './generate.ts';
 import { writeOutput } from './emit.ts';
 import { FIXTURE_CONFIG, FIXTURE_ROOT } from './fixture-app.ts';
-import type { GeneratorOutput } from './types.ts';
+import type { GeneratorConfig, GeneratorOutput } from './types.ts';
 
 const run = () => generate({ config: FIXTURE_CONFIG, model: null });
+
+/** A minimal, standalone app — its own temp dir, so WP-55's fixtures never touch tiny-app. */
+function tinyApp(pageSource: string): GeneratorConfig {
+  const appRoot = mkdtempSync(join(tmpdir(), 'nextgen-generate-'));
+  mkdirSync(join(appRoot, 'features', 'expenses', 'pages'), { recursive: true });
+  writeFileSync(
+    join(appRoot, 'routes.tsx'),
+    [
+      "import { lazy } from 'react'",
+      "const ExpensePage = lazy(() => import('./features/expenses/pages/ExpensePage'))",
+      'export const ROUTES = [',
+      "  { path: 'expenses', element: <ExpensePage /> },",
+      ']',
+    ].join('\n'),
+    'utf8',
+  );
+  writeFileSync(join(appRoot, 'features', 'expenses', 'pages', 'ExpensePage.tsx'), pageSource, 'utf8');
+  return { appRoot, routesFile: 'routes.tsx', roleSetExport: 'ROUTE_ROLES', allRolesExport: 'APP_ROLES', manifests: [], localesDir: null, languages: ['en'] };
+}
 
 const skipFor = (output: GeneratorOutput, path: string) =>
   output.skipped.find((entry) => entry.path === path);
@@ -149,5 +168,134 @@ describe('generate — Rule 16', () => {
     const output = await run();
     writeOutput(mkdtempSync(join(tmpdir(), 'nextgen-out-')), FIXTURE_ROOT, output);
     expect(fingerprint(FIXTURE_ROOT)).toBe(before);
+  });
+});
+
+/**
+ * WP-55 — the full pipeline, not only the extractor in isolation:
+ * `inferredCandidates` on its own (`inferred-rules.test.ts`) proves the AST
+ * reading; this proves `generate.ts` actually wires a recognised candidate
+ * into the shipped capability's `rules`, and an unrecognised one into
+ * `output.reviewInferred` instead — never both, never neither.
+ */
+describe('generate — the inferred tier (ADR-020, WP-55)', () => {
+  it('ships a recognised disabled-submit rule, tagged inferred, traceable to its line', async () => {
+    const config = tinyApp(
+      [
+        'export default function ExpensePage() {',
+        '  return (',
+        '    <form>',
+        '      <input name="amount" aria-label="Amount" />',
+        '      <button type="submit" disabled={!amount}>Save</button>',
+        '    </form>',
+        '  )',
+        '}',
+      ].join('\n'),
+    );
+    const output = await generate({ config, model: null });
+    const capability = output.master.find((c) => c.route === '/expenses');
+    expect(capability?.rules).toEqual([
+      {
+        field: 'amount',
+        statement: 'The form asks for "Amount" before it will submit.',
+        tier: 'inferred',
+        source: 'features/expenses/pages/ExpensePage.tsx:5',
+      },
+    ]);
+    expect(output.reviewInferred).toEqual([]);
+  });
+
+  it('ships a recognised guard-message rule with the app\'s own words, verbatim', async () => {
+    const config = tinyApp(
+      [
+        'export default function ExpensePage() {',
+        '  function handleSubmit(e) {',
+        '    e.preventDefault();',
+        '    if (!amount) {',
+        "      setError('A receipt is required before you can submit an expense.');",
+        '      return;',
+        '    }',
+        '    save();',
+        '  }',
+        '  return (',
+        '    <form onSubmit={handleSubmit}>',
+        '      <input name="amount" aria-label="Amount" />',
+        '      <button type="submit">Save</button>',
+        '    </form>',
+        '  )',
+        '}',
+      ].join('\n'),
+    );
+    const output = await generate({ config, model: null });
+    const capability = output.master.find((c) => c.route === '/expenses');
+    expect(capability?.rules).toEqual([
+      {
+        field: 'amount',
+        statement: 'A receipt is required before you can submit an expense.',
+        tier: 'inferred',
+        source: 'features/expenses/pages/ExpensePage.tsx:4',
+      },
+    ]);
+    expect(output.reviewInferred).toEqual([]);
+  });
+
+  it('sends an unrecognised candidate to reviewInferred, and ships no rule for it', async () => {
+    const config = tinyApp(
+      [
+        'export default function ExpensePage() {',
+        '  return (',
+        '    <form>',
+        '      <input name="amount" aria-label="Amount" />',
+        '      <button type="submit" disabled={isSubmitting}>Save</button>',
+        '    </form>',
+        '  )',
+        '}',
+      ].join('\n'),
+    );
+    const output = await generate({ config, model: null });
+    const capability = output.master.find((c) => c.route === '/expenses');
+    expect(capability?.rules).toBeUndefined();
+    expect(output.reviewInferred).toEqual([
+      { route: '/expenses', pattern: 'disabled-submit', source: 'features/expenses/pages/ExpensePage.tsx:5', detail: 'isSubmitting' },
+    ]);
+  });
+
+  it('merges a read-tier rule (WP-54) and an inferred-tier rule (WP-55) on the same capability', async () => {
+    const config = tinyApp(
+      [
+        'export default function ExpensePage() {',
+        '  return (',
+        '    <form>',
+        '      <input name="amount" aria-label="Amount" required />',
+        '      <button type="submit" disabled={!amount}>Save</button>',
+        '    </form>',
+        '  )',
+        '}',
+      ].join('\n'),
+    );
+    const output = await generate({ config, model: null });
+    const capability = output.master.find((c) => c.route === '/expenses');
+    expect(capability?.rules?.map((r) => r.tier).sort()).toEqual(['inferred', 'read']);
+  });
+
+  // Found in the WP-55 read-sample measurement (PLAN.md §7.8): the noun-phrase
+  // template read as a run-on for a checkbox whose own label is already a
+  // sentence — "The form asks for I accept the terms before it will submit."
+  it('phrases a disabled checkbox differently from a disabled text field', async () => {
+    const config = tinyApp(
+      [
+        'export default function ExpensePage() {',
+        '  return (',
+        '    <form>',
+        '      <input name="acceptedTerms" type="checkbox" aria-label="I accept the terms" />',
+        '      <button type="submit" disabled={!acceptedTerms}>Save</button>',
+        '    </form>',
+        '  )',
+        '}',
+      ].join('\n'),
+    );
+    const output = await generate({ config, model: null });
+    const capability = output.master.find((c) => c.route === '/expenses');
+    expect(capability?.rules?.[0]?.statement).toBe('"I accept the terms" must be checked before this can be submitted.');
   });
 });

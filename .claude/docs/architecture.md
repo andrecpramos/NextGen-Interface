@@ -1,307 +1,174 @@
 # Architecture
 
+**Rewritten 2026-09-20.** The earlier version of this file described a Dart/Flutter mobile
+finance assistant — Drift, SQLCipher, GoRouter, llama.cpp over FFI, a dispatcher and a query
+engine — a product ADR-006, ADR-013 and ADR-018 replaced. What survived is below, described
+by what the code does. Where this file and an accepted ADR disagree, the ADR wins.
+
 ## System view
 
+Two artefacts run in two places. Everything else in the repository builds them or measures
+them.
+
 ```
-┌───────────────────────────────────────────────────────────┐
-│ PRESENTATION                                              │
-│  Assistant surface (sphere, chat, voice)  ·  Domain screens│
-└───────────────┬───────────────────────────────────────────┘
-                │ Utterance { text, locale, context }
-┌───────────────▼───────────────────────────────────────────┐
-│ ORCHESTRATION  (domain-agnostic — the actual product)      │
-│                                                            │
-│  ┌──────────────┐   ┌──────────────┐   ┌───────────────┐  │
-│  │ Intent Engine│──▶│ Resolver     │──▶│ Dispatcher    │  │
-│  │ retrieve+rank│   │ slot filling │   │ policy + exec │  │
-│  └──────┬───────┘   └──────────────┘   └───┬───────────┘  │
-│         │ reads                             │ emits        │
-│  ┌──────▼───────────────────────┐   ┌───────▼──────────┐  │
-│  │ CAPABILITY REGISTRY (generated)│  │ Trace Recorder   │  │
-│  │ routes · actions · queries    │   └──────────────────┘  │
-│  └───────────────────────────────┘                         │
-└───────┬──────────────┬──────────────┬─────────────────────┘
-        │              │              │
-   ┌────▼────┐   ┌─────▼────┐   ┌─────▼──────┐
-   │ Action  │   │ Query    │   │ Navigation │
-   │ Engine  │   │ Engine   │   │ Engine     │
-   └────┬────┘   └─────┬────┘   └─────┬──────┘
-        │              │              │
-┌───────▼──────────────▼──────────────▼─────────────────────┐
-│ DOMAIN  (finance today; swappable)                         │
-│  Entities · Use cases · Repository interfaces               │
-└───────────────────────┬───────────────────────────────────┘
-┌───────────────────────▼───────────────────────────────────┐
-│ INFRASTRUCTURE                                             │
-│  Drift/SQLite (SQLCipher) · LLM runtime · STT · TTS         │
-└───────────────────────────────────────────────────────────┘
+ ON THE ADOPTER'S MACHINE, once                    IN A VISITOR'S BROWSER, every turn
+┌───────────────────────────────────────────┐    ┌───────────────────────────────────────────┐
+│ adapter/scan.mjs          (packages/kit)  │    │ adapter/runtime/nextgen.js (packages/embed)│
+│                                           │    │                                           │
+│  detect ──▶ generator ──▶ registries      │    │  widget ──▶ the router (core-intent)      │
+│  routes, roles,   one per role, each with │    │            stage 1 ──▶ stage 2 ──▶ stage 3 │
+│  translations     its precomputed index   │    │            deterministic  embedding  opt-in │
+│                                           │    │                          │                 │
+│  init · build · doctor · calibrate        │    │                          ▼                 │
+└───────────────────┬───────────────────────┘    │  Outcome + TurnTrace ── "why?" is answered │
+                    │  bundle/  (served, each     │  from the trace, never by the model       │
+                    └── role its own files) ─────▶└───────────────────────────────────────────┘
+
+   beneath both:  core-capability (the registry contract)  ·  core-inference (model runtimes)
 ```
 
-**Dependency rule:** arrows point down and inward only. Orchestration never imports
-`features/finance`. Domains register themselves into orchestration at startup.
+`adapter/` is committed build output of the left box and the right box, and is the only thing
+an adopter receives ([ADR-018](../decisions/ADR-018.md), [ADR-021](../decisions/ADR-021.md)).
+`preview/` is a bench for judging the result and is never exported.
 
----
+## The packages, and the one dependency rule
 
-## The five layers
+| Package | What it is | Depends on |
+|---|---|---|
+| `core-capability` | the registry contract: schema, validation, builders | — |
+| `core-inference` | swappable model and embedding runtimes, the untrusted-text fence | — |
+| `core-intent` | the three-stage router, thresholds, calibration, the trace | the two above |
+| `generator` | reads an application's source; emits one registry per role | `core-capability`, `core-intent` |
+| `embed` | the widget, as one script tag under a strict CSP | `core-capability`, `core-intent` |
+| `kit` | `init` / `build` / `doctor` / `calibrate` / `preview` | `generator`, `embed`, `core-intent` |
 
-### Layer 1 — Conversation
+**Rule 1:** `packages/core-*` depend only on other `core-*` packages. The engine sits below
+everything that reads or serves an application, so it cannot learn about one. Gated by
+`check-import-boundaries.mjs` and by a hook on every `core-*` edit (ADR-021). No package is
+installable or published.
 
-Owns: microphone, transcription, chat transcript, TTS playback, turn state machine.
+## Intent recognition: the three-stage router
 
-Turn states: `idle → listening → transcribing → thinking → confirming? → acting →
-speaking → idle`. Every state is cancellable. The UI reflects the state; the sphere
-is a state visualisation, not decoration.
-
-Emits an `Utterance`:
-
-```dart
-class Utterance {
-  final String text;
-  final InputMode mode;        // voice | text
-  final String locale;
-  final ScreenContext context; // current route + visible entity ids
-  final List<Turn> history;    // last N turns, bounded
-}
-```
-
-`ScreenContext` is what makes "delete that one" resolvable. Never drop it.
-
-### Layer 2 — Intent Recognition
-
-**This is the highest-risk component in the system.** It gets its own section below.
-
-### Layer 3 — Action
-
-Maps a resolved intent to a use case. Actions are declared, typed, and classified:
-
-```dart
-@Capability(
-  id: 'transaction.create',
-  kind: CapabilityKind.write,          // read | write | destructive
-  description: 'Record a new expense or income transaction',
-  examples: ['I spent 12 euros on coffee', 'add 50 income from freelance'],
-)
-class CreateTransaction implements Action<CreateTransactionParams, Transaction> { ... }
-```
-
-`kind` drives policy (see ADR-004): `read` executes immediately, `write` requires
-confirmation, `destructive` requires confirmation and produces an undo token.
-
-### Layer 4 — Navigation
-
-The AI does not call `context.go()`. It returns a `NavigationDecision`, which a
-single `NavigationEngine` validates against the registry and executes.
-
-Why the indirection: it gives one place to enforce route existence, required
-parameters, auth guards, and back-stack sanity. A hallucinated route `/expensez`
-fails a registry lookup and becomes a clarifying question, not a crash.
-
-```dart
-sealed class Outcome {
-  const Outcome();
-}
-class Navigate    extends Outcome { final String route; final Map<String,Object?> params; }
-class Answer      extends Outcome { final String speech; final Widget? render; }
-class Perform     extends Outcome { final String actionId; final Map<String,Object?> args; }
-class Clarify     extends Outcome { final String question; final List<String> options; }
-class OutOfScope  extends Outcome { final String reason; }
-```
-
-An outcome may combine — a typical turn is `Perform` then `Navigate` then `Answer`.
-
-### Layer 5 — Knowledge
-
-Domain intelligence that isn't a database query: budgeting heuristics, savings-rate
-guidance, debt strategies, category taxonomies. Shipped as versioned prompt packs +
-deterministic rule functions.
-
-**Rule:** anything numeric is computed in Dart, never by the LLM. The model may
-*phrase* "you're 12% over budget"; it may not *compute* the 12%. Small models cannot
-do arithmetic reliably and there is no reason to ask them to.
-
----
-
-## Intent recognition: the hybrid router
-
-The blueprint's implied design — send the utterance to a 1B model, get JSON back — is
-the single most likely thing to sink this project. A 1B-parameter model asked to emit
-free-form structured output over a 60-capability surface, in under 2 seconds, on a
-mid-range phone, will be wrong often enough to destroy trust.
-
-The adopted design is a **three-stage cascade**, cheapest first:
+A model asked to emit structured output over a large capability surface, quickly, will be
+wrong often enough to destroy trust. So the model is the last resort, not the first, and
+what it may do is small:
 
 ```
 Utterance
    │
-   ├─ Stage 1: DETERMINISTIC  (<5ms)
-   │     Exact/alias/regex match against registry triggers.
-   │     Covers the top ~40% of real traffic ("open budget", "settings").
-   │     Hit with high confidence → done. No model invoked.
+   ├─ Stage 1: DETERMINISTIC   (~2ms)
+   │     Phrase match against the registry's triggers. A hit is a decision. No model.
    │
-   ├─ Stage 2: EMBEDDING RETRIEVAL  (~30-60ms)
-   │     Embed utterance, cosine-match against precomputed capability
-   │     embeddings. Returns top-k candidates with scores.
-   │     score > τ_high and clear margin over #2 → done.
-   │     Covers most paraphrase traffic. Still no LLM.
+   ├─ Stage 2: EMBEDDING RETRIEVAL   (milliseconds)
+   │     Cosine match against the role's precomputed index. Returns the top candidates
+   │     with scores. Accepted only above tauHigh AND clear of the runner-up by delta.
+   │     Still no model.
    │
-   └─ Stage 3: LLM DISAMBIGUATION + SLOT FILLING  (~300-1500ms)
-         Prompt contains ONLY the top-k candidates from stage 2 — never the
-         full registry. Constrained decoding (GBNF grammar) forces a valid
-         schema. The model picks among k and extracts parameters.
-         Low confidence → Clarify, never guess.
+   └─ Stage 3: THE MODEL   (opt-in, off by default)
+         Sees ONLY the top three from stage 2 — never the full registry. It selects a
+         declared id and fills typed slots. Low confidence is a clarifying question,
+         never a guess. When on, a turn POSTs to a path on the adopter's OWN origin
+         (ADR-017); what it writes back is validated before a visitor sees it (ADR-019).
 ```
 
-Why this ordering matters:
+Why this ordering:
 
-- **Latency budget is met by not calling the model most of the time.** The <2s NFR is
-  unachievable if every turn hits an LLM on a phone; it is easy if 70% of turns never
-  do.
-- **The model's job shrinks to something a 1B model can actually do.** Choosing among
-  5 labelled options and extracting a date range is tractable. Recalling 60
-  capabilities from a long prompt is not.
-- **Constrained decoding guarantees valid JSON, not correct JSON.** Grammar-constrained
-  output removes parse failures entirely; it does nothing for semantic errors. Hence
-  the confidence gate and `Clarify` outcome.
-- **Registry growth stops hurting.** Adding capability #61 grows an embedding index,
-  not a prompt.
+- **The model's job shrinks to something small models can do**: choose among three labelled
+  options. Recalling a whole registry from a long prompt is not.
+- **Registry growth stops hurting.** Adding a capability grows an index, not a prompt.
+- **Constrained output guarantees a parseable answer, not a correct one.** Hence the
+  confidence gate and the clarify outcome.
 
-### Confidence and the clarify gate
+Thresholds are config **calibrated per encoder and per registry**, never hand-set (Rule 14,
+`check-thresholds.mjs`, `check-derived-artefacts.mjs`). The router returns a decision plus a
+capability; `toOutcome` in `core-intent/src/types.ts` maps that pair to one of:
 
-Every stage returns a calibrated score. Thresholds are config, tuned against the
-golden set (see [testing.md](./testing.md)):
-
-| Condition | Outcome |
+| Outcome | Meaning |
 |---|---|
-| stage-1 hit | execute |
-| stage-2 top score ≥ τ_high **and** margin ≥ δ | execute |
-| stage-2 ambiguous | stage 3 |
-| stage-3 confidence ≥ τ_act | execute (write → confirm) |
-| stage-3 confidence < τ_act | `Clarify` with top 2–3 options |
-| no candidate ≥ τ_floor | `OutOfScope` — say so plainly |
+| `navigate` | take the visitor to a declared route |
+| `answer` | say what a screen is or does, from its declared explanation |
+| `clarify` | ask, or offer up to three screens to choose from |
+| `out_of_scope` | the request is for something the application does not do — a declared limit (ADR-009), or an action request the router recognises by its verb (ADR-015) — so say so plainly |
+| `perform` | an action that needs confirmation. Defined, and **deferred**: nothing ships a `write` or `destructive` capability to an adopter until WP-48 (PLAN.md §7.5) |
 
-**Refusing to answer is a correct outcome.** A system that guesses wrong on financial
-data is worse than one that asks.
-
----
+**Refusing to answer is a correct outcome.** In the field it offers rather than decides: for
+most questions it shows up to three screens and the person picks. See README.md, "Does it work?".
 
 ## The capability registry
 
-The registry is the contract between screens, actions, and the AI. It is
+The registry is the contract between the application, the router and the widget. It is
 **generated**, not hand-maintained — hand-maintained registries drift within weeks.
+`packages/generator` reads an application's route table, guards, labels and translations and
+emits, per role:
 
-Source of truth: annotations on routes and actions. A `build_runner` step emits:
+- `registry.<ROLE>.json` — the capabilities that role can reach
+- `index.<ROLE>.json` — the precomputed embedding index, so a browser does no encoding work
 
-- `app_routes.g.dart` — consumed by GoRouter
-- `capabilities.g.json` — consumed by the intent engine
-- `capabilities.embeddings.bin` — precomputed vectors, built at compile time
+and, once for the application, `thresholds.hashing.json` — the calibrated operating point.
 
-Because both artefacts come from one annotation, a route cannot exist that the AI
-doesn't know about, and the AI cannot know about a route that doesn't exist.
+**A capability a role cannot reach is absent from that role's registry**, not hidden in it
+(Rule 17, ADR-014): shipping one registry to every role would leak the shape of an admin
+surface. `review/master.json` lists every screen with every role, and is never served.
 
-Entry shape:
+An entry, as the generator emits it (from `eval/frameworks/family/generated`):
 
 ```json
 {
-  "id": "transactions.list",
+  "id": "communication.my_announcements",
   "kind": "navigate",
-  "route": "/transactions",
-  "title": "Transactions",
-  "description": "Browse, filter and search all recorded transactions",
-  "triggers": ["transactions", "my spending", "what did I buy"],
-  "params": {
-    "from": { "type": "date", "required": false },
-    "to":   { "type": "date", "required": false },
-    "category": { "type": "enum:Category", "required": false }
-  },
-  "examples": [
-    { "say": "show last month's expenses",
-      "expect": { "route": "/transactions", "params": { "from": "$lastMonthStart", "to": "$lastMonthEnd" } } }
-  ]
+  "route": "/my/announcements",
+  "title": "Anúncios",
+  "description": "Anúncios — part of the communication area of the application, at /my/announcements.",
+  "explanation": "Anúncios is a screen in the communication area … It shows: Enviado por, Anúncios, …",
+  "explanationSource": "features/communication/pages/MyAnnouncementsPage.tsx",
+  "examples": ["abre anúncios", "leva-me para anúncios", "…"],
+  "triggers": ["anuncios", "announcements"]
 }
 ```
 
-The `examples` block is not documentation. It is the test fixture *and* the
-few-shot pool. One source, three uses.
+`kind` is one of `navigate | read | write | destructive | unsupported`; `unsupported` is a
+declared limit (ADR-009). The assistant cannot know about a route the application does not
+have, because the registry is read from the application's own route table.
 
----
+The `examples` block is not documentation. It is the test fixture *and* the retrieval text
+the router scores against, which is why every capability needs at least three (Rule 10,
+`pnpm registry:check`). There is no dispatcher any more: the package that executed a `write` or
+`destructive` capability under a confirmation policy (ADR-004) was deleted with ADR-018, and
+nothing ships such a capability to an adopter until WP-48 lands. Rule 5 therefore currently
+governs code that does not exist.
 
 ## Trace: how explainability is actually built
 
 Explainability cannot be a prompt asking the model to explain itself — that produces
-plausible fiction. It is a recorded structure:
+plausible fiction. It is a recorded structure. Every turn returns a `TurnTrace`
+(`core-intent/src/types.ts`) holding, among other fields:
 
-```dart
-class TurnTrace {
-  final String turnId;
-  final String rawTranscript;
-  final double? sttConfidence;
-  final RouterStage decidedAt;             // deterministic | embedding | llm
-  final List<ScoredCandidate> candidates;  // what else it considered, and why not
-  final String? modelId, promptVersion;
-  final Outcome outcome;
-  final List<DataRef> dataRead;            // table + row ids + date range
-  final Duration latency;                  // per stage
-  final String? undoToken;
-}
-```
+- `utterance` and the `context` it was asked in;
+- `decidedAt` — which stage decided: `deterministic`, `embedding`, `llm`, or `none`;
+- `candidates` — what else it considered, with scores, and so why not;
+- `outcome`, `capabilityId`, `route`, `params`, `missing`;
+- `explanation` — the screen's declared explanation, copied verbatim from the registry;
+- `latency` per stage, and the model's answer *after* the claim validator ran, with a
+  count of what it removed (never the removed text).
 
-"Why did you do that?" is rendered from this record. "What data did you use?" reads
-`dataRead`. Traces are local, encrypted, capped by ring buffer, and exportable by the
-user — they are also the debugging log and the source of the offline eval set.
+"Why did you do that?" is answered from this record, with no model involved. It is a
+product feature rather than a debug tool: *"prove why it sent this user there"* is what a
+regulated adopter asks first. `pnpm preview` shows the whole trace behind every answer.
+The trace IS the explainability feature — not a log.
 
----
+## What the model may never do
 
-## Offline and model strategy
+- Compute a number a visitor sees (Rule 2). It phrases; code computes.
+- Emit SQL, or a raw route. It selects a declared id and fills typed slots (Rule 3).
+- Produce an identifier that is not validated against the registry, including one inside
+  prose it writes (Rule 4, widened by ADR-019).
+- Decide an application's rule. Rules are extracted from its code with their source file and
+  line, and the model only phrases them (Rule 13, ADR-020).
+- See untrusted application text unfenced (Rule 15, `core-inference/src/untrusted.ts`).
 
-| Target | Model | Runtime |
-|---|---|---|
-| Android / iOS | Gemma 3 1B or Qwen 2.5 1.5B (int4) | llama.cpp via FFI |
-| Desktop | Qwen 3 4B / Gemma 3 4B | llama.cpp |
-| Dev machine (today) | `llama3.1:8b` | Ollama — **already installed** |
-| Embeddings | small sentence encoder, int8 | on-device, ~20 MB |
-| STT | whisper.cpp `tiny`/`base` quantised | FFI |
-| TTS | Piper | FFI |
+## Where to look next
 
-Cloud models are a *quality* toggle, off by default, never on the critical path. If
-the user enables cloud, the trace records that the turn left the device.
-
-**Sizing warning:** a quantised 1B model plus embeddings plus Whisper plus Piper is
-roughly 1.0–1.6 GB of assets. That exceeds Play Store's 200 MB base cap — models ship
-via on-demand asset delivery, downloaded on first run, not bundled. See
-[deployment.md](./deployment.md).
-
----
-
-## Data
-
-Drift over SQLite (see [ADR-002](../decisions/ADR-002.md)), SQLCipher for at-rest
-encryption, key in platform keystore.
-
-The Query Engine exposes a **fixed set of parameterised queries**, selected by
-capability id. The LLM never emits SQL. It selects a query and fills typed slots.
-This is the difference between an intent engine and an SQL-injection generator.
-
----
-
-## Sequence — a representative turn
-
-```
-User: "how much did I spend on food last month"
-
-Conversation   → Utterance{text, route:/home, history:[]}
-Intent stage 1 → no exact trigger
-Intent stage 2 → [spending.by_category 0.83, transactions.list 0.61, budget.view 0.44]
-                 top ≥ τ_high, margin 0.22 ≥ δ → accept, but params unresolved
-Resolver       → needs {category, from, to}
-                 "food"        → Category.food        (enum match, deterministic)
-                 "last month"  → 2026-07-01..07-31    (date grammar, deterministic)
-                 → no LLM call needed
-Dispatcher     → kind=read → execute without confirmation
-Query Engine   → SUM(amount) WHERE category=food AND date BETWEEN ?  → 412.90
-Knowledge      → compare vs budget(food)=350 → over by 62.90 (17.97%) [computed in Dart]
-Navigation     → /analytics/category?category=food&from=…&to=…
-Answer         → "You spent €412.90 on food last month — €62.90 over your €350 budget."
-Trace          → recorded: stage=embedding, 0 LLM calls, 31 rows read, 340ms
-```
-
-Note what did not happen: no model inference at all. That is the design working.
+- [README.md](../../README.md) — the product, the measurements, the structure
+- [decisions/](../decisions/) — why it is shaped this way
+- [critical-infrastructure.md](./critical-infrastructure.md) — which rule is enforced by what
+- [adapter/FIELD-NOTES.md](../../adapter/FIELD-NOTES.md) — what goes wrong on a real application

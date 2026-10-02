@@ -20,6 +20,8 @@ export {
   type RegistryFile,
   type GuidedStep,
   type StepAnchor,
+  type ExtractedRule,
+  type RuleTier,
 } from './types.ts';
 
 export {

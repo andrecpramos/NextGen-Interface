@@ -2,10 +2,11 @@
 # reviewer cannot reliably check by eye.
 #
 # Node 24, not the `engines: >=20` in package.json. This repo runs TypeScript
-# through `node` directly (`node scripts/build-registry.ts`, `node src/index.ts`,
-# and eval/*.js importing ../src/config.ts) which needs unflagged type stripping
-# (Node 23.6+), and packages/data needs `node:sqlite` (22.5+). On Node 20 the
-# install succeeds and then everything fails at run time. See .claude/sdlc/ci-cd.md.
+# through `node` directly (`node --experimental-strip-types eval/frameworks/…`, and the
+# eval/*.js scripts importing ../src/config.ts), which needs type stripping (Node 23.6+
+# unflagged). On Node 20 the install succeeds and then everything fails at run time. What an
+# adopter runs is `adapter/scan.mjs`, a bundle with no TypeScript in it, and that is proved
+# on Node 20 by `check-adapter.mjs`. See .claude/sdlc/ci-cd.md.
 #
 # Every install passes --ignore-scripts. pnpm 11 EXITS 1 on a fresh clone with
 # ERR_PNPM_IGNORED_BUILDS (esbuild), and the onlyBuiltDependencies
@@ -13,10 +14,9 @@
 # clean clone locally, and again with the list moved to package.json. A working
 # checkout hides this because node_modules is already populated, so there are no
 # builds left to ignore. Skipping the scripts is safe and was verified end to end:
-# boundaries, typecheck, all 129 tests, registry:check, the floor eval and the
-# scorecard gate all pass against an --ignore-scripts install. Nothing here needs
-# a native build -- persistence is node:sqlite, not better-sqlite3, and vitest's
-# esbuild resolves through platform-specific optional dependencies.
+# boundaries, typecheck, every test, registry:check, the floor eval and the scorecard
+# gate all pass against an --ignore-scripts install. Nothing here needs a native
+# build -- vitest's esbuild resolves through platform-specific optional dependencies.
 
 name: CI
 
@@ -71,7 +71,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
 
-      # Rule 1 — core must never import a domain. Cheapest gate, run it first.
+      # Rule 1 — packages/core-* depend only on other core packages (ADR-021). Cheapest
+      # gate, run it first.
       - name: Import boundaries (Rule 1)
         run: node tooling/scripts/check-import-boundaries.mjs
 
@@ -117,71 +118,56 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      # WP-26. The packages an adopter installs must be built JavaScript: Node
-      # refuses to strip types inside node_modules, so a package whose `main` is
-      # a .ts file installs cleanly and throws on the adopter's first import.
-      # Every package here was `private: true` with a .ts entry point until
-      # 2026-09-11, which made the product literally uninstallable.
+      # The widget, built once: `adapter/runtime/nextgen.js` is this file byte for byte, and
+      # the accessibility, strict-CSP and adapter gates below all read it. Reading a bundle
+      # that was never built would pass vacuously, so the build comes first.
       #
-      # The build runs first because the gate reads built output — checking
-      # entry points that were never emitted would pass vacuously.
-      - name: Build the installable packages
+      # Nothing else is built. Until ADR-021 this step compiled every package to `dist/` for
+      # the tarballs an adopter used to install, and three gates (packaging, releasable,
+      # installs-from-tarballs) checked the result. No adopter installs a package now; they
+      # copy `adapter/`, and the two steps below are what prove that path.
+      - name: Build the widget
         run: pnpm build
 
-      - name: Packaging is importable (WP-26)
-        run: node tooling/scripts/check-packaging.mjs
+      # ADR-018's premise: an adopter copies `adapter/` into their repository and runs it,
+      # with no package manager and no network. It is committed build output, so the first
+      # step is that what is committed is what packages/ currently builds — an adopter
+      # cannot regenerate it, and this repository has shipped stale committed artefacts
+      # three times.
+      - name: adapter/ is current
+        run: node tooling/scripts/build-adapter.mjs --check
 
-      # Keeps develop releasable: one version across the packages, a CHANGELOG section
-      # for it, and the LICENSE in each. release.yml runs the same script with --tag.
-      - name: Releasable - version, changelog, license
-        run: node tooling/scripts/check-release.mjs
+      # Then that the copy actually works. Every defect found while building the adapter
+      # was a defect of the BUNDLE in a bare directory and invisible to every unit test:
+      # a shebang on line 2, `Dynamic require is not supported`, a top-level await making
+      # the module format ambiguous, `__filename is not defined` — and the one that
+      # mattered, `build` resolving the widget through node_modules, which an adopter does
+      # not have, so the bundle shipped with no assistant in it.
+      - name: A copy of adapter/ runs with nothing installed (Rule 16)
+        run: node tooling/scripts/check-adapter.mjs
 
-      # An adopter installs tarballs, not this workspace. Pack the kit's packages,
-      # npm-install them into a scratch project outside the repository, and run
-      # init, build and doctor through the installed bin — on this runner's Node
-      # and on Node 20, the declared minimum — plus an ES-module import that routes
-      # a turn. Rule 16 is re-checked on the copied app. check-packaging reads
-      # manifests; this is the half only running them can see.
-      - name: Installs from tarballs and runs on Node 20
-        run: node tooling/scripts/check-install.mjs
+      # WP-52 (ADR-017). kit and embed deliberately do not share the stage-3 config type
+      # across the package boundary — kit has no DOM lib, embed's root is DOM-typed — so
+      # this proves they still agree on the wire by making a real bundle interoperate
+      # across a mocked network: off by default, on reaches the exact same-origin URL,
+      # and an off-origin path in the manifest is refused before any fetch happens.
+      - name: Stage-3 bundle reaches the transport that reads it back (Rule 8)
+        run: node tooling/scripts/check-stage3.mjs
 
       - name: Unit tests
         run: pnpm -r test
 
-      # Rule 10 — every capability ships >=3 examples. The builder exits
-      # non-zero on a violation, and --check writes nothing.
+      # Rule 10 — every capability ships >=3 examples, plus every other structural
+      # rule validateRegistry() holds.
+      #
+      # Until ADR-018 this ran `domain-modules registry:build --check`: validation was a
+      # side effect of building a domain package, and it therefore covered exactly one
+      # registry of 7 capabilities. Both domain packages are deleted; the gate now finds
+      # every registry committed to the tree by glob and validates all of them, so a
+      # registry added under eval/ or adapter/ is covered the day it lands rather than
+      # when someone remembers to add it to a list.
       - name: Registry validation (Rule 10)
         run: pnpm registry:check
-
-      # The generated artefacts must match what is committed. A registry built
-      # from a changed definition but not regenerated is a silent drift.
-      #
-      # Scoped to the files the builder actually writes. A bare
-      # `git diff --quiet` also trips on pnpm-lock.yaml, which pnpm rewrites
-      # whenever any workspace manifest changed — an unrelated failure.
-      #
-      # Both domains are checked, in one job. Until WP-47 every domain build wrote
-      # the same packages/core-intent/eval/registry.json, so running both here left
-      # whichever ran last as the authoritative registry — which is why finance was
-      # excluded. Each domain now writes its own
-      # packages/domain-<name>/generated/registry.json (ADR-016), so the collision is
-      # gone and this gate covers every domain rather than whichever one happened to
-      # be authoritative.
-      - name: Registry artefacts are current
-        run: |
-          pnpm registry:build
-          pnpm registry:build:finance
-          # --porcelain rather than `git diff --quiet`, deliberately: a domain whose
-          # registry.json has never been committed produces an UNTRACKED file, and
-          # git diff does not see untracked files. domain-finance was in exactly that
-          # state when WP-47 moved the paths, so this gate would have gone vacuous
-          # for the second time, in the same gate, by a different route.
-          STALE=$(git status --porcelain -- packages/domain-modules/generated packages/domain-finance/generated)
-          if [ -n "$STALE" ]; then
-            echo "::error::Registry artefacts are stale or uncommitted. Rebuild both domains and commit the result."
-            echo "$STALE"
-            exit 1
-          fi
 
       # Rule 14 — the shipped thresholds must be the calibrated ones. Nothing
       # reads the calibration output at run time, so without this the one edit
@@ -191,12 +177,15 @@ jobs:
 
       # WP-46 — the artefacts a browser receives must follow their inputs. The
       # step above checks the reference registry's thresholds against their
-      # calibration file. This one rebuilds what eval/fut-app/generated derives
+      # calibration file. This one rebuilds what eval/frameworks/family/generated derives
       # (the per-role indexes and the per-registry thresholds) and replays the
       # browser's decisions against the server's. On 2026-09-11, a one-line change
       # to normalize() left ten shipped indexes stale while every job here stayed
       # green. Only a manual parity run noticed.
-      - name: Derived artefacts are current (WP-46)
+      # A fourth check joined this in WP-54 (ADR-020): an extracted rule's source
+      # ("<file>:<line>") must still resolve against the fixture it names, proved the
+      # same way — made to fail on purpose against a line past a real file's end.
+      - name: Derived artefacts are current (WP-46, ADR-020)
         run: node tooling/scripts/check-derived-artefacts.mjs
 
       # WP-45. Runs the BUILT bundle in a real DOM and audits every state a user
@@ -218,14 +207,14 @@ jobs:
       - name: Strict Content-Security-Policy, in a real browser
         run: node tooling/scripts/check-csp.mjs
 
-      # The model-free floor on the GENERATED registries. CI's golden-set job below
-      # scores the reference app's set; nothing scored fut-app's, so a change to a
-      # description, a trigger or normalize() could move what the router decides on
-      # the app this is piloted on and no job would notice. That is what L9 cost
+      # The model-free floor on the GENERATED registries. The router job scores the
+      # frozen 7-capability fixture; this scores what the generator actually emits for
+      # a whole application, so a change to a description, a trigger or normalize()
+      # that moves what the router decides cannot pass unseen. That is what L9 cost
       # seven accuracy points. Deterministic (hashing, no stage 3) and ~0.3s, and
       # timing is excluded from the comparison so a busy runner cannot fail it.
       - name: Generated registries still decide the same way
-        run: node --experimental-strip-types eval/fut-app/evaluate-golden.mjs --embedder hashing --check
+        run: node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check
 
   golden-set:
     name: golden-set regression (model-free)

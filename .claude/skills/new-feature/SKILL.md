@@ -35,23 +35,35 @@ Two reasons: the contract is what other work can proceed against, and writing it
 first is the only reliable moment to notice it is wrong. Writing it after the
 implementation produces a contract shaped like the implementation.
 
-In this repo that is the capability declaration in
-`packages/domain-*/src/capabilities.ts` — id, kind, description, triggers,
-params, and **at least three examples** (Rule 10). One declaration generates
-three artefacts:
+In this repo it is one of two things, whichever your change touches:
+
+- **A signature another package imports** — the type or function in `core-capability`,
+  `core-intent` or `core-inference` that `generator`, `embed` or `kit` build against.
+  Write it before the logic behind it.
+- **What the generator emits for an application.** Capabilities are not declared by
+  hand: `packages/generator` reads an application's source and emits one registry per role
+  (ADR-013, ADR-018). So the contract is the expectation — a turn in
+  `eval/frameworks/<app>/golden-set.jsonl` (at least 20, some with `"route": null`) — and
+  every capability the generator produces still carries **at least three examples** (Rule 10).
+
+The registries under `eval/frameworks/family/generated/` are committed derived artefacts.
+If your change alters what the generator emits, or what the encoder is fed, regenerate them
+**in the same commit**. `check-derived-artefacts.mjs` fails on a stale one and does not fix
+it; this order is the one that reproduces the committed files (apart from a `generatedAt`
+timestamp):
 
 ```bash
-pnpm registry:build     # registry + route table + golden fixtures
-pnpm registry:check     # validate only — this is the CI gate
+node --experimental-strip-types packages/generator/src/cli.ts \
+  eval/frameworks/family/generator.config.json --no-model   # emit the registries
+pnpm router:calibrate                                        # only if the encoder's input changed
+node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
+pnpm eval:calibrate                                          # Rule 14: sweep thresholds, never hand-tune
+node tooling/scripts/check-derived-artefacts.mjs
+pnpm registry:check                                          # validate only — this is the CI gate
 ```
 
-Regenerate now and confirm the generated files are what you expect. They are
-committed in the **same commit** as the declaration; a declaration without its
-artefacts is what the staleness gate exists to catch.
-
-`pnpm registry:build:finance` is safe to run: since WP-47 each domain writes its
-own `packages/domain-<name>/generated/registry.json`. Rebuild whichever domain you
-changed, and commit its `generated/` directory.
+If your change alters shipped code (`generator`, `embed`, `kit`, or anything they import),
+the committed `adapter/` is stale: `pnpm adapter:build`, and commit it with the change.
 
 ## 4 · Failing test
 
@@ -67,7 +79,7 @@ Against the checks that will be applied in review, in priority order:
 
 1. Does an unvalidated external value reach storage, the UI, or execution?
 2. Is something the user will trust as authoritative produced where it cannot be trusted?
-3. Does packages/core-* import packages/domain-*?
+3. Does a `packages/core-*` package import `generator`, `embed` or `kit`? (Rule 1)
 4. Are failure paths implemented, or only the happy path?
 5. Are the negative cases tested?
 6. Is untrusted text isolated before it reaches an interpreter?
@@ -95,7 +107,7 @@ integration branch.
 Stop. That is the signal the design is wrong, not that the boundary is
 inconvenient.
 
-The recurring test: *what would a second domain have to
+The recurring test: *what would a second application have to
 change in packages/core-* to work?* If the answer is anything but "nothing", record why
 before proceeding — and consider whether an ADR is owed.
 

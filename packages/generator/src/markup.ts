@@ -16,7 +16,17 @@ import type { FormField, PageFacts } from './types.ts';
  * Everything returned is the adopter's own text and untrusted (Rule 15).
  */
 
-const EMPTY: PageFacts = { isPureRedirect: false, redirectTargets: [], i18nKeys: [], headings: [], doc: null, fields: [], title: null, titleKeys: [] };
+const EMPTY: PageFacts = {
+  isPureRedirect: false,
+  redirectTargets: [],
+  i18nKeys: [],
+  headings: [],
+  doc: null,
+  fields: [],
+  title: null,
+  titleKeys: [],
+  inferredCandidates: [],
+};
 
 /** `{x}` (Svelte), `{{ x }}` (Vue, Angular), `${x}`: text that depends on data. */
 const EXPRESSION = /\{\{|\{[^}]*\}|\$\{/;
@@ -149,7 +159,10 @@ function fieldsOf(markup: string): FormField[] {
     if (!label.text && !label.key) label = named(attributes, 'placeholder');
     if (!label.text && !label.key && tag === 'button' && match[3]) label = textOrKey(match[3]);
     if (!label.text && !label.key) continue;
-    out.push({ tag, label: label.text, labelKey: label.key, id, name, type });
+    // WP-54's schema/JSX-attribute extraction is TSX-specific (`field-rules.ts`
+    // walks a TypeScript AST); this regex-based reader for Vue/Svelte/HTML
+    // markup does not have rules to attach yet.
+    out.push({ tag, label: label.text, labelKey: label.key, id, name, type, rules: [] });
   }
   return out;
 }
@@ -195,5 +208,8 @@ function readMarkupText(text: string): PageFacts {
     doc: null,
     fields: fieldsOf(markup),
     title: declaredTitle(text, scriptsOf(text)),
+    // WP-55's extractor walks a TypeScript AST (`inferred-rules.ts`); this
+    // regex-based reader for Vue/Svelte/HTML markup has no candidates to offer.
+    inferredCandidates: [],
   };
 }

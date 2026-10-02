@@ -3,7 +3,7 @@
 // Thresholds are calibrated per encoder AND per registry, never hand-set and
 // never carried across. That rule has been applied by two separate scripts —
 // `core-intent/eval/calibrate.js` for the reference app and
-// `eval/fut-app/calibrate-registries.mjs` for the generated role registries —
+// `eval/frameworks/calibrate-registries.mjs` for the generated role registries —
 // and a third was about to be written for the drop-in kit (WP-41). Two copies of
 // a calibration sweep is how Rule 14 drifts: the copies diverge, and the one
 // nobody re-reads becomes wrong silently, because a threshold that is merely

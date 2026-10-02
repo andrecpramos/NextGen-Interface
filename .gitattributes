@@ -29,3 +29,16 @@ pnpm-lock.yaml linguist-generated=true -diff
 # The golden set and scorecards are review-critical. Never collapse these.
 packages/core-intent/eval/golden-set.jsonl -linguist-generated
 packages/core-intent/eval/scorecards/** -linguist-generated
+
+# Generated, and reviewed by the gate rather than by eye.
+#
+# `adapter/` is committed build output an adopter copies as it sits, so it must be in the
+# repository — but `scan.mjs` is 3.6MB of minified JavaScript on one line. A textual diff
+# of it buries every real change in the same commit, which is the failure `* text=auto`
+# above exists to prevent for everything else.
+#
+# `linguist-generated` keeps it collapsed in review; `-diff` stops git printing it. What
+# actually checks these two files is `build-adapter.mjs --check`, which rebuilds them and
+# compares hashes, so nothing is lost by not reading them.
+adapter/scan.mjs            linguist-generated -diff
+adapter/runtime/nextgen.js  linguist-generated -diff

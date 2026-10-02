@@ -1,5 +1,6 @@
 {
   "version": "0.1.0",
+  "private": true,
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -11,8 +12,7 @@
   "description": "LLM runtime adapters: Ollama (desktop), llama.rn (mobile), WebGPU (web).",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "type": "module",
   "exports": {
@@ -20,29 +20,7 @@
     "./ollama": "./src/ollama.ts",
     "./untrusted": "./src/untrusted.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./ollama": {
-        "types": "./dist/ollama.d.ts",
-        "default": "./dist/ollama.js"
-      },
-      "./untrusted": {
-        "types": "./dist/untrusted.d.ts",
-        "default": "./dist/untrusted.js"
-      }
-    }
   }
 }

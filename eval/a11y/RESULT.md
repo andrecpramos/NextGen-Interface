@@ -2,7 +2,8 @@
 
 **Run on:** 2026-09-12 · **Tool:** axe-core 4.13.0 in jsdom 30 · **Artefact:**
 `packages/embed/dist/nextgen.js`, the file an adopter serves · **Data:**
-`eval/fut-app/generated`, the `PARENT` role.
+`eval/frameworks/family/generated`, the `PARENT` role (measured on 2026-09-12 against the pilot
+app's registry; the fixture stands in for it since ADR-018).
 
 **Verdict: 18 checks, 0 serious or critical violations — after one real defect
 was found and fixed.** The claim is still not made: [the NVDA

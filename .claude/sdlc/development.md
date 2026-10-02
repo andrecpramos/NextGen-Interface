@@ -4,8 +4,9 @@
 
 1. Pick an item that meets Definition of Ready ([planning.md](planning.md))
 2. Branch from `develop`: `feature/<area>-<short-name>`
-3. Write the capability declaration **first** — id, kind, description, triggers,
-   params, examples. The examples become golden-set entries before any logic exists.
+3. Write the expectation **first** — a golden-set turn for what should be true, or the
+   signature another package will import. Nothing here is a hand-written capability
+   declaration; see "Changing what the generator emits" below.
 4. Write the failing test
 5. Implement
 6. Run the golden set locally — check for regressions in *other* capabilities, which
@@ -14,50 +15,44 @@
 8. Squash-merge on green
 
 The agent-facing version of this loop, with the exact commands, is the
-`add-capability` skill in [`.claude/skills/`](../skills/).
+`new-feature` skill in [`.claude/skills/`](../skills/).
 
-## Adding a capability — the standard path
+## Changing what the generator emits — the standard path
 
-```ts
-// 1. Declare (packages/domain-modules/src/capabilities.ts)
-defineCapability({
-  id: 'module.capture',
-  kind: 'write',                       // selects the ADR-004 policy: write => confirm
-  route: '/modules/new',
-  title: 'Remember this',
-  description:
-    'Save something the user wants remembered — extract the important information ' +
-    'from what they said, wrote, or uploaded, and file it as a module',
-  triggers: ['remember this', 'save this', 'take a note'],
-  params: {
-    body: { type: 'string', required: false, description: 'what you want me to remember' },
-  },
-  examples: [
-    'remember that my passport expires in June 2027',
-    'save this: the wifi password is on the router label',
-    'note that the insurance renewal is in March',
-  ],
-});
-```
+There is no hand-written capability declaration in this repository. A capability is what
+`packages/generator` read from an application's routes, labels and translations
+([`adapter/FIELD-NOTES.md`](../../adapter/FIELD-NOTES.md) is what that taught). Work here
+is therefore one of: change how it reads or words something, change how the router scores
+it, or change what ships to an adopter.
 
 ```bash
-# 2. Regenerate — the registry, the route table and the golden fixtures all
-#    rebuild from that one declaration.
-pnpm registry:build
-pnpm registry:check      # validate only; this is the CI gate
+# 1. Say what should be true first: a turn in eval/frameworks/<app>/golden-set.jsonl
+#    (>= 20 per app, some with "route": null). Rule 12 — a routing bug is not fixed
+#    until it is a permanent golden-set entry.
 
-# 3. Golden-set entries are generated from `examples`. Add the hard cases by
-#    hand in packages/core-intent/eval/golden-set.jsonl: ambiguity, out-of-range,
-#    adversarial, and the paraphrases the examples do not cover.
+# 2. Change the generator (or core-intent), then regenerate the fixture app's output.
+node --experimental-strip-types packages/generator/src/cli.ts \
+  eval/frameworks/family/generator.config.json --no-model
+node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
+pnpm eval:calibrate      # Rule 14 — sweep thresholds; NEVER hand-tune
 
-# 4. Check the new capability did not crowd its neighbours.
-pnpm router:floor
+# 3. Check nothing else moved. This is the common surprise.
+pnpm eval:apps           # headline numbers; :check gates them against the committed scorecard
+pnpm router:floor        # the router in isolation, stages 1+2 only
+node tooling/scripts/check-derived-artefacts.mjs
+
+# 4. If shipped code changed, the committed adapter/ is stale.
+pnpm adapter:build && pnpm adapter:check
 ```
 
-Then implement the use case, the route, and the screen.
+`packages/core-intent/eval/fixture-registry.json` is the **frozen** 7-capability fixture the
+router is measured on in isolation. It is not an application and is not edited: changing it
+invalidates the committed scorecards `check-scorecard.mjs` compares against
+(`packages/core-intent/eval/README.md`).
 
-Nothing in `packages/core-*` is edited. **If adding a capability requires editing
-a `core-*` package, that is a design defect — stop and record why.**
+Nothing in `packages/core-*` should need to know about an application. **If a change
+requires a `core-*` package to import `generator`, `embed` or `kit`, that is a design defect
+— stop and record why.** Rule 1's gate refuses it (ADR-021).
 
 ## Working with the model
 
@@ -104,7 +99,7 @@ Reviewer checks, in priority order:
 
 1. Does a model-produced value reach the DB, the UI, or a route without validation?
 2. Is a user-visible number computed by the model rather than by TypeScript?
-3. Does a `packages/core-*` package import a domain?
+3. Does a `packages/core-*` package depend on anything but another `core-*`? (Rule 1)
 4. Are failure paths implemented, or only the happy path?
 5. Are there golden-set entries for the new behaviour, including the negative cases?
 6. Is the trace complete for the new path?
@@ -125,7 +120,7 @@ Conventional Commits with layer or feature scope:
 
 ```
 feat(core-intent): add margin gate to stage 2 acceptance
-fix(core-dispatch): reject unclassified capabilities instead of defaulting to read
+fix(core-intent): refuse an unclassified capability instead of defaulting to read
 perf(core-inference): unload model after 60s idle
 test(golden): add 24 adversarial injection cases
 docs(adr): ADR-006 supersede the client stack choice
@@ -134,7 +129,7 @@ docs(adr): ADR-006 supersede the client stack choice
 ## Tooling
 
 ```bash
-node tooling/scripts/check-import-boundaries.mjs   # Rule 1 — core never imports a domain
+node tooling/scripts/check-import-boundaries.mjs   # Rule 1 — core-* depend only on core-*
 node tooling/scripts/check-thresholds.mjs          # Rule 14 — thresholds match calibration
 pnpm -r typecheck                                  # strict TypeScript
 pnpm -r test                                       # vitest
@@ -151,4 +146,4 @@ today.
 See [planning.md](planning.md) and PLAN.md section 11. The two most commonly
 skipped items, listed here because they are the ones that matter: **golden-set
 entries added**, and **an ADR written if an architectural choice was made** —
-WP-14 is the standing counter-example, and ADR-013 is still owed for it.
+WP-14 was the counter-example: ADR-013 was written after the work it recorded.

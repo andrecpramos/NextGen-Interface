@@ -19,6 +19,7 @@ const field = (over: Partial<FormField>): FormField => ({
   id: null,
   name: null,
   type: null,
+  rules: [],
   ...over,
 });
 

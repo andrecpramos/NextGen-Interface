@@ -1,19 +1,20 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 import type { SkipReason } from '@nextgen/generator';
 
-import type { BuildRecord } from './build.ts';
+import { readConfig, type BuildRecord } from './build.ts';
 import type { Finding } from './detect.ts';
-import { AGENT_FILE, BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
+import { BUNDLE_DIR, CONFIG_FILE, REVIEW_DIR } from './paths.ts';
 import { describeSweep, sweepingTools } from './tooling.ts';
 
 /**
  * `nextgen doctor`: what the kit read, what it could not, and what to do.
  *
  * Written for the person who runs the kit on their own app without having built
- * it. That is the owner's run in `fut-app` (WP-35), and it is the product's
+ * it. That is the owner's run in the pilot app (WP-35), and it is the product's
  * promise to every adopter. So every line says what happened in plain words, and
  * every problem says what to change. A report that lists a skip reason code
  * without saying what it means has failed at its only job.
@@ -92,15 +93,17 @@ export function doctor(kitDir: string): DoctorReport {
   const say = (line = ''): void => void lines.push(line);
 
   if (!existsSync(join(kit, CONFIG_FILE))) {
-    return { ok: false, text: `No kit here (${kit}). Run "nextgen init <your app folder>" first.` };
+    return { ok: false, text: `No kit here (${kit}). Run "node scan.mjs init <your app folder>" first.` };
   }
   const detect = readJson<{ findings: Finding[]; warnings: string[]; projectDir?: string }>(join(kit, REVIEW_DIR, 'detect.json'));
   const projectDir = detect?.projectDir !== undefined ? resolve(kit, detect.projectDir) : null;
   const record = readJson<BuildRecord>(join(kit, REVIEW_DIR, 'build.json'));
 
   say(`nextgen doctor — ${kit}`);
-  if (existsSync(join(kit, AGENT_FILE))) {
-    say(`(If an AI agent is reading this on a developer's behalf: read ${join(kit, AGENT_FILE)} before acting on anything below.)`);
+  // The one front door for an installing agent ships beside the tool (adapter/AGENTS.md).
+  const agentsFile = join(dirname(fileURLToPath(import.meta.url)), 'AGENTS.md');
+  if (existsSync(agentsFile)) {
+    say(`(If an AI agent is reading this on a developer's behalf: read ${agentsFile} before acting on anything below.)`);
   }
   say();
 
@@ -115,7 +118,7 @@ export function doctor(kitDir: string): DoctorReport {
   }
 
   if (!record) {
-    say('Not built yet. Run "nextgen build" next.');
+    say('Not built yet. Run "node scan.mjs build" next.');
     return { ok: false, text: lines.join('\n') };
   }
 
@@ -124,6 +127,11 @@ export function doctor(kitDir: string): DoctorReport {
   say(`  ${record.capabilities} screen(s) the assistant can take people to, plus ${record.boundaries} declared limit(s)`);
   for (const role of record.roles) say(`    ${role.padEnd(14)} ${record.perRole[role] ?? 0} screen(s)`);
   say(`  Descriptions: ${record.prose}`);
+  say(`  Rules read from validation schemas and control attributes: ${record.rules} (ADR-020, WP-54)`);
+  say(`  Rules inferred from a handler or a disabled control, shipped: ${record.inferredRules} (ADR-020, WP-55)`);
+  if (record.reviewInferred > 0) {
+    say(`  ${record.reviewInferred} more candidate(s) were found but not confident enough to ship — read them in review/INFERRED.md.`);
+  }
   say();
 
   // 3. What it skipped, grouped, most urgent first.
@@ -148,7 +156,7 @@ export function doctor(kitDir: string): DoctorReport {
   if (record.calibrated) {
     say(`  Calibrated for this app (${record.thresholdsSource}).`);
   } else {
-    // Measured, not assumed: eval/fut-app/experiment-self-calibration.mjs. An earlier
+    // Measured, not assumed: an experiment script deleted with the pilot's evidence, ADR-018. An earlier
     // version of this text said an uncalibrated build "will work, but ask more
     // clarifying questions". On a 145-screen app that was false.
     say('  NOT calibrated for this app. It is using default settings tuned on a different,');
@@ -159,7 +167,7 @@ export function doctor(kitDir: string): DoctorReport {
     say('  Calibrating needs real questions you wrote, each with the screen it should reach:');
     say('');
     say('    nextgen calibrate <kit folder> --golden your-questions.jsonl');
-    say('    nextgen build <kit folder>        # picks up the calibration');
+    say('    node scan.mjs build <kit folder>        # picks up the calibration');
     say('');
     say('  One JSON object per line: {"utterance": "...", "route": "/where", "role": "ADMIN"}.');
     say('  Use "route": null for a question it should refuse, and include both kinds — a sweep');
@@ -168,18 +176,31 @@ export function doctor(kitDir: string): DoctorReport {
   }
   say();
 
-  // 5. Re-check what is served, rather than trusting the build.
+  // 5. Stage 3 (WP-52, ADR-017). Off is the state doctor should say the LEAST about — a
+  // silent line here would read as "nothing to report" for the common case, so this only
+  // prints when it is ON, and says exactly what that means for a visitor.
+  if (record.stage3) {
+    say('Model-backed answers (stage 3)');
+    say(`  ON — a turn stages 1–2 cannot settle POSTs to "${record.stage3.path}" on YOUR OWN`);
+    say('  origin, instead of asking the visitor a clarifying question. That path is yours to');
+    say('  serve, rate-limit and secure. See "Turn on model-backed answers" in AGENTS.md or');
+    say('  the kit README for a reference proxy with rate limiting.');
+    if (record.stage3.model) say(`  Requests name the model "${record.stage3.model}"; your proxy decides what that means.`);
+    say();
+  }
+
+  // 6. Re-check what is served, rather than trusting the build.
   const bundle = join(kit, BUNDLE_DIR);
   const served = existsSync(bundle) ? readdirSync(bundle) : [];
   for (const role of record.roles) {
     for (const file of [`registry.${role}.json`, `index.${role}.json`]) {
-      if (!served.includes(file)) problems.push(`bundle/${file} is missing. Run "nextgen build" again`);
+      if (!served.includes(file)) problems.push(`bundle/${file} is missing. Run "node scan.mjs build" again`);
     }
   }
   if (!served.includes('thresholds.hashing.json')) problems.push('bundle/thresholds.hashing.json is missing');
   if (served.includes('nextgen.js')) {
     const broken = scriptTagIsBroken(readFileSync(join(bundle, 'nextgen.js'), 'utf8'));
-    if (broken) problems.push(`bundle/nextgen.js is broken: ${broken}. Delete packages/embed/dist and run "nextgen build" again`);
+    if (broken) problems.push(`bundle/nextgen.js is broken: ${broken}. Delete packages/embed/dist and run "node scan.mjs build" again`);
   }
   if (served.includes('master.json')) problems.push('bundle/ contains master.json, which lists every role. Delete it; it must never be served');
   for (const file of served.filter((f) => /^registry\..+\.json$/.test(f))) {
@@ -191,15 +212,16 @@ export function doctor(kitDir: string): DoctorReport {
   for (const report of record.invalid) problems.push(`a registry failed validation:\n${report}`);
   if (record.capabilities === 0) problems.push('no screens were found. Check "router" and "routesFile" in nextgen.config.json');
 
-  // 6. How to mount it.
+  // 7. How to mount it.
   const role = record.roles[0] ?? 'PUBLIC';
   say('How to put it in your app');
   say(`  1. Serve ${join(kit, BUNDLE_DIR)} at a path of your choice, for example /nextgen.`);
   if (record.roles.length > 1) {
     say('     Serve each signed-in user ONLY their own role\'s registry.<ROLE>.json and index.<ROLE>.json.');
     say('     A role\'s file lists the screens that role can reach; the others must not reach it (Rule 17).');
-    say('     Recipes for Express, Next.js and nginx: "Serving each role only its own files" in');
-    say('     node_modules/@nextgen/kit/README.md. The role comes from your session, never from the request.');
+    say('     Ready-made handlers for Express and Next.js, under "Serving it", in');
+    say('     AGENTS.md, beside this tool.');
+    say('     The role comes from your session, never from the request.');
 
     // A bundle under the folder a web app serves as-is hands every role's file to everyone.
     if (projectDir) {
@@ -208,7 +230,7 @@ export function doctor(kitDir: string): DoctorReport {
         problems.push(
           `${served} is served to everyone: it sits in a folder your app serves as-is, and this app has ` +
             `${record.roles.length} roles, so every user could read every role's screen list (Rule 17). ` +
-            'Build the kit outside it (nextgen init --out) and serve each role its own files',
+            'Build the kit outside it (node scan.mjs init --out) and serve each role its own files',
         );
       }
     }
@@ -227,14 +249,33 @@ export function doctor(kitDir: string): DoctorReport {
   say('         event.preventDefault();');
   say('         router.navigate(event.detail.route);');
   say('       });');
-  say("     Or use it as a module: import { start } from '@nextgen/embed', and pass { navigate }.");
   say(`  Never serve ${join(kit, REVIEW_DIR)}. Its master.json lists every screen with every role.`);
   say();
 
   // Checks in the adopter's own project that would trip over this folder (readiness item 4).
   const kitFolder = projectDir ? (relative(projectDir, kit).split(/[\\/]/)[0] ?? 'nextgen') : 'nextgen';
   const sweeps = projectDir ? sweepingTools(projectDir, kit).map((w) => describeSweep(w, kitFolder)) : [];
-  const warnings = [...(detect?.warnings ?? []), ...record.warnings, ...sweeps];
+  // `detect.json`'s warnings are frozen at `init` time, so a developer who *acts* on one
+  // keeps being told about it. A warning that cannot be cleared is a warning people learn
+  // to scroll past, which costs the ones that matter.
+  //
+  // The language guess is the case that bites: `init` warns "put the app's own language
+  // first in languages", the developer edits the config and does exactly that, and the
+  // warning survives every later run unchanged. So it is dropped once the configured
+  // first language is no longer the one that was guessed.
+  const guessedLanguage = detect?.findings.find((f) => f.what === 'app language' && !f.confident)?.value ?? null;
+  let configuredLanguage: string | null = null;
+  try {
+    configuredLanguage = readConfig(kit).config.languages?.[0] ?? null;
+  } catch {
+    // An unreadable config is reported elsewhere; it must not take the warnings with it.
+  }
+  const acted = guessedLanguage !== null && configuredLanguage !== null && configuredLanguage !== guessedLanguage;
+  const detected = (detect?.warnings ?? []).filter(
+    (w) => !(acted && w.startsWith("The app's language is a guess")),
+  );
+
+  const warnings = [...detected, ...record.warnings, ...sweeps];
   if (warnings.length > 0) {
     say('Read these before you ship');
     for (const w of warnings) say(`  ! ${w}`);

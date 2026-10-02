@@ -17,7 +17,7 @@ Owed:
 - A change to a layer boundary or the dependency rule
 - A storage engine, a wire format, a runtime
 - A policy table — anything encoding "what is allowed to happen"
-- Anything that weakens a principle in `.claude/docs/vision.md`
+- Anything that weakens an established architectural principle
 
 Not owed:
 

@@ -3,68 +3,45 @@
 **The drop-in kit (PLAN.md WP-41).** One command reads an application, writes everything
 into a folder of its own, and explains in plain words what it could and could not read.
 
+This package is **source, not something an adopter installs** ([ADR-021](../../.claude/decisions/ADR-021.md)).
+It is bundled into `adapter/scan.mjs`, the one file an adopter runs; this page is for
+working on it. An adopter's path in is [GETTING-STARTED.md](../../.MDFiles/GETTING-STARTED.md),
+and the document their coding agent reads first is [adapter/AGENTS.md](../../adapter/AGENTS.md).
+
 ```bash
-nextgen init  <your app folder>     # finds the route table, roles, translations, language
-nextgen build [kit folder]          # writes bundle/ (served) and review/ (never served)
-nextgen calibrate [kit folder] --golden questions.jsonl   # Rule 14, from questions you wrote
-nextgen doctor [kit folder]         # what was read, what was left out and why, how to mount it
-nextgen doctor [kit folder] --report field-report.md   # the same, plus every screen and skip, as a file
-nextgen preview [kit folder]        # try it on your app before wiring anything in
+node <here>/scan.mjs init  <your app folder>    # finds the route table, roles, translations, language
+node <here>/scan.mjs build [kit folder]         # writes bundle/ (served) and review/ (never served)
+node <here>/scan.mjs calibrate [kit folder] --golden questions.jsonl   # Rule 14, from questions you wrote
+node <here>/scan.mjs doctor [kit folder]        # what was read, what was left out and why, how to mount it
+node <here>/scan.mjs doctor [kit folder] --report field-report.md      # the same, plus every screen and skip, as a file
+node <here>/scan.mjs preview [kit folder]       # try it on your app before wiring anything in
 ```
 
-**Installing it.** Download a GitHub Release's tarballs into your project's
-`vendor/nextgen/` (or build them with `pnpm pack:release` in this repository), then
-`npm install -D vendor/nextgen/*.tgz` and run `npx nextgen …`. Node 20 or
-newer, ES modules only. Proprietary: see [LICENSE](LICENSE). [INSTALL.md](../../.MDFiles/INSTALL.md) has the whole path, and
-`tooling/scripts/check-install.mjs` proves it on every pull request. Inside this
-repository the command is also `node packages/kit/src/cli.ts`.
+`<here>` is the copied `adapter/` folder. In this repository, run the same thing from source
+with `node --experimental-strip-types packages/kit/src/cli-copied.ts <command> …` (Node 23.6 or
+newer), or rebuild the bundle with `pnpm adapter:build`. Node 20 or newer runs the bundle.
 
 The kit folder defaults to `<app>/nextgen`: beside `src/`, never inside it.
-
-## Quick start
-
-```bash
-npm install -D vendor/nextgen/*.tgz   # a release's tarballs, committed under vendor/nextgen/
-npx nextgen init .                   # writes ./nextgen/ only; check every GUESSED answer
-npx nextgen build nextgen
-npx nextgen doctor nextgen           # read all of it
-npx nextgen preview nextgen          # try the answers before wiring anything in
-```
-
-On Windows PowerShell, which passes `*` to npm unexpanded, install with `npm install -D (Get-ChildItem vendor/nextgen/*.tgz | Resolve-Path -Relative)`.
-
-Then serve `nextgen/bundle/` at `/nextgen/`, giving each user only their own role's files
-([below](#serving-each-role-only-its-own-files)), and add one line to your page:
-
-```html
-<script src="/nextgen/nextgen.js" data-nextgen-role="ROLE" defer></script>
-```
-
-The step-by-step version, with calibration and a single-page-app router, is
-[GETTING-STARTED.md](../../GETTING-STARTED.md) in the repository.
 
 ## What it writes, and where
 
 | Folder | Holds | Served? |
 |---|---|---|
 | `nextgen.config.json` | what `init` found, including anything it had to guess. It is yours to correct | — |
-| `AGENT.md` | instructions for whichever AI agent runs the rest of these commands — see below | — |
 | `bundle/` | `registry.<ROLE>.json`, `index.<ROLE>.json`, `thresholds.hashing.json`, `nextgen.js` | **yes**, each user only their own role's files |
-| `review/` | `master.json` (every screen, with every role that can reach it), `SKIPPED.md`, `build.json`, `detect.json` | **never** |
+| `review/` | `master.json` (every screen, with every role that can reach it), `SKIPPED.md`, `INFERRED.md`, `build.json`, `detect.json` | **never** |
 | `calibration/` | `thresholds.hashing.json`, if you have calibrated. `build` prefers it | — |
 
 ## If an AI agent is running this for you
 
-Realistically, it is. `init` writes `AGENT.md` into the kit folder for exactly
-that reason: the kit stays a non-interactive CLI (WP-25 — "no human step"
-means no *build-time* human step, not no human), but the decisions in
-`build`/`doctor`/mounting that are genuinely the developer's to make — where
-this folder lives relative to whatever a dev server serves, which role and
-auth source to wire, whether to edit `index.html`, whether to gitignore the
-output, whether to wire real navigation, whether to calibrate now or later —
-are not the kit's to decide silently, and are not the agent's either. If you
-are that agent: read `AGENT.md` before running `build`. If you are the
-developer and your agent didn't mention it: ask it to.
+Realistically, it is. The decisions in `build`, `doctor` and mounting that are genuinely the
+developer's to make — where this folder lives relative to whatever a dev server serves, which
+role and auth source to wire, whether to edit `index.html`, whether to gitignore the output,
+whether to wire real navigation, whether to calibrate now or later — are not the kit's to
+decide silently, and are not the agent's either. They are written down in
+[adapter/AGENTS.md](../../adapter/AGENTS.md), which ships beside `scan.mjs`. If you are that
+agent: read it before running `build`. If you are the developer and your agent didn't mention
+it: ask it to.
 
 **Rule 16:** the kit writes nothing outside its folder. `init` refuses a folder inside your
 source before writing anything. On bulletproof-react, a public app not written for it,
@@ -82,49 +59,13 @@ reach, so serving every file to everyone tells each user the names of screens th
 and `index.<ROLE>.json` only to a user whose **session** has that role — never a role taken from
 the request, which anyone can change.
 
-**Express**, after your own session middleware:
-
-```js
-import path from 'node:path';
-
-const BUNDLE = path.resolve('nextgen/bundle');
-const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
-
-app.get('/nextgen/:file', (req, res) => {
-  const role = req.user?.role; // your session
-  const { file } = req.params;
-  const own = Boolean(role) && (file === `registry.${role}.json` || file === `index.${role}.json`);
-  if (!SHARED.has(file) && !own) return res.sendStatus(404);
-  res.sendFile(file, { root: BUNDLE });
-});
-```
-
-**Next.js** (app router), as `app/nextgen/[file]/route.ts`:
-
-```ts
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
-import { currentRole } from '@/lib/auth'; // yours
-
-const BUNDLE = path.join(process.cwd(), 'nextgen', 'bundle');
-const SHARED = new Set(['nextgen.js', 'thresholds.hashing.json']);
-
-export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }) {
-  const { file } = await params;
-  const role = await currentRole();
-  const own = role !== null && (file === `registry.${role}.json` || file === `index.${role}.json`);
-  if (!SHARED.has(file) && !own) return new Response(null, { status: 404 });
-  const type = file.endsWith('.js') ? 'text/javascript' : 'application/json';
-  return new Response(await readFile(path.join(BUNDLE, file)), { headers: { 'content-type': type } });
-}
-```
-
-Both allow only the exact file names above, so a crafted name cannot reach anything else.
+Ready-made handlers for **Express** and **Next.js** (app router) are under "Serving it" in
+[adapter/AGENTS.md](../../adapter/AGENTS.md); they allow only the exact file names, so a crafted
+name cannot reach anything else.
 
 **nginx** in front of the app cannot know a user's role by itself. Let the app answer `/nextgen/`
-as above, or put those two role files behind `auth_request` to an endpoint of yours that checks the
-session.
+as those handlers do, or put the two role files behind `auth_request` to an endpoint of yours that
+checks the session.
 
 `doctor` refuses a multi-role bundle that sits inside `public/` or `static/`, because a web app serves
 those folders to everyone as they are.
@@ -132,7 +73,7 @@ those folders to everyone as they are.
 ## Trying it before wiring it in
 
 ```bash
-nextgen preview nextgen --app-url http://localhost:3000
+node <here>/scan.mjs preview nextgen --app-url http://localhost:3000
 ```
 
 A local page (127.0.0.1) that loads the built bundle exactly as a production page would — the one-line
@@ -142,10 +83,9 @@ your running app if you pass `--app-url`. So you can judge the answers before to
 the integration separately. It serves every role's files so you can switch between them, which
 production must never do; the page says so.
 
-`nextgen doctor --report field-report.md` writes doctor's text plus every screen it declared, with its
+`doctor --report field-report.md` writes doctor's text plus every screen it declared, with its
 roles, and everything it left out. It lists screens against roles, so share it only with people who
-may know that. Playing the adopter on a project of your own? [FIELD-TEST.md](../../.MDFiles/FIELD-TEST.md) is the
-protocol.
+may know that.
 
 ## Keeping your own checks green
 
@@ -161,8 +101,8 @@ on a 145-screen one it sent **2 of 7** confident answers to the wrong screen and
 1 real question in 105. Until you calibrate, `doctor` says so in those words.
 
 ```bash
-nextgen calibrate <kit folder> --golden questions.jsonl
-nextgen build <kit folder>      # picks the calibration up
+node <here>/scan.mjs calibrate <kit folder> --golden questions.jsonl
+node <here>/scan.mjs build <kit folder>      # picks the calibration up
 ```
 
 `questions.jsonl` is **yours to write** — one JSON object per line:
@@ -184,14 +124,42 @@ never refuses anything, when held-out precision falls below the 100% the sweep e
 and when it refuses real requests it should not.
 
 **There is deliberately no way to calibrate from the generator's own example questions.**
-That was measured on an app where both kinds of data exist
-([experiment-self-calibration.mjs](../../eval/fut-app/experiment-self-calibration.mjs)):
-it made the engine **wrongly refuse 7 real requests in 105**, against 1 for the untouched
-default. Offering it would be offering a worse outcome than doing nothing, wrapped in
-something that looks like diligence.
+That was measured on an app where both kinds of data exist: it made the engine **wrongly
+refuse 7 real requests in 105**, against 1 for the untouched default. Offering it would be
+offering a worse outcome than doing nothing, wrapped in something that looks like diligence.
 
 The sweep itself is `@nextgen/core-intent/calibrate`, shared with this repository's own
 calibration script so that Rule 14 has exactly one implementation.
+
+## Turn on model-backed answers (stage 3, WP-52, ADR-017)
+
+Out of the box, a question the router cannot settle from the registry gets a clarifying
+question back — never wrong, but it can read like a menu. `--stage3 <path>` changes that:
+an unsettled turn POSTs to `<path>` on **your own origin**, and your server decides which
+model answers. Off unless you pass it.
+
+```bash
+node <here>/scan.mjs build <kit folder> --stage3 /nextgen/stage3 [--stage3-model <name>]
+```
+
+`doctor` then says plainly that stage 3 is ON and names the path — read it before you ship.
+What the proxy receives, what it must answer, and a rate-limited Express reference are in
+[adapter/AGENTS.md](../../adapter/AGENTS.md), "Turn on model-backed answers". **An
+unauthenticated endpoint that calls a model is something anyone loading your page can spend
+money or GPU time against** — rate limit it before it is live, not after.
+
+**What stays true whether or not you turn this on:**
+
+- The visitor's words never leave your own origin from their browser — the transport
+  resolves the configured path against the page it runs on and refuses to POST anywhere
+  else, checked on every commit against a mocked network boundary
+  (`tooling/scripts/check-stage3.mjs`).
+- A timeout, an unreachable path or a malformed response degrades to today's clarifying
+  question. It never crashes the assistant and never guesses.
+- **This tool cannot use a model to write descriptions at all.** `build --model` is refused:
+  there is no client for one in the bundle and the tool reaches no network, so descriptions
+  come from the app's own labels (ADR-018 D-6, ADR-021). Stage 3 is about what happens to a
+  visitor's *question*, at *their* browsing time, on *your* server.
 
 ## Which apps it reads
 
@@ -219,3 +187,6 @@ On six public apps it was not written for, it declared every screen and nothing 
 different shapes. It checks that the app is byte-for-byte unchanged, that the bundle
 carries no role annotations and no master list, and that `calibrate` refuses the cases it
 cannot stand behind — before a build, and on a golden set too small to believe.
+`src/agents-md.test.ts` holds the invariants of `adapter/AGENTS.md` that would harm an
+adopter if a hurried edit lost them. What runs the *built* bundle in a bare directory is
+`tooling/scripts/check-adapter.mjs`.

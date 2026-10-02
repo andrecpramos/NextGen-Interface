@@ -49,37 +49,88 @@ did not touch appear, change, and disappear mid-session.
 - A modified or untracked file you did not create belongs to someone else.
   Leave it. Do not commit it, revert it, or "clean it up".
 
+## Commands
+
+pnpm workspace (`pnpm-workspace.yaml`); every package under `packages/*` uses
+the same pair of scripts, so the pattern below is uniform — there is no lint
+script in this repo.
+
+```bash
+pnpm preview                                   # the bench: ask, and see why it decided that
+pnpm preview:check                             # the bench, in a headless browser
+
+pnpm test                                      # every package (pnpm -r test)
+pnpm --filter @nextgen/<pkg> test              # one package, e.g. core-intent
+pnpm --filter @nextgen/<pkg> test -- <path>    # one file (vitest passthrough)
+pnpm --filter @nextgen/<pkg> test -- -t <name> # one test by name
+
+pnpm typecheck                                 # every package (pnpm -r typecheck)
+pnpm --filter @nextgen/<pkg> typecheck         # one package
+pnpm build                                     # the widget only: packages/embed/dist/nextgen.js
+pnpm adapter:build                             # rebuild adapter/ after changing packages/
+pnpm adapter:check                             # adapter/ is current, and a copy of it runs with nothing installed
+
+pnpm registry:check                            # Rule 10: every committed registry validates
+pnpm eval:apps                                 # generate, calibrate and route over the fixture apps
+pnpm router:inspect                            # score distributions, recall@k — look here first
+pnpm router:eval / router:baseline / router:floor   # cascade against the golden set
+pnpm router:calibrate                          # sweep thresholds — never hand-tune them (Rule 14)
+```
+
+## Architecture
+
+The package layout and the engine boundary are in
+[README.md → Structure](README.md#structure) — read that first when touching
+`packages/*`. In short: `core-*` is an application-agnostic engine (registry
+schema, a three-stage router, model runtimes, an explainability trace);
+`generator` reads an application's source and emits its registries, `embed` is
+the widget that runs in the adopter's page, and `kit` drives both. All of it
+is bundled by `tooling/scripts/build-adapter.mjs` into `adapter/`, the one
+folder an adopter copies ([ADR-021](.claude/decisions/ADR-021.md)). No package
+is installable or published. **`packages/core-*` depend only on other
+`core-*`** — Rule 1, gated by `check-import-boundaries.mjs` in CI and by a hook
+on every `core-*` edit (see `critical-infrastructure.md` §2) — and the
+`boundary-auditor` agent checks the `switch`-on-application-type violations the
+import gate can't see.
+
+`.claude/docs/architecture.md` and `.claude/docs/testing.md` were rewritten on
+2026-09-20; before that they described an earlier Dart/Flutter mobile finance
+app. Three other docs are only partly about this repo and open with a status
+note saying which parts: `security.md`, `ui-guidelines.md` and the older
+`sdlc/` files. For anything architectural, trust README.md, the accepted ADRs in
+`.claude/decisions/`, and the code over any of them.
+
 ## Before you push
 
 CI gates these; running them locally first is faster than a red build.
 
 ```bash
-node tooling/scripts/check-import-boundaries.mjs   # Rule 1: core never imports a domain
+node tooling/scripts/check-import-boundaries.mjs   # Rule 1: core-* depends only on core-*
 node tooling/scripts/check-doc-links.mjs           # every relative doc link resolves
 pnpm -r typecheck
 pnpm -r test
 pnpm registry:check                                # Rule 10: >=3 examples per capability
+pnpm build                                         # the widget; the gates below read it
+pnpm adapter:check                                 # adapter/ is current, and a copy runs with nothing installed
 node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
 node tooling/scripts/check-accessibility.mjs       # WP-45: no serious/critical a11y violation
+node tooling/scripts/check-csp.mjs                 # the widget under a strict CSP, in a real browser
 node --experimental-strip-types \
-  eval/fut-app/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
-pnpm build && node tooling/scripts/check-install.mjs   # the tarballs install outside this repo, and run on Node 20
-node tooling/scripts/check-csp.mjs                     # the widget under a strict CSP, in a real browser
+  eval/frameworks/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
 ```
 
 The golden-set gate and its tolerances are described in
 [.claude/sdlc/ci-cd.md](.claude/sdlc/ci-cd.md); the reasoning is [ADR-011](.claude/decisions/ADR-011.md).
 
-`/gates` runs all of it and reports PASS/FAIL per gate, or delegate it to the
-`gate-runner` agent to keep it out of your context. The gate list itself lives in
-[.claude/sdlc.config.json](.claude/sdlc.config.json) — hooks and commands read that file,
-so it and CI must not drift.
+`/gates` runs all of it — including the ones not listed here — and reports PASS/FAIL per
+gate, or delegate it to the `gate-runner` agent to keep it out of your context. The gate
+list itself lives in [.claude/sdlc.config.json](.claude/sdlc.config.json) — hooks and
+commands read that file, so it and CI must not drift.
 
-**Which rule is actually enforced where** — and which are only written down — is
-the register in
-[.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md). Read it before
-trusting that something is protected. Its top entry is not theoretical: the CI
-staleness gate currently diffs a directory the build never writes.
+**Which rule is actually enforced where** — and which are only written down — is the
+register in
+[.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md). Read it
+before trusting that something is protected.
 
 ## The workflow is in `.claude/`
 

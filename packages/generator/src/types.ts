@@ -106,6 +106,38 @@ export interface PageFacts {
    * `meta` title — when it is a string literal. Untrusted (Rule 15).
    */
   readonly title: string | null;
+  /**
+   * ADR-020's **inferred** tier (WP-55): a condition this page's own code
+   * appeared to enforce before its form would submit. Every candidate found is
+   * here, whether or not it was confident enough to ship — see
+   * `InferredCandidate.recognized` and `inferred-rules.ts`'s own header for why
+   * that split exists at all.
+   */
+  readonly inferredCandidates: readonly InferredCandidate[];
+}
+
+/** Which shape of imperative guard an inferred candidate came from. */
+export type InferredPattern = 'disabled-submit' | 'guard-message';
+
+/**
+ * One condition read from a handler or a `disabled` expression, before it is
+ * known whether it is confident enough to ship (ADR-020, WP-55).
+ *
+ * `recognized: false` never reaches a registry — it is only ever written to
+ * `review/INFERRED.md`, for a human to read. `statement` is `null` until it is
+ * known to be needed: `disabled-submit` phrases from a template once a label
+ * is resolvable (`inferredRulesEntry`), so it carries none here; `guard-message`
+ * already found its statement verbatim in the source, so it carries it now.
+ */
+export interface InferredCandidate {
+  readonly pattern: InferredPattern;
+  /** The `FormField` this was matched to (its `name`, or its `id`) — null when nothing matched. */
+  readonly field: string | null;
+  readonly statement: string | null;
+  readonly recognized: boolean;
+  /** The raw source text this came from, quoted for `review/INFERRED.md`. Untrusted (Rule 15). */
+  readonly detail: string;
+  readonly line: number;
 }
 
 /** One control a guided step can point at, as read from the page's JSX. */
@@ -119,6 +151,26 @@ export interface FormField {
   readonly id: string | null;
   readonly name: string | null;
   readonly type: string | null;
+  /**
+   * What constrains this control — ADR-020's **read** tier (WP-54): a native
+   * HTML attribute, or a validation schema bound through the form. Always an
+   * array, possibly empty; see `field-rules.ts` for what is read and why.
+   */
+  readonly rules: readonly FieldRule[];
+}
+
+/**
+ * One constraint on a form control, read rather than inferred (ADR-020).
+ *
+ * `line` is 1-based, in the same file the control itself was read from — the
+ * page component. `field-rules.ts` is the only place these are produced.
+ */
+export interface FieldRule {
+  readonly kind: 'required' | 'min' | 'max' | 'minLength' | 'maxLength' | 'pattern' | 'email' | 'enum';
+  readonly value?: string | number;
+  /** For `kind: 'enum'` — the values a `z.enum([...])` / `yup.oneOf([...])` declares. */
+  readonly values?: readonly string[];
+  readonly line: number;
 }
 
 /** A label a manifest attached to a route, with the reason it was recorded. */
@@ -150,8 +202,24 @@ export interface GeneratorOutput {
   readonly master: readonly AnnotatedCapability[];
   readonly boundaries: readonly Capability[];
   readonly skipped: readonly SkippedRoute[];
+  /**
+   * An inferred-tier candidate (ADR-020, WP-55) found but not confident enough
+   * to ship — `review/INFERRED.md`, never a registry. What *did* ship the same
+   * way is indistinguishable from a `read`-tier rule except for its `tier`
+   * field on the capability that carries it; there is no separate list for it.
+   */
+  readonly reviewInferred: readonly ReviewInferredEntry[];
   readonly domainDescription: string;
   readonly roles: readonly RoleName[];
+}
+
+/** A found-but-not-shipped inferred candidate, for a human to read (ADR-020, WP-55). */
+export interface ReviewInferredEntry {
+  readonly route: string;
+  readonly pattern: InferredPattern;
+  /** `<file>:<line>`, in the adopter's own tree. */
+  readonly source: string;
+  readonly detail: string;
 }
 
 /**

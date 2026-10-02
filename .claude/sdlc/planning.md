@@ -12,7 +12,6 @@ optional, because they are what AI coding agents read.
 
 ## Inputs
 
-- [vision.md](../docs/vision.md) — direction and non-goals
 - [PLAN.md](../../.MDFiles/PLAN.md) — §0's queue is the scope, §9 the risk register. *(This was
   `roadmap.md` until 2026-09-10; it planned a Flutter build ADR-006 rejected.)*
 - Previous iteration's traces, golden-set scorecard, and retro
@@ -40,12 +39,12 @@ An item may enter an iteration when it has:
 ## Definition of Done
 
 - Code merged to `develop`, CI green
-- Unit + integration tests written, coverage not reduced
+- Unit tests written, and the built artefact run where it applies (`pnpm adapter:check`)
 - Golden-set entries added for any new capability; suite not regressed
-- Registry entry generated and route test passing
+- Derived artefacts regenerated in the same commit (`check-derived-artefacts.mjs`)
 - Trace recording verified for the new path
 - Docs updated — including an ADR if an architectural choice was made
-- Manually exercised on a physical device, not only the emulator
+- Exercised where it will run — a real browser or the bench (`pnpm preview`), not only jsdom
 
 ## Estimation
 

@@ -3,8 +3,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 
 import type { GeneratorConfig } from '@nextgen/generator';
 
-import { AGENT_PLAYBOOK } from './agent-playbook.ts';
-import { AGENT_FILE, assertOutsideApp, CONFIG_FILE, REVIEW_DIR, toPosix } from './paths.ts';
+import { assertOutsideApp, CONFIG_FILE, REVIEW_DIR, toPosix } from './paths.ts';
 
 /**
  * `nextgen init`: where does this application keep what the generator reads?
@@ -503,18 +502,17 @@ export interface InitResult extends Detection {
 }
 
 /**
- * Detect, then write `nextgen.config.json`, `AGENT.md` and `review/detect.json`.
- * Nothing else.
+ * Detect, then write `nextgen.config.json` and `review/detect.json`. Nothing else.
  *
  * The default kit folder is `<app>/nextgen`, a sibling of `src/`. That is inside
  * the adopter's repository but outside their source, and the kit never writes
  * anywhere else. An existing config is not overwritten without `force`: after
  * the first run it is the adopter's file, and they may have corrected it.
  *
- * `AGENT.md` is written the same way, for the same reason, aimed at whoever —
- * or whatever — runs the rest of these commands. The kit itself stays a
- * non-interactive CLI (WP-25); this is where the decisions that are not the
- * kit's to make silently are written down for the agent actually running it.
+ * It does not write instructions for an installing agent. Until ADR-021 it wrote a second
+ * copy of `adapter/AGENTS.md` here, for the npm path; that copy had drifted (it offered
+ * `--model`, which the copied tool refuses), and there is one front door now, in the
+ * folder the tool came from.
  */
 export function init(appDir: string, kitDir?: string, options: { force?: boolean } = {}): InitResult {
   const detection = detectApp(appDir);
@@ -546,9 +544,5 @@ export function init(appDir: string, kitDir?: string, options: { force?: boolean
     )}\n`,
     'utf8',
   );
-  // Written once, never reset by --force: --force redoes detection, which has
-  // nothing to do with whatever a developer may have added to this file since.
-  const agentFile = join(target, AGENT_FILE);
-  if (!existsSync(agentFile)) writeFileSync(agentFile, AGENT_PLAYBOOK, 'utf8');
   return { ...detection, kitDir: target, configFile };
 }

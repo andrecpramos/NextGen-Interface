@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Host pages — bench</title>
+  <style>
+    :root { color-scheme: light dark; --ink: #1d2330; --muted: #6b7384; --bg: #fff; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) { --ink: #e8ebef; --muted: #98a1ad; --bg: #14171c; }
+    }
+    body {
+      font: 16px/1.55 system-ui, sans-serif; max-width: 44rem; margin: 3rem auto; padding: 0 1rem;
+      color: var(--ink); background: var(--bg);
+    }
+    li { margin: .7rem 0; }
+    code { font-size: .9em; }
+    .muted { color: var(--muted); font-size: .9em; }
+  </style>
+</head>
+<body>
+  <h1>The widget, on pages it did not design</h1>
+  <p>
+    The same built <code>nextgen.js</code> an adopter serves, on host pages of different
+    shapes. This is where to judge how it <em>looks</em> and where it places itself;
+    <a href="/bench">the bench</a> is where to judge what it <em>decides</em>.
+  </p>
+
+  <ul>
+    <li>
+      <a href="/bench">Bench</a> — ask, and see the whole trace: which stage decided,
+      what else it considered, by what margin, and how long each stage took.
+    </li>
+    <li>
+      <a href="<!--APPLINK-->">The mock application</a> — every route in the generated registry is a
+      real page, so when the assistant navigates it lands somewhere that exists and the
+      orb is waiting there. Switch role from the sidebar.
+    </li>
+    <li><a href="/plain.html">Plain</a> — a host page with no CSS at all.</li>
+    <li>
+      <a href="/themed.html">Themed, left nav</a> — declares its own
+      <code>--nextgen-accent</code>; the orb should wait on the right.
+    </li>
+    <li><a href="/nav-right.html">Themed, right nav</a> — the mirror image; the orb should wait on the left.</li>
+    <li><a href="/phone.html">Phone frame</a> — narrow viewport.</li>
+  </ul>
+
+  <p class="muted">
+    <strong>Voice.</strong> The microphone works on <code>localhost</code>. Speech becomes
+    text only where the browser can do that on the device; elsewhere the orb still reacts
+    to your voice and asks you to type. That is Rule 8, not a limitation of the bench.
+  </p>
+  <p class="muted">
+    Every role's bundle is served here, which production must never do
+    (Rule 17) — a role's registry <em>is</em> its entitlement. This directory is never
+    exported.
+  </p>
+</body>
+</html>

@@ -64,7 +64,7 @@ describe('nextgen preview', () => {
   });
 
   it('refuses a folder that has not been built', async () => {
-    await expect(preview(join(mkdtempSync(join(tmpdir(), 'nextgen-empty-')), 'nextgen'), { port: 0 })).rejects.toThrow(/Run "nextgen build" first/);
+    await expect(preview(join(mkdtempSync(join(tmpdir(), 'nextgen-empty-')), 'nextgen'), { port: 0 })).rejects.toThrow(/Run "node scan.mjs build" first/);
   });
 });
 

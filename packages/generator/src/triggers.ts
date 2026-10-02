@@ -10,7 +10,7 @@ import { normalize } from '@nextgen/core-intent';
  *
  * WP-38 lever 1, and the cheapest of the three. The generator emitted **zero**
  * triggers across 145 capabilities, which means stage 1 — the 2ms, no-model,
- * exact-match path — never fired once in the whole fut-app measurement. The
+ * exact-match path — never fired once in the whole pilot app measurement. The
  * model-free rate could not have been anything but low: two of the three stages
  * were doing all the work and the free one was switched off.
  *
@@ -35,7 +35,7 @@ import { normalize } from '@nextgen/core-intent';
  *
  * **Ambiguity is judged inside a registry.** Stage 1 looks a phrase up in one role's
  * registry (ADR-014), so two capabilities that no role reaches together never share a
- * trigger index. Judged across the whole application, fut-app's `/my` — "Dashboard", for
+ * trigger index. Judged across the whole application, the pilot app's `/my` — "Dashboard", for
  * players and guardians — lost its only trigger to the coaches' `/dashboard`, which no
  * player's or guardian's registry contains.
  */

@@ -14,7 +14,8 @@
 // WHAT IS ALLOWED
 //   1. Loopback. `http://127.0.0.1:11434` is Ollama on the same machine.
 //   2. The asset manifest, and only it — on-demand model downloads, which are
-//      the one deliberate exception (ADR-006 / core-voice). Every URL there must
+//      the one deliberate exception (ADR-006; the package that held it was deleted by
+//      ADR-018 — see below). Every URL there must
 //      sit beside a `sha256`, which is the actual safety property: a host that
 //      is compromised, or a mirror that is not what it claims, cannot substitute
 //      a different binary. An allowlisted host with no hash would be a weaker
@@ -41,8 +42,21 @@ const ROOT = new URL('../..', import.meta.url).pathname
   .replace(/^\/([A-Za-z]:)/, '$1')
   .replace(/\/$/, '');
 
-/** The one file permitted to name a remote host, and only beside a hash. */
-const ASSET_MANIFEST = 'packages/core-voice/src/assets.ts';
+/**
+ * There is no longer a file permitted to name a remote host.
+ *
+ * Until ADR-018 there was one: `packages/core-voice/src/assets.ts`, which named the
+ * hosts serving the Whisper and Piper binaries and pinned each by sha256. That package
+ * is deleted — the voice an adopter's users get is the Web Speech API, on-device,
+ * downloading nothing — so the exception has no subject and is removed rather than left
+ * pointing at a path that does not exist. It had already gone vacuous: the gate reported
+ * "0 hash-pinned asset(s)" and passed, which is precisely the failure mode this
+ * repository has been bitten by twice.
+ *
+ * If something ever needs to download an asset again, re-adding the exception is a
+ * deliberate act with an ADR behind it, not a constant someone quietly edits.
+ */
+const ASSET_MANIFEST = null;
 
 const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\]|::1)(:\d+)?$/i;
 
@@ -96,25 +110,8 @@ for (const group of ['packages', 'apps']) {
   for (const d of dirs) if (d.isDirectory()) roots.push(join(base, d.name));
 }
 
-/** Does the object literal containing this node declare a `sha256`? */
-function hasSiblingHash(node) {
-  for (let n = node.parent; n; n = n.parent) {
-    if (ts.isObjectLiteralExpression(n)) {
-      const hashed = n.properties.some(
-        (p) =>
-          (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) &&
-          ts.isIdentifier(p.name) &&
-          p.name.text === 'sha256',
-      );
-      if (hashed) return true;
-    }
-  }
-  return false;
-}
-
 const violations = [];
 let literals = 0;
-let manifestUrls = 0;
 
 for (const file of roots.flatMap(walk)) {
   const text = readFileSync(file, 'utf8');
@@ -140,18 +137,6 @@ for (const file of roots.flatMap(walk)) {
         if (LOOPBACK.test(host)) continue;
 
         const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
-        if (rel === ASSET_MANIFEST) {
-          manifestUrls++;
-          if (!hasSiblingHash(node)) {
-            violations.push({
-              file: rel,
-              line: line + 1,
-              host,
-              why: 'in the asset manifest but not pinned by a sha256',
-            });
-          }
-          continue;
-        }
         violations.push({
           file: rel,
           line: line + 1,
@@ -176,13 +161,14 @@ if (violations.length > 0) {
   This product's claim is that inference is local — the device is the source of
   truth. One request to a remote host falsifies that for every adopter.
 
-  Loopback is fine. A model asset that must be downloaded belongs in
-  ${ASSET_MANIFEST}, pinned by sha256 so a compromised
-  host cannot substitute a different binary.
+  Loopback is fine; nothing else is. No package downloads an asset any more
+  (ADR-018), so there is no longer an exception for a pinned manifest. If one is
+  genuinely needed again, add it deliberately — with the sha256 pin and an ADR —
+  rather than widening this gate to make a failure go away.
 `);
   process.exit(1);
 }
 
 console.log(
-  `  Rule 8 OK — ${literals} URL literal(s), ${manifestUrls} hash-pinned asset(s), no unpinned remote host.`,
+  `  Rule 8 OK — ${literals} URL literal(s) scanned, no remote host named outside loopback.`,
 );

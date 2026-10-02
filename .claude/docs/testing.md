@@ -1,131 +1,118 @@
 # Testing Strategy
 
-The hard problem: **the router is non-deterministic and its correctness is
-statistical.** Standard unit testing does not cover it. The strategy below separates
-deterministic code (test normally) from model-dependent behaviour (evaluate against a
-scored dataset, with thresholds enforced in CI).
+**Rewritten 2026-09-20.** The earlier version of this file described a mobile finance
+assistant: money arithmetic, widget golden images, voice word-error rates, device battery
+budgets, a 200-entry golden set gated at ≥90% top-1. None of that describes this repository.
+Where this file and an accepted ADR disagree, the ADR wins.
+
+The hard problem: **the router's correctness is statistical, and stage 3 is a model.**
+Standard unit testing does not cover it. The strategy separates deterministic code (test
+normally), model-dependent behaviour (evaluate against a scored dataset, gated on a
+*tolerance against a committed baseline*, never on an absolute accuracy —
+[ADR-011](../decisions/ADR-011.md)), and built artefacts (prove them where they will run).
 
 ## Layers
 
-### 1. Unit — 80%+ coverage target
+### 1. Unit — `pnpm test`
 
-Domain logic, use cases, resolvers, scoring, policy. Fast, no I/O, no model.
+vitest, in every package. Fast, no network, no model. The priorities
+are where correctness actually lives: slot resolution, the confidence gates and every branch
+of the threshold table, registry validation, the claim validator that strips a model's prose
+(ADR-019), and the generator's role extraction (Rule 17).
 
-Priority targets, because these are where correctness actually lives:
-- Money arithmetic — int minor units, rounding, currency mismatch, negatives
-- Date-range parsing — "last month", "this week", "since March", boundaries,
-  month-end, leap years, DST, timezone conversion
-- Slot resolution — enum matching, fuzzy category matching, ambiguity detection
-- Confidence gating — every branch of the threshold table
-- Dispatcher policy — each `CapabilityKind`, plus the unclassified fail-closed path
+### 2. The golden set — the router's real test
 
-### 2. Golden set — the real router test
+**The most important test asset in the project.** A versioned corpus of utterances paired
+with expected outcomes. Two exist, for two different questions:
 
-**The most important test asset in the project.** A versioned corpus of utterances
-paired with expected outcomes.
+| Corpus | Answers | Size |
+|---|---|---|
+| `packages/core-intent/eval/golden-set.jsonl`, against the **frozen** `fixture-registry.json` | how does the router behave *in isolation*? | 85 |
+| `eval/frameworks/<app>/golden-set.jsonl`, against what the generator emits for a fixture app | does the whole pipeline — generate, calibrate, route — still decide the same? | 68 for `family` |
 
 ```jsonc
-{
-  "id": "gs-0142",
-  "utterance": "how much did I spend on food last month",
-  "context":   { "route": "/home", "today": "2026-08-29" },
-  "expect": {
-    "capability": "spending.by_category",
-    "params": { "category": "food", "from": "2026-07-01", "to": "2026-07-31" },
-    "maxStage": "embedding"        // must NOT need the LLM
-  }
-}
+{ "id": "gs-0001", "bucket": "direct", "utterance": "remember this",
+  "expect": { "capability": "module.capture", "maxStage": "deterministic" } }
 ```
 
-Composition — deliberately adversarial, not just happy paths:
+`maxStage` says the turn must not need a more expensive stage than that. The frozen
+corpus is deliberately adversarial, not just happy paths — `direct` 8, `paraphrase` 24,
+`ambiguous` 11 (must clarify, **not** guess), `multiturn` 10, `out_of_scope` 13 (must refuse),
+`adversarial` 13 (must never reach a destructive capability), `non_english` 6. An app's own
+corpus is `navigate`, `explain` and `out_of_scope`, with at least 20 turns, some with
+`"route": null`.
 
-| Bucket | Share | Purpose |
-|---|---|---|
-| Direct commands | 20% | stage-1 coverage |
-| Natural paraphrase | 30% | stage-2 coverage |
-| Ambiguous | 15% | must produce `Clarify`, **not** a guess |
-| Multi-turn / pronouns | 10% | context resolution |
-| Out of scope | 10% | must produce `OutOfScope`, not a hallucinated action |
-| Adversarial / injection | 10% | must never reach a destructive capability |
-| Non-English + accented | 5% | locale handling |
+**A routing bug is not fixed until it is a golden-set entry** (Rule 12).
 
-Minimum 200 entries by end of MVP 1. Grows from real traces (with consent) and from
-every bug: **a routing bug is not fixed until it is a golden-set entry.**
+What CI gates, and how:
 
-CI gates:
-
-| Gate | Threshold |
+| Gate | What it holds |
 |---|---|
-| Top-1 capability accuracy | ≥ 90%, no regression vs. `develop` |
-| Param exactness on matched capability | ≥ 85% |
-| Ambiguous → Clarify | ≥ 95% |
-| Out-of-scope → OutOfScope | ≥ 95% |
-| Adversarial → destructive capability | **0 tolerance** |
-| Stage 1+2 resolution rate | ≥ 65% |
+| `router:floor` → `check-scorecard.mjs` | the model-free run (hashing encoder, stage 3 off) against the committed baseline scorecard, within a tolerance. Deterministic, so it is the only cascade configuration CI can run |
+| `eval:apps:check` | the generated registries still decide the same way as their committed scorecard |
+| `check-thresholds.mjs` | thresholds are the calibrated ones, never hand-set (Rule 14) |
+| `check-derived-artefacts.mjs` | shipped indexes, thresholds and the browser's decisions follow their inputs (WP-46) |
+| `check-adversarial.mjs` | adversarial → destructive stays at **zero**. Needs a model server, so it runs locally, not in CI |
 
-Run on every commit against the reference model. A prompt change, threshold change,
-model swap, or registry change all re-run this suite. Results are committed as a
-scorecard so regressions are visible in the diff.
+The model-backed runs (`router:eval`, `router:baseline`) need a local Ollama and are
+compared by a person. Warm a model with a throwaway call first and run models sequentially,
+or every latency figure is meaningless.
 
-### 3. Integration
+### 3. Fixture applications — `eval/frameworks/`
 
-Full pipeline with a **fake LLM runtime** returning scripted outputs — deterministic,
-fast, runs everywhere. Tests: utterance → intent → action → DB write → navigation →
-trace recorded. Also every failure path: model timeout, model missing, empty result,
-confirmation rejected, undo.
+One synthetic app per routing framework (React Router, Next.js, Remix, SvelteKit, Nuxt, Vue
+Router, Angular), under `packages/generator/fixtures/`, each reproducing hard cases seen in
+the field: one screen at two addresses, placeholder titles, a title untranslated in one of
+two languages, a guard on a parent route.
 
-### 4. Navigation
+### 4. Public applications we did not write — `eval/field-apps/`, `eval/tutor-app/`
 
-For every registry entry: the route exists, required params are declared, the screen
-builds with those params, deep links resolve, back stack is sane. Generated from the
-registry — a new capability without a working route fails CI automatically.
+The product's claim is *"it works on a web app it has never seen"*, so it is measured on
+public apps with **ground truth written before the tool ran**. The first run on a
+three-role app leaked 15 of 48 role assignments and a pre-committed kill criterion fired
+(`eval/tutor-app/RESULT.md`). Only documents live here; no application code does.
 
-### 5. Widget & golden image
+### 5. The built artefact, where it will run
 
-Assistant surface in each sphere state, confirmation card, trace viewer, charts.
-Golden images for light/dark and for 200% text scale.
+Unit tests cannot see a failure of a bundle in a bare directory, and every defect found
+while building `adapter/` was one. So the artefact is run, not asserted about:
 
-### 6. Voice
-
-- STT: fixed audio corpus (clean, noisy, accented, PT + EN), assert WER below
-  threshold; end-to-end intent accuracy from audio matters more than raw WER
-- TTS: no crash on long/numeric/currency strings; barge-in cancels within 200ms
-- Permission-denied and mic-busy paths
-
-### 7. Performance — on real hardware
-
-Emulator numbers are meaningless for inference. Reference devices: one mid-range
-Android (the binding constraint), one recent iPhone.
-
-| Metric | Budget |
+| Gate | Runs |
 |---|---|
-| Cold start to interactive | < 2s |
-| Stage 1 | < 5ms |
-| Stage 2 (embed + search) | < 60ms |
-| Stage 3 first token | < 800ms |
-| Full turn p95, text in | < 2s |
-| Full turn p95, voice in | < 3s |
-| Peak RSS with model loaded | < 1.2 GB |
-| Battery, 10-min session | < 4% |
-| Sustained inference thermal | no throttle in 20 turns |
+| `build-adapter.mjs --check` | what is committed in `adapter/` is what `packages/` builds |
+| `check-adapter.mjs` | a copy of `adapter/` in a directory with no `node_modules` above it and every network path throwing: `init`, `build`, `doctor`, then a fingerprint of the application to prove nothing was written into it (Rule 16) |
+| `check-stage3.mjs` | kit and embed agree on the stage-3 wire, across a mocked network |
+| `check-csp.mjs` | the widget under a strict Content-Security-Policy, in a real browser |
+| `check-accessibility.mjs` | axe over the **built** widget, every state a user can reach |
+| `preview:check` | the bench, in a headless browser, asserting two turns from the golden set |
 
-### 8. Security
+### 6. Static rule gates
 
-Automated: no sensitive data in logs; DB unreadable without key; telemetry scrubber
-rejects known-sensitive payloads; model hash verification fails closed.
+`check-import-boundaries.mjs` (Rule 1), `check-prompt-fencing.mjs` (Rule 15),
+`check-model-numerics.mjs` (Rule 2), `check-network-egress.mjs` (Rule 8),
+`check-doc-links.mjs`, and `pnpm registry:check` (Rule 10). Each was made to fail on
+purpose before it was trusted; the record is in
+[critical-infrastructure.md](./critical-infrastructure.md), "Gates seen failing on purpose".
 
-Manual before each release: injection corpus, key storage review, permission audit.
+### 7. What only a person can check
+
+A screen-reader pass ([`eval/a11y/NVDA-CHECKLIST.md`](../../eval/a11y/NVDA-CHECKLIST.md),
+about 15 minutes) and the owner's acceptance run on a real application
+([ACCEPTANCE-RUN.md](../../.MDFiles/ACCEPTANCE-RUN.md)). Until they are done the claims are
+*"automated accessibility checks pass; no screen reader has confirmed it"*, and no
+cost-per-session figure at all.
 
 ## Test data
 
-Deterministic seeded fixtures for a synthetic user with ~500 transactions across 18
-months. Same seed everywhere, so a failing assertion is reproducible. **No real
-financial data in fixtures**, including the developer's own.
+Fixtures are synthetic and checked in. **No real application's structure lives here**: the
+private pilot's generated artefacts were removed for exactly that reason (ADR-018), and
+`eval/frameworks/family` reproduces its hard cases without being it.
 
 ## CI
 
-Every PR: analyze → format check → unit → integration → navigation → golden set →
-widget. Nightly: performance on device farm, security scan, full voice corpus.
-
-Merge blocked on: any test failure, coverage below 80%, golden-set regression, or a
-new capability without examples.
+`.github/workflows/ci.yml` runs the gates above in `verify` (typecheck, build the widget, every
+gate in sections 5 and 6, the unit tests, registry and derived-artefact checks), `golden-set`
+(the deterministic floor against the baseline) and `audit`, plus a guard that only `develop`
+may merge to `main`. Their
+order and what each enforces is in [ci-cd.md](../sdlc/ci-cd.md). Branch protection is not
+available on this repository's plan, so every CI gate is advisory in the mechanical sense.

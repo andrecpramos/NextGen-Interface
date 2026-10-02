@@ -1,6 +1,7 @@
 {
   "name": "@nextgen/embed",
   "version": "0.1.0",
+  "private": true,
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
@@ -13,27 +14,10 @@
     "node": ">=20"
   },
   "main": "./src/index.ts",
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "scripts": {
-    "build": "node build.mjs && tsc -p tsconfig.build.json",
-    "preview": "node build.mjs && node demo/serve.mjs",
+    "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
-  },
-  "publishConfig": {
-    "main": "./dist/index.js",
-    "types": "./dist/types/embed/src/index.d.ts",
-    "exports": {
-      ".": {
-        "types": "./dist/types/embed/src/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "./nextgen.js": "./dist/nextgen.js",
-      "./package.json": "./package.json"
-    }
   },
   "dependencies": {
     "@nextgen/core-capability": "workspace:*",

@@ -5,7 +5,6 @@ with no build step, no module system, and no network call per turn.
 
 ```bash
 node packages/embed/build.mjs   # → dist/nextgen.js (script tag, ~30KB gzipped)
-                                #   dist/index.js   (the same code as an ES module)
 ```
 
 ```html
@@ -38,9 +37,10 @@ window.addEventListener('nextgen:navigate', (event) => {
 });
 ```
 
-Modified clicks (a new tab, a new window) are always left to the browser. Or skip the
-script tag and use the module: `import { start } from '@nextgen/embed'`, passing
-`{ navigate }`. The chat box on its own (WP-41) is `mount(target, assistant)`.
+Modified clicks (a new tab, a new window) are always left to the browser. The chat box on
+its own (WP-41) is `mount(target, assistant)`; that and `start` are this package's source API,
+exercised by its tests. An adopter receives only the script tag: the package is not installable
+and there is no ES-module build (ADR-021).
 
 **Styling under CSP.** The assistant's and the chat box's stylesheets are constructed and
 adopted by their shadow roots, which a policy does not govern; a `<style>` element is used
@@ -50,14 +50,12 @@ rendered unstyled.
 
 ## See it before an adopter does
 
-There is no adopter app required to look at this. `pnpm embed:preview` (or
-`pnpm --filter @nextgen/embed preview`) builds the bundle and serves a mock club app at
-`http://localhost:4173/my`, wired to the real generated `fut-app` PARENT registry. Every
-route in that registry is a page the server renders, so asking to go somewhere really
-goes there, and the orb is waiting on the next page. Three bare host pages (no CSS, left
-nav, right nav) are linked from `http://localhost:4173/`, and `/phone.html` shows the app
-in a 390 × 844 frame. On the preview app only, `?open` opens the screen and `?ask=…` asks
-a question on load, so a state can be linked to.
+There is no adopter app required to look at this. `pnpm preview`, from the repository root,
+builds the bundle and serves the real widget on a mock application built from a generated
+registry, beside a bench that shows the whole trace behind every answer, and host-page
+variants (no CSS, left nav, right nav, a phone frame) for placement. It is described in
+[preview/README.md](../../preview/README.md). On the mock app only, `?open` opens the screen
+and `?ask=…` asks a question on load, so a state can be linked to.
 
 ## The assistant layer
 
@@ -94,7 +92,7 @@ a question on load, so a state can be linked to.
 - **Guide.** When the registry declares steps for the screen the user lands on (WP-27),
   the orb walks them through it one step at a time, highlighting the field. The text is
   always shown, including when an anchor cannot be trusted (`anchor.ts` refuses rather
-  than mispoints). ⚠️ The generated `fut-app` registries declare no steps yet, so the
+  than mispoints). ⚠️ The generated fixture registries declare no steps yet, so the
   preview does not show it.
 - **Travelling.** When a turn resolves to a destination, the screen dissolves, the same
   orb flies to the emptier edge (`chooseDockSide`, `dock.ts`) and the browser moves. A
@@ -176,7 +174,7 @@ highlight anything than point at the wrong field.
 `src/embed.test.ts` builds the bundle, then runs it in a fresh V8 context holding only
 `window`, `self`, `console` and `performance`. There is no `require`, no `process` and no
 `fetch`. In that context it:
-- routes real `fut-app` turns from the generator's own output;
+- routes real turns from the generator's own output;
 - makes the same decision as the direct `route()` call;
 - stays under 60KB gzipped;
 - exposes `start`, `mount`, `mountAssistant` and `present`.
@@ -194,15 +192,10 @@ scope. See [lessons.md L11](../../.claude/docs/lessons.md).
 
 ## Status
 
-Installable from the tarballs `pnpm pack:release` writes; not published to npm. Three ways in:
-
-| Import | Is |
-|---|---|
-| `@nextgen/embed` | an ES module: `create`, `load`, `start`, `mount`, `present`, with types. Self-contained, so a bundler never re-resolves the workspace packages and meets a Node import |
-| `@nextgen/embed/nextgen.js` | the script tag, which `nextgen build` copies into `bundle/` |
-| `@nextgen/embed/package.json` | for tools that locate the package |
-
-ES modules only. `tooling/scripts/check-install.mjs` installs it outside this repository and
-routes a turn through the ES module on every pull request.
+Not installable, and not published: this is workspace source. What ships is
+`dist/nextgen.js`, the script tag, which `tooling/scripts/build-adapter.mjs` copies byte for
+byte to `adapter/runtime/nextgen.js` and `scan.mjs build` copies into `bundle/` (ADR-018,
+ADR-021). Until ADR-021 there was also an ES-module build and a tarball; nothing was ever
+released, and nothing read the module.
 
 **Serve each session only its own role's files**: Rule 17 is a delivery property.
