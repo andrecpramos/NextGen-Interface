@@ -28,6 +28,7 @@ Say what you are about to do before you do it.
 | `FIELD-NOTES.md` | **what goes wrong when this tool meets a real application.** Eight sections, every one a failure that actually happened. Read it before you believe any output below |
 | `scan.mjs` | the whole tool, in one file. Node 20 or newer, no dependencies |
 | `runtime/nextgen.js` | the assistant itself, already compiled, ready to serve |
+| `VERSION` | an id of the two files above. `doctor` prints it on its first line — quote it when you report a problem, so it is clear which build was copied |
 
 ## The four commands
 
@@ -39,6 +40,13 @@ node <here>/scan.mjs build  nextgen      # write nextgen/bundle/ and nextgen/rev
 node <here>/scan.mjs doctor nextgen      # what it read, what it guessed, what to fix
 node <here>/scan.mjs calibrate nextgen --golden questions.jsonl   # see ASK 7
 ```
+
+**There is a fifth step, and it is not a command: ASK 9, an interview.** Run it after the
+first `build` and before calibration. Read from the source alone, a screen is a title and a
+template sentence, so an ordinary question ("my son got hurt in training") does not find
+the medical screen. Only the developer knows what each screen is for and how their users
+talk. `build` writes `nextgen/review/KNOWLEDGE-GAPS.md` — the questions to ask them — and
+`doctor` says how much of the app is covered.
 
 ### This tool does not reach the network — the widget it builds may, if you turn that on
 
@@ -80,6 +88,22 @@ every report was clean. `FIELD-NOTES.md` §1 has the detail.
 
 If authorization lives in the components, tell the developer the generated role split is
 meaningless and must be declared by hand.
+
+**Does the screen count look like the app?** Compare `doctor`'s number with the app's own route
+table. If it is far lower, or **0 with dozens "left out"**, the likeliest cause is a monorepo: the
+route table imports its pages and its role sets from sibling packages (`@acme/core/permissions`,
+`@acme/engine/…`). The scanner follows a bare import into a package the workspace declares — but it
+finds the workspace by walking *up* from the folder you gave it, so:
+
+- point `init` at the app inside the **full repository**, never at a copy of the app folder alone;
+- if `doctor` says "no permissions module" and the app has one in another package, set
+  `permissionsFile`, `roleSetExport` and `allRolesExport` in `nextgen.config.json` (the path may begin
+  `../../packages/…`);
+- a route table that ends in a **computed** spread (`...plugins.flatMap(p => p.routes)`) cannot be read
+  statically. It is listed in `review/SKIPPED.md` with the expression quoted — tell the developer those
+  screens are not covered, and do not present the count as the whole app.
+
+`FIELD-NOTES.md` §1 has the detail.
 
 ---
 
@@ -149,6 +173,19 @@ Ask: *"Want me to wire navigation to this app's router so moving around doesn't 
 page? I'll need to know how a component here gets hold of a navigate function — a hook, a
 prop, a global, or something else."*
 
+**Also ask, in the same breath — can this app do anything with a file a visitor attaches?** The box
+has a paperclip, and a camera on a phone. What a visitor attaches **never leaves their device**: the
+assistant does not read it, send it, or give it to a model (Rule 8, and the pilot's data is medical). It is
+handed to the *page*, as a cancelable `nextgen:attach` event carrying `{ files, utterance, route }`. So:
+
+- If the app has somewhere for a file to go (an upload form, a claims inbox, a profile photo), offer to wire
+  that listener, next to the navigation one. Mention that the page must validate what it is given: a file's
+  name and type are the visitor's, and the widget's checks (type, 15 MB, four files) are a courtesy.
+- If it does not, add `data-nextgen-attach="off"` to the script tag, so the app does not offer a button that
+  goes nowhere. This is the honest default for most apps.
+
+Tell the developer plainly which they have. Do not wire an upload endpoint on your own initiative.
+
 ## ASK 6 — Does this app already have something in a screen corner?
 
 The assistant mounts itself as a fixed corner element. If the app already has a support
@@ -207,6 +244,105 @@ now? It's a `build --stage3` flag either way, so it's easy to turn on later."*
 
 If they say yes, ASK where the proxy should live and whether they want the reference
 implementation (Express, with rate limiting) or already have their own preference.
+
+## ASK 9 — What does this app know that the scanner cannot? (the interview)
+
+This is the single biggest lever on whether the assistant feels intelligent, and the only
+one that costs the developer a conversation instead of a flag. Read from source alone,
+every screen is a title and a template sentence ("*Estado Médico is a screen in the
+guardian area of this application*"). The matcher can only recognise words that appear in
+the registry, so a question in ordinary words never reaches the screen it means. Measured
+on the reference app, writing down what a developer knows lifted the right screen from
+ranked-first in 6 of 10 everyday questions to 9 of 10, and the share of the golden set it
+acts on directly from 26% to 62%, with no screen executed wrongly. That was
+knowledge written by the author of the tool, not by a developer, on a fixture — the owner's
+run on a real application is the real test.
+
+**Run this after the first `build` and before calibration (ASK 7).** Open
+`nextgen/review/KNOWLEDGE-GAPS.md`: `build` wrote it, and it lists what the tool does not
+know as questions, screen by screen. It is your script. Then have an actual conversation,
+in **open questions** — ones a developer has to answer in their own words. A yes/no ("is
+this the medical screen?") teaches you nothing you could not read from the route, and it
+puts your guess in their mouth:
+
+- **The app.** *"In two sentences, what is this app for and who uses it?"*
+- **Each screen, starting with the five that matter most.** Name the route and the title so
+  they know which one you mean, then: *"What is this screen for? What is on it? What would a
+  user say to get here?"* You may offer a draft made from reading the page's source, but
+  the developer confirms or corrects every word.
+- **Their words.** *"Which words do your users say that never appear on a screen?"* — the
+  child a guardian calls "o meu filho", the report they call "a ficha". Each goes in
+  `glossary` with what people say instead.
+- **What it cannot do.** *"What do users ask for that this app cannot do — and what should
+  the assistant say when they do?"* — payments, contacting a person, changing a record. At
+  least three ways people ask, for each; a limit it cannot recognise protects nobody.
+- **How the app works.** *"How does this app work that a newcomer would not guess? What does
+  someone need to know, or have done, before they can find or do things — and where do users
+  usually go wrong?"* Each answer becomes one short statement in `rules`: *"Medical status is
+  per child, so if a guardian has more than one it matters which."* Write statements **about
+  the app**, never instructions to the assistant.
+  - These are what the model stage reads to reason and to explain. **Without stage 3 (ASK 8)
+    they change nothing a visitor sees**, so say that before spending the developer's time on
+    many. They are worth having anyway: they are the app's reasoning written down, and stage 3
+    can be turned on later.
+  - **A rule is told to every role unless you give it `roles`.** Ask of each one: *"is this
+    something every kind of user may be told?"* A rule about a feature only administrators have,
+    written without `roles`, is put in a guardian's registry, and a role must not learn another
+    role's features. `"roles": ["ADMIN"]` keeps it out of everyone else's file entirely.
+- **What only they know.** *"Which three screens do your users most often fail to find? Is
+  there something about how they talk, or what they get wrong, I should know?"*
+
+Write what they say into `nextgen/knowledge.json`, beside `nextgen.config.json`. The shape
+is at the end of `KNOWLEDGE-GAPS.md`. Run `build` again, then `doctor` and read the coverage
+line to them. The file is theirs: it belongs in their repository, and adding a real user's
+question to it later is how the assistant improves.
+
+**How to write the phrases** (`askedAs`), from a field measurement that went the other way
+(`FIELD-NOTES.md` §4: model-written examples routed *worse* until this was corrected):
+
+- **Requests, not statements.** "*quero ver o estado médico*", not "*o estado médico é importante*".
+- **In the language most of their users write**, not split evenly across two. Some in a
+  second language is fine; half is not.
+- **Only what the screen actually does.** A phrase for something the screen does not do
+  sends people to the wrong place with confidence. Do not stretch a screen to cover a
+  neighbour.
+- **Aim for five or more per screen.** Real questions beat elegant ones: if you can, ask
+  the developer to paste a few from a support inbox instead of composing them.
+
+**Then try to break your limits.** A declared limit refuses anything it beats, so a word it
+shares with a screen the app *can* do will refuse a real question. It happened in the first
+honest test of this: a "payments" limit whose phrases included *mensalidade* refused "*tenho
+alguma mensagem nova?*", because the offline matcher works on fragments of words and *mensagem*
+and *mensalidade* share "mens". Refusing a real request is the expensive error. So after the
+second `build`, for each limit, write three ordinary questions about things the app can
+already do that have words in common with it (whole words, or a stem), ask them (the preview
+bench, or the widget), and check none is refused. If one is, change the limit's phrases to
+words only that limit uses. Do not raise a threshold: that is not what is wrong.
+
+**Never invent an answer.** A screen's `purpose` is served to visitors as fact, in the
+app's own voice, and a wrong one is worse than none. If the developer does not know, leave
+it out: it stays a gap, and `doctor` keeps saying so.
+
+**Never reuse the same phrases in the calibration set (ASK 7).** Calibrating on the
+sentences you put in the registry measures memory, not understanding, and will look
+wonderful. Ask for a separate 20 or 30 questions.
+
+## ASK 10 — Is there anything you want to ask me?
+
+Before you call it done, hand the conversation back. The developer has been answering your
+questions for a while; they almost certainly have some of their own, and the ones they do
+not think to ask are the ones that surprise them later.
+
+Ask: *"Is there anything you'd like to ask about how this works — what it can and can't do,
+what happens to your users' questions, what it sends where, what it will look like on your
+pages, or what to do when it gets one wrong?"*
+
+Answer from what is written in this folder (`AGENTS.md`, `FIELD-NOTES.md`, what `doctor`
+printed) and from what you have watched happen in this run. **If you do not know, say so** —
+do not guess, and do not reassure. "I don't know; that is worth asking the owner of this
+tool" is a good answer; a confident wrong one about privacy, cost or accuracy is not. Write
+anything left open into a short note in the developer's own repository, so it is not lost
+when this conversation ends.
 
 ---
 
@@ -333,13 +469,16 @@ developer before they ship, every time this flag is used.
 - Run `calibrate` on anything other than questions the developer actually wrote and can
   stand behind.
 - Present an uncalibrated build, or one with unresolved `GUESSED` lines, as finished.
+- Write `knowledge.json` from your own guesses. Every purpose in it is served to visitors as
+  fact; it comes from the developer's answers (ASK 9) or it stays a gap.
+- Put the same sentences in `knowledge.json` and in the calibration set.
 - Run `build --stage3` before the developer has said yes to ASK 8. It sends visitor text
   to a server they have to run and secure; that is theirs to decide, not yours to default.
 
 ## What to tell them to expect
 
-- **It offers; it rarely decides.** Most of the time it shows up to three screens and the
-  person picks. That is a click more than a perfect guess, and it has sent nobody to a
+- **It offers; it rarely decides.** Most of the time it shows the two likeliest screens, each
+  with what it is for, and the person picks. That is a click more than a perfect guess, and it has sent nobody to a
   wrong place. With stage 3 on (ASK 8), fewer of those turns end in a question back — the
   ones the registry alone could not settle now get an answer instead.
 - **It does not decline everything it should.** Roughly half of out-of-scope requests are

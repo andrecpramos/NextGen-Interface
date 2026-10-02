@@ -207,6 +207,32 @@ export interface EnumDefinition {
   readonly aliases?: Readonly<Record<string, readonly string[]>>;
 }
 
+/**
+ * What the application's owner says about it, beyond what its screens say about themselves
+ * (2026-09-21, ADR-023). All of it is **data for the model**, and none of it is subject matter
+ * written into an engine: `core-intent` reads these fields the way it reads `domainDescription`, so
+ * the only thing that makes one adopter's prompt different from another's is what the registry
+ * carries (Rule 1).
+ *
+ * It is role-scoped by construction. A registry *is* its role's entitlement (Rule 17), so what the
+ * generator writes here is only what that role may be told; the loader does not filter.
+ */
+export interface RegistryContext {
+  /** The app's own words for things, and the everyday words people say instead. */
+  readonly glossary?: readonly {
+    readonly term: string;
+    readonly means?: string;
+    readonly aliases?: readonly string[];
+  }[];
+  /**
+   * How the app works and how to reason about a request, as short statements: what depends on what,
+   * what has to be known before something can be found, where people usually go wrong.
+   */
+  readonly rules?: readonly string[];
+  /** What the app does not do, and what its owner wants said when asked. */
+  readonly limits?: readonly { readonly about: string; readonly say: string }[];
+}
+
 export interface RegistryFile {
   readonly schemaVersion: number;
   /**
@@ -221,6 +247,8 @@ export interface RegistryFile {
   readonly domainDescription: string;
   readonly capabilities: readonly Capability[];
   readonly enums?: Readonly<Record<string, EnumDefinition>>;
+  /** What the owner says about the app: its words, its rules, its limits. Optional; see `RegistryContext`. */
+  readonly context?: RegistryContext;
 }
 
 /** Normalise the two example forms to one. */

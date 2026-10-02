@@ -79,6 +79,16 @@ describe('registryFromIndex — a routable registry with no I/O', () => {
     expect(registry.boundaryIds.has('unsupported.payments')).toBe(true);
     expect(registry.actionVocabulary.has('pay')).toBe(false); // the boundary's verbs must not count
   });
+
+  it('carries what the owner says about the app to stage 3, and nothing when they said nothing', async () => {
+    const context = { rules: ['Medical status is per child.'], glossary: [{ term: 'squad', aliases: ['team'] }] };
+    const withContext: RegistryFile = { ...registryFile, context };
+    const carried = registryFromIndex(withContext, await shippedIndex(withContext));
+    expect(carried.context).toEqual(context);
+    // The document stage 2 embeds is unchanged by it, so the shipped vectors still describe it.
+    expect(carried.documents).toEqual(registryFromIndex(registryFile, await shippedIndex()).documents);
+    expect('context' in registryFromIndex(registryFile, await shippedIndex())).toBe(false);
+  });
 });
 
 describe('assertIndexMatches — refusing an index that cannot belong here', () => {

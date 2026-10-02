@@ -1,7 +1,7 @@
 # Getting started
 
 This adds an "ask where to go" box to your web app. People type what they want in their own
-words, and it takes them to the right screen, or offers up to three to choose from.
+words, and it takes them to the right screen, or offers the two likeliest to choose from.
 
 - It reads your app's routes, roles and translations to learn its screens.
 - It **never changes your files**; everything it writes goes into one folder of its own.
@@ -135,8 +135,10 @@ Out of the box it uses general thresholds, and `doctor` says so. To tune them:
 
 ## What to expect
 
-- **It usually offers choices.** It shows up to three likely screens, and moves straight to
-  one only when it is sure.
+- **It usually offers choices.** It shows the two likeliest screens, each with what it is for
+  (from your `knowledge.json`, or the screen's own description), and moves straight to one
+  only when it is sure. Someone who says "hi", or "I have no idea what to do", is greeted and
+  shown a few places to begin; they are never told it cannot do that.
 - **It never offers a screen the user's role cannot open.** Each role's files contain only
   its own screens.
 - **It never performs actions.** It moves between screens and shows links; it does not

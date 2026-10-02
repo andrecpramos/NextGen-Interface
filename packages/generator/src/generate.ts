@@ -2,8 +2,8 @@ import { relative } from 'node:path';
 
 import { discoverRoutes, importResolver } from './discover.ts';
 import { readManifests, readSourceLabels, readTranslations, translate, type Translations } from './labels.ts';
-import { readScreen } from './pages.ts';
-import { synthesiseId, routeSegments, featureOf } from './ids.ts';
+import { EMPTY_FACTS, readLocalScreen, readScreen } from './pages.ts';
+import { synthesiseId, routeSegments, featureOf, LOCALE_PARAMETER } from './ids.ts';
 import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
 import {
@@ -16,6 +16,7 @@ import {
   type ProseRequest,
 } from './synthesise.ts';
 import { splitByRole } from './emit.ts';
+import { applyKnowledge, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, type AppKnowledge } from './knowledge.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
 import { rulesEntry } from './field-rules.ts';
@@ -43,18 +44,6 @@ import type {
  * capability degrades safely — Rule 7 guarantees the app still works without
  * us. A wrongly declared one sends a user confidently to the wrong place.
  */
-
-const EMPTY_FACTS: PageFacts = {
-  isPureRedirect: false,
-  fields: [],
-  redirectTargets: [],
-  i18nKeys: [],
-  headings: [],
-  titleKeys: [],
-  doc: null,
-  title: null,
-  inferredCandidates: [],
-};
 
 /** `/squad/players` and `/squad/players/:id` share a section; `/players/:id` does not. */
 function sameSection(path: string, target: string): boolean {
@@ -258,6 +247,13 @@ function withoutSiteName(title: string | null, siteName: string | null): string 
 
 /** A component name used as a title, except that the root page named for its file is "Home". */
 function componentTitle(route: DiscoveredRoute): string | null {
+  // `<Navigate>` and `<Redirect>` are what a route renders to send the visitor elsewhere, not what the
+  // screen is called: the address is the name ("/my/schedule" is "Schedule").
+  if (route.component && /^(?:Navigate|Redirect)$/.test(route.component)) {
+    const named = routeSegments(route.path).filter((segment) => !segment.startsWith(':') && segment !== '*');
+    const last = named[named.length - 1];
+    return last ? humanise(last) : null;
+  }
   const title = titleFromComponent(route.component);
   if (route.path === '/' && (title === null || /^(index|root|app|main|page)$/i.test(title))) return 'Home';
   return title;
@@ -417,15 +413,92 @@ function qualifyTitles(
   for (const [id, language, title] of renamed) titles.get(id)![language] = title;
 }
 
-/** Page copy, resolved to real sentences — the vocabulary a user would use. */
+/**
+ * The last word that tells screens apart in their own addresses: `new` in `/squad/new`, `edit` in
+ * `/squad/:playerId/edit`. A parameter is a value, not a word.
+ */
+function distinguisher(path: string): string | null {
+  const named = routeSegments(path).filter((segment) => !segment.startsWith(':') && segment !== '*');
+  return named[named.length - 1] ?? null;
+}
+
+/**
+ * Titles that are *still* shared after qualifying by area — two routes one component renders, `/squad/new`
+ * and `/squad/:playerId/edit` both `PlayerFormPage`. Qualifying gave both the same area, so the twins
+ * stayed twins, and a visitor offered the same name twice cannot tell adding from editing.
+ *
+ * Only screens a session could see side by side compete (they share a role). Each is told apart by the
+ * word its own address ends in — the developer's word, exactly as the area fallback is — and never by
+ * anything invented. A pair the address cannot separate is left as it was rather than guessed at.
+ */
+function separateTwins(
+  titles: Map<string, Record<string, string>>,
+  context: ReadonlyMap<string, TitleContext>,
+  routes: ReadonlyMap<string, string>,
+): void {
+  const holders = new Map<string, string[]>();
+  for (const [id, perLanguage] of titles) {
+    for (const title of new Set(Object.values(perLanguage))) holders.set(title, [...(holders.get(title) ?? []), id]);
+  }
+  const meet = (a: string, b: string): boolean => {
+    const theirs = new Set(context.get(b)?.roles ?? []);
+    return (context.get(a)?.roles ?? []).some((role) => theirs.has(role));
+  };
+  const renamed: [id: string, language: string, title: string][] = [];
+  for (const [id, perLanguage] of titles) {
+    const word = distinguisher(routes.get(id) ?? '');
+    if (!word) continue;
+    for (const [language, title] of Object.entries(perLanguage)) {
+      const twins = (holders.get(title) ?? []).filter((other) => other !== id && meet(id, other));
+      if (twins.length === 0 || title.toLowerCase().includes(word.toLowerCase())) continue;
+      // Only if it actually separates it from every twin: a word they all end in does not.
+      if (twins.some((other) => distinguisher(routes.get(other) ?? '') === word)) continue;
+      renamed.push([id, language, `${title} · ${word}`]);
+    }
+  }
+  for (const [id, language, title] of renamed) titles.get(id)![language] = title;
+}
+
+/** A sentence with a value still to be filled in: `Hello {{name}}`, `Due on {date}`, `%s items`. */
+const PLACEHOLDER = /\{\{[^}]*\}\}|\{[A-Za-z_][\w.]*\}|%[sd]|\$\{/;
+
+/**
+ * Words in a translation key that say the string is *about something that happens*, not about what the
+ * page is: a toast, an error, a confirmation, a validation message — and the shared namespace's generic
+ * buttons ("Delete", "Cancel"). A page calls all of these before it renders anything, so in source order
+ * they came first and were what the assistant said the screen shows.
+ */
+const INCIDENTAL_KEY = new Set([
+  'toast', 'toasts', 'snackbar', 'error', 'errors', 'success', 'failed', 'failure', 'fail', 'saved', 'created', 'updated', 'deleted',
+  'removed', 'confirm', 'confirmation', 'delete', 'remove', 'dialog', 'modal', 'validation', 'invalid', 'required',
+  'common', 'shared', 'global', 'ui', 'actions', 'buttons', 'generic', 'general',
+  'cancel', 'close', 'save', 'submit', 'back', 'ok', 'dismiss', 'retry', 'loading',
+]);
+
+function isIncidentalKey(key: string): boolean {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .some((token) => INCIDENTAL_KEY.has(token));
+}
+
+/**
+ * Page copy, resolved to real sentences — the vocabulary a user would use. What the page renders comes
+ * first; toasts, errors, confirmations and the shared namespace's buttons come after, so they are only
+ * ever said when the page has nothing else. A sentence with a placeholder still in it is not a sentence.
+ */
 function resolveCopy(facts: PageFacts, dictionary: Translations | undefined): string[] {
   if (!dictionary) return [...facts.headings];
-  const out: string[] = [...facts.headings];
-  for (const key of facts.i18nKeys.slice(0, 20)) {
+  const own: string[] = [...facts.headings];
+  const incidental: string[] = [];
+  for (const key of facts.i18nKeys.slice(0, 40)) {
     const value = translate(dictionary, key);
-    if (value && value.length > 2 && !out.includes(value)) out.push(value);
+    if (!value || value.length <= 2 || PLACEHOLDER.test(value) || own.includes(value) || incidental.includes(value)) continue;
+    (isIncidentalKey(key) ? incidental : own).push(value);
   }
-  return out.slice(0, 16);
+  // Padding a short list with a toast is worse than a short list.
+  return (own.length > 0 ? own : incidental).slice(0, 16);
 }
 
 export interface GenerateOptions {
@@ -433,6 +506,11 @@ export interface GenerateOptions {
   /** Absent means "no model": prose is derived from the app's own labels. */
   readonly model?: ProseModel | null;
   readonly cache?: ProseCache;
+  /**
+   * What the adopter wrote about their own app (`knowledge.ts`), already parsed. Merged into what
+   * each screen says about itself; absent means the screens are described from source alone.
+   */
+  readonly knowledge?: AppKnowledge;
   readonly onProgress?: (done: number, total: number) => void;
 }
 
@@ -457,11 +535,16 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 
   for (const route of routes) {
     const manifest = manifests.get(route.path) ?? null;
+    // A component declared beside the route table has no import to follow: read it where it is written.
+    const local =
+      !route.componentFile && route.routedIn && route.component ? readLocalScreen(route.routedIn, route.component, resolveImport) : null;
     const facts = route.componentFile
       ? readScreen(route.componentFile, resolveImport)
-      : route.redirectTo
-        ? { ...EMPTY_FACTS, isPureRedirect: true, redirectTargets: [route.redirectTo] }
-        : EMPTY_FACTS;
+      : local
+        ? local
+        : route.redirectTo
+          ? { ...EMPTY_FACTS, isPureRedirect: true, redirectTargets: [route.redirectTo] }
+          : EMPTY_FACTS;
 
     if (route.roles === null) {
       skipped.push({
@@ -520,7 +603,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       labelKey: manifest?.labelKey ?? null,
       groupLabelKey: manifest?.groupLabelKey ?? null,
       fallbackLabelKey: sourceLabels.get(route.path) ?? null,
-      pageFile: route.componentFile,
+      pageFile: route.componentFile ?? (local ? route.routedIn! : null),
     });
   }
 
@@ -553,6 +636,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   );
 
   qualifyTitles(titles, titleContext, new Set(accepted.filter(({ route }) => route.path === '/').map(({ id }) => id)));
+  separateTwins(titles, titleContext, new Map(accepted.map(({ id, route }) => [id, route.path])));
 
   const requests: ProseRequest[] = accepted.map(({ route, id, facts }) => ({
     id,
@@ -584,11 +668,14 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     new Map(accepted.map(({ id, route }) => [id, route.roles ?? []])),
   );
 
-  const master: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
+  const found: AnnotatedCapability[] = accepted.map(({ route, id, pageFile, facts }, index) => {
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
+    // A locale prefix is not something the visitor supplies — the widget fills it from the page they are
+    // on — so it is not a slot the router may find "missing" (it made every screen of a locale-routed app
+    // a question, "sign in" included). It stays in the route.
     const parameters = routeSegments(route.path)
-      .filter((segment) => segment.startsWith(':'))
+      .filter((segment) => segment.startsWith(':') && !LOCALE_PARAMETER.test(segment))
       .map((segment) => segment.slice(1));
     const dictionary = translations.get(config.languages[0] ?? 'en');
     const language = config.languages[0] ?? 'en';
@@ -634,7 +721,11 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     };
   });
 
-  master.sort((a, b) => a.id.localeCompare(b.id));
+  found.sort((a, b) => a.id.localeCompare(b.id));
+  // What the adopter knows about their screens and the source cannot: merged after the sort, so
+  // the order never depends on what was written.
+  const knowledge = options.knowledge ?? EMPTY_KNOWLEDGE;
+  const master = applyKnowledge(found, knowledge).capabilities;
   skipped.sort((a, b) => a.path.localeCompare(b.path));
 
   // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
@@ -643,9 +734,10 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     pageFile ? reviewInferredEntries(facts.inferredCandidates, route.path, config.appRoot, pageFile) : [],
   );
 
-  const boundaries = synthesiseBoundaries(routes);
+  // The generic catalogue, then the limits this adopter declared in their own words.
+  const boundaries = [...synthesiseBoundaries(routes), ...knowledgeBoundaries(knowledge)];
   const domainDescription =
-    config.domainDescription ?? (await describeApplication(master, options.model ?? null, cache));
+    config.domainDescription ?? knowledge.app.about ?? (await describeApplication(master, options.model ?? null, cache));
 
   // The cache is committed, so it must describe the application as it is now
   // rather than every prompt version and every screen that ever existed. Pruned
@@ -656,7 +748,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   }
 
   return {
-    registries: splitByRole(master, boundaries, domainDescription, roles.allRoles),
+    registries: splitByRole(master, boundaries, domainDescription, roles.allRoles, (role) => knowledgeContext(knowledge, role)),
     master,
     boundaries,
     skipped,

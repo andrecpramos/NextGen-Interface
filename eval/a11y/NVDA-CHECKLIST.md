@@ -48,6 +48,11 @@ down what you heard and it matches the "should".
 | 15 | Windows Settings → Accessibility → Visual effects → **Animation effects off**. Use the widget | Behave identically. Nothing fades, slides or moves | | |
 | 16 | Measure the field, button and each link (any on-screen ruler, or zoom and eyeball) | Be at least 48×48 CSS px | | |
 | 17 | On a phone, or Chrome DevTools device mode with TalkBack/VoiceOver if you have it | Work. Note honestly if untested — mobile screen readers are a different pass | | |
+| 18 | *(added 2026-09-21)* `Tab` to the paperclip, and on a phone the camera | Announce "Attach a photo or file" (and "Take a photo") as buttons. The hidden file inputs must **not** be announced or take a tab stop | | |
+| 19 | Press `Enter` on the paperclip and choose a photo and a PDF | The system file dialog opens. Back in the widget, hear "2 files attached" without going looking for it, and reach each chip's "Remove <name>" button with `Tab` | | |
+| 20 | Attach a fifth file, or a `.exe` | Hear why it was refused, in a sentence with the real limit in it — not silence, and not a generic error | | |
+| 21 | Send a message with an attachment | The visitor's own message lists the file names (a photo has no visible name, so its name must be read), and the answer says whether the app took it or it stayed on the device | | |
+| 22 | Windows Settings → Accessibility → Visual effects → **Transparency effects off** | The widget's surfaces turn solid, and every word is still readable. (It also honours `prefers-reduced-transparency`; this is the real-world check.) | | |
 
 ## What this pass is for, and what it is not
 

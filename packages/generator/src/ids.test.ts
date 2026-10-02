@@ -59,4 +59,28 @@ describe('synthesiseId', () => {
   it('falls back to the route’s own first segment when no component was found', () => {
     expect(featureOf(route('/reports/monthly'))).toBe('reports');
   });
+
+  // Found on a real Next.js app whose every route began `/:locale/…` (next-intl): each screen was
+  // "in the locale area", and its id was `locale.auth_login`. A parameter is a value, not a section.
+  it('never takes a leading parameter, such as a locale, for the area a screen belongs to', () => {
+    expect(featureOf(route('/:locale/portal/atleta'))).toBe('portal');
+    expect(featureOf(route('/:locale/auth/login'))).toBe('auth');
+    expect(featureOf(route('/:tenant/:locale/reports'))).toBe('reports');
+    expect(featureOf(route('/:locale'))).toBe('app');
+  });
+
+  it('gives such a screen an id named for what it is, not for its locale', () => {
+    const none = new Set<string>();
+    expect(synthesiseId(route('/:locale/auth/login'), none)).toBe('auth.login');
+    expect(synthesiseId(route('/:locale/portal/atleta'), none)).toBe('portal.atleta');
+    expect(synthesiseId(route('/:locale/portal'), none)).toBe('portal.overview');
+    expect(synthesiseId(route('/:locale'), none)).toBe('app.overview');
+  });
+
+  it('still marks a route that picks one item out of a place, however it is prefixed', () => {
+    const none = new Set<string>();
+    expect(featureOf(route('/players/:id'))).toBe('players');
+    expect(synthesiseId(route('/players/:id'), none)).toBe('players.overview_detail');
+    expect(synthesiseId(route('/:locale/players/:id'), none)).toBe('players.overview_detail');
+  });
 });

@@ -87,12 +87,14 @@ capability; `toOutcome` in `core-intent/src/types.ts` maps that pair to one of:
 |---|---|
 | `navigate` | take the visitor to a declared route |
 | `answer` | say what a screen is or does, from its declared explanation |
-| `clarify` | ask, or offer up to three screens to choose from |
+| `clarify` | ask, or offer the two likeliest screens to choose from, each with what it is for |
 | `out_of_scope` | the request is for something the application does not do — a declared limit (ADR-009), or an action request the router recognises by its verb (ADR-015) — so say so plainly |
 | `perform` | an action that needs confirmation. Defined, and **deferred**: nothing ships a `write` or `destructive` capability to an adopter until WP-48 (PLAN.md §7.5) |
 
 **Refusing to answer is a correct outcome.** In the field it offers rather than decides: for
-most questions it shows up to three screens and the person picks. See README.md, "Does it work?".
+most questions it shows at most two screens and the person picks. See README.md, "Does it work?".
+Small talk ("hi", "thanks", "I'm lost") never reaches the router: `packages/embed/src/chat.ts`
+answers it, so it has no `TurnTrace` — Rule 9 covers *routed* turns.
 
 ## The capability registry
 

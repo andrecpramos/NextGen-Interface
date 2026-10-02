@@ -80,7 +80,7 @@ describe('synthesise — what the model is allowed to produce', () => {
     expect(prose.source).toBe('model');
     expect(prose.description).toBe(wellFormed.description);
     // Derived, but present — a capability must always be able to say what it is.
-    expect(prose.explanation).toContain('/squad/players');
+    expect(prose.explanation).toContain('Posição');
   });
 
   it('degrades rather than fail the build when the model is unreachable', async () => {
@@ -179,8 +179,64 @@ describe('deriveProse — no model available', () => {
   it('says only what the application itself supplies', () => {
     const prose = deriveProse(request());
     expect(prose.source).toBe('derived');
-    expect(prose.explanation).toContain('Jogadores');
-    expect(prose.explanation).toContain('/squad/players');
+    expect(prose.description).toContain('Jogadores');
+    expect(prose.description).toContain('/squad/players');
+    expect(prose.explanation).toContain('Posição');
     expect(prose.examples.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * What a visitor is told a screen is for, on an app described from its own words alone. The first
+ * sentence is what the assistant shows under the screen's name when it offers it, so it must be
+ * something a stranger can use. It was "Entrar is a screen in the auth area of this application, at
+ * /:locale/auth/login." — English on a Portuguese app, a route nobody says, and no information.
+ */
+describe('deriveProse — what the screen is for, in the visitor’s words', () => {
+  const en = (over: Partial<ProseRequest> = {}) => request({ languages: ['en'], titles: { en: 'Players' }, ...over });
+
+  it('leads with what the screen shows, and carries no template sentence and no route', () => {
+    const prose = deriveProse(en({ copy: ['Position', 'Status'] }));
+    expect(prose.explanation).toBe('This screen shows: Position, Status.');
+    expect(prose.explanation).not.toMatch(/screen in|\//);
+  });
+
+  it('says it in the application’s own language', () => {
+    expect(deriveProse(request({ copy: ['Posição', 'Estado'] })).explanation).toBe('Este ecrã mostra: Posição, Estado.');
+  });
+
+  it('does not offer the screen’s own name back as something it shows', () => {
+    expect(deriveProse(en({ copy: ['Players', 'Position'] })).explanation).toBe('This screen shows: Position.');
+  });
+
+  it('ends one sentence, even when what it shows already ended one', () => {
+    expect(deriveProse(en({ copy: ['Monthly plans from thirty euros.'] })).explanation).toBe('This screen shows: Monthly plans from thirty euros.');
+  });
+
+  it('clips a paragraph the page shows, at a word, so a list of four cannot run to a wall of text', () => {
+    const paragraph = `${'palavra '.repeat(30)}fim.`;
+    const prose = deriveProse(en({ copy: [paragraph, 'Position'] }));
+    const [first] = prose.explanation.replace('This screen shows: ', '').split(', ');
+    expect(first!.length).toBeLessThanOrEqual(91);
+    expect(first!.endsWith('…')).toBe(true);
+    expect(prose.explanation).toContain('Position');
+    expect(prose.explanation.length).toBeLessThan(160);
+  });
+
+  it('when it knows only the name, says so plainly, in the language and without a route', () => {
+    expect(deriveProse(en({ copy: [] })).explanation).toBe('Players is a screen in the squad area of this application.');
+    expect(deriveProse(en({ copy: [], feature: 'app' })).explanation).toBe('Players is a screen in this application.');
+    expect(deriveProse(request({ copy: [], feature: 'app' })).explanation).toBe('Jogadores é um ecrã desta aplicação.');
+    expect(deriveProse(request({ copy: [] })).explanation).toBe('Jogadores é um ecrã da área squad desta aplicação.');
+  });
+
+  it('keeps the area and the route in the description, which is what retrieval matches on', () => {
+    const prose = deriveProse(en({ copy: ['Position'] }));
+    expect(prose.description).toContain('squad area');
+    expect(prose.description).toContain('/squad/players');
+  });
+
+  it('falls back to English for a language it has no words for', () => {
+    expect(deriveProse(request({ languages: ['de'], titles: { de: 'Spieler' }, copy: ['Position'] })).explanation).toBe('This screen shows: Position.');
   });
 });

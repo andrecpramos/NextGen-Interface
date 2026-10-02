@@ -20,6 +20,18 @@ import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('./dist/nextgen.js', import.meta.url));
 
+// thinking-orbs' engine is bundled into this file (src/mind.ts), and its licence (MIT) requires its
+// notice to travel with every copy. `legalComments: 'none'` below strips comments from sources, so
+// the notice is written as a banner — read from the installed package, so it cannot drift from the
+// version that was bundled, and the build fails rather than ship the code without it.
+const licence = readFileSync(fileURLToPath(new URL('./node_modules/thinking-orbs/LICENSE', import.meta.url)), 'utf8').trim();
+const orbs = JSON.parse(readFileSync(fileURLToPath(new URL('./node_modules/thinking-orbs/package.json', import.meta.url)), 'utf8'));
+if (!/Permission is hereby granted/.test(licence) || licence.includes('*/')) throw new Error('thinking-orbs/LICENSE is not the MIT text this banner expects');
+const banner = `/*! nextgen.js bundles ${orbs.name} ${orbs.version} (its engine only).
+
+${licence}
+*/`;
+
 // The script tag starts itself from its own data-nextgen-* attributes
 // (src/script-tag.ts), so a page needs no inline script.
 await build({
@@ -32,6 +44,7 @@ await build({
   platform: 'browser',
   target: 'es2020',
   legalComments: 'none',
+  banner: { js: banner },
   format: 'iife',
   globalName: 'NextGen',
   minify: true,

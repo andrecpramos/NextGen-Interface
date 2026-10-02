@@ -36,6 +36,68 @@ export interface ValidationResult {
 const ID_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)+$/;
 const MIN_EXAMPLES = 3;
 
+/** Text that goes into a model's prompt is bounded here, so no registry can make every turn enormous. */
+const CONTEXT_MAX_TEXT = 600;
+const CONTEXT_MAX_RULES = 60;
+const CONTEXT_MAX_GLOSSARY = 200;
+const CONTEXT_MAX_LIMITS = 50;
+const CONTEXT_KEYS = new Set(['glossary', 'rules', 'limits']);
+
+/**
+ * The owner's `context` (ADR-023): checked for shape and size, never for meaning. It is text a
+ * model is handed, so a malformed or oversized one is refused when the registry is written, not
+ * discovered in a prompt.
+ */
+function validateContext(
+  context: unknown,
+  err: (capabilityId: string | null, rule: string, message: string) => void,
+  warn: (capabilityId: string | null, rule: string, message: string) => void,
+): void {
+  if (typeof context !== 'object' || context === null || Array.isArray(context)) {
+    err(null, 'context-shape', 'context must be an object with glossary, rules and limits');
+    return;
+  }
+  const c = context as Record<string, unknown>;
+  for (const key of Object.keys(c)) {
+    if (!CONTEXT_KEYS.has(key)) warn(null, 'context-unknown-key', `context has an unknown key "${key}" — known: glossary, rules, limits`);
+  }
+  const text = (value: unknown, where: string, required = true): boolean => {
+    if (value === undefined && !required) return true;
+    if (typeof value !== 'string' || value.trim() === '') {
+      err(null, 'context-shape', `${where} must be non-empty text`);
+      return false;
+    }
+    if (value.length > CONTEXT_MAX_TEXT) err(null, 'context-size', `${where} is ${value.length} characters; the most a prompt is given is ${CONTEXT_MAX_TEXT}`);
+    return true;
+  };
+  const listOf = (value: unknown, where: string, max: number): unknown[] => {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) {
+      err(null, 'context-shape', `${where} must be a list`);
+      return [];
+    }
+    if (value.length > max) err(null, 'context-size', `${where} has ${value.length} entries; the most a prompt is given is ${max}`);
+    return value;
+  };
+
+  listOf(c.rules, 'context.rules', CONTEXT_MAX_RULES).forEach((rule, i) => text(rule, `context.rules[${i}]`));
+  listOf(c.glossary, 'context.glossary', CONTEXT_MAX_GLOSSARY).forEach((entry, i) => {
+    const where = `context.glossary[${i}]`;
+    if (typeof entry !== 'object' || entry === null) return void err(null, 'context-shape', `${where} must be an object`);
+    const e = entry as Record<string, unknown>;
+    text(e.term, `${where}.term`);
+    text(e.means, `${where}.means`, false);
+    listOf(e.aliases, `${where}.aliases`, 20).forEach((alias, j) => text(alias, `${where}.aliases[${j}]`));
+  });
+  listOf(c.limits, 'context.limits', CONTEXT_MAX_LIMITS).forEach((entry, i) => {
+    const where = `context.limits[${i}]`;
+    if (typeof entry !== 'object' || entry === null) return void err(null, 'context-shape', `${where} must be an object`);
+    const e = entry as Record<string, unknown>;
+    text(e.about, `${where}.about`);
+    text(e.say, `${where}.say`);
+  });
+}
+
 export function validateRegistry(registry: RegistryFile): ValidationResult {
   const issues: ValidationIssue[] = [];
   const err = (capabilityId: string | null, rule: string, message: string) =>
@@ -49,6 +111,7 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
   if (!registry.domainDescription?.trim()) {
     err(null, 'domain-description-required', 'registry has no domainDescription — stage 3 needs to know what application it serves (Rule 1, WP-16)');
   }
+  if (registry.context !== undefined) validateContext(registry.context, err, warn);
   if (!Array.isArray(registry.capabilities) || registry.capabilities.length === 0) {
     err(null, 'non-empty', 'registry declares no capabilities');
     return summarise(issues);

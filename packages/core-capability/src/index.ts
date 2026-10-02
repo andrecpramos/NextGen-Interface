@@ -18,6 +18,7 @@ export {
   type ParamSpec,
   type ParamType,
   type RegistryFile,
+  type RegistryContext,
   type GuidedStep,
   type StepAnchor,
   type ExtractedRule,

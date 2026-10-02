@@ -2,14 +2,16 @@
 //
 // Four translucent masses of one liquid, each a closed curve whose radius is a
 // sum of slow sine waves around the circle, drifting a little off the centre so
-// the body sloshes rather than spins. No library, no shader, no image — a script
-// tag has to carry all of it.
+// the body sloshes rather than spins. No shader, no image — a script tag has to
+// carry all of it. Inside the body is a dotted sphere (mind.ts, drawn with
+// thinking-orbs' engine): the liquid is how the assistant feels, the dots are what
+// it is doing.
 //
 // The states keep the grammar of the product's first status sphere, so a state
 // always means the same motion:
 //   idle       slow breathing
 //   listening  ripples driven by the live microphone level
-//   thinking   one droplet in orbit — nothing else orbits
+//   thinking   one droplet in orbit, a scan across the dots inside
 //   speaking   pulses driven by the voice (or an acted-out envelope)
 //   error      contracts, tints toward danger, nearly still
 //
@@ -20,6 +22,8 @@
 // Motion is never the only signal: the screen always writes the state in text.
 // Under prefers-reduced-motion the loop never starts; each state change draws
 // one still frame.
+
+import { createMind } from './mind.ts';
 
 export type LiquidState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error';
 
@@ -46,8 +50,8 @@ const POINTS = 72;
 
 export type Rgb = readonly [number, number, number];
 
-const DEFAULT_RGB: Rgb = [121, 192, 206]; // tokens.css --accent (dark)
-const DANGER_RGB: Rgb = [216, 124, 107]; //  tokens.css --danger (dark)
+export const DEFAULT_RGB: Rgb = [121, 192, 206]; // tokens.css --accent (dark)
+export const DANGER_RGB: Rgb = [216, 124, 107]; //  tokens.css --danger (dark)
 const BEAD_DARK: Rgb = [11, 13, 16];
 const BEAD_LIGHT: Rgb = [255, 255, 255];
 
@@ -96,7 +100,7 @@ export function parseColor(input: string | null | undefined): Rgb | null {
   return null;
 }
 
-const mixRgb = (a: Rgb, b: Rgb, k: number): Rgb =>
+export const mixRgb = (a: Rgb, b: Rgb, k: number): Rgb =>
   [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k] as const;
 const rgba = (c: Rgb, a: number): string =>
   `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
@@ -138,6 +142,15 @@ export interface LiquidOptions {
   readonly palette: () => LiquidPalette;
   readonly reducedMotion: boolean;
   readonly view: Window | null;
+  /** The dotted sphere inside the body (mind.ts). Default `true`; `false` draws the liquid alone. */
+  readonly mind?: boolean;
+  /** Called the moment the state changes — the composer's edge light follows it. */
+  readonly onState?: (state: LiquidState) => void;
+  /**
+   * Called with the level being shown, 0..1, when it has moved. Smoothed, so a glow
+   * that follows it breathes instead of flickering, and finally exactly 0 at rest.
+   */
+  readonly onLevel?: (level: number) => void;
 }
 
 export interface Liquid {
@@ -168,6 +181,9 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
   let raf = 0;
   let skip = false;
   let destroyed = false;
+  let reported = 0;
+
+  const mind = options.mind === false ? null : createMind();
 
   const xs = new Float64Array(POINTS);
   const ys = new Float64Array(POINTS);
@@ -281,9 +297,12 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
       circle(ctx, x, y, R * 0.15, drop);
     }
 
+    // The mind, inside the body and under the surface.
+    ctx.globalCompositeOperation = 'source-over';
+    mind?.paint(ctx, c, c, R * 0.94, accent, light, lv);
+
     // The surface: one thin edge around the outer mass, which is what makes it
     // read as liquid held together rather than as a glow.
-    ctx.globalCompositeOperation = 'source-over';
     blob(ctx, c + Math.sin(t * 0.49) * drift * 0.5, c + Math.cos(t * 0.43) * drift * 0.5, R * 1.04, t * current.spin * 0.4, 0, lv);
     ctx.lineWidth = 1;
     ctx.strokeStyle = rgba(light ? deep : bright, (light ? 0.3 : 0.2) + 0.2 * lv);
@@ -297,6 +316,14 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     circle(ctx, sx, sy, R * 0.34, spec);
   }
 
+  function report(): void {
+    if (!options.onLevel) return;
+    const shown = level < 0.004 ? 0 : level;
+    if (shown === reported || (shown !== 0 && Math.abs(shown - reported) < 0.004)) return;
+    reported = shown;
+    options.onLevel(shown);
+  }
+
   function tick(now: number): void {
     raf = 0;
     if (destroyed) return;
@@ -307,6 +334,8 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     current = mixParams(current, target, k);
     level += (targetLevel - level) * (1 - Math.exp(-dt * (targetLevel > level ? 20 : 6)));
     backing += (targetBacking - backing) * k;
+    mind?.step(dt, level);
+    report();
     // Docked and at rest, half the frames are plenty — this runs on someone else's page.
     const resting = target === STATE_PARAMS.idle && targetBacking > 0.5 && level < 0.01;
     skip = resting ? !skip : false;
@@ -330,6 +359,7 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
     if (reducedMotion) {
       current = target;
       backing = targetBacking;
+      mind?.settle();
       draw();
     }
   };
@@ -341,6 +371,8 @@ export function createLiquid(canvas: HTMLCanvasElement, options: LiquidOptions):
   return {
     setState(state) {
       target = STATE_PARAMS[state];
+      mind?.setState(state);
+      options.onState?.(state);
       still();
     },
     setLevel(value) {

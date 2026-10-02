@@ -66,8 +66,13 @@ fixture (11 capabilities, 3 roles, 2 languages, 68 questions), with no model:
 | Out-of-scope refused | 50.0% |
 | Settled with no model call | 100% of turns reached a decision without one |
 
-**It offers rather than decides.** For most questions it shows up to three screens and the
-person picks — a click more than a perfect guess, and it has sent nobody to a wrong place.
+**It offers rather than decides.** For most questions it offers at most two screens, the more
+likely one first, each with what it is for in the adopter's own words, and the person picks — a
+click more than a perfect guess, and it has sent nobody to a wrong place. Two, not three,
+because a visitor who has never seen the app cannot rank three unfamiliar names: on the
+reference app the right screen was among the first two in 21 of the 21 turns the router would
+not act on, and a third added none. (The measurements above were taken when it showed three;
+what is drawn changed, what was decided did not.)
 
 ### The pilot, and why its numbers are no longer here
 

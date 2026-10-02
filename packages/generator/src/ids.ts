@@ -28,6 +28,9 @@ function normalise(text: string): string {
     .replace(/_{2,}/g, '_');
 }
 
+/** The parameter an i18n router puts in front of every route: next-intl's `[locale]`, `[lang]`. */
+export const LOCALE_PARAMETER = /^:(?:locale|lang|language|lng)\??$/i;
+
 /** Path segments that name a value rather than a place. */
 function isParameter(segment: string): boolean {
   return segment.startsWith(':') || segment === '*';
@@ -49,8 +52,11 @@ export function routeSegments(path: string): string[] {
 export function featureOf(route: DiscoveredRoute): string {
   const fromFolder = route.feature ? (normalise(route.feature).split('_')[0] ?? '') : '';
   if (ID_HEAD.test(fromFolder)) return fromFolder;
-  const [first] = routeSegments(route.path);
-  const fromPath = first ? (normalise(first.replace(/^:/, '')).split('_')[0] ?? '') : '';
+  // The first segment that names a place. A leading parameter — a locale, a tenant — is a value the
+  // whole app is scoped by, not a section: on a next-intl app every route began `/:locale/…`, and every
+  // screen was described as being "in the locale area".
+  const first = routeSegments(route.path).find((segment) => !isParameter(segment));
+  const fromPath = first ? (normalise(first).split('_')[0] ?? '') : '';
   return ID_HEAD.test(fromPath) ? fromPath : 'app';
 }
 
@@ -70,7 +76,14 @@ export function synthesiseId(route: DiscoveredRoute, taken: ReadonlySet<string>)
   // reads like a bug even though it is well-formed.
   if (named[0] === feature) named.shift();
 
-  const hasParameters = segments.some(isParameter);
+  // `_detail` marks a route that picks one item out of a place (`/injuries/:id`). A parameter before any
+  // named segment scopes the whole route (`/:locale/auth/login`) and picks nothing out of it.
+  // A route that is nothing but parameters is the locale's own home (`/:locale`) or an item (`/:id`).
+  const firstNamed = segments.findIndex((segment) => !isParameter(segment));
+  const hasParameters =
+    firstNamed === -1
+      ? segments.some((segment) => isParameter(segment) && !LOCALE_PARAMETER.test(segment))
+      : segments.slice(firstNamed).some(isParameter);
   const base = named.length > 0 ? named.join('_') : 'overview';
   let name = hasParameters ? `${base}_detail` : base;
   if (!ID_SEGMENT.test(name)) name = 'overview';

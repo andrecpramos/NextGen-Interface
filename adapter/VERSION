@@ -1,0 +1,3 @@
+nextgen-adapter 7fc4d7013c06-bb3a00b54539
+Identifies scan.mjs and runtime/nextgen.js, the two files an adopter copies. It changes exactly when
+either does. `node scan.mjs doctor` prints it: quote it when you report a problem.

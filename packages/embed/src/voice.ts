@@ -3,7 +3,7 @@
 // Three browser capabilities, each used only in its local form:
 //
 // - The microphone level, through an AnalyserNode. Numbers, never audio, and
-//   they never leave the page. This is what makes the liquid listen, and what
+//   they never leave the page. This is what makes the orb listen, and what
 //   detects that someone has started speaking.
 // - Speech to text through the Web Speech API — but ONLY with
 //   `processLocally = true`. Chrome's default recogniser streams audio to a

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
-import { validateRegistry, formatValidation, capabilityDocument, type Capability, type RegistryFile } from '@nextgen/core-capability';
+import { validateRegistry, formatValidation, capabilityDocument, type Capability, type RegistryContext, type RegistryFile } from '@nextgen/core-capability';
 import { makeEmbedder } from '@nextgen/core-intent';
 
 import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleName, SkippedRoute } from './types.ts';
@@ -35,13 +35,21 @@ export function splitByRole(
   boundaries: readonly Capability[],
   domainDescription: string,
   roles: readonly RoleName[],
+  /**
+   * What the owner says about the app, for one role (ADR-023). Asked per role and written into that
+   * role's registry only — Rule 17 again: a rule for COACH is absent from a PARENT's file, not
+   * filtered out of it at read time.
+   */
+  contextFor?: (role: RoleName) => RegistryContext | null,
 ): Map<RoleName, RegistryFile> {
   const out = new Map<RoleName, RegistryFile>();
   for (const role of roles) {
     const reachable = master.filter((capability) => capability.roles.includes(role)).map(withoutRoles);
+    const context = contextFor?.(role) ?? null;
     out.set(role, {
       schemaVersion: SCHEMA_VERSION,
       domainDescription,
+      ...(context ? { context } : {}),
       capabilities: [...reachable, ...boundaries],
     });
   }

@@ -122,6 +122,7 @@ export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Regis
   return {
     schemaVersion: raw.schemaVersion,
     domainDescription: raw.domainDescription,
+    ...(raw.context ? { context: raw.context } : {}),
     capabilities,
     byId: new Map<string, Capability>(capabilities.map((c) => [c.id, c])),
     triggerIndex,

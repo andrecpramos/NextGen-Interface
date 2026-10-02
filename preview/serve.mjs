@@ -142,6 +142,7 @@ const STATIC = [
   [/^\/(plain|themed|nav-right|phone)\.html$/, (m) => [HERE, `${m[1]}.html`]],
   [/^\/(bench|app)\.js$/, (m) => [HERE, `${m[1]}.js`]],
   [/^\/nextgen\.js$/, () => [DIST, 'nextgen.js']],
+  [/^\/(alive|extras)\.js$/, (m) => [HERE, `dist/${m[1]}.js`]],
   [/^\/nextgen\/(registry\.[A-Z_]+\.json|index\.[A-Z_]+\.json|thresholds\.hashing\.json)$/, (m) => [GEN, m[1]]],
 ];
 
@@ -171,7 +172,9 @@ const server = createServer(async (req, res) => {
       res.writeHead(404).end(
         file === 'nextgen.js'
           ? 'Not built yet — run: node packages/embed/build.mjs'
-          : `Not found: ${file}`,
+          : file.startsWith('dist/')
+            ? 'Not built yet — run: node preview/build.mjs'
+            : `Not found: ${file}`,
       );
     }
     return;
@@ -190,6 +193,7 @@ const server = createServer(async (req, res) => {
     const shell = await readFile(fileURLToPath(new URL('index.html', HERE)), 'utf8');
     return html(shell.replace('<!--APPLINK-->', `${first}?role=${encodeURIComponent(role)}`));
   }
+  if (pathname === '/alive') return html(await readFile(fileURLToPath(new URL('alive.html', HERE)), 'utf8'));
   if (!extname(pathname)) return html(await appPage(pathname, role));
 
   res.writeHead(404).end('Not found');
@@ -201,5 +205,6 @@ server.listen(PORT, HOST, async () => {
   console.log(`\n  Bench (ask, and see why): http://${HOST}:${PORT}/bench`);
   console.log(`  The app, as a visitor:    http://${HOST}:${PORT}${pages[0]?.route ?? '/'}`);
   console.log(`  Host-page variants:       http://${HOST}:${PORT}/hosts`);
+  console.log(`  The orb, alive:           http://${HOST}:${PORT}/alive`);
   console.log(`\n  Every role's bundle is served here. Production must serve one (Rule 17).\n`);
 });

@@ -10,7 +10,22 @@
  */
 
 export { generate, type GenerateOptions } from './generate.ts';
-export { discoverRoutes, readRoleModel, type RoleModel } from './discover.ts';
+export {
+  applyKnowledge,
+  EMPTY_KNOWLEDGE,
+  knowledgeBoundaries,
+  knowledgeContext,
+  knowledgeGaps,
+  parseKnowledge,
+  type AppKnowledge,
+  type GapKind,
+  type Limit,
+  type KnowledgeCoverage,
+  type KnowledgeGap,
+  type KnowledgeProblem,
+} from './knowledge.ts';
+export { KNOWLEDGE_FILE, loadKnowledge, type LoadedKnowledge } from './knowledge-file.ts';
+export { discoverRoutes, importResolver, readRoleModel, type RoleModel } from './discover.ts';
 export { readPage } from './pages.ts';
 export { readManifest, readManifests, readTranslations, translate } from './labels.ts';
 export { synthesiseId, featureOf, routeSegments } from './ids.ts';

@@ -34,7 +34,7 @@
 // absorbed by widening a tolerance.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('../..', import.meta.url).pathname
@@ -85,25 +85,42 @@ for (const model of runnable) {
   const slug = model.replace(/[:/]/g, '_');
   const scorecard = join(EVAL_DIR, 'scorecards', `hashing-${slug}-topk${baseline.topK}.json`);
 
+  // Found 2026-09-21: this gate reported "OK" for a run that never happened. `evaluate.js` refuses to run
+  // without `--registry` ("this package knows no application" — `pnpm router:eval` passes it), exited 2 at
+  // once, and the catch below swallowed it. The scorecard it then read was 12 days old and had three
+  // recorded violations in it, which is what "no new violations" compared against. So: pass the registry
+  // the repo-root scripts pass, keep stderr, and read a scorecard only if THIS run wrote it.
+  const started = Date.now();
+  let stderr = '';
   try {
     execFileSync(
       process.execPath,
       [
         join(EVAL_DIR, 'evaluate.js'),
+        `--registry=${join(EVAL_DIR, 'fixture-registry.json')}`,
         `--bucket=${baseline.bucket}`,
         `--model=${model}`,
         `--topk=${baseline.topK}`,
       ],
-      { cwd: ROOT, stdio: 'ignore', timeout: 15 * 60 * 1000 },
+      { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], timeout: 15 * 60 * 1000 },
     );
-  } catch {
+  } catch (error) {
     // The evaluator exits non-zero whenever any gate fails, which it does here
     // by design — the adversarial bucket alone cannot meet the accuracy targets.
-    // The scorecard is still written, and it is what this reads.
+    // The scorecard is still written, and it is what this reads — if it was written now.
+    stderr = String(error?.stderr ?? error?.message ?? '').trim().split('\n').slice(-3).join(' | ');
   }
 
   if (!existsSync(scorecard)) {
-    failures.push({ model, kind: 'no-scorecard', detail: `expected ${scorecard}` });
+    failures.push({ model, kind: 'no-scorecard', detail: `expected ${scorecard}${stderr ? ` — ${stderr}` : ''}` });
+    continue;
+  }
+  if (statSync(scorecard).mtimeMs < started) {
+    failures.push({
+      model,
+      kind: 'no-scorecard',
+      detail: `the evaluator wrote no new scorecard (${scorecard} is from before this run)${stderr ? ` — ${stderr}` : ''}`,
+    });
     continue;
   }
 
