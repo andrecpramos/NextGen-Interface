@@ -1,6 +1,6 @@
 # Branching model
 
-**Adopted:** 2026-08-30 · Repository: `andrecpramos/AI-Interface` (private)
+**Adopted:** 2026-08-30 · Repository: `andrecpramos/NextGen-Interface` (public, published from a private repository)
 
 ```
 main       production. Release only.

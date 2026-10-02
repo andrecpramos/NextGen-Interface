@@ -4,7 +4,7 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andrecpramos/AI-Interface.git",
+    "url": "git+https://github.com/andrecpramos/NextGen-Interface.git",
     "directory": "packages/core-capability"
   },
   "name": "@nextgen/core-capability",

@@ -233,7 +233,7 @@ resolved and is recorded in §7 or §13 where it landed.
 ### The pilot target — `fut-app`
 
 **Chosen 2026-09-09**, replacing WeFitAll. Verified on disk the same day at
-`c:/Users/andre/Documents/GitHub/fut-app/frontend`.
+`<fut-app>/frontend`.
 
 | | |
 |---|---|

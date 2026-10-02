@@ -92,9 +92,9 @@ withdrawn rather than restated.
 **Those measurements happened; their evidence is deliberately no longer in this
 repository.** The generated artefacts were the complete screen inventory of a real
 application, by role, and a tool whose whole claim is generality should not ship one app's
-private structure as its proof. They are in git history at
-[`2d500d8`](https://github.com/andrecpramos/AI-Interface/commit/2d500d8), and cannot be
-verified from a fresh clone.
+private structure as its proof. They are kept in the private repository this one is
+published from, and are not in this repository's history either, so they cannot be
+verified from here.
 
 What survives from that pilot is what generalises: every naming and description failure it
 found is written up in [FIELD-NOTES.md](adapter/FIELD-NOTES.md), and the fixture in

@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andrecpramos/AI-Interface.git",
+    "url": "git+https://github.com/andrecpramos/NextGen-Interface.git",
     "directory": "packages/embed"
   },
   "description": "Ladder C3 (WP-29): the navigation layer as one script tag, for an application with no build step.",

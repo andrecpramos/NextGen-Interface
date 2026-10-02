@@ -404,7 +404,7 @@ it has not earned. (Section 1 has this pass's example.)
 > so a fresh CI clone has nothing to compare.
 
 > ⚠️ **No CI job in this repository can block a merge.** Measured 2026-09-09:
-> `GET /repos/andrecpramos/AI-Interface/branches/{develop,main}/protection`
+> `GET /repos/andrecpramos/NextGen-Interface/branches/{develop,main}/protection`
 > returns **403 — "Upgrade to GitHub Pro or make this repository public to
 > enable this feature."** Branch protection is *unavailable on this plan*, not
 > declined.
