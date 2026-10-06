@@ -25,7 +25,7 @@ with expected outcomes. Two exist, for two different questions:
 | Corpus | Answers | Size |
 |---|---|---|
 | `packages/core-intent/eval/golden-set.jsonl`, against the **frozen** `fixture-registry.json` | how does the router behave *in isolation*? | 85 |
-| `eval/frameworks/<app>/golden-set.jsonl`, against what the generator emits for a fixture app | does the whole pipeline — generate, calibrate, route — still decide the same? | 68 for `family` |
+| `eval/frameworks/<app>/golden-set.jsonl`, against what the generator emits for a fixture app | does the whole pipeline — generate, calibrate, route — still decide the same? | 69 for `school` |
 
 ```jsonc
 { "id": "gs-0001", "bucket": "direct", "utterance": "remember this",

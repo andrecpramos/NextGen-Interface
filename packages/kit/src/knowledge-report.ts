@@ -48,7 +48,7 @@ export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: Know
     '',
     found
       ? `\`knowledge.json\` describes ${of(coverage.withPurpose)} screens (what they are for) and gives real phrasing for ${of(coverage.withPhrasing)}.`
-      : 'There is no `knowledge.json` yet, so every screen is described only by its title and a template sentence. That is why ordinary questions ("my son got hurt in training") do not find the right screen.',
+      : 'There is no `knowledge.json` yet, so every screen is described only by its title and a template sentence. That is why ordinary questions ("how is my son doing this term") do not find the right screen.',
     '',
     'This file is written by `build`, for the agent installing this folder. **Ask the developer these, one screen at a',
     'time, in their own words, and write what they say into `knowledge.json`** beside `nextgen.config.json` (AGENTS.md,',

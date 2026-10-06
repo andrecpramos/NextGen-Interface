@@ -32,7 +32,7 @@ it, or change what ships to an adopter.
 
 # 2. Change the generator (or core-intent), then regenerate the fixture app's output.
 node --experimental-strip-types packages/generator/src/cli.ts \
-  eval/frameworks/family/generator.config.json --no-model
+  eval/frameworks/school/generator.config.json --no-model
 node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
 pnpm eval:calibrate      # Rule 14 — sweep thresholds; NEVER hand-tune
 

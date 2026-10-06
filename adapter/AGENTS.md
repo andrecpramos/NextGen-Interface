@@ -422,7 +422,7 @@ Two rules, and the first one is a security property rather than a preference.
    cannot reach is absent from what it receives, not hidden in it. **The role comes from
    their session, never from the request**: a role in a query string or a header is a role
    the visitor chooses. A user who holds several roles is served each of their roles' files,
-   and the script tag names them all: `data-nextgen-role="COACH PARENT"`.
+   and the script tag names them all: `data-nextgen-role="TEACHER PARENT"`.
 2. **Never serve `review/`,** in any environment, for any reason.
 
 `nextgen.js` and `thresholds.hashing.json` go to everyone. The script tag uses no inline script or style, so a strict Content-Security-Policy is fine.
@@ -776,8 +776,8 @@ phones included. Want that?"*
 
 ## What to tell them to expect
 
-- **When it is not sure, it asks one question — never a menu.** "Are you looking for Plantel?"
-  when one screen is plainly ahead, "Do you mean Plantel, or Convocatória?" when two are close;
+- **When it is not sure, it asks one question — never a menu.** "Are you looking for Turmas?"
+  when one screen is plainly ahead, "Do you mean Turmas, or Avaliações?" when two are close;
   "yes" or "the second one" answers it. That is one reply more than a perfect guess, and a
   question moves nobody to a wrong place. It does move on its own when it is sure, and sure is
   not always right: on the reference app it now opens no wrong screen, but those questions were

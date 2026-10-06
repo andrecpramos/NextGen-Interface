@@ -36,7 +36,7 @@ import { JSDOM } from 'jsdom';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const DIST = `${ROOT}/packages/embed/dist/nextgen.js`;
-const GEN = `${ROOT}/eval/frameworks/family/generated`;
+const GEN = `${ROOT}/eval/frameworks/school/generated`;
 const OUT = `${ROOT}/eval/a11y`;
 
 const asJson = process.argv.includes('--json');
@@ -63,10 +63,10 @@ const bundle = (role) => ({
  */
 function page(lang) {
   return new JSDOM(
-    `<!doctype html><html lang="${lang}"><head><title>Clube — área do encarregado</title></head>` +
+    `<!doctype html><html lang="${lang}"><head><title>Escola — área do encarregado</title></head>` +
     '<body><header><nav aria-label="Principal"><a href="/">Início</a></nav></header>' +
-    '<main><h1>Área do encarregado</h1><p>Uma página do clube.</p><div id="corner"></div></main></body></html>',
-    { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://clube.test/my/children/7/development' },
+    '<main><h1>Área do encarregado</h1><p>Uma página da escola.</p><div id="corner"></div></main></body></html>',
+    { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://escola.test/my/children/7/grades' },
   );
 }
 
@@ -128,7 +128,7 @@ const states = [];
   result.removeAttribute('aria-busy');
 
   // 3. A clarifying answer: a list of links, the richest thing it draws.
-  const choose = await mounted.ask('onde vejo as lesões do meu filho');
+  const choose = await mounted.ask('onde vejo as faltas do meu filho');
   states.push([`choose (${choose.choices.length} links)`, await audit(window, mounted.host)]);
 
   // 4. A declared limit: the refusal path, which reads differently and must not
@@ -136,7 +136,7 @@ const states = [];
   //    because free-form out-of-scope lands in `choose` as often as not — that is
   //    the measured out-of-scope ceiling, and auditing the wrong state to avoid saying so
   //    would make this run a lie. The tone is asserted for the same reason.
-  const limit = await mounted.ask('book a physio appointment for my son');
+  const limit = await mounted.ask('book an appointment for my son');
   states.push([`limit (${limit.choices.length} links)`, await audit(window, mounted.host)]);
   const reachedLimit = limit.tone === 'limit';
 
@@ -245,7 +245,7 @@ say('\n  the assistant layer — orb, screen, answer\n');
   // The same clarifying question the chat box is audited with above. Its record goes to the page (ADR-030).
   const turns = [];
   window.addEventListener('nextgen:turn', (event) => turns.push(event.detail?.trace));
-  const answered = await mounted.ask('onde vejo as lesões do meu filho');
+  const answered = await mounted.ask('onde vejo as faltas do meu filho');
   layerStates.push([`screen answered (${answered.choices.length} links)`, await audit(window, mounted.host)]);
 
   for (const [label, r] of layerStates) {
@@ -332,7 +332,7 @@ say('\n  keyboard, focus, live region, motion\n');
   note(submitted, 'Enter submits the form (no pointer required)');
 
   // Escape clears the box and the result, without moving focus somewhere else.
-  const answered = await mounted.ask('onde vejo as lesões do meu filho');
+  const answered = await mounted.ask('onde vejo as faltas do meu filho');
   input.focus();
   input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   note(input.value === '' && root.querySelector('.result').childNodes.length === 0,
@@ -342,12 +342,12 @@ say('\n  keyboard, focus, live region, motion\n');
   // Focus management: the answer replaces the result's children. If the user is
   // standing on one of the links from the previous answer when the next answer
   // lands, that link is removed — and focus goes to nowhere.
-  await mounted.ask('onde vejo as lesões do meu filho');
+  await mounted.ask('onde vejo as faltas do meu filho');
   const link = root.querySelector('.result a');
   if (link) {
     link.focus();
     const focusedALink = root.activeElement === link;
-    await mounted.ask('onde vejo os treinos');
+    await mounted.ask('onde vejo as aulas');
     const landed = root.activeElement;
     const lost = landed === null || landed === window.document.body || !root.contains(landed);
     note(!lost || !focusedALink, 'focus survives the answer being replaced',
@@ -418,7 +418,7 @@ if (!existsSync(OUT)) mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/axe.json`, `${JSON.stringify({
   checkedAt: new Date().toISOString(),
   artefact: 'packages/embed/dist/nextgen.js',
-  data: 'eval/frameworks/family/generated (PARENT)',
+  data: 'eval/frameworks/school/generated (PARENT)',
   tool: `axe-core ${JSON.parse(readFileSync(`${ROOT}/node_modules/axe-core/package.json`, 'utf8')).version} in jsdom`,
   cannotCheck: ['colour contrast (no layout, and system colours)', 'announcement order', 'rendered focus and target size'],
   states: Object.fromEntries(states),

@@ -49,15 +49,15 @@ describe('commandFor', () => {
 describe('commandFor — never takes a known real question', () => {
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   const known = [
-    ...['eval/frameworks/family/golden-set.jsonl', 'eval/bulletproof-react/golden-set.jsonl', 'packages/core-intent/eval/golden-set.jsonl'].flatMap((file) =>
+    ...['eval/frameworks/school/golden-set.jsonl', 'eval/bulletproof-react/golden-set.jsonl', 'packages/core-intent/eval/golden-set.jsonl'].flatMap((file) =>
       readFileSync(join(ROOT, file), 'utf8')
         .split(/\r?\n/)
         .filter((line) => line.trim())
         .map((line) => (JSON.parse(line) as { utterance: string }).utterance),
     ),
-    ...readdirSync(join(ROOT, 'eval', 'frameworks', 'family', 'generated'))
+    ...readdirSync(join(ROOT, 'eval', 'frameworks', 'school', 'generated'))
       .filter((file) => /^registry\..+\.json$/.test(file))
-      .flatMap((file) => (JSON.parse(readFileSync(join(ROOT, 'eval', 'frameworks', 'family', 'generated', file), 'utf8')) as { capabilities: { examples?: string[] }[] }).capabilities)
+      .flatMap((file) => (JSON.parse(readFileSync(join(ROOT, 'eval', 'frameworks', 'school', 'generated', file), 'utf8')) as { capabilities: { examples?: string[] }[] }).capabilities)
       .flatMap((capability) => capability.examples ?? []),
   ];
 

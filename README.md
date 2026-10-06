@@ -63,8 +63,8 @@ model:
 | | |
 |---|---|
 | Sent straight to a wrong screen | **0%** — the gate fails on any ([ADR-041](.claude/decisions/ADR-041.md)) |
-| Sent straight to the right screen | 70.9% (39 of 55) |
-| In-scope questions wrongly refused | 0% |
+| Sent straight to the right screen | 72.7% (40 of 55) |
+| In-scope questions wrongly refused | 1.8% (1 of 55) |
 | Out-of-scope refused | 71.4% (10 of 14) |
 | Settled with no model call | 100% of turns reached a decision without one |
 

@@ -338,8 +338,8 @@ function resolveTitles(
  * A page's own title key, told apart from the several dozen other keys ending
  * in `.title` that a real page renders.
  *
- * `medical:injuries.confirm.revokeClearance.title` is the title of a
- * confirmation dialog, and taking it made `/medical/clearances` a capability
+ * `grades:absences.confirm.excuseAbsence.title` is the title of a
+ * confirmation dialog, and taking it made `/grades/absences` a capability
  * called "Navigate". The distinction that holds: a *page* title sits near the
  * top of its namespace, while a dialog's, a column's or a toast's is buried
  * under the thing it belongs to.
@@ -377,7 +377,7 @@ function humanise(text: string): string {
  *   "Guardian estado Médico".
  * - **The qualifier is the application's own, in the title's language.** A nav item in a
  *   group takes the group's label, written the way the app's own command palette writes
- *   it: "Plantel · Visão geral". The feature folder, humanised, is the fallback — a
+ *   it: "Turmas · Visão geral". The feature folder, humanised, is the fallback — a
  *   developer's word, and often not in the title's language.
  */
 function qualifyTitles(

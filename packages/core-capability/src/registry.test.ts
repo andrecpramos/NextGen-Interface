@@ -327,16 +327,16 @@ describe('capabilityDocument — the retrieval text', () => {
 
   it('compares accent-insensitively, because a generated trigger is normalised', () => {
     const c = ok({
-      title: 'Avaliações físicas',
+      title: 'Horário escolar',
       description: 'Uma descrição.',
-      triggers: ['avaliacoes fisicas', 'physical assessments'],
+      triggers: ['horario escolar', 'school timetable'],
       examples: ['a', 'b', 'c'],
     });
     const doc = capabilityDocument(c);
     // The normalised duplicate is dropped; the genuinely different English
     // label survives, because it is phrasing the title does not carry.
-    expect(doc).not.toContain('avaliacoes fisicas');
-    expect(doc).toContain('physical assessments');
+    expect(doc).not.toContain('horario escolar');
+    expect(doc).toContain('school timetable');
   });
 
   it('reads the `say` field of a rich example, not the object', () => {

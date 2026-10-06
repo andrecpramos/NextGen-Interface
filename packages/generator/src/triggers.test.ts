@@ -59,8 +59,8 @@ describe('assignTriggers', () => {
    * trigger is only useful if it is byte-identical to what stage 1 looks up.
    */
   it('stores the normalised form, so the registry shows what will actually match', () => {
-    const { triggers } = from({ 'a.b': ['  Avaliações  FÍSICAS!  '] });
-    expect(triggers.get('a.b')).toEqual(['avaliacoes fisicas']);
+    const { triggers } = from({ 'a.b': ['  Horário  ESCOLAR!  '] });
+    expect(triggers.get('a.b')).toEqual(['horario escolar']);
   });
 
   it('deduplicates spellings that normalise to the same phrase', () => {

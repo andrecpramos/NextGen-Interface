@@ -4,7 +4,7 @@
 
 ```bash
 pnpm preview                  # builds the widget, then serves the bench
-pnpm preview -- --app family  # by name, once there is more than one fixture app
+pnpm preview -- --app school  # by name, once there is more than one fixture app
 PORT=5000 pnpm preview
 ```
 

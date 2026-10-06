@@ -29,7 +29,7 @@ export function apps() {
  * The directory for `--app <name>`, defaulting to the only one when there is only one.
  *
  * Defaulting to "whatever is there" rather than to a hard-coded name is deliberate: a
- * default of `family` would quietly re-privilege one app the moment a second is added.
+ * default of `school` would quietly re-privilege one app the moment a second is added.
  */
 export function appDir(argv = process.argv) {
   const index = argv.indexOf('--app');

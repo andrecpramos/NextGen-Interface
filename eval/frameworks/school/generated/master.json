@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "domainDescription": "A aplicação de uma escola: os encarregados de educação acompanham os seus filhos, os alunos veem o que a escola lhes diz e as suas avaliações, e os professores acompanham as turmas e as aulas. / A school app: parents follow their children, students see what the school tells them and their grades, and teachers run their classes and lessons.",
+  "roles": [
+    "TEACHER",
+    "STUDENT",
+    "PARENT"
+  ],
+  "capabilities": [
+    {
+      "id": "classes.overview",
+      "kind": "navigate",
+      "route": "/classes",
+      "title": "Turmas · Visão geral",
+      "description": "Turmas · Visão geral — part of the classes area of the application, at /classes. O resumo das turmas para o professor: os alunos e as turmas que acompanha. alunos, turmas. as minhas turmas, os meus alunos, classes, my classes. classe, class.",
+      "explanation": "O resumo das turmas para o professor: os alunos e as turmas que acompanha.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre turmas · visão geral",
+        "leva-me para turmas · visão geral",
+        "ir para turmas · visão geral",
+        "open classes · overview",
+        "take me to classes · overview",
+        "go to classes · overview",
+        "ver resumo das turmas",
+        "ver os meus alunos",
+        "como estão as minhas turmas",
+        "lista da turma",
+        "show my students"
+      ],
+      "triggers": [
+        "turmas visao geral",
+        "classes overview"
+      ],
+      "roles": [
+        "TEACHER"
+      ],
+      "translations": {
+        "en": {
+          "title": "Classes · Overview",
+          "explanation": "This screen shows: Classes summary."
+        }
+      }
+    },
+    {
+      "id": "communication.my_announcements",
+      "kind": "navigate",
+      "route": "/my/announcements",
+      "title": "Anúncios",
+      "description": "Anúncios — part of the communication area of the application, at /my/announcements. Onde se leem os anúncios e as mensagens que a escola publica para alunos e encarregados. mensagens da escola, comunicados, quem enviou cada anúncio. novidades da escola, comunicados, notícias da escola, school news.",
+      "explanation": "Onde se leem os anúncios e as mensagens que a escola publica para alunos e encarregados.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre anúncios",
+        "leva-me para anúncios",
+        "ir para anúncios",
+        "open announcements",
+        "take me to announcements",
+        "go to announcements",
+        "ver enviado por",
+        "ver mensagens da escola",
+        "o que anunciou a escola",
+        "quero ler os comunicados",
+        "há novidades na escola",
+        "any school news"
+      ],
+      "triggers": [
+        "anuncios",
+        "announcements"
+      ],
+      "roles": [
+        "STUDENT",
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "Announcements",
+          "explanation": "This screen shows: Sent by, Messages from the school."
+        }
+      }
+    },
+    {
+      "id": "dashboard.my",
+      "kind": "navigate",
+      "route": "/my",
+      "title": "Painel",
+      "description": "Painel — part of the dashboard area of the application, at /my. A página inicial de quem é aluno ou encarregado de educação: o ponto de partida com o resumo do que importa. resumo, atalhos. início, página inicial, home, painel.",
+      "explanation": "A página inicial de quem é aluno ou encarregado de educação: o ponto de partida com o resumo do que importa.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre painel",
+        "leva-me para painel",
+        "ir para painel",
+        "open dashboard",
+        "take me to dashboard",
+        "go to dashboard",
+        "ver início",
+        "levar-me para o início",
+        "voltar à página inicial",
+        "quero ver o resumo",
+        "take me home"
+      ],
+      "triggers": [
+        "painel",
+        "dashboard"
+      ],
+      "roles": [
+        "STUDENT",
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "Dashboard",
+          "explanation": "This screen shows: Home."
+        }
+      }
+    },
+    {
+      "id": "dashboard.overview",
+      "kind": "navigate",
+      "route": "/dashboard",
+      "title": "Painel",
+      "description": "Painel — part of the dashboard area of the application, at /dashboard. A página inicial do professor: o ponto de partida com o resumo das turmas e das aulas. resumo das turmas, resumo das aulas. início do professor, página inicial, home, painel do professor. alunos, classe, class, classes, students.",
+      "explanation": "A página inicial do professor: o ponto de partida com o resumo das turmas e das aulas.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre painel",
+        "leva-me para painel",
+        "ir para painel",
+        "open dashboard",
+        "take me to dashboard",
+        "go to dashboard",
+        "ver painel do professor",
+        "ir para o início",
+        "voltar ao painel",
+        "página inicial do professor",
+        "take me to the dashboard"
+      ],
+      "triggers": [
+        "painel",
+        "dashboard"
+      ],
+      "roles": [
+        "TEACHER"
+      ],
+      "translations": {
+        "en": {
+          "title": "Dashboard",
+          "explanation": "This screen shows: Teacher dashboard."
+        }
+      }
+    },
+    {
+      "id": "guardian.my_children",
+      "kind": "navigate",
+      "route": "/my/children",
+      "title": "Os Meus Educandos",
+      "description": "Os Meus Educandos — part of the guardian area of the application, at /my/children. Onde o encarregado de educação vê os filhos que tem inscritos na escola e escolhe um para ver mais. lista dos educandos, acesso às avaliações de cada um. os meus filhos, as minhas crianças, my children. filho, filha, criança, miúdo, child, son, daughter, kid, notas, pauta, faltas, testes, grades, marks, report card.",
+      "explanation": "Onde o encarregado de educação vê os filhos que tem inscritos na escola e escolhe um para ver mais.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre os meus educandos",
+        "leva-me para os meus educandos",
+        "ir para os meus educandos",
+        "open my children",
+        "take me to my children",
+        "go to my children",
+        "ver os meus filhos",
+        "quero ver os meus filhos",
+        "quem tenho inscrito na escola",
+        "lista de educandos",
+        "show me my kids"
+      ],
+      "triggers": [
+        "os meus educandos",
+        "my children"
+      ],
+      "roles": [
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "My Children"
+        }
+      }
+    },
+    {
+      "id": "guardian.my_children_grades",
+      "kind": "navigate",
+      "route": "/my/children/grades",
+      "title": "Avaliações",
+      "description": "Avaliações — part of the guardian area of the application, at /my/children/grades. Onde o encarregado de educação vê as avaliações de um educando: as notas e a assiduidade por disciplina, e pode pedir uma reunião ao diretor de turma. notas por disciplina, assiduidade, pedido de reunião. notas do meu filho, pauta, faltas do meu filho, child grades. filha, criança, miúdo, son, daughter, kid, turmas, alunos, classe, class, classes, students, testes, marks, report card.",
+      "explanation": "Onde o encarregado de educação vê as avaliações de um educando: as notas e a assiduidade por disciplina, e pode pedir uma reunião ao diretor de turma.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre avaliações",
+        "leva-me para avaliações",
+        "ir para avaliações",
+        "open grades",
+        "take me to grades",
+        "go to grades",
+        "ver avaliações do educando",
+        "como vai o meu filho na escola",
+        "o meu filho tem faltas",
+        "quero ver as notas do meu filho",
+        "how is my child doing at school"
+      ],
+      "triggers": [
+        "avaliacoes",
+        "grades"
+      ],
+      "roles": [
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "Grades",
+          "explanation": "This screen shows: Your child's grades, Marks and attendance by subject."
+        }
+      }
+    },
+    {
+      "id": "lessons.overview",
+      "kind": "navigate",
+      "route": "/lessons",
+      "title": "Aulas · Visão geral",
+      "description": "Aulas · Visão geral — part of the lessons area of the application, at /lessons. O resumo das aulas para o professor: as aulas e os planos de aula da semana. aulas, plano semanal. horário, planos de aula, sumários, lesson plans.",
+      "explanation": "O resumo das aulas para o professor: as aulas e os planos de aula da semana.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre aulas · visão geral",
+        "leva-me para aulas · visão geral",
+        "ir para aulas · visão geral",
+        "open lessons · overview",
+        "take me to lessons · overview",
+        "go to lessons · overview",
+        "ver resumo das aulas",
+        "quando é a próxima aula",
+        "ver as aulas planeadas",
+        "plano de aulas da semana",
+        "when is my next lesson"
+      ],
+      "triggers": [
+        "aulas visao geral",
+        "lessons overview"
+      ],
+      "roles": [
+        "TEACHER"
+      ],
+      "translations": {
+        "en": {
+          "title": "Lessons · Overview",
+          "explanation": "This screen shows: Lessons summary."
+        }
+      }
+    },
+    {
+      "id": "notifications.my_notifications",
+      "kind": "navigate",
+      "route": "/my/notifications",
+      "title": "Notificações",
+      "description": "Notificações — part of the notifications area of the application, at /my/notifications. Onde se veem as notificações: os avisos automáticos da aplicação sobre o que aconteceu de novo. alertas recentes, avisos da aplicação. alertas, avisos da aplicação, notifications.",
+      "explanation": "Onde se veem as notificações: os avisos automáticos da aplicação sobre o que aconteceu de novo.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre notificações",
+        "leva-me para notificações",
+        "ir para notificações",
+        "open notifications",
+        "take me to notifications",
+        "go to notifications",
+        "tenho alertas novos",
+        "ver as minhas notificações",
+        "o que aconteceu de novo na aplicação",
+        "any new alerts"
+      ],
+      "triggers": [
+        "notificacoes",
+        "notifications"
+      ],
+      "roles": [
+        "TEACHER",
+        "STUDENT",
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "Notifications"
+        }
+      }
+    },
+    {
+      "id": "settings.notifications",
+      "kind": "navigate",
+      "route": "/settings/notifications",
+      "title": "As Minhas Preferências · Notificações",
+      "description": "As Minhas Preferências · Notificações — part of the settings area of the application, at /settings/notifications. Onde cada pessoa escolhe que avisos quer receber e por que meio, incluindo o email. escolher avisos, email para os avisos, tutoriais. preferências de avisos, avisos por email, alertas por email, notification settings. alerts.",
+      "explanation": "Onde cada pessoa escolhe que avisos quer receber e por que meio, incluindo o email.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre as minhas preferências · notificações",
+        "leva-me para as minhas preferências · notificações",
+        "ir para as minhas preferências · notificações",
+        "open my preferences · notifications",
+        "take me to my preferences · notifications",
+        "go to my preferences · notifications",
+        "ver as minhas preferências",
+        "ver notificações",
+        "não quero receber emails",
+        "desligar os avisos por email",
+        "mudar o email onde recebo os avisos",
+        "stop the emails"
+      ],
+      "triggers": [
+        "as minhas preferencias notificacoes",
+        "my preferences notifications"
+      ],
+      "steps": [
+        {
+          "text": "Preencha “Endereço de email”.",
+          "anchor": {
+            "label": "Endereço de email",
+            "role": "textbox",
+            "selector": "#notify-email"
+          }
+        }
+      ],
+      "roles": [
+        "TEACHER",
+        "STUDENT",
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "My Preferences · Notifications",
+          "explanation": "This screen shows: My Preferences, Notifications, Email address."
+        }
+      }
+    },
+    {
+      "id": "settings.overview",
+      "kind": "navigate",
+      "route": "/settings",
+      "title": "Definições",
+      "description": "Definições — part of the settings area of the application, at /settings. As definições da conta: as preferências pessoais, as notificações e o endereço de email. preferências, notificações, endereço de email. configurações, opções, a minha conta, account settings. alertas, notifications, alerts.",
+      "explanation": "As definições da conta: as preferências pessoais, as notificações e o endereço de email.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre definições",
+        "leva-me para definições",
+        "ir para definições",
+        "open settings",
+        "take me to settings",
+        "go to settings",
+        "mudar as minhas definições",
+        "abrir as configurações",
+        "alterar o meu email",
+        "open my settings"
+      ],
+      "triggers": [
+        "definicoes",
+        "settings"
+      ],
+      "roles": [
+        "TEACHER",
+        "STUDENT",
+        "PARENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "Settings"
+        }
+      }
+    },
+    {
+      "id": "student.my_grades",
+      "kind": "navigate",
+      "route": "/my/grades",
+      "title": "Avaliações",
+      "description": "Avaliações — part of the student area of the application, at /my/grades. Onde o aluno vê as suas próprias avaliações: as notas e a assiduidade por disciplina. notas por disciplina, assiduidade. as minhas notas, pauta, my grades. testes, report card.",
+      "explanation": "Onde o aluno vê as suas próprias avaliações: as notas e a assiduidade por disciplina.",
+      "explanationSource": "knowledge.json",
+      "examples": [
+        "abre avaliações",
+        "leva-me para avaliações",
+        "ir para avaliações",
+        "open grades",
+        "take me to grades",
+        "go to grades",
+        "ver as minhas avaliações",
+        "que nota tive a matemática",
+        "quantas faltas tenho",
+        "ver a minha pauta",
+        "what are my marks"
+      ],
+      "triggers": [
+        "avaliacoes",
+        "grades"
+      ],
+      "roles": [
+        "STUDENT"
+      ],
+      "translations": {
+        "en": {
+          "title": "Grades",
+          "explanation": "This screen shows: My grades."
+        }
+      }
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "unsupported.external_actions",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Agir fora desta aplicação",
+      "description": "Marcar uma consulta, enviar um email ou uma mensagem, ou fazer algo noutro sistema em nome do utilizador. Este assistente trabalha apenas dentro desta aplicação.",
+      "refusal": "Posso levá-lo a qualquer ecrã desta aplicação e explicar o que lá encontra, mas não marco consultas, não envio mensagens nem ajo noutro sistema por si.",
+      "examples": [
+        "book an appointment for my son",
+        "send an email to the manager about this",
+        "schedule a visit for next week",
+        "marca uma consulta para o meu filho",
+        "envia um email ao responsável"
+      ],
+      "refuses": "action",
+      "translations": {
+        "en": {
+          "title": "Acting outside this application",
+          "refusal": "I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you."
+        }
+      }
+    },
+    {
+      "id": "unsupported.data_changes",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Alterar registos por si",
+      "description": "Criar, editar ou apagar um registo. Este assistente leva o utilizador ao ecrã onde o pode fazer; nunca preenche um formulário nem grava uma alteração em seu nome.",
+      "refusal": "Posso levá-lo ao ecrã certo e dizer-lhe o que fazer lá, mas não crio, altero nem apago registos por conta própria.",
+      "examples": [
+        "delete this record for me",
+        "change the date on this for me",
+        "fill in this form for me",
+        "apaga este registo por mim",
+        "altera a data disto por mim"
+      ],
+      "refuses": "action",
+      "translations": {
+        "en": {
+          "title": "Changing records for you",
+          "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself."
+        }
+      }
+    },
+    {
+      "id": "unsupported.other_applications",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Perguntas sobre outros assuntos",
+      "description": "Cultura geral, outras aplicações, ou qualquer assunto que esta aplicação não cobre. O assistente responde sobre esta aplicação e mais nada.",
+      "refusal": "Só conheço esta aplicação — não consigo ajudar com assuntos fora dela.",
+      "examples": [
+        "what’s the weather tomorrow",
+        "write me a poem",
+        "what’s in my email inbox",
+        "como está o tempo amanhã",
+        "escreve-me um poema"
+      ],
+      "translations": {
+        "en": {
+          "title": "Questions about anything else",
+          "refusal": "I only know this application — I can’t help with things outside it."
+        }
+      }
+    },
+    {
+      "id": "unsupported.declared.pagamentos_propinas_e_faturas",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Pagamentos, propinas e faturas",
+      "description": "Pagamentos, propinas e faturas. quanto tenho de pagar este mês, pagar a cantina do meu filho, quando vence a fatura, how much do I owe the school.",
+      "refusal": "Não trato de pagamentos. As propinas e as faturas são geridas pela secretaria da escola.",
+      "examples": [
+        "quanto tenho de pagar este mês",
+        "pagar a cantina do meu filho",
+        "quando vence a fatura",
+        "how much do I owe the school"
+      ]
+    },
+    {
+      "id": "unsupported.declared.contactar_uma_pessoa",
+      "kind": "unsupported",
+      "route": null,
+      "title": "Contactar uma pessoa",
+      "description": "Contactar uma pessoa. quero falar com o professor, como contacto a escola, fala com a secretaria por mim, message the teacher.",
+      "refusal": "Não consigo enviar mensagens nem contactar ninguém por si. Pode ler os anúncios da escola ou falar diretamente com o professor ou a secretaria.",
+      "examples": [
+        "quero falar com o professor",
+        "como contacto a escola",
+        "fala com a secretaria por mim",
+        "message the teacher"
+      ],
+      "helpAt": [
+        "/my/announcements"
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 **Run on:** 2026-09-12 · **Tool:** axe-core 4.13.0 in jsdom 30 · **Artefact:**
 `packages/embed/dist/nextgen.js`, the file an adopter serves · **Data:**
-`eval/frameworks/family/generated`, the `PARENT` role (first measured on 2026-09-12 against a
+`eval/frameworks/school/generated`, the `PARENT` role (first measured on 2026-09-12 against a
 real application's registry; the fixture stands in for it since ADR-018).
 
 **Verdict: 18 checks, 0 serious or critical violations — after one real defect
@@ -25,8 +25,8 @@ Four states, because a widget is only as accessible as its worst one:
 |---|---|---|
 | idle | as mounted, before anything is asked | 0 |
 | thinking | `aria-busy`, the state a slow device really sits in | 0 |
-| choose (3 links) | *"onde vejo as lesões do meu filho"* → a list of links | 0 |
-| limit | *"book a physio appointment for my son"*, a declared boundary | 0 |
+| choose | *"onde vejo as faltas do meu filho"* → a clarifying question with a link | 0 |
+| limit | *"book an appointment for my son"*, a declared boundary | 0 |
 | host page + widget | the whole document, where a duplicate id or a stolen landmark would show | 0 |
 
 The refusal state carries an assertion of its own: the run **fails** if that

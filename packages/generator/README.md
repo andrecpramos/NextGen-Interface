@@ -56,7 +56,7 @@ In order, each failure recorded with evidence:
    before it, or describing "the legacy routes below", is not about this one.
 4. **It must not be a bookmark shim.** Decided from the component's body — does
    every branch render a redirect, and does that redirect leave its own section
-   — never from its name. `MatchHubRedirectPage` is a destination;
+   — never from its name. `GradebookRedirectPage` is a destination;
    `DashboardPage` is not.
 
 Anything not confidently `read` or `navigate` is **omitted, never guessed**
@@ -118,7 +118,7 @@ A component's name is used only when the application names the screen in no lang
 - **A duplicate is judged inside a registry.** Two screens only compete when some role
   reaches both (ADR-014). A duplicate is qualified in the title's own language, with:
   - its nav group's label, the way the app's command palette writes it
-    ("Plantel · Visão geral"), or
+    ("Turmas · Visão geral"), or
   - its area's name.
 
   An English folder name never qualifies a Portuguese title. Trigger ambiguity is judged

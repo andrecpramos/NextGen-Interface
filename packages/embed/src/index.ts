@@ -179,7 +179,7 @@ export async function load(basePath: string, role: string | readonly string[], o
       throw new StartError('bundle-invalid', `${base}/${file} is not JSON — is the path serving the app's page instead?`);
     }
   };
-  // A user who holds several roles (a coach who is also a parent) is served each role's registry — the
+  // A user who holds several roles (a teacher who is also a parent) is served each role's registry — the
   // server decides which, from the session — and gets their union. Its index is computed, never the
   // roles' indexes concatenated: each lives in its own vector space (`mergeRegistryFiles`, `indexFor`).
   const roles = [...new Set(typeof role === 'string' ? [role] : role)];

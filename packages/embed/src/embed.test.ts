@@ -18,7 +18,7 @@ import vm from 'node:vm';
 
 const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const DIST = fileURLToPath(new URL('../dist/nextgen.js', import.meta.url));
-const GEN = `${ROOT}/eval/frameworks/family/generated`;
+const GEN = `${ROOT}/eval/frameworks/school/generated`;
 
 let code = '';
 
@@ -76,13 +76,13 @@ describe('the script-tag artefact', () => {
 
   it('makes the same decision the server path makes', async () => {
     const { NextGen } = loadLikeAScriptTag() as { NextGen: { create: (b: unknown) => { route: (u: string) => Promise<{ outcome: string; capabilityId: string | null }> } } };
-    const assistant = NextGen.create(bundle('COACH'));
+    const assistant = NextGen.create(bundle('TEACHER'));
     const { registryFromIndex, makeEmbedder, route } = await import('@nextgen/core-intent/browser');
-    const b = bundle('COACH');
+    const b = bundle('TEACHER');
     const registry = registryFromIndex(b.registry, b.index);
     const embedder = makeEmbedder('hashing');
     embedder.fit?.(registry.documents);
-    for (const u of ['Como ver o resumo geral do plantel', 'What is the training calendar?', 'reserva-me um voo']) {
+    for (const u of ['Como ver o resumo geral das turmas', 'What is the lesson calendar?', 'reserva-me um voo']) {
       const viaScript = await assistant.route(u);
       const direct = await route(u, { route: '/', today: new Date().toISOString().slice(0, 10) }, {
         registry, embedder, thresholds: b.thresholds, useStage3: false,

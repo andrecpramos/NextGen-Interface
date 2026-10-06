@@ -153,7 +153,7 @@ require a signed-in user.
 
 The request asks only for what the turn reads (the choice and a confidence, plus a written
 answer only when the visitor asked what something is), and says `think: false`. Pass that on
-to a reasoning model. On qwen3:14b over the family fixture, 8 of the 9 turns that reached
+to a reasoning model. On qwen3:14b over the reference fixture, 8 of the 9 turns that reached
 stage 3 used to end in a clarifying question after ~5 s. Now all 9 are decided in ~0.9 s.
 
 **What stays true whether or not you turn this on:**

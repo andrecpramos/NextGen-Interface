@@ -408,7 +408,7 @@ const STARTS = /^(\+\s*)?(new|add|create|novo|nova|novos|novas|adicionar|criar|a
 /**
  * How a visitor asks for what a control starts, in the control's language (ADR-031): its own label —
  * "novo evento" — and, when the label is a start word and a thing, that thing with the usual verbs —
- * "criar evento", "adicionar evento". Measured on the family fixture, 2026-09-23: "quero criar um anúncio"
+ * "criar evento", "adicionar evento". Measured on the reference fixture, 2026-09-23: "quero criar um anúncio"
  * went from a question (0.22) to decided (0.27) with no golden decision changed. Only the app's own words,
  * and one verb pattern per language: never a sentence nobody wrote.
  */

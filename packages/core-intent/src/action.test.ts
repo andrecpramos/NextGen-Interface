@@ -129,7 +129,7 @@ describe('actionVocabularyOf — what the application says it does', () => {
 describe('isExplanationRequest — asking what something is, not to be taken to it', () => {
   it.each([
     'O que é um processo clínico?',
-    'Para que serve a composição corporal?',
+    'Para que serve o horário escolar?',
     'What is the Mental availability screen?',
     'What does the Compliance overview screen show?',
     "Why would I see a 'Delete task?' option?",

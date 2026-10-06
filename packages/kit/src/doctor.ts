@@ -362,7 +362,7 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   say(`       <script src="/nextgen/nextgen.js" data-nextgen-role="${roleValue}"${home ? ` data-nextgen-home="${home}"` : ''} defer></script>`);
   if (record.roles.length > 1) {
     say("     Write the signed-in user's role into data-nextgen-role on the server, HTML-escaped. A user who");
-    say('     holds several roles: all of them, space-separated ("COACH PARENT"); serve each of their files.');
+    say('     holds several roles: all of them, space-separated ("TEACHER PARENT"); serve each of their files.');
   }
   say(
     home

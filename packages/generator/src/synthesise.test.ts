@@ -254,14 +254,14 @@ describe('deriveProse — no chrome, no empty states, and the page’s own words
   });
 
   it('keeps ordinary content, in both languages', () => {
-    for (const text of ['Elegibilidade', 'Match squad', 'Minutos jogados', 'Next fixtures']) expect(worthShowing(text), text).toBe(true);
-    for (const text of ['ok', '→ Next', 'Load more', 'There are no players yet', 'Nenhum resultado', 'Create your first team']) expect(worthShowing(text), text).toBe(false);
+    for (const text of ['Assiduidade', 'Class list', 'Minutos de aula', 'Next tests']) expect(worthShowing(text), text).toBe(true);
+    for (const text of ['ok', '→ Next', 'Load more', 'There are no students yet', 'Nenhum resultado', 'Create your first class']) expect(worthShowing(text), text).toBe(false);
   });
 
-  it('asks for the page’s own labels — "ver elegibilidade" — and never for a sentence', () => {
-    const prose = pt(['Elegibilidade', 'Convocatória do jogo', 'Esta página mostra a elegibilidade de cada atleta.', 'Minutos']);
-    expect(prose.examples).toContain('ver elegibilidade');
-    expect(prose.examples).toContain('ver convocatória do jogo');
+  it('asks for the page’s own labels — "ver assiduidade" — and never for a sentence', () => {
+    const prose = pt(['Assiduidade', 'Pauta da turma', 'Esta página mostra a assiduidade de cada aluno.', 'Minutos']);
+    expect(prose.examples).toContain('ver assiduidade');
+    expect(prose.examples).toContain('ver pauta da turma');
     expect(prose.examples.some((e) => e.includes('esta página'))).toBe(false);
     // Two at most: the page's words add vocabulary, and do not drown the title's.
     expect(prose.examples.filter((e) => e.startsWith('ver '))).toHaveLength(2);

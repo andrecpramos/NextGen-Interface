@@ -1,8 +1,0 @@
-{
-  "announcements": {
-    "title": "Anúncios",
-    "subtitle": "Mensagens do clube",
-    "empty": { "title": "Sem anúncios" }
-  },
-  "medical": { "title": "O meu estado médico" }
-}

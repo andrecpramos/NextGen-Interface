@@ -35,8 +35,8 @@ interface CatalogueEntry {
   readonly relevantWhen: RegExp | null;
   /**
    * `'action'` when the entry is about the assistant *doing* something, and so refuses only a request to
-   * act (ADR-025). Its examples share their topics with real screens — an injury, a son, an email — and
-   * refusing on topic alone refused "injury info for my kid" as if it were "book a physio for my son".
+   * act (ADR-025). Its examples share their topics with real screens — an appointment, a son, an email —
+   * and refusing on topic alone refused "my kid's appointments" as if it were "book an appointment for my son".
    */
   readonly refuses?: 'action';
   /**
@@ -56,11 +56,11 @@ const CATALOGUE: readonly CatalogueEntry[] = [
     refusal:
       'I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you.',
     examples: [
-      'book a physio appointment for my son',
-      'send an email to the coach about this',
-      'schedule a doctor’s visit for this injury',
+      'book an appointment for my son',
+      'send an email to the manager about this',
+      'schedule a visit for next week',
       'marca uma consulta para o meu filho',
-      'envia um email ao treinador',
+      'envia um email ao responsável',
     ],
     relevantWhen: null,
     refuses: 'action',

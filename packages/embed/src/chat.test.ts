@@ -196,7 +196,7 @@ describe('smalltalkFor — what it must leave alone', () => {
 describe('smalltalkFor — never takes a known real question', () => {
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
   const golden = [
-    'eval/frameworks/family/golden-set.jsonl',
+    'eval/frameworks/school/golden-set.jsonl',
     'eval/bulletproof-react/golden-set.jsonl',
     'packages/core-intent/eval/golden-set.jsonl',
   ].flatMap((file) =>
@@ -215,7 +215,7 @@ describe('smalltalkFor — never takes a known real question', () => {
       // Three shapes: a destination as `route`, as `expect.route`, or as `expect.capability`.
       .filter((entry) => entry.route || entry.expect?.route || entry.expect?.capability),
   );
-  const generated = join(ROOT, 'eval', 'frameworks', 'family', 'generated');
+  const generated = join(ROOT, 'eval', 'frameworks', 'school', 'generated');
   const examples = readdirSync(generated)
     .filter((file) => /^registry\..+\.json$/.test(file))
     .flatMap((file) => (JSON.parse(readFileSync(join(generated, file), 'utf8')) as { capabilities: { examples?: string[] }[] }).capabilities)

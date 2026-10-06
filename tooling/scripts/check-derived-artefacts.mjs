@@ -1,6 +1,6 @@
 // The shipped browser artefacts must follow their inputs.
 //
-// eval/frameworks/family/generated/ holds what an adopter's browser receives: per
+// eval/frameworks/school/generated/ holds what an adopter's browser receives: per
 // registry, a registry, a precomputed index and a calibrated threshold file. The
 // index and the thresholds are DERIVED. They depend on the registry, the encoder,
 // capabilityDocument() and normalize(). On 2026-09-11, a one-line change to
@@ -56,7 +56,7 @@ if (failed > 0) {
   console.log(`
   Derived artefacts are STALE — ${failed} of ${CHECKS.length} check(s) failed.
 
-  If check 1, 2 or 3 failed: something upstream of eval/frameworks/family/generated/
+  If check 1, 2 or 3 failed: something upstream of eval/frameworks/school/generated/
   changed — normalize(), the encoder, capabilityDocument(), or a registry. Regenerate,
   in this order, and commit the result together with the change that caused it:
 

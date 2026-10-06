@@ -185,7 +185,7 @@ describe('stage3 — what the owner says about the application', () => {
 /**
  * The stage-3 schema offers only the fields this turn will read. The model generates every field
  * it is offered, so a field nobody reads is time — and, on a reasoning model under a token
- * budget, a cut-off answer that fails to parse. Measured on qwen3:14b over the family fixture:
+ * budget, a cut-off answer that fails to parse. Measured on qwen3:14b over the reference fixture:
  * 8 of 9 stage-3 turns clarified after ~5 s with the full schema, all 9 were decided in ~0.9 s lean.
  */
 describe('stage3 — a lean request', () => {

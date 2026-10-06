@@ -281,18 +281,18 @@ the one entry point, and nothing either had is lost.
 ```js
 NextGen.start(base, role, {
   companion: {
-    name: 'Assistente do clube',
+    name: 'Assistente da escola',
     // What this assistant cannot place: a question that matches no screen, a topic the registry puts
     // outside the app, and anything attached. Resolve to plain text, or null to leave the turn here.
-    ask: ({ text, files, route }) => clubChat.answer(text, files, route),
-    open: () => clubChat.open(),          // a header button opens it whole: history, new chat, all of it
+    ask: ({ text, files, route }) => schoolChat.answer(text, files, route),
+    open: () => schoolChat.open(),          // a header button opens it whole: history, new chat, all of it
     tour: (route) => tutorial.start(route), // "tutorial" / "visita guiada" starts it
-    hide: ['#club-chat-button', '[data-tour-prompt]'], // its launchers, while this one runs
+    hide: ['#school-chat-button', '[data-tour-prompt]'], // its launchers, while this one runs
   },
 });
 ```
 
-Its answer appears in the conversation under its own name ("Answered by Assistente do clube"), with a
+Its answer appears in the conversation under its own name ("Answered by Assistente da escola"), with a
 Copy — this router did not decide it and cannot explain it (Rule 9). A declared limit on **acting** (a
 payment, changing a record) is never handed over; it stays refused. If it declines, fails or says nothing,
 this assistant answers as it would have without it.

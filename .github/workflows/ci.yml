@@ -177,7 +177,7 @@ jobs:
 
       # The artefacts a browser receives must follow their inputs. The
       # step above checks the reference registry's thresholds against their
-      # calibration file. This one rebuilds what eval/frameworks/family/generated derives
+      # calibration file. This one rebuilds what eval/frameworks/school/generated derives
       # (the per-role indexes and the per-registry thresholds) and replays the
       # browser's decisions against the server's. On 2026-09-11, a one-line change
       # to normalize() left ten shipped indexes stale while every job here stayed

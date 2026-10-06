@@ -1,0 +1,1462 @@
+{
+  "generatedAt": "2026-10-06T14:17:07.680Z",
+  "embedder": "hashing",
+  "stage3": null,
+  "entries": 69,
+  "modelFreeRate": 1,
+  "top1": 0.7272727272727273,
+  "paletteFound": 0,
+  "outOfScopeRefused": 0.7142857142857143,
+  "inScopeWronglyRefused": 0.01818181818181818,
+  "latencyP50": 0.09020000000001005,
+  "latencyP95": 1.7892999999999972,
+  "results": [
+    {
+      "id": "sch-0001",
+      "utterance": "onde vejo os anúncios da escola",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 8.28309999999999
+    },
+    {
+      "id": "sch-0002",
+      "utterance": "há mensagens novas da escola?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.4986999999999995
+    },
+    {
+      "id": "sch-0003",
+      "utterance": "o que são os anúncios?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "explain",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.0391000000000048
+    },
+    {
+      "id": "sch-0004",
+      "utterance": "where do I read school announcements",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.12330000000000041
+    },
+    {
+      "id": "sch-0005",
+      "utterance": "quero ver as notas do meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/grades",
+        "capability": "guardian.my_children_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.12160000000000082
+    },
+    {
+      "id": "sch-0006",
+      "utterance": "o meu educando tem faltas?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/grades",
+        "capability": "guardian.my_children_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.10060000000000002
+    },
+    {
+      "id": "sch-0007",
+      "utterance": "assiduidade do meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/grades",
+        "capability": "guardian.my_children_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children_grades",
+        "route": "/my/children/grades",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.09270000000000778
+    },
+    {
+      "id": "sch-0008",
+      "utterance": "my child's grades",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children/grades",
+        "capability": "guardian.my_children_grades"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.09130000000000393
+    },
+    {
+      "id": "sch-0009",
+      "utterance": "o que mostram as avaliações do educando?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "explain",
+      "expect": {
+        "route": "/my/children/grades",
+        "capability": "guardian.my_children_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.1570000000000107
+    },
+    {
+      "id": "sch-0010",
+      "utterance": "lista dos meus educandos",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children",
+        "capability": "guardian.my_children"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children",
+        "route": "/my/children",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.13620000000000232
+    },
+    {
+      "id": "sch-0011",
+      "utterance": "onde estão os meus filhos inscritos",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children",
+        "capability": "guardian.my_children"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children",
+        "route": "/my/children",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.12630000000000052
+    },
+    {
+      "id": "sch-0012",
+      "utterance": "show me my children",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/children",
+        "capability": "guardian.my_children"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "guardian.my_children",
+        "route": "/my/children",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.22210000000001173
+    },
+    {
+      "id": "sch-0013",
+      "utterance": "as minhas notificações",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "notifications.my_notifications",
+        "route": "/my/notifications",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.035800000000008936
+    },
+    {
+      "id": "sch-0014",
+      "utterance": "tenho avisos por ler",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.09020000000001005
+    },
+    {
+      "id": "sch-0015",
+      "utterance": "quero mudar como recebo os emails",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "settings.notifications",
+        "route": "/settings/notifications",
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.13870000000000005
+    },
+    {
+      "id": "sch-0016",
+      "utterance": "desligar os avisos por email",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.notifications",
+        "route": "/settings/notifications",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.10419999999999163
+    },
+    {
+      "id": "sch-0017",
+      "utterance": "change my notification preferences",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "settings.notifications",
+        "route": "/settings/notifications",
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.09009999999999252
+    },
+    {
+      "id": "sch-0018",
+      "utterance": "abrir as definições",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.03439999999999088
+    },
+    {
+      "id": "sch-0019",
+      "utterance": "onde mudo a minha conta",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.08240000000000691
+    },
+    {
+      "id": "sch-0020",
+      "utterance": "levar-me ao painel",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.my",
+        "route": "/my",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.11310000000000286
+    },
+    {
+      "id": "sch-0021",
+      "utterance": "página inicial",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.my",
+        "route": "/my",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.07760000000000389
+    },
+    {
+      "id": "sch-0022",
+      "utterance": "marca uma explicação de matemática para o meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.13590000000000657
+    },
+    {
+      "id": "sch-0023",
+      "utterance": "paga a mensalidade deste mês",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.declared.pagamentos_propinas_e_faturas",
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.5959000000000003
+    },
+    {
+      "id": "sch-0024",
+      "utterance": "que tempo vai fazer na visita de estudo de sexta",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.11690000000000111
+    },
+    {
+      "id": "sch-0025",
+      "utterance": "book a flight for the school trip",
+      "language": "en",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.11169999999999902
+    },
+    {
+      "id": "sch-0026",
+      "utterance": "apaga as faltas do meu filho",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a record change the application refuses to make",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.10560000000000969
+    },
+    {
+      "id": "sch-0027",
+      "utterance": "as minhas avaliações",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/grades",
+        "capability": "student.my_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "student.my_grades",
+        "route": "/my/grades",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 1.7892999999999972
+    },
+    {
+      "id": "sch-0028",
+      "utterance": "que nota tive no teste de matemática",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/grades",
+        "capability": "student.my_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "student.my_grades",
+        "route": "/my/grades",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 2.2712999999999965
+    },
+    {
+      "id": "sch-0029",
+      "utterance": "ver as minhas faltas",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/grades",
+        "capability": "student.my_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "student.my_grades",
+        "route": "/my/grades",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.20749999999999602
+    },
+    {
+      "id": "sch-0030",
+      "utterance": "did I pass the maths test",
+      "language": "en",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/grades",
+        "capability": "student.my_grades"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07720000000000482
+    },
+    {
+      "id": "sch-0031",
+      "utterance": "o que são as minhas avaliações?",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "explain",
+      "expect": {
+        "route": "/my/grades",
+        "capability": "student.my_grades"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "student.my_grades",
+        "route": "/my/grades",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.02980000000000871
+    },
+    {
+      "id": "sch-0032",
+      "utterance": "mensagens da escola",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.07460000000000377
+    },
+    {
+      "id": "sch-0033",
+      "utterance": "a escola anunciou alguma coisa?",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08639999999999759
+    },
+    {
+      "id": "sch-0034",
+      "utterance": "school announcements",
+      "language": "en",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "communication.my_announcements",
+        "route": "/my/announcements",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.073599999999999
+    },
+    {
+      "id": "sch-0035",
+      "utterance": "os meus avisos",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06929999999999836
+    },
+    {
+      "id": "sch-0036",
+      "utterance": "notificações por ler",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07569999999999766
+    },
+    {
+      "id": "sch-0037",
+      "utterance": "mudar o email das notificações",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.0893999999999977
+    },
+    {
+      "id": "sch-0038",
+      "utterance": "as minhas preferências",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07520000000000948
+    },
+    {
+      "id": "sch-0039",
+      "utterance": "definições da conta",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.09079999999998734
+    },
+    {
+      "id": "sch-0040",
+      "utterance": "open settings",
+      "language": "en",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.013900000000006685
+    },
+    {
+      "id": "sch-0041",
+      "utterance": "o meu painel",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.my",
+        "route": "/my",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.012600000000006162
+    },
+    {
+      "id": "sch-0042",
+      "utterance": "voltar ao início",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my",
+        "capability": "dashboard.my"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.my",
+        "route": "/my",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.07569999999999766
+    },
+    {
+      "id": "sch-0043",
+      "utterance": "inscreve-me na visita de estudo de amanhã",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.other_applications",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.10349999999999682
+    },
+    {
+      "id": "sch-0044",
+      "utterance": "manda uma mensagem ao professor",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.declared.contactar_uma_pessoa",
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.09179999999999211
+    },
+    {
+      "id": "sch-0045",
+      "utterance": "quantos livros requisitei na biblioteca no ano passado",
+      "language": "pt-PT",
+      "role": "STUDENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "data this application does not hold",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.declared.pagamentos_propinas_e_faturas",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.09399999999999409
+    },
+    {
+      "id": "sch-0046",
+      "utterance": "order me a new calculator",
+      "language": "en",
+      "role": "STUDENT",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07689999999999486
+    },
+    {
+      "id": "sch-0047",
+      "utterance": "resumo das turmas",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/classes",
+        "capability": "classes.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "classes.overview",
+        "route": "/classes",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 2.8138000000000005
+    },
+    {
+      "id": "sch-0048",
+      "utterance": "quantos alunos tenho na turma",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/classes",
+        "capability": "classes.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.declared.pagamentos_propinas_e_faturas",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.09149999999999636
+    },
+    {
+      "id": "sch-0049",
+      "utterance": "ver os alunos da turma",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/classes",
+        "capability": "classes.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.07519999999999527
+    },
+    {
+      "id": "sch-0050",
+      "utterance": "classes overview",
+      "language": "en",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/classes",
+        "capability": "classes.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "classes.overview",
+        "route": "/classes",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.012200000000007094
+    },
+    {
+      "id": "sch-0051",
+      "utterance": "o que é o resumo das turmas?",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "explain",
+      "expect": {
+        "route": "/classes",
+        "capability": "classes.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "classes.overview",
+        "route": "/classes",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.106899999999996
+    },
+    {
+      "id": "sch-0052",
+      "utterance": "resumo das aulas",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/lessons",
+        "capability": "lessons.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "lessons.overview",
+        "route": "/lessons",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.10080000000000666
+    },
+    {
+      "id": "sch-0053",
+      "utterance": "onde vejo as aulas",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/lessons",
+        "capability": "lessons.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "lessons.overview",
+        "route": "/lessons",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.1016000000000048
+    },
+    {
+      "id": "sch-0054",
+      "utterance": "lessons overview",
+      "language": "en",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/lessons",
+        "capability": "lessons.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "lessons.overview",
+        "route": "/lessons",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.037800000000004275
+    },
+    {
+      "id": "sch-0055",
+      "utterance": "o que mostra o resumo das aulas?",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "explain",
+      "expect": {
+        "route": "/lessons",
+        "capability": "lessons.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "lessons.overview",
+        "route": "/lessons",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.11360000000000525
+    },
+    {
+      "id": "sch-0056",
+      "utterance": "painel do professor",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/dashboard",
+        "capability": "dashboard.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.overview",
+        "route": "/dashboard",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08259999999999934
+    },
+    {
+      "id": "sch-0057",
+      "utterance": "levar-me ao meu painel",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/dashboard",
+        "capability": "dashboard.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.overview",
+        "route": "/dashboard",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.07859999999999445
+    },
+    {
+      "id": "sch-0058",
+      "utterance": "teacher dashboard",
+      "language": "en",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/dashboard",
+        "capability": "dashboard.overview"
+      },
+      "provenance": "hand-written from the fixture's own en copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "dashboard.overview",
+        "route": "/dashboard",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.061900000000008504
+    },
+    {
+      "id": "sch-0059",
+      "utterance": "as minhas notificações",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "notifications.my_notifications",
+        "route": "/my/notifications",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.023399999999995202
+    },
+    {
+      "id": "sch-0060",
+      "utterance": "avisos por ler",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/notifications",
+        "capability": "notifications.my_notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.066599999999994
+    },
+    {
+      "id": "sch-0061",
+      "utterance": "preferências de notificação",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.notifications",
+        "route": "/settings/notifications",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08050000000000068
+    },
+    {
+      "id": "sch-0062",
+      "utterance": "onde mudo o meu endereço de email",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings/notifications",
+        "capability": "settings.notifications",
+        "alsoAccept": [
+          "/settings"
+        ]
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy; /settings also accepted: its declared purpose names the email address (Rule 12 — ambiguous in this app, not a router error)",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08150000000000546
+    },
+    {
+      "id": "sch-0063",
+      "utterance": "definições",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/settings",
+        "capability": "settings.overview"
+      },
+      "provenance": "hand-written from the fixture's own pt-PT copy",
+      "got": {
+        "outcome": "execute",
+        "capability": "settings.overview",
+        "route": "/settings",
+        "stage": "deterministic"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.00910000000000366
+    },
+    {
+      "id": "sch-0064",
+      "utterance": "convoca os encarregados para uma reunião",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.declared.contactar_uma_pessoa",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08970000000000766
+    },
+    {
+      "id": "sch-0065",
+      "utterance": "altera a nota do aluno para positiva",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a record change the application refuses to make",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.data_changes",
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.0771000000000015
+    },
+    {
+      "id": "sch-0066",
+      "utterance": "envia um email a todos os encarregados de educação",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "an action the application does not perform",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.external_actions",
+        "route": null,
+        "stage": "embedding",
+        "changeRequest": true
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.13219999999999743
+    },
+    {
+      "id": "sch-0067",
+      "utterance": "what is the pythagorean theorem",
+      "language": "en",
+      "role": "TEACHER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "out_of_scope",
+        "capability": "unsupported.other_applications",
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": true,
+      "modelFree": true,
+      "ms": 0.08040000000001157
+    },
+    {
+      "id": "sch-0068",
+      "utterance": "compra livros novos para a biblioteca",
+      "language": "pt-PT",
+      "role": "TEACHER",
+      "bucket": "out_of_scope",
+      "expect": {
+        "route": null
+      },
+      "provenance": "a question about another application entirely",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.06860000000000355
+    },
+    {
+      "id": "sch-0069",
+      "utterance": "tenho alguma mensagem nova?",
+      "language": "pt-PT",
+      "role": "PARENT",
+      "bucket": "navigate",
+      "expect": {
+        "route": "/my/announcements",
+        "capability": "communication.my_announcements"
+      },
+      "provenance": "Rule 12: an everyday question a declared limit refused, because 'mensagem' and 'mensalidade' share the fragment 'mens' in the offline matcher",
+      "got": {
+        "outcome": "clarify",
+        "capability": null,
+        "route": null,
+        "stage": "embedding"
+      },
+      "correct": false,
+      "modelFree": true,
+      "ms": 0.674199999999999
+    }
+  ]
+}

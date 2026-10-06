@@ -40,8 +40,8 @@ export function capabilityDocument(cap: Capability): string {
   // "how much have I spent" is real phrasing a title does not carry. It is to
   // stop counting the same words twice.
   // Accent-insensitive, because a generated trigger is already normalised:
-  // "avaliacoes fisicas" must be recognised as a duplicate of the title
-  // "Avaliações físicas". A plain lowercase compare misses every accented
+  // "horario escolar" must be recognised as a duplicate of the title
+  // "Horário escolar". A plain lowercase compare misses every accented
   // Portuguese label, which in a Portuguese-first app is most of them.
   const flatten = (s: string) =>
     s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');

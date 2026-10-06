@@ -1,0 +1,13 @@
+{
+  "nav": {
+    "dashboard": "Painel",
+    "overview": "Visão geral",
+    "classes": "Turmas",
+    "lessons": "Aulas",
+    "grades": "Avaliações",
+    "myChildren": "Os Meus Educandos",
+    "settings": "Definições",
+    "sections": { "family": "Educandos" }
+  },
+  "actions": { "back": "Voltar" }
+}

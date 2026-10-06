@@ -159,7 +159,7 @@ export interface Capability {
   /**
    * Only on `unsupported`. `'action'`: this limit is about the assistant *doing* something — acting in
    * another system, changing a record, moving money — so it refuses only a request to act, never a
-   * question that merely shares its topic ("injury info for my kid" is not "book a physio for my son").
+   * question that merely shares its topic ("my kid's appointments" is not "book an appointment for my son").
    * Absent: it refuses on topic, as every limit did before (ADR-025).
    */
   readonly refuses?: 'action';

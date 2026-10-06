@@ -53,12 +53,12 @@ function sentences(text: string): string[] {
  *
  * The distinction is positional and it is load-bearing. In
  *
- *   "/match-hub/:matchId is a legacy deep-link kept one release"
+ *   "/gradebook/:termId is a legacy deep-link kept one release"
  *
  * the legacy thing is named *before* the marker, and it is not the route the
- * comment sits on — `/match-hub` itself is current. Whereas in
+ * comment sits on — `/gradebook` itself is current. Whereas in
  *
- *   "Legacy team list — /squad/team is the canonical store-driven landing"
+ *   "Legacy group list — /classes/group is the canonical store-driven landing"
  *
  * the marker comes first and the other path is named as the *replacement*, so
  * the route being described is the legacy one. Getting this backwards drops a

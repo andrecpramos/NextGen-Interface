@@ -223,20 +223,20 @@ describe('SameOriginLlmRuntime — the wire contract', () => {
 
   it('returns the response body as the completion value on 2xx', async () => {
     globalThis.fetch = vi.fn(
-      async () => new Response(JSON.stringify({ capabilityId: 'squad.overview', confidence: 0.9 }), { status: 200 }),
+      async () => new Response(JSON.stringify({ capabilityId: 'classes.overview', confidence: 0.9 }), { status: 200 }),
     ) as unknown as typeof fetch;
     const runtime = new SameOriginLlmRuntime({ path: 'stage3' });
 
     const result = await runtime.complete<{ capabilityId: string }>(request);
 
-    expect(result.value).toEqual({ capabilityId: 'squad.overview', confidence: 0.9 });
+    expect(result.value).toEqual({ capabilityId: 'classes.overview', confidence: 0.9 });
     expect(result.parseFailed).toBe(false);
     expect(result.unavailable).toBeUndefined();
   });
 });
 
 describe('stage 3 end to end, through create() with a real bundle', () => {
-  const GEN = new URL('../../../eval/frameworks/family/generated/', import.meta.url);
+  const GEN = new URL('../../../eval/frameworks/school/generated/', import.meta.url);
 
   async function bundleFor(role: string) {
     const { readFile } = await import('node:fs/promises');
@@ -263,19 +263,19 @@ describe('stage 3 end to end, through create() with a real bundle', () => {
   it('resolves a turn stages 1-2 could not settle, through the same-origin proxy', async () => {
     const { create } = await import('./index.ts');
     globalThis.fetch = vi.fn(async () =>
-      new Response(JSON.stringify({ capabilityId: 'guardian.my_children_medical', confidence: 0.92 }), { status: 200 }),
+      new Response(JSON.stringify({ capabilityId: 'guardian.my_children_grades', confidence: 0.92 }), { status: 200 }),
     ) as unknown as typeof fetch;
     const bundle = await bundleFor('PARENT');
 
     const trace = await create({ ...bundle, stage3: { path: 'stage3' } }).route(
-      'como está a saúde do meu educando ultimamente, ando preocupado',
+      'como tem corrido o período ao meu educando, ando preocupado',
     );
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     const [calledUrl] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(String(calledUrl)).toBe('https://adopter.example/app/stage3');
     expect(trace.decidedAt).toBe('llm');
-    expect(trace.capabilityId).toBe('guardian.my_children_medical');
+    expect(trace.capabilityId).toBe('guardian.my_children_grades');
   });
 
   it('degrades to a clarify, not a crash, when the configured proxy is unreachable', async () => {
@@ -286,7 +286,7 @@ describe('stage 3 end to end, through create() with a real bundle', () => {
     const bundle = await bundleFor('PARENT');
 
     const trace = await create({ ...bundle, stage3: { path: 'stage3' } }).route(
-      'como está a saúde do meu educando ultimamente, ando preocupado',
+      'como tem corrido o período ao meu educando, ando preocupado',
     );
 
     expect(trace.outcome).not.toBe('error');
@@ -299,7 +299,7 @@ describe('stage 3 end to end, through create() with a real bundle', () => {
     const bundle = await bundleFor('PARENT');
 
     await create({ ...bundle, stage3: { path: 'https://attacker.example/steal' } }).route(
-      'como está a saúde do meu educando ultimamente, ando preocupado',
+      'como tem corrido o período ao meu educando, ando preocupado',
     );
 
     expect(globalThis.fetch).not.toHaveBeenCalled();

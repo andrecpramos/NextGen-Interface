@@ -185,7 +185,7 @@ export async function stage2(
   // screen is, all of it — and against the one of its own phrasings closest to the question. The document
   // alone blurs a short, specific question ("notificações por ler") into everything else the screen says;
   // the nearest phrasing alone over-trusts one example. Limits are scored the same way: one rule. Measured
-  // after recalibrating (2026-09-23): family fixture settled correctly 48 → 55 of 69, right screen first
+  // after recalibrating (2026-09-23): reference fixture settled correctly 48 → 55 of 69, right screen first
   // 39 → 45 of 55, out-of-scope refused 64.3% → 71.4%, none wrongly refused; reference registry stage 2
   // accepts 14.8% → 23.0% (hashing) and 27.6% → 34.4% (nomic) at 100% precision.
   const scored: Candidate[] = registry.capabilities
@@ -204,7 +204,7 @@ export async function stage2(
   const supported = scored.filter((c) => !registry.boundaryIds.has(c.capabilityId));
   // ADR-025. A limit about the assistant *acting* (refuses: 'action') is a candidate only for a request
   // to act. Its examples share their topics with real screens, so on topic alone it refused questions
-  // like "injury info for my kid". A limit about a subject — the adopter's own, from knowledge.json —
+  // like "my kid's appointments". A limit about a subject — the adopter's own, from knowledge.json —
   // still refuses on topic, exactly as before.
   const asking = isActionRequest(utterance);
   const boundary = scored.filter(
@@ -535,7 +535,7 @@ export async function stage3(
     schema,
     // A choice from at most a few candidates, under a token budget: a reasoning model that
     // reasons first spends the budget before it writes the answer, and the cut-off JSON fails
-    // to parse. On qwen3:14b over the family fixture, 8 of the 9 turns that reached stage 3
+    // to parse. On qwen3:14b over the reference fixture, 8 of the 9 turns that reached stage 3
     // ended in a clarifying question after ~5 s; with this and the lean schema above, all 9
     // were decided in ~0.9 s warm, and top-1 rose from 81.8% to 92.7%.
     think: false,

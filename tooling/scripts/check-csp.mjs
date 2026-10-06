@@ -38,7 +38,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const GEN = join(ROOT, 'eval', 'frameworks', 'family', 'generated');
+const GEN = join(ROOT, 'eval', 'frameworks', 'school', 'generated');
 const ROLE = 'PARENT';
 const POLICY = "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'";
 
@@ -87,9 +87,9 @@ writeFileSync(
   join(site, 'index.html'),
   `<!doctype html>
 <html lang="pt-PT">
-<head><meta charset="utf-8"><title>Clube — área do encarregado</title><script src="/probe.js"></script></head>
+<head><meta charset="utf-8"><title>Escola — área do encarregado</title><script src="/probe.js"></script></head>
 <body>
-<main><h1>Área do encarregado</h1><p>Uma página do clube.</p></main>
+<main><h1>Área do encarregado</h1><p>Uma página da escola.</p></main>
 <script src="/nextgen/nextgen.js" data-nextgen-role="${ROLE}" data-nextgen-attach="on" defer></script>
 </body>
 </html>
@@ -151,7 +151,7 @@ writeFileSync(
       });
     }, 'image/png');
     function ask() {
-    input.value = 'onde vejo como o meu filho está a evoluir';
+    input.value = 'onde vejo como o meu filho vai na escola';
     root.querySelector('form').requestSubmit();
     // An answer is an assistant message in the thread (what the one-liner mounts) carrying its tone;
     // .result is the chat box. The greeting and the typing indicator have no tone, so neither can pass.

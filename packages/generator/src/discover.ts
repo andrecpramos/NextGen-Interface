@@ -791,7 +791,7 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
   if (!opening) return null;
   const tag = opening.tagName;
   const name = ts.isIdentifier(tag) ? tag.text : tag.getText();
-  // `<ProtectedRoute><WellnessFormPage /></ProtectedRoute>`: the page is the guard's one child. Two
+  // `<ProtectedRoute><FeedbackFormPage /></ProtectedRoute>`: the page is the guard's one child. Two
   // children, or a wrapper not named as a guard (a layout shell, whose children are read through it
   // later), is not guessed at. Who may reach the page is read from the outer element's props, and
   // stays that way.

@@ -17,8 +17,8 @@
 // SPLIT: calibration sees 40% of the destinations, and the held-out 60% is
 // reported but never optimised against. Splitting by ROUTE, not by entry, so
 // that no screen has questions on both sides — otherwise a threshold tuned on
-// "o que é o centro clínico" would be validated on "para que serve o centro
-// clínico", which is the same question twice.
+// "o que é a pauta de avaliação" would be validated on "para que serve a pauta
+// de avaliação", which is the same question twice.
 //
 //   node --experimental-strip-types eval/frameworks/calibrate-registries.mjs [--embedder hashing] [--check]
 //

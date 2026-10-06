@@ -13,7 +13,7 @@ import type { Thresholds } from './config.ts';
  *
  * Rule 19 — with no model, it never moves to a wrong screen: when every word tying the question to the top
  * screen is also the runner-up's, the scores are not evidence for one of them, and it asks. Found on the
- * family fixture, where "tenho avisos por ler" (unread notices) went to notification *settings* because
+ * reference fixture, where "tenho avisos por ler" (unread notices) went to notification *settings* because
  * "avisos" is in both screens' words.
  *
  * Rule 20 — the assistant never acts, so a request to change something that exists is never followed to a

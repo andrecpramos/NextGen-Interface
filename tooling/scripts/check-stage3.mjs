@@ -27,7 +27,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const FIXTURE = join(ROOT, 'packages', 'generator', 'fixtures', 'family-app');
+const FIXTURE = join(ROOT, 'packages', 'generator', 'fixtures', 'school-app');
 
 const failures = [];
 const check = (ok, line) => {

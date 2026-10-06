@@ -20,7 +20,7 @@ function kit(knowledge?: unknown): string {
   writeFileSync(join(dir, 'review', 'build.json'), JSON.stringify({ roles: ['COACH', 'PARENT'] }));
   const registry = (caps: unknown[]) => JSON.stringify({ schemaVersion: 1, domainDescription: 'A club.', capabilities: caps });
   writeFileSync(join(dir, 'bundle', 'registry.COACH.json'), registry([
-    { id: 'medical.availability', kind: 'navigate', route: '/medical/availability' },
+    { id: 'attendance.today', kind: 'navigate', route: '/attendance/today' },
     { id: 'players.detail', kind: 'navigate', route: '/players/:playerId' },
     { id: 'players.new', kind: 'navigate', route: '/players/new' },
     { id: 'unsupported.payments', kind: 'unsupported', route: null },
@@ -43,19 +43,19 @@ const chose = (question: string, route: string) => ({ question, route, how: 'cho
 describe('teach', () => {
   it('writes nothing without --write, and says what it would teach', () => {
     const dir = kit();
-    const result = teach(dir, lessons(dir, [chose('quem está lesionado', '/medical/availability')]));
-    expect(result.taught).toEqual([{ screen: '/medical/availability', phrases: ['quem está lesionado'] }]);
+    const result = teach(dir, lessons(dir, [chose('quem faltou hoje', '/attendance/today')]));
+    expect(result.taught).toEqual([{ screen: '/attendance/today', phrases: ['quem faltou hoje'] }]);
     expect(result.wrote).toBe(false);
     expect(existsSync(join(dir, 'knowledge.json'))).toBe(false);
-    expect(readFileSync(result.reportFile, 'utf8')).toContain('quem está lesionado');
+    expect(readFileSync(result.reportFile, 'utf8')).toContain('quem faltou hoje');
   });
 
   it('with --write, adds the phrase to that screen’s askedAs — keeping everything the adopter wrote', () => {
-    const dir = kit({ app: { name: 'Clube' }, screens: { '/medical/availability': { purpose: 'Who can play.', askedAs: ['disponibilidade'] } } });
-    teach(dir, lessons(dir, [chose('quem está lesionado', '/medical/availability'), chose('Quem está LESIONADO?', '/medical/availability')]), { write: true });
+    const dir = kit({ app: { name: 'Escola' }, screens: { '/attendance/today': { purpose: 'Who is in today.', askedAs: ['presenças'] } } });
+    teach(dir, lessons(dir, [chose('quem faltou hoje', '/attendance/today'), chose('Quem FALTOU hoje?', '/attendance/today')]), { write: true });
     const knowledge = JSON.parse(readFileSync(join(dir, 'knowledge.json'), 'utf8'));
-    expect(knowledge.app).toEqual({ name: 'Clube' });
-    expect(knowledge.screens['/medical/availability']).toEqual({ purpose: 'Who can play.', askedAs: ['disponibilidade', 'quem está lesionado'] });
+    expect(knowledge.app).toEqual({ name: 'Escola' });
+    expect(knowledge.screens['/attendance/today']).toEqual({ purpose: 'Who is in today.', askedAs: ['presenças', 'quem faltou hoje'] });
   });
 
   it('matches a concrete path to its screen, and prefers the specific route over a parameter', () => {
@@ -102,7 +102,7 @@ describe('teach', () => {
 
   it('needs --min agreeing visitors when asked, and skips lines it cannot read', () => {
     const dir = kit();
-    const result = teach(dir, lessons(dir, ['not json', '{"route": "/x"}', chose('lesões', '/medical/availability')]), { min: 2 });
+    const result = teach(dir, lessons(dir, ['not json', '{"route": "/x"}', chose('faltas', '/attendance/today')]), { min: 2 });
     expect(result.read).toBe(1);
     expect(result.taught).toEqual([]);
     expect(result.held[0]?.why).toMatch(/--min is 2/);

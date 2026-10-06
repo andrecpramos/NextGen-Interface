@@ -47,7 +47,7 @@ function autostart(): void {
   // Only set while this script is being evaluated, so it is read before anything else.
   const script = document.currentScript as HTMLScriptElement | null;
   const data = script?.dataset;
-  // One role, or several for a user who holds more than one ("COACH PARENT" or "COACH,PARENT").
+  // One role, or several for a user who holds more than one ("TEACHER PARENT" or "TEACHER,PARENT").
   const roles = (data?.nextgenRole ?? '').split(/[\s,]+/).filter(Boolean);
   const role = roles.length === 1 ? roles[0]! : roles;
   if (!script || !data || roles.length === 0) return;

@@ -110,7 +110,7 @@ and, once for the application, `thresholds.hashing.json` — the calibrated oper
 (Rule 17, ADR-014): shipping one registry to every role would leak the shape of an admin
 surface. `review/master.json` lists every screen with every role, and is never served.
 
-An entry, as the generator emits it (from `eval/frameworks/family/generated`):
+An entry, as the generator emits it (from `eval/frameworks/school/generated`):
 
 ```json
 {

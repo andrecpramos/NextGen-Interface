@@ -606,7 +606,7 @@ export function suggestionsFor(registry: Registry, currentPath: string, max = 4,
 /**
  * An answer that asks offers at most this many places. The visitor is assumed to know nothing about
  * the app, so a list is a quiz: they cannot rank three names they have never seen. Measured on the
- * reference app (`eval/frameworks/family`, 21 in-scope turns the router would not act on): the right
+ * reference fixture as it stood on 2026-09-21 (21 in-scope turns the router would not act on): the right
  * screen was first in 14, among the first two in 21, and a third place added none. It is a choice
  * of how much to show, not a threshold of the router (Rule 14), and it changes what is drawn only.
  */

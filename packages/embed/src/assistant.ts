@@ -1087,7 +1087,7 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
   let busy = false;
   let savedOverflow: string | null = null;
   let handsFree = canListen && readChoice(HANDS_FREE_KEY, false);
-  // Silent until asked: a navigation aid that talks unbidden is a surprise in an office or a physio room.
+  // Silent until asked: a navigation aid that talks unbidden is a surprise in an office or a waiting room.
   // Hands-free conversation is spoken whatever this says (`aloud`): that visitor has asked for voice.
   let readAloud = readChoice(READ_ALOUD_KEY, false);
   let conversation: Conversation | null = null;

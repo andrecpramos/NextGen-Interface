@@ -28,7 +28,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const KEEP = process.argv.includes('--keep');
 const ADAPTER = join(ROOT, 'adapter');
-const APP = join(ROOT, 'packages', 'generator', 'fixtures', 'family-app');
+const APP = join(ROOT, 'packages', 'generator', 'fixtures', 'school-app');
 
 const failures = [];
 const check = (ok, line) => {

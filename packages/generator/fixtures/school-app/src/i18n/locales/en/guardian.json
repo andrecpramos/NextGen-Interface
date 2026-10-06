@@ -1,0 +1,9 @@
+{
+  "pageTitle": "My children",
+  "grades": {
+    "titleFor": "Grades for {{name}}",
+    "page": { "heading": "Your child's grades" },
+    "subtitle": "Marks and attendance by subject",
+    "confirm": { "meeting": { "title": "Ask the class teacher for a meeting?" } }
+  }
+}

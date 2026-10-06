@@ -96,7 +96,7 @@ Then regenerate and re-run:
 
 ```bash
 node --experimental-strip-types packages/generator/src/cli.ts \
-  eval/frameworks/family/generator.config.json --no-model   # if the generator changed
+  eval/frameworks/school/generator.config.json --no-model   # if the generator changed
 node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
 pnpm router:floor && pnpm eval:apps
 ```

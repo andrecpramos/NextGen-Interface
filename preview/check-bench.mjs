@@ -53,8 +53,8 @@ if (!browser) {
 // Two turns with known answers in the reference fixture: one that must reach a screen,
 // one that must be refused. Both come from the committed golden set.
 const CASES = [
-  { role: 'PARENT', ask: 'quero ver o estado médico do meu filho', route: '/my/children/medical' },
-  { role: 'PARENT', ask: 'marca uma consulta de fisioterapia para o meu filho', outcome: 'out_of_scope' },
+  { role: 'PARENT', ask: 'onde vejo os anúncios da escola', route: '/my/announcements' },
+  { role: 'PARENT', ask: 'marca uma explicação de matemática para o meu filho', outcome: 'out_of_scope' },
 ];
 
 const port = 4100 + Math.floor(Math.random() * 400);
