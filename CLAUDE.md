@@ -4,10 +4,9 @@ Instructions for any AI agent working in this repository. Loaded automatically
 every session; this file is about **process**.
 
 **Everything else lives in [`.claude/`](.claude/README.md)** — one directory for
-workflow *and* knowledge. The rules are [PLAN.md](.MDFiles/PLAN.md) §2, with their real
+workflow *and* knowledge. The rules are [docs/RULES.md](docs/RULES.md), with their real
 enforcement mapped in [.claude/docs/critical-infrastructure.md](.claude/docs/critical-infrastructure.md); the ADRs are
-[.claude/decisions/](.claude/decisions/); the mistakes already made are
-[.claude/docs/lessons.md](.claude/docs/lessons.md).
+[.claude/decisions/](.claude/decisions/).
 
 ## Branching — binding
 
@@ -93,12 +92,9 @@ on every `core-*` edit (see `critical-infrastructure.md` §2) — and the
 `boundary-auditor` agent checks the `switch`-on-application-type violations the
 import gate can't see.
 
-`.claude/docs/architecture.md` and `.claude/docs/testing.md` were rewritten on
-2026-09-20; before that they described an earlier Dart/Flutter mobile finance
-app. Three other docs are only partly about this repo and open with a status
-note saying which parts: `security.md`, `ui-guidelines.md` and the older
-`sdlc/` files. For anything architectural, trust README.md, the accepted ADRs in
-`.claude/decisions/`, and the code over any of them.
+For anything architectural, trust README.md, the accepted ADRs in
+`.claude/decisions/`, and the code, in that order of precedence over any other
+doc.
 
 ## Before you push
 
@@ -112,8 +108,8 @@ pnpm -r test
 pnpm registry:check                                # Rule 10: >=3 examples per capability
 pnpm build                                         # the widget; the gates below read it
 pnpm adapter:check                                 # adapter/ is current, and a copy runs with nothing installed
-node tooling/scripts/check-derived-artefacts.mjs   # WP-46: shipped indexes/thresholds follow their inputs
-node tooling/scripts/check-accessibility.mjs       # WP-45: no serious/critical a11y violation
+node tooling/scripts/check-derived-artefacts.mjs   # shipped indexes/thresholds follow their inputs
+node tooling/scripts/check-accessibility.mjs       # no serious/critical a11y violation
 node tooling/scripts/check-csp.mjs                 # the widget under a strict CSP, in a real browser
 node --experimental-strip-types \
   eval/frameworks/evaluate-golden.mjs --embedder hashing --check   # the generated registries still decide the same
@@ -147,7 +143,6 @@ Don't re-derive these procedures — they are written down. Full map:
 | ending a session | `/handoff` |
 | suspicious the docs have drifted | `docs-keeper` agent |
 | installing this SDLC in another repo | `sdlc-bootstrap` skill (the `sdlc-kit` folder lives outside this repo) |
-| about to repeat a known mistake | [.claude/docs/lessons.md](.claude/docs/lessons.md) — sixteen of them, with what each cost |
 
 Three hooks enforce what you would otherwise have to remember: the branching
 contract at every context boundary, a guard denying broad staging and writes to

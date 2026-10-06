@@ -1,4 +1,4 @@
-// WP-45 — the accessibility claim, checked before it is made.
+// The accessibility claim, checked before it is made.
 //
 // The pitch says the assistant is accessible. Until this script, nothing had
 // verified that, and no screen reader had ever been pointed at it.
@@ -10,7 +10,7 @@
 //
 //   node tooling/scripts/check-accessibility.mjs [--json]
 //
-// Exit 1 on any serious or critical violation (PLAN.md WP-45's acceptance bar).
+// Exit 1 on any serious or critical violation.
 //
 // ⚠️ WHAT THIS CANNOT CHECK, stated before the results rather than after:
 //
@@ -134,7 +134,7 @@ const states = [];
   // 4. A declared limit: the refusal path, which reads differently and must not
   //    read as an error. Driven by one of the registry's own boundary examples,
   //    because free-form out-of-scope lands in `choose` as often as not — that is
-  //    D-5's measured ceiling, and auditing the wrong state to avoid saying so
+  //    the measured out-of-scope ceiling, and auditing the wrong state to avoid saying so
   //    would make this run a lie. The tone is asserted for the same reason.
   const limit = await mounted.ask('book a physio appointment for my son');
   states.push([`limit (${limit.choices.length} links)`, await audit(window, mounted.host)]);
@@ -436,4 +436,4 @@ if (failed.length > 0) {
 
 say(`\n  Accessibility OK — ${findings.length} checks, 0 serious or critical violations.`);
 say('  This is the automated half. eval/a11y/NVDA-CHECKLIST.md is the other half,');
-say('  and the claim is not made until the owner has run it.\n');
+say('  and the claim is not made until someone has run it with a screen reader.\n');

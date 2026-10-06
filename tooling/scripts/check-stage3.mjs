@@ -2,7 +2,7 @@
 //
 //   node tooling/scripts/check-stage3.mjs
 //
-// WP-52 (ADR-017). kit/src/build.ts writes bundle/thresholds.hashing.json's `stage3`
+// ADR-017. kit/src/build.ts writes bundle/thresholds.hashing.json's `stage3`
 // field; packages/embed/src/stage3.ts's SameOriginLlmRuntime reads it. The two packages
 // deliberately do NOT share that type: kit is a Node CLI with no DOM lib in its
 // tsconfig, and embed's root re-exports theme.ts/widget.ts/voice.ts, which are genuinely

@@ -12,7 +12,7 @@ the number moved, something you changed moved it.
 **The one rule that governs this whole skill: never raise a threshold to make a
 failing case pass.** Thresholds are calibrated against the full corpus with an
 explicit objective, never hand-set and never copied between encoders (Rule 14).
-Hand-tuning has cost accuracy three times in this repo — Findings 1 and 11.
+Hand-tuning has cost accuracy three times in this repo.
 Raising a threshold moves the symptom, keeps the cause, and quietly rots the
 router for every capability that was fine.
 
@@ -119,8 +119,8 @@ on a write capability corrupts data behind a confirmation card the user taps
 through.
 
 Thresholds are **per encoder**. `thresholds-hashing.json` and
-`thresholds-ollama.json` are not interchangeable — copying one to the other is
-Finding 11, and it has already happened once.
+`thresholds-ollama.json` are not interchangeable — copying one to the other has
+already cost accuracy once.
 
 ## When it is stage 3
 
@@ -156,4 +156,3 @@ re-run `pnpm router:floor`, and commit the scorecard with the fix.
 - [ADR-003](../../decisions/ADR-003.md) — why the cascade is three stages
 - [ADR-009](../../decisions/ADR-009.md) — out-of-scope as retrieval, not judgement
 - [ADR-011](../../decisions/ADR-011.md) — why CI gates on tolerances, never on model accuracy
-- `packages/core-intent/eval/FINDINGS.md` — Findings 1 and 11, the threshold lessons

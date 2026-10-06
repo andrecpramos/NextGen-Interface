@@ -1,4 +1,4 @@
-// Build `adapter/` — the folder an adopter copies (WP-49, ADR-018).
+// Build `adapter/` — the folder an adopter copies (ADR-018).
 //
 //   node tooling/scripts/build-adapter.mjs           # write it
 //   node tooling/scripts/build-adapter.mjs --check   # is what is committed current?

@@ -1,4 +1,4 @@
-// WP-29 — build the script-tag artefact.
+// Build the script-tag artefact.
 //
 // One file, `dist/nextgen.js`, that defines `window.NextGen` when loaded with a
 // plain <script src>. No module system, no bundler on the adopter's side, no
@@ -73,7 +73,7 @@ await build({
   bundle: true,
   // A browser target, deliberately. If anything in the routing path reaches for
   // `node:fs` or `node:crypto`, esbuild fails here rather than an adopter's page
-  // failing at load — the same property WP-24's no-network test holds, at the
+  // failing at load — the same property the browser no-network test holds, at the
   // other end of the pipeline.
   platform: 'browser',
   target: 'es2020',

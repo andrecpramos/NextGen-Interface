@@ -18,7 +18,7 @@ import { assertValidRegistry } from './validate.ts';
  * drift.** It used to live inside `core-intent`'s registry loader, which meant
  * any codegen that precomputed vectors had to reimplement it and hope. Both now
  * call this. Changing it invalidates every cached embedding and shifts every
- * stage-2 score, so treat it as a versioned artefact — see Finding 1.
+ * stage-2 score, so treat it as a versioned artefact (Rule 14).
  *
  * Description carries the semantics; triggers and examples carry the phrasing
  * users actually produce, which is why coding-standards.md requires ≥3 examples.
@@ -27,7 +27,7 @@ export function capabilityDocument(cap: Capability): string {
   // A trigger that already appears in the title or description contributes
   // WEIGHT, not signal — and weight is exactly what must not be added here.
   //
-  // WP-38 made this concrete. The generator derives triggers from nav labels,
+  // Measured on a generated registry: the generator derives triggers from nav labels,
   // and a nav label is usually the title, so 141 of 245 generated triggers were
   // already in the document. Embedding them doubled the title's weight for every
   // real capability while declared boundaries — which have no triggers — got no
@@ -42,7 +42,7 @@ export function capabilityDocument(cap: Capability): string {
   // Accent-insensitive, because a generated trigger is already normalised:
   // "avaliacoes fisicas" must be recognised as a duplicate of the title
   // "Avaliações físicas". A plain lowercase compare misses every accented
-  // Portuguese label, which is most of them on the pilot application.
+  // Portuguese label, which in a Portuguese-first app is most of them.
   const flatten = (s: string) =>
     s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const seen = flatten(`${cap.title ?? ''} ${cap.description ?? ''}`);
@@ -153,7 +153,7 @@ export interface GoldenEntry {
 /**
  * The third use of `examples`: test fixtures.
  *
- * **Every example becomes an entry** (WP-19). Declaring an utterance as an
+ * **Every example becomes an entry**. Declaring an utterance as an
  * example of a capability *is* the assertion that it resolves to that
  * capability — if it does not, either the example or the declaration is wrong,
  * and that is precisely what the fixture is for. Requiring a hand-written
@@ -162,7 +162,7 @@ export interface GoldenEntry {
  * asserting nothing. An `expect` block now *refines* the derived expectation
  * (params, the stage it must resolve by) rather than gating its existence.
  *
- * This matters more from WP-25 on than it ever did by hand: a generated
+ * This matters more for a generated registry than it ever did by hand: a generated
  * registry's examples are written by a model, so the entries derived from them
  * are the corpus that catches a generator that declares a capability nobody can
  * reach by asking for it.

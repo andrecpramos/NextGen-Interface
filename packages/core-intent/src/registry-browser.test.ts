@@ -13,9 +13,9 @@ import { OUTCOME, STAGE } from './types.ts';
 import type { RegistryFile } from './types.ts';
 
 /**
- * WP-24 — stages 1+2 from a shipped index, with no I/O and no network.
+ * Stages 1+2 from a shipped index, with no I/O and no network.
  *
- * The acceptance says *"a test fails if any request is made"*, so the network
+ * The requirement says *"a test fails if any request is made"*, so the network
  * assertion here is not a comment: `fetch`, `XMLHttpRequest` and
  * `WebSocket` are replaced with throwing stubs for the duration, and the
  * assertion is that routing completes anyway.
@@ -145,7 +145,7 @@ describe('assertIndexMatches — refusing an index that cannot belong here', () 
 });
 
 /**
- * WP-24's load-bearing acceptance: *"stages 1+2 run in a browser with zero
+ * The load-bearing requirement: *"stages 1+2 run in a browser with zero
  * network calls — a test fails if any request is made"*.
  */
 describe('stages 1+2 make no network call', () => {
@@ -157,7 +157,7 @@ describe('stages 1+2 make no network call', () => {
 
   beforeEach(() => {
     const boom = (what: string) => () => {
-      throw new Error(`WP-24: stages 1+2 attempted a ${what} call. The offline claim is the product.`);
+      throw new Error(`stages 1+2 attempted a ${what} call. The offline claim is the product.`);
     };
     globalThis.fetch = vi.fn(boom('fetch')) as unknown as typeof fetch;
     (globalThis as Record<string, unknown>).XMLHttpRequest = boom('XMLHttpRequest');
@@ -174,7 +174,7 @@ describe('stages 1+2 make no network call', () => {
     registry: registryFromIndex(registryFile, await shippedIndex()),
     embedder: (() => {
       // The query encoder still has to be fitted to the same corpus the index
-      // was built from — that is the whole of L10 — so it is constructed here
+      // was built from — a re-fitted encoder silently changes every score — so it is constructed here
       // from the registry's own documents, not shared with anything.
       const e = new HashingEmbedder();
       e.fit(registryFile.capabilities.map(capabilityDocument));
@@ -210,7 +210,7 @@ describe('stages 1+2 make no network call', () => {
 });
 
 /**
- * Pilot-A field report, 2026-09-23 (P2-2, P2-5). A user who holds several roles needs one registry, and a
+ * A user who holds several roles needs one registry, and a
  * registry needs its own index: each role's is its own vector space. So the index must be computable
  * from the registry alone, identically to the file the build ships — and a phrase two roles' screens
  * both claim must name neither.

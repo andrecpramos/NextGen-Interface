@@ -7,10 +7,10 @@ import { stage3 } from './stages.ts';
 import type { Registry } from './types.ts';
 
 /**
- * WP-16 (Rule 1, D-2): `core-intent` must not know what application it is
- * routing for. Before this work package, `stages.ts` hardcoded "This is a
- * personal finance application" into every stage-3 prompt, which misrouted a
- * destructive capability on the modules registry (§6, PLAN.md). These tests
+ * Rule 1: `core-intent` must not know what application it is routing for.
+ * `stages.ts` once hardcoded "This is a personal finance application" into
+ * every stage-3 prompt, which misrouted a destructive capability on the
+ * modules registry. These tests
  * assert the fix by inspecting the generated prompt directly — `stage3` runs
  * unmodified against two unrelated registries, and only the registry's own
  * `domainDescription` changes what the model is told.

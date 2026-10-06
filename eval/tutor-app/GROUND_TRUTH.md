@@ -1,8 +1,8 @@
-# WP-43 — ground truth for `Tutor-Support-System`
+# Ground truth for `Tutor-Support-System`
 
 **Written 2026-09-12 from `src/App.tsx` alone, before the generator was run on it.**
 That order is the whole point: a ground truth written after seeing the output is not a
-ground truth, it is a transcript. WP-31 did the same for `fut-app`.
+ground truth, it is a transcript.
 
 **The app.** [lamnh404/Tutor-Support-System](https://github.com/lamnh404/Tutor-Support-System),
 MIT, React 18 + React Router v6 (`<Routes>`/`<Route>` elements), TypeScript, Vite. Cloned
@@ -24,7 +24,7 @@ the guarded routes are its children. Compare:
 
 | App | Where the roles are |
 |---|---|
-| `fut-app` | a named role set per route, `ROUTE_ROLES.squadManage`, resolved from a permissions module |
+| the fixture app | a named role set per route, `ROUTE_ROLES.staff`, resolved from a permissions module |
 | bulletproof-react | inside the page component, `<Authorization allowedRoles={[ROLES.ADMIN]}>` |
 | **this app** | **on a parent `<Route element={<ProtectedRoute allowedRoles={[…]} />}>`, inherited by its children** |
 
@@ -66,7 +66,7 @@ destination.
 - `/settings` appears for all three roles.
 - The four public routes appear for every audience.
 - Anything whose guard cannot be read must be **omitted and reported**, never defaulted to
-  "everyone" (Rule 17's zero-tolerance kill criterion, PLAN.md §8).
+  "everyone" (Rule 17's zero-tolerance kill criterion).
 
 ### Two things to watch, recorded before the run
 

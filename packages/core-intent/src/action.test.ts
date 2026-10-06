@@ -11,7 +11,7 @@ import {
  * ADR-015's action signal, and the guard that decides when it means anything.
  *
  * The signal is easy to get right and easy to get subtly wrong: every case below
- * is one WP-40 measured against the pilot app's golden set, not one invented to make
+ * was measured against a real application's golden set, not invented to make
  * the implementation look good.
  */
 
@@ -120,7 +120,7 @@ describe('actionVocabularyOf — what the application says it does', () => {
 });
 
 /**
- * WP-36's detection half, sharing ADR-015's frame layer rather than adding a
+ * Explanation detection, sharing ADR-015's frame layer rather than adding a
  * competing one.
  *
  * It changes no routing decision — the capability and route resolve identically
@@ -136,7 +136,7 @@ describe('isExplanationRequest — asking what something is, not to be taken to 
     'Explain the squad overview',
     'tell me about the training calendar',
     // Accented endings, both of which a naive `\b` silently fails to match —
-    // JavaScript's `\b` is ASCII-only. WP-36's `stripGreeting` shipped with
+    // JavaScript's `\b` is ASCII-only. An earlier `stripGreeting` shipped with
     // exactly this bug and never fired once across 145 screens.
     'O que é isto?',
     'Porquê esta página?',

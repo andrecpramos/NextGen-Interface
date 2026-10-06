@@ -58,7 +58,7 @@ export function knowledgeQuestions(gaps: readonly KnowledgeGap[], coverage: Know
 
   if (app.length) lines.push('## The application', '', ...app.map((g) => `- ${g.message}`), '');
   if (screens.length) {
-    // An interview of a hundred questions is not finished (Pilot-A, 2026-09-23: 133). The screens where an
+    // An interview of a hundred questions is not finished. The screens where an
     // answer helps most come first — most roles, names that collide, top level (`screenPriority`) — and
     // the rest wait until real questions (`scan.mjs teach`) show which of them matter.
     const byScreen = new Map<string, KnowledgeGap[]>();

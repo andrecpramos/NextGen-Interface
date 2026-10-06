@@ -14,7 +14,7 @@ import { OUT_OF_SCOPE_ID, THRESHOLD_PROFILES } from './config.ts';
  * Cascade integration tests.
  *
  * These run against `FakeLlmRuntime`: no network, no model, same answer every
- * time. That is not only for speed — Finding 10 measured 7 of 200 entries
+ * time. That is not only for speed: 7 of 200 entries were measured
  * flipping between two identical runs of the *same* model at temperature 0, so a
  * suite built on real inference is flaky by construction.
  *
@@ -107,7 +107,7 @@ const embedder = new HashingEmbedder();
  * entry win everything, which is a false refusal rather than a bug in the rule.
  *
  * Carrying a calibrated threshold onto a different corpus is the same category
- * error as carrying one across encoders (Finding 1). The boundary behaviour that
+ * error as carrying one across encoders (Rule 14). The boundary behaviour that
  * matters here is the stage-1 trigger path, which is exact and needs no margin.
  */
 const TOY_THRESHOLDS = { ...THRESHOLD_PROFILES.hashing, boundaryMargin: 1 };
@@ -155,7 +155,7 @@ describe('cascade — stage selection', () => {
 });
 
 /**
- * WP-36. §1.1's promise is two things — *"it takes them to the right place, and
+ * The product's promise is two things — *"it takes them to the right place, and
  * tells them what to do once they are there"*. The second half is a string
  * declared when the registry was built and copied onto the trace unchanged; no
  * model is involved at run time, so it costs nothing and cannot drift.
@@ -213,7 +213,7 @@ describe('cascade — degradation when the runtime is missing', () => {
 describe('cascade — policy holds regardless of what the model says', () => {
   // These utterances are worded close to the target capability's own title/
   // description so stage 2's independent ranking agrees with what the fake
-  // model returns (WP-17: agreement is now required for write/destructive
+  // model returns (agreement is required for write/destructive
   // before the cascade will even reach a policy decision — see
   // REQUIRES_STAGE2_AGREEMENT in config.ts).
   it('requires confirmation for a write even at maximum confidence', async () => {
@@ -248,7 +248,7 @@ describe('cascade — policy holds regardless of what the model says', () => {
     // (shares no vocabulary with "Delete a budget"), but the fake model insists
     // on budget.delete at maximum self-reported confidence. Without stage-2
     // corroboration the cascade must not execute a destructive action — this
-    // is the mechanism Finding 8 asked for: a signal the model cannot inflate.
+    // is the mechanism ADR-003 asks for: a signal the model cannot inflate.
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'budget.delete', confidence: 1, params: { category: 'food' } },
     });
@@ -390,7 +390,7 @@ describe('stage 3 — Rule 15, the utterance cannot escape its tags', () => {
 });
 
 /**
- * ADR-019, WP-53. The model may now write a `prose` answer alongside the id it
+ * ADR-019. The model may now write a `prose` answer alongside the id it
  * selects; `validateClaims` checks every claim in it before it reaches the trace.
  * What matters most here is the thing the ADR calls "the floor does not move":
  * whatever happens to the prose, the ROUTING decision — capabilityId, outcome,
@@ -478,7 +478,7 @@ describe('cascade — the model may write, and the writing is checked', () => {
     expect(await offered('what is the weekend cost screen')).toContain('prose');
   });
 
-  it('leaves prose null and proseRemoved empty when the model writes none — identical to the pre-WP-53 shape', async () => {
+  it('leaves prose null and proseRemoved empty when the model writes none — identical to the shape before prose existed', async () => {
     const runtime = new FakeLlmRuntime({
       fallback: { capabilityId: 'spending.by_category', confidence: 0.9 },
     });

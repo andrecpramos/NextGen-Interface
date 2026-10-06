@@ -1,4 +1,4 @@
-// @nextgen/embed — Ladder C3 (WP-29): the navigation layer as one script tag.
+// @nextgen/embed — Ladder C3: the navigation layer as one script tag.
 //
 //   <script src="/nextgen/nextgen.js" data-nextgen-role="PARENT" defer></script>
 //
@@ -8,7 +8,7 @@
 //
 // `start` loads the role's bundle and mounts the assistant layer (assistant.ts):
 // an orb at the edge of the page that opens into a full-screen assistant.
-// `mount` is the plain chat box (widget.ts, WP-41) for a page that wants it inline.
+// `mount` is the plain chat box (widget.ts) for a page that wants it inline.
 // `load` gives the router alone, for a page that draws its own interface.
 //
 // For an application with no build step — the adopter C2's npm package cannot
@@ -17,8 +17,8 @@
 // except fetching those three static files from the adopter's own origin.
 //
 // Everything here is a thin shell over code that is already measured:
-// `registryFromIndex` (WP-24, 210/210 decision parity with the server path) and
-// the guided-step resolver (WP-27, degrades to text rather than mispointing).
+// `registryFromIndex` (210/210 decision parity with the server path) and
+// the guided-step resolver (degrades to text rather than mispointing).
 // This file adds no routing behaviour of its own, on purpose — a second
 // implementation would be a second thing to keep in step.
 
@@ -26,7 +26,7 @@ import { HashingEmbedder, indexFor, mergeRegistryFiles, registryFromIndex, route
 import type { Registry, RegistryFile, ShippedIndex, Thresholds, TurnTrace } from '@nextgen/core-intent/browser';
 import type { GuidedStep } from '@nextgen/core-capability';
 
-// The guided-step resolver (WP-27). It lived in packages/ui, beside React components a
+// The guided-step resolver. It lived in packages/ui, beside React components a
 // script tag must never drag in, and moved here when that package was removed.
 import { resolveSteps, type AnchorRoot, type ResolvedStep } from './anchor.ts';
 
@@ -48,7 +48,7 @@ export interface Bundle {
   readonly index?: ShippedIndex;
   readonly thresholds: Thresholds;
   /**
-   * Present only when `nextgen build --stage3 <path>` turned it on (ADR-017, WP-52).
+   * Present only when `nextgen build --stage3 <path>` turned it on (ADR-017).
    * Absent: a turn stages 1–2 cannot settle ends in a clarifying question, exactly as it
    * always has. `load()` reads this from the bundle's own thresholds file; passing it here
    * directly is for a caller that already has the bundle in memory.
@@ -77,7 +77,7 @@ export function create(bundle: Bundle, options: Pick<LoadOptions, 'stage3Fetch'>
   const registry: Registry = registryFromIndex(bundle.registry, bundle.index ?? indexFor(bundle.registry));
 
   // One encoder, fitted to THIS registry's documents and shared with nothing —
-  // lessons.md L10 is what a shared, re-fitted encoder cost this project once. The hashing encoder
+  // A shared, re-fitted encoder once produced a twelvefold scoring error here. The hashing encoder
   // directly, not `makeEmbedder`: that pulls a model server's client into a script tag that never uses one.
   //
   // Fitted when the page is idle, or at the first question if that comes sooner — never while the
@@ -96,7 +96,7 @@ export function create(bundle: Bundle, options: Pick<LoadOptions, 'stage3Fetch'>
   // Constructed once, not per turn: `SameOriginLlmRuntime`'s constructor is where the
   // origin check happens, and it never throws — a bad or off-origin config makes this
   // permanently unavailable, and every turn then degrades exactly like an absent
-  // transport (WP-24's acceptance item, unchanged since bundle.stage3 is absent by
+  // transport (unchanged since bundle.stage3 is absent by
   // default). `undefined` here, not merely `useStage3: false`, so a caller poking at
   // internals sees "there is no runtime" rather than "there is one and it is switched off".
   const runtime = bundle.stage3 ? new SameOriginLlmRuntime(bundle.stage3, options.stage3Fetch) : undefined;
@@ -140,7 +140,7 @@ export function create(bundle: Bundle, options: Pick<LoadOptions, 'stage3Fetch'>
  *
  * A fourth, later request is now possible: if `thresholds.hashing.json` carries a
  * `stage3` field, a turn stages 1–2 cannot settle POSTs to it — still same-origin, still
- * only when a turn actually needs it (WP-52, ADR-017). Nothing changes for a bundle
+ * only when a turn actually needs it (ADR-017). Nothing changes for a bundle
  * built without `--stage3`: the field is absent, `create()` never constructs a runtime,
  * and the three fetches above stay the only network this script ever does.
  */

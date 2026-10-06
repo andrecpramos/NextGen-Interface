@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ignoresAgentsMd, landingCandidate } from './doctor.ts';
 
-/** Pilot-A field report, 2026-09-23: two things `doctor` could have said, and did not (P1-3, P3-3). */
+/** Two things `doctor` could have said in a real integration, and did not. */
 
 const folder = (): string => mkdtempSync(join(tmpdir(), 'nextgen-doctor-'));
 

@@ -6,10 +6,9 @@
 // hand-written golden set. Applied unchanged to a generated registry an order of
 // magnitude larger, in another language, it accepts nothing at all — every turn falls under the bar and degrades to a clarify,
 // which reads as "the router is broken" and is really "the threshold belongs to
-// a different registry". PLAN.md §6 has this lesson twice already, at both ends
-// of the scale.
+// a different registry". This was learned twice, at both ends of the scale.
 //
-// **The sweep itself now lives in `core-intent/src/calibrate.ts`** (WP-41). It
+// **The sweep itself now lives in `core-intent/src/calibrate.ts`**. It
 // used to live here, and a third copy was about to be written for the drop-in
 // kit; two copies of a calibration sweep is how Rule 14 drifts. This file is now
 // what it always should have been — the part that is specific to one fixture app:
@@ -23,7 +22,7 @@
 //
 //   node --experimental-strip-types eval/frameworks/calibrate-registries.mjs [--embedder hashing] [--check]
 //
-// `--check` (WP-46) writes nothing. It compares the freshly swept thresholds with
+// `--check` writes nothing. It compares the freshly swept thresholds with
 // the shipped file's, and exits 1 if they differ. Only the operating point is
 // compared, not the timestamp and not the report numbers around it: Rule 14 is
 // about the thresholds a browser actually uses.

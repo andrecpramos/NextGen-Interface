@@ -44,7 +44,7 @@ import type {
  * is ever spent on a screen that will not be declared, and nothing that reaches
  * a prompt belongs to a capability that will not exist.
  *
- * The one policy decision, taken 2026-09-08 (PLAN.md WP-25, was D-4): anything
+ * The one policy decision: anything
  * not confidently `read` or `navigate` is **omitted, never guessed**. A missing
  * capability degrades safely — Rule 7 guarantees the app still works without
  * us. A wrongly declared one sends a user confidently to the wrong place.
@@ -73,9 +73,9 @@ function isBookmarkRedirect(route: DiscoveredRoute, facts: PageFacts): boolean {
 /**
  * A redirect to a screen already declared at its own address is that screen's old name, not a place.
  *
- * The pilot app's route table keeps eleven `<Navigate>` entries for addresses it has moved —
- * `/my/schedule` to `/my/agenda`, `/medical/rtp` to a tab of the medical centre. Declared,
- * each was a capability named after the redirect component — "Navigate", "Medical
+ * A real app's route table kept eleven `<Navigate>` entries for addresses it had moved —
+ * `/my/schedule` to `/my/agenda`, `/grades/report` to a tab of the grades screen. Declared,
+ * each was a capability named after the redirect component — "Navigate", "Grades
  * navigate" — competing with the very screen it points at. A redirect that lands a section
  * on its own first page (`/settings` to `/settings/notifications`) is that section's landing,
  * and is kept.
@@ -117,10 +117,10 @@ interface Accepted {
 /**
  * One screen at two addresses is declared once, at the address a user can be sent to.
  *
- * The pilot app gives a guardian `/my/children/medical`, which picks the child itself — the only
- * one, or the roster to choose from — and redirects to `/my/children/:childId/medical`.
+ * An app may give a parent `/my/children/grades`, which picks the child itself — the only
+ * one, or the roster to choose from — and redirects to `/my/children/:childId/grades`.
  * Declared as two capabilities, they were one page described twice: every question about
- * a child's medical status scored both, neither won by a margin, and the guardian was
+ * a child's grades scored both, neither won by a margin, and the guardian was
  * asked which of two identical places they meant. The golden set expects the resolver on
  * every such question, and the detail on none.
  *
@@ -284,7 +284,7 @@ function firstReadable(dictionary: Translations, keys: readonly string[]): strin
  *
  * A wrapper page that is one tab of a shared layout is named the way the layout shows it —
  * "As Minhas Preferências · Notificações" — rather than by the tab alone, which names
- * The pilot app's notifications inbox at `/my/notifications` just as well.
+ * the app's notifications inbox at `/my/notifications` just as well.
  */
 function headingOf(dictionary: Translations, facts: PageFacts): string | null {
   const heading = firstReadable(dictionary, facts.titleKeys);
@@ -301,8 +301,8 @@ function headingOf(dictionary: Translations, facts: PageFacts): string | null {
  * the source.
  *
  * **A component name is never a title in a language.** It used to fill any language the
- * app had no words for, so the pilot app's Portuguese registry named screens "Personal
- * Notifications" and "Child Medical" — a developer's English identifier, served to a
+ * app had no words for, so a Portuguese registry named screens "Personal
+ * Notifications" and "Child Grades" — a developer's English identifier, served to a
  * Portuguese user as the name of a place. It is now used only when the application names
  * the screen in no language at all, which is also the only time it is the best name there is.
  */
@@ -363,13 +363,13 @@ function humanise(text: string): string {
 /**
  * Make every title say which screen it is, among the screens it competes with.
  *
- * 17 of the pilot target's capabilities were called "Overview" and 11 more
+ * In one real app, 17 capabilities were called "Overview" and 11 more
  * shared another label, because a nav label is written to sit under a section
  * heading that supplies the missing half. Stage 2 has no section heading: the
  * title is part of the document it embeds (`capabilityDocument`), so seventeen
  * identical ones are seventeen capabilities competing for the same score.
  *
- * Two corrections, both found in the pilot app's generated registries:
+ * Two corrections, both found in that app's generated registries:
  *
  * - **A title only competes inside a registry.** Stage 2 ranks one role's registry
  *   (ADR-014), so a guardian's "Estado Médico" and a player's are not duplicates: no
@@ -562,7 +562,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   }
 
   const skipped: SkippedRoute[] = [];
-  // WP-28: routes discovery found but could not read are reported, not dropped.
+  // Routes discovery found but could not read are reported, not dropped.
   for (const u of unreadable) skipped.push({ path: u.path, reason: u.reason ?? 'unreadable-route', detail: u.detail });
   const taken = new Set<string>();
   const seenRoutes = new Set<string>();
@@ -688,8 +688,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const cache = options.cache ?? {};
   const prose = await synthesise(requests, options.model ?? null, cache, options.onProgress);
 
-  // WP-38 lever 1. Stage 1 fired zero times across the whole pilot app
-  // measurement because no capability carried a trigger; the free stage was
+  // Stage 1 once fired zero times across a whole real-app measurement
+  // because no capability carried a trigger; the free stage was
   // switched off. A phrase two capabilities both claim is dropped rather than
   // assigned — see triggers.ts for why a stage-1 collision is the worst kind.
   const { triggers: triggersById, ambiguous } = assignTriggers(
@@ -729,7 +729,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       .map((segment) => segment.slice(1));
     const dictionary = translations.get(config.languages[0] ?? 'en');
     const language = config.languages[0] ?? 'en';
-    // WP-54 (ADR-020 read tier) and WP-55 (inferred tier) both produce rules for
+    // ADR-020's read tier and its inferred tier both produce rules for
     // the same capability; one array carries both, told apart by `tier`.
     const rules = pageFile
       ? [
@@ -747,7 +747,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       explanation: written.explanation,
       // The adopter's own file, relative to their source root — so a wrong
       // answer in their assistant is one path away from the page that produced
-      // it (WP-36). Absolute paths would leak our machine into their bundle.
+      // it. Absolute paths would leak our machine into their bundle.
       ...(pageFile
         ? { explanationSource: relative(config.appRoot, pageFile).replace(/\\/g, '/') }
         : {}),
@@ -755,7 +755,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       // "criar evento" — which is how "quero criar um evento" finds this screen (ADR-031). Up to six.
       examples: [...new Set([...written.examples, ...startPhrases])],
       ...(triggersById.has(id) ? { triggers: [...triggersById.get(id)!] } : {}),
-      // WP-27: guided steps from the form this page renders, in the app's primary
+      // Guided steps from the form this page renders, in the app's primary
       // language. Template-built at build time, never generated per turn (Rule 9).
       ...stepsEntry(facts.fields, dictionary, language),
       ...(rules.length > 0 ? { rules } : {}),
@@ -784,7 +784,7 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const master = applyKnowledge([...found, ...declared].sort((a, b) => a.id.localeCompare(b.id)), knowledge).capabilities;
   skipped.sort((a, b) => a.path.localeCompare(b.path));
 
-  // WP-55: everything found but not confident enough to ship — review/INFERRED.md's
+  // Everything found but not confident enough to ship — review/INFERRED.md's
   // own source, never a registry.
   const reviewInferred: ReviewInferredEntry[] = accepted.flatMap(({ route, facts, pageFile }) =>
     pageFile ? reviewInferredEntries(facts.inferredCandidates, route.path, config.appRoot, pageFile) : [],
@@ -815,9 +815,9 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
 }
 
 /**
- * What this application is, in the two sentences stage 3 is given (WP-16, D-2).
+ * What this application is, in the two sentences stage 3 is given.
  *
- * WP-16 measured what a wrong one costs: the hardcoded finance framing was
+ * Measured, what a wrong one costs: the hardcoded finance framing was
  * worth 2–6 points of top-1 accuracy on every model, on every turn, not only on
  * the ones it misrouted. So this is generated from the capability inventory the
  * generator just produced — the app's real surface — rather than from a name.
@@ -839,10 +839,10 @@ function domainCacheKey(master: readonly AnnotatedCapability[]): string {
 /**
  * Areas biggest-first, because the order anchors the model.
  *
- * Alphabetical put `academy` at the head of a football-club application and the
- * model summarised it as *"an Academy Management application … educational
- * institutions, student records"* — confidently wrong, which is precisely the
- * failure WP-16 measured a wrong `domainDescription` causing. Ordered by how
+ * Alphabetical put `admissions` at the head of a clinic application and the
+ * model summarised it as *"an Admissions Management application … universities,
+ * applicant records"* — confidently wrong, which is precisely the failure a
+ * wrong `domainDescription` was measured causing. Ordered by how
  * many screens each area actually has, the application leads with what it mostly
  * is.
  */
@@ -913,11 +913,11 @@ async function describeApplication(
         : '';
     // A description that describes the assistant, or names no subject at all,
     // is worse than the derived one: it occupies the same prompt slot the
-    // hardcoded finance framing occupied, and WP-16 measured that slot as worth
+    // hardcoded finance framing occupied, and that slot was measured as worth
     // 2–6 points of top-1 accuracy on every model, on every turn.
     //
     // Matched on *phrases*, not on bare words. The first version rejected any
-    // description containing "assistant", and the pilot app has a feature folder
+    // description containing "assistant", and a real app had a feature folder
     // called `assistant` — so a perfectly good summary was thrown away for
     // naming one of the application's own areas, and the derived fallback (a
     // list of folder names) shipped instead.

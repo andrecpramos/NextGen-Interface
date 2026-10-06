@@ -17,7 +17,7 @@ import type { DiscoveredRoute, RoleName, SkipReason } from './types.ts';
  * What these adapters cannot declare, they report. A content catch-all
  * (`[...slug]`, a Remix `$` splat) matches pages that come from content rather
  * than code, so no single screen can be offered for it; it is reported as left
- * out, never declared and never dropped in silence (lessons.md L12).
+ * out, never declared and never dropped in silence.
  *
  * Roles are not read here. No framework in this file declares roles in its
  * folder layout, so every route receives the application's full role set, and

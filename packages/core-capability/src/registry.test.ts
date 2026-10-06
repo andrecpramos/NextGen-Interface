@@ -46,7 +46,7 @@ describe('validateRegistry — a valid registry', () => {
     expect(validateRegistry(registryOf(ok(), b)).ok).toBe(true);
   });
 
-  // WP-16 (Rule 1, D-2): stage 3 reads this field instead of a hardcoded
+  // Rule 1: stage 3 reads this field instead of a hardcoded
   // description, so a registry that omits it reproduces the exact defect the
   // field exists to fix.
   it('rejects a registry with no domainDescription', () => {
@@ -56,7 +56,7 @@ describe('validateRegistry — a valid registry', () => {
 });
 
 describe('validateRegistry — the ≥3 examples rule', () => {
-  // The rule WP-03 requires CI to enforce. Examples are the retrieval document,
+  // Rule 10, enforced in CI. Examples are the retrieval document,
   // the few-shot pool and the test fixtures, so two of them is under-specified
   // in three places at once.
   it('fails a capability with fewer than three examples', () => {
@@ -138,7 +138,7 @@ describe('validateRegistry — route and param coherence', () => {
 
   // An i18n router's prefix (next-intl `[locale]`) is filled from the page the visitor is on, never
   // asked of them, so the generator does not declare it. Demanding it failed `doctor` on every screen
-  // of a locale-routed app (judo_app rehearsal, 2026-09-22).
+  // of a locale-routed app.
   it('accepts an undeclared locale prefix, which the page fills', () => {
     for (const route of ['/:locale/portal', '/:lang/auth/login', '/:locale?/about', '/:LNG']) {
       expect(rules(registryOf(ok({ id: 'portal.overview', route })))).not.toContain('route-param-declared');
@@ -215,7 +215,7 @@ describe('validateRegistry — boundary entries', () => {
 });
 
 /**
- * WP-36. "What is this page?" is answered from a string written once at build
+ * "What is this page?" is answered from a string written once at build
  * time, not from a model called per turn — the same move ADR-009 made for
  * refusals. A capability with no explanation is a question the assistant has to
  * escalate or invent an answer to, which is the chat-widget failure Ladder A1
@@ -251,7 +251,7 @@ describe('validateRegistry — the declared explanation', () => {
   });
 });
 
-describe('validateRegistry — extracted rules (ADR-020, WP-54)', () => {
+describe('validateRegistry — extracted rules (ADR-020)', () => {
   const withRule = (over: Partial<ExtractedRule> = {}) => ({
     ...ok(),
     rules: [{ field: 'amount', statement: 'Amount is required.', tier: 'read' as const, source: 'src/Page.tsx:12', ...over }],
@@ -293,7 +293,7 @@ describe('capabilityDocument — the retrieval text', () => {
    * The explanation is what gets *served*; the description is what gets
    * *matched*. Keeping them apart is what lets an adopter rewrite a bad answer
    * without invalidating every embedding and every calibrated threshold
-   * (Rule 14, Finding 1).
+   * (Rule 14).
    */
   it('does not embed the explanation', () => {
     const withExplanation = ok({ explanation: 'Zzyzx quixotic explanation text that appears nowhere else.' });
@@ -308,7 +308,7 @@ describe('capabilityDocument — the retrieval text', () => {
   });
 
   /**
-   * WP-38 / WP-40. A trigger already present in the title or description adds
+   * A trigger already present in the title or description adds
    * WEIGHT, not signal — and weight here is a retrieval bug, not a nicety.
    *
    * The generator derives triggers from nav labels, and a nav label is usually
@@ -389,7 +389,7 @@ describe('generateGoldenEntries — examples as fixtures', () => {
     });
   });
 
-  // WP-19: the reason the artefact was 0 bytes in both reference apps. Declaring
+  // The reason the artefact was once 0 bytes in both reference apps. Declaring
   // an utterance as an example of a capability is the assertion; requiring a
   // second, hand-written one meant nothing was ever asserted.
   it('derives the expectation for a bare example from its capability', () => {

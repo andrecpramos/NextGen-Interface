@@ -1,6 +1,6 @@
 // @nextgen/core-intent/browser
 //
-// The browser-safe surface (WP-24, WP-26).
+// The browser-safe surface.
 //
 // ## Why this file exists rather than a note in the README
 //
@@ -56,7 +56,7 @@ export type {
   Vector,
 } from './types.ts';
 export type { Thresholds } from './config.ts';
-// WP-52 (ADR-017): a browser build now needs the shape of the stage-3 transport
+// ADR-017: a browser build now needs the shape of the stage-3 transport
 // to implement one. Type-only, same as the `LlmRuntime` import `cascade.ts`
 // already makes directly from `@nextgen/core-inference` — this adds no runtime
 // import, only a name the compiler erases (`verbatimModuleSyntax`).

@@ -7,9 +7,8 @@ no transport code at all — no `fetch`, no host, no `/api/chat`.
 
 ## Why this package exists
 
-Not as an abstraction habit. [ADR-006](../../.claude/decisions/ADR-006.md) moved the stack to
-TypeScript, which means on-device inference runs through `llama.rn` — and **nobody has
-proved that works**. WP-10 gates the mobile app on loading a quantised 1B GGUF and
+Not as an abstraction habit. On a device, inference would run through `llama.rn` — and
+**nobody has proved that works**. It is unproven that a phone can load a quantised 1B GGUF and
 completing 10 stage-3 calls on a physical mid-range Android, measuring first-token
 latency, peak RSS and thermals.
 
@@ -23,8 +22,8 @@ swapped cheaply is not a mitigation.
 |---|---|
 | `OllamaLlmRuntime` / `OllamaEmbeddingRuntime` | live — desktop and development |
 | `FakeLlmRuntime` / `FakeEmbeddingRuntime` | live — tests |
-| `LlamaRnRuntime` | **declared, throws.** Gated by WP-10 |
-| `WebGpuRuntime` | **declared, throws.** Gated by WP-09 |
+| `LlamaRnRuntime` | **declared, throws.** Needs a React Native host and a physical device |
+| `WebGpuRuntime` | **declared, throws.** Needs a browser with WebGPU |
 
 The placeholders throw on construction with what has to happen before they can exist. A
 runtime that silently returned nothing would let the app appear to work on a platform
@@ -43,12 +42,12 @@ model degrades to a clarify built from stage-2 scores; a missing *encoder* leave
 to build one from.
 
 Constrained decoding is mandatory — `schema` is a required field with no overload that
-omits it. It makes parse failure rare, not impossible (Finding 6 measured 1 in ~140 calls
+omits it. It makes parse failure rare, not impossible (measured: 1 in ~140 calls
 on `llama3.1:8b`), so the fallback is required rather than defensive.
 
 ## The fakes are for determinism, not just speed
 
-Finding 10 measured **7 of 200 entries flipping between two identical runs of the same
+Measured: **7 of 200 entries flipping between two identical runs of the same
 model at `temperature: 0`**. A suite built on real inference is flaky by construction, and
 a flaky test on a financial path gets deleted rather than fixed.
 

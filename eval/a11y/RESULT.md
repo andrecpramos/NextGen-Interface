@@ -1,9 +1,9 @@
-# WP-45 — accessibility, the automated half
+# Accessibility, the automated half
 
 **Run on:** 2026-09-12 · **Tool:** axe-core 4.13.0 in jsdom 30 · **Artefact:**
 `packages/embed/dist/nextgen.js`, the file an adopter serves · **Data:**
-`eval/frameworks/family/generated`, the `PARENT` role (measured on 2026-09-12 against the pilot
-app's registry; the fixture stands in for it since ADR-018).
+`eval/frameworks/family/generated`, the `PARENT` role (first measured on 2026-09-12 against a
+real application's registry; the fixture stands in for it since ADR-018).
 
 **Verdict: 18 checks, 0 serious or critical violations — after one real defect
 was found and fixed.** The claim is still not made: [the NVDA
@@ -31,7 +31,7 @@ Four states, because a widget is only as accessible as its worst one:
 
 The refusal state carries an assertion of its own: the run **fails** if that
 utterance stops coming back as a limit. Free-form Portuguese out-of-scope lands
-in `choose` as often as not — that is D-5's measured ceiling — and auditing a
+in `choose` as often as not — that is the measured out-of-scope ceiling README states — and auditing a
 clarify while calling it a refusal would make this document untrue.
 
 ## The defect this found

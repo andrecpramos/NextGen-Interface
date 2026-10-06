@@ -9,11 +9,11 @@ It began as a Sprint 0 spike answering one question:
 
 > **What fraction of real turns can be resolved without invoking the LLM at all?**
 
-WP-01 then answered the one that actually gated the architecture: **can a phone-class
-model do stage-3 work?** It can — `qwen2.5:1.5b` — but two of the design's mechanisms
+The second question gated the architecture: **can a phone-class model do stage-3
+work?** It can — `qwen2.5:1.5b` — but two of the design's mechanisms
 do not survive the smaller model.
 
-**Results and their interpretation: [eval/FINDINGS.md](eval/FINDINGS.md).** Read Part II
+The committed scorecards are in [eval/scorecards/](eval/scorecards/). Read the limits below
 before relying on out-of-scope detection or on the confidence gate.
 
 ## Run it
@@ -51,7 +51,7 @@ but see the caveat under "not deterministic" below before gating on it.
 - Ollama serving on `127.0.0.1:11434`
 - `ollama pull nomic-embed-text` for `--embedder=ollama` (the `hashing` backend needs
   nothing and works offline)
-- A chat model for stage 3. **`qwen2.5:1.5b` is the selected one** (WP-01);
+- A chat model for stage 3. **`qwen2.5:1.5b` is the selected one**;
   `llama3.1:8b` remains as the historical baseline.
 - **Warm the model with one throwaway call before any timed run.** A cold load shows
   up as a 22-second stage-3 outlier and will quietly ruin a latency comparison.
@@ -62,14 +62,14 @@ but see the caveat under "not deterministic" below before gating on it.
 |---|---|
 | `src/types.ts` | The type vocabulary. Where Rules 4, 5 and 11 stop being conventions. |
 | `src/text.ts` | Normalisation, stemming, feature extraction. Sentence punctuation is stripped except inside numbers (2026-09-11). **A change here moves every vector**: recalibrate, and rebuild every shipped index |
-| `src/embedder.ts` | Two encoders: `hashing` (zero-dep TF-IDF) and `ollama`. One fitted encoder per registry, never shared ([L10](../../.claude/docs/lessons.md)) |
+| `src/embedder.ts` | Two encoders: `hashing` (zero-dep TF-IDF) and `ollama`. One fitted encoder per registry, never shared — a re-fitted encoder silently changes every score |
 | `src/action.ts` | ADR-015's action-verb signal: does the turn ask the assistant to *do* something? |
 | `src/slots.ts` | Deterministic date / money / enum resolution |
 | `src/stages.ts` | Stage 1 (trigger match), 2 (embedding), 3 (constrained LLM) |
 | `src/cascade.ts` | Orchestration, policy enforcement, trace construction |
 | `src/config.ts` | Calibrated thresholds. Read the comments before editing |
 | `src/registry.ts` | Loads a registry from disk and fits the encoder (Node only) |
-| `src/registry-browser.ts` | Builds a registry from a shipped index, with no file read and no fit. Exported as `@nextgen/core-intent/browser` (WP-24) |
+| `src/registry-browser.ts` | Builds a registry from a shipped index, with no file read and no fit. Exported as `@nextgen/core-intent/browser` |
 | `src/*.test.ts` | Unit tests: slots, stages, cascade, action, text, registry-browser |
 | *(no registry here)* | This package holds no application. The root `router:*` scripts pass the frozen fixture, `eval/fixture-registry.json`; whole-application registries are generated into `eval/frameworks/<app>/generated`. Every eval script takes `--registry=` |
 | `eval/golden-set.jsonl` | The frozen fixture registry's golden set, across 7 buckets with expected outcomes. Whole-application sets live in `eval/frameworks/<app>/` |
@@ -102,7 +102,7 @@ make the ADR-004 "refuse" path look like dead code and delete the check.
 only after a registry lookup; unknown ids become `hallucinatedId` and never a route.
 
 The model's confidence is called `selfReportedConfidence` everywhere, because that is
-what it is. See Finding 8 for why the name matters.
+what it is: at 1B it is close to a constant, which is why the name matters.
 
 ## Two backends, deliberately
 
@@ -133,15 +133,15 @@ capability into the choice set.
 
 **The gates are not deterministic.** Two identical 8B runs at `temperature: 0` flipped
 7 of 200 entries. Only `--embedder=hashing --no-stage3` reproduces exactly. Gate CI on
-tolerances, not on scorecard equality (Finding 10).
+tolerances, not on scorecard equality (ADR-011).
 
 ## What this harness does NOT cover
 
 - **On-device inference.** Desktop numbers only. `qwen2.5:1.5b` at 151ms p95 leaves
-  real headroom, but the mid-range Android case is still unmeasured — WP-10 gates it.
+  real headroom, but the mid-range Android case is still unmeasured.
 - **Out-of-scope input.** Not a gap in the harness, a gap in the *design*: stage 2
   cannot detect it with either encoder and stage 3 cannot at 1B. There is currently no
-  working mechanism. See Finding 7; WP-03 owes the replacement.
+  working mechanism; ADR-009 and ADR-015 are the replacement.
 - **Injection via stored data.** Adversarial entries arrive as utterances. The
   realistic vector is a transaction memo entering a prompt as data, which needs the
   fencing described in [security.md](../../.claude/docs/security.md).
@@ -150,7 +150,7 @@ tolerances, not on scorecard equality (Finding 10).
   lower bound, not an estimate.
 - **Money sign and currency conflicts.** `resolveMoney` silently drops a leading minus
   and silently picks the first of two named currencies. Both are pinned by tests and
-  flagged `DECISION OWED` — they are domain questions for WP-04 / WP-07, not router
+  flagged `DECISION OWED` — they are domain questions for whichever capability first carries an amount, not router
   questions.
 
 ## Adding to the golden set

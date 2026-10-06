@@ -5,9 +5,9 @@ import { validateRegistry } from './validate.ts';
 import type { GuidedStep } from './types.ts';
 
 /**
- * WP-27 — what the validator requires of guided steps.
+ * What the validator requires of guided steps.
  *
- * Two properties, both from D-3: a step's text is what a user gets when its
+ * Two properties: a step's text is what a user gets when its
  * anchor cannot be found, so it is mandatory; and an anchor that is only a CSS
  * selector is option (a) on its own, which breaks silently on a redesign.
  */
@@ -43,7 +43,7 @@ describe('validateRegistry — guided steps', () => {
     expect(rules([{ text: '  ', anchor: { label: 'Email address' } }])).toContain('step-text-required');
   });
 
-  it('warns on a selector-only anchor, D-3 option (a) on its own', () => {
+  it('warns on a selector-only anchor', () => {
     expect(rules([{ text: 'Fill it in.', anchor: { selector: '#notify-email' } }])).toContain('step-anchor-selector-only');
   });
 

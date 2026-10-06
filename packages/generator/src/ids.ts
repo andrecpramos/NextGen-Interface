@@ -6,8 +6,8 @@ import type { DiscoveredRoute } from './types.ts';
  * Capability id synthesis.
  *
  * `core-capability`'s `id-format` rule requires a dotted id of at least two
- * segments. The WP-30 spike fell back to a lowercased component name whenever
- * no i18n label was found, which produced `settingspage`, `matchhubpage` and 21
+ * segments. The first spike fell back to a lowercased component name whenever
+ * no i18n label was found, which produced `settingspage`, `gradebookpage` and 21
  * other ids that no registry would accept — 17.6% of its output.
  *
  * So there is no fallback here. An id is **always** `<feature>.<name>`, built

@@ -32,9 +32,9 @@ describe('FakeLlmRuntime — deterministic, no network', () => {
   });
 
   it('gives the same answer every time', async () => {
-    // The reason these exist. Finding 10 measured 7 of 200 entries flipping
-    // between two identical 8B runs at temperature 0 — a suite built on that
-    // flakes, and a flaky test on a financial path gets deleted, not fixed.
+    // The reason these exist: 7 of 200 entries flipped between two identical
+    // 8B runs at temperature 0. A suite built on that flakes, and a flaky test
+    // gets deleted, not fixed.
     const rt = new FakeLlmRuntime({ fallback: { capabilityId: 'x', confidence: 0.5 } });
     const runs = await Promise.all([1, 2, 3, 4, 5].map(() => rt.complete(request('anything'))));
     for (const r of runs) expect(r.value).toEqual({ capabilityId: 'x', confidence: 0.5 });
@@ -49,8 +49,8 @@ describe('FakeLlmRuntime — deterministic, no network', () => {
   });
 
   it('simulates a constrained-decoding parse failure', async () => {
-    // Finding 6: 1 in ~140 calls on llama3.1:8b. Rare, not impossible, and the
-    // consequence of assuming zero is a crash on a financial write path.
+    // Measured: 1 in ~140 calls on llama3.1:8b. Rare, not impossible, and the
+    // consequence of assuming zero is a crash.
     const rt = new FakeLlmRuntime({ parseFailsEvery: 2, fallback: { capabilityId: 'x', confidence: 1 } });
     expect((await rt.complete(request('a'))).parseFailed).toBe(false);
     expect((await rt.complete(request('b'))).parseFailed).toBe(true);
@@ -90,7 +90,7 @@ describe('platform runtimes are declared, not faked', () => {
     // a platform where inference has never run. That discovery belongs in
     // development, not in a store review.
     expect(() => new LlamaRnRuntime()).toThrow(NotImplementedRuntimeError);
-    expect(() => new LlamaRnRuntime()).toThrow(/WP-10/);
+    expect(() => new LlamaRnRuntime()).toThrow(/physical device/);
   });
 
   it('refuses to construct the WebGPU runtime', () => {

@@ -32,8 +32,8 @@ layer that denies anything.
 `adversarial-live` needs a model server, and `kit-sync` needs `sdlc-kit/`, which lives outside
 this repository. Run both through `/gates` before a change to a prompt, a threshold or a
 hook. **Human checks**, before a claim is made rather than before a merge: the screen-reader
-pass ([NVDA-CHECKLIST.md](../../eval/a11y/NVDA-CHECKLIST.md)) and the owner's acceptance run
-([ACCEPTANCE-RUN.md](../../.MDFiles/ACCEPTANCE-RUN.md)).
+pass ([NVDA-CHECKLIST.md](../../eval/a11y/NVDA-CHECKLIST.md)), and an acceptance run on a
+real application by someone who did not build the tool.
 
 ## When the router regresses
 

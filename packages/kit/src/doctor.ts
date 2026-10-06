@@ -40,8 +40,7 @@ import { describeSweep, sweepingTools } from './tooling.ts';
  * `nextgen doctor`: what the kit read, what it could not, and what to do.
  *
  * Written for the person who runs the kit on their own app without having built
- * it. That is the owner's run in the pilot app (WP-35), and it is the product's
- * promise to every adopter. So every line says what happened in plain words, and
+ * it. That is the product's promise to every adopter. So every line says what happened in plain words, and
  * every problem says what to change. A report that lists a skip reason code
  * without saying what it means has failed at its only job.
  *
@@ -128,8 +127,7 @@ export function adapterVersion(dir: string = dirname(fileURLToPath(import.meta.u
 
 /**
  * Where a signed-in user probably lands: the assistant opens by itself there. In most authenticated
- * apps "/" is a public page outside the shell the assistant lives in, so the default never fires (Pilot-A
- * field report, 2026-09-23, P1-3). A guess from route names alone, and printed as one.
+ * apps "/" is a public page outside the shell the assistant lives in, so the default never fires. A guess from route names alone, and printed as one.
  */
 export function landingCandidate(kit: string): string | null {
   const master = readJson<{ capabilities?: { kind?: string; route?: string | null }[] }>(join(kit, REVIEW_DIR, 'master.json'));
@@ -236,7 +234,7 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   }
 
   // 3b. What kind of assistant this is — said plainly, because owners who imagine a generative AI are
-  // disappointed by the first templated answer (Pilot-A field report, 2026-09-23, P1-4).
+  // disappointed by the first templated answer.
   say('How it answers');
   say(
     record.stage3
@@ -251,7 +249,7 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   if (record.calibrated) {
     say(`  Calibrated for this app (${record.thresholdsSource}).`);
   } else {
-    // Measured, not assumed: an experiment script deleted with the pilot's evidence, ADR-018. An earlier
+    // Measured, not assumed. An earlier
     // version of this text said an uncalibrated build "will work, but ask more
     // clarifying questions". On a 145-screen app that was false.
     say('  NOT calibrated for this app. It uses default settings tuned on a different, 7-screen app.');
@@ -290,7 +288,7 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   }
   say();
 
-  // 5. Stage 3 (WP-52, ADR-017). Off is the state doctor should say the LEAST about — a
+  // 5. Stage 3 (ADR-017). Off is the state doctor should say the LEAST about — a
   // silent line here would read as "nothing to report" for the common case, so this only
   // prints when it is ON, and says exactly what that means for a visitor.
   if (record.stage3) {
@@ -422,7 +420,7 @@ export function doctor(kitDir: string, adapterDir?: string): DoctorReport {
   );
 
   // A `.gitignore` that ignores AGENTS.md everywhere (a Codex convention) silently keeps this tool's own
-  // instructions out of the repository it was copied into (Pilot-A field report, 2026-09-23, P3-3).
+  // instructions out of the repository it was copied into.
   const agentsIgnored = projectDir ? ignoresAgentsMd(projectDir) : false;
   const ignoredWarning = agentsIgnored
     ? ['Your .gitignore ignores AGENTS.md, so this tool\'s instructions (AGENTS.md beside scan.mjs) will not be committed with it. Add an exception for it, e.g. "!tools/nextgen-tool/AGENTS.md", with the path you copied the tool to.']

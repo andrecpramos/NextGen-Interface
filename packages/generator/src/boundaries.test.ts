@@ -40,7 +40,7 @@ describe('synthesiseBoundaries — the catalogue', () => {
     }
   });
 
-  // Pilot-A field report, 2026-09-23 (P3-1): a Portuguese app refused its visitors in English.
+  // A Portuguese app once refused its visitors in English.
   it('speaks the application’s primary language where the catalogue has it, and English otherwise', () => {
     const routes = [route('/finance/invoices', 'finance')];
     const pt = synthesiseBoundaries(routes, 'pt-PT');

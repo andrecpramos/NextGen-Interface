@@ -537,12 +537,12 @@ The handle it resolves to is the whole API:
 with an empty `catch`: log it in development at least. One integration's `.catch(() => {})`
 turned a 404 into an hour of "there is no orb".
 
-**A user with several roles** (a coach who is also a parent): pass them all —
-`start(base, ['COACH', 'PARENT'])`, or `data-nextgen-role="COACH PARENT"` — and serve each of
+**A user with several roles** (a teacher who is also a parent): pass them all —
+`start(base, ['TEACHER', 'PARENT'])`, or `data-nextgen-role="TEACHER PARENT"` — and serve each of
 their roles' `registry.<ROLE>.json`. The widget merges them and computes the index for the merged
 registry itself. Do **not** merge them on the server by concatenating registries and indexes:
 each role's index is its own vector space, and a concatenated one routes confidently to the wrong
-screens. A phrase two roles' screens both claim ("nutrição") names neither; the assistant asks.
+screens. A phrase two roles' screens both claim ("avaliações") names neither; the assistant asks.
 
 **Types.** `runtime/nextgen.d.ts` types `window.NextGen`, the options above, the handle, and the
 `nextgen:error`, `nextgen:learn`, `nextgen:turn`, `nextgen:navigate` and `nextgen:attach` events. Copy it beside the

@@ -56,13 +56,12 @@ mkdirSync(out, { recursive: true });
 // 3. The folder.
 cpSync(join(ROOT, 'adapter'), join(out, 'adapter'), { recursive: true });
 cpSync(join(ROOT, 'LICENSE'), join(out, 'LICENSE'));
-const gettingStarted = readFileSync(join(ROOT, '.MDFiles', 'GETTING-STARTED.md'), 'utf8')
-  // In the repository it lives in .MDFiles/; here it sits beside adapter/ and LICENSE.
+const gettingStarted = readFileSync(join(ROOT, 'docs', 'GETTING-STARTED.md'), 'utf8')
+  // In the repository it lives in docs/; here it sits beside adapter/ and LICENSE.
   .replaceAll('](../adapter/', '](adapter/')
   .replaceAll('](../LICENSE)', '](LICENSE)')
   .replace('Copy [`adapter/`](adapter/) from this repository into your project.', 'Copy [`adapter/`](adapter/) from this folder into your project.')
   .replace('- Access to this repository, to copy one folder out of it.', '- This folder.')
-  .replace('cp -r path/to/AI-Interface/adapter  your-app/nextgen-tool', 'cp -r path/to/NextGen-Interface/adapter  your-app/nextgen-tool')
   .replace('copy `adapter/` from the commit you\n  want in its place', 'copy `adapter/` from the newer folder you\n  were given in its place');
 writeFileSync(join(out, 'GETTING-STARTED.md'), gettingStarted);
 
@@ -109,8 +108,8 @@ function readme(version) {
 takes them to the right screen and tells them what they will find there — or offers the two likeliest
 places, each with what it is for.
 
-> *"My son got hurt at training"* → **Medical status** — *"Where a guardian sees whether a child is fit to
-> play, and how an injury is healing."*
+> *"How is my daughter doing in maths?"* → **Grades** — *"Where a parent sees each child's marks and
+> attendance, subject by subject."*
 
 - It reads your app's routes, roles and translations. **It never changes your files**; everything it writes
   goes into one folder of its own.

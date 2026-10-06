@@ -41,7 +41,7 @@ a fresh session, a resumed one, `/clear`, and both manual and automatic compacti
 
 The hook injects **live state**, not a static reminder — current branch, position
 relative to `develop`, and the count of uncommitted files. An agent told *"you are
-on `wp-01-1b-validation`, 3 ahead and 2 behind develop, 5 files uncommitted"* asks a
+on `feature/router-floor`, 3 ahead and 2 behind develop, 5 files uncommitted"* asks a
 useful question. One told *"consider branching"* does not.
 
 Its message is situational, and each branch class gets a different one: a refusal
@@ -111,13 +111,11 @@ compaction boundary until a branch named for one work package contains three. Th
 compaction boundary is the natural place to ask, because it is exactly where the
 agent loses the context that would have reminded it.
 
-**This repository is worked on concurrently.** While WP-12 (CI/CD) was being
-implemented on `wp-01-1b-validation`, another session was actively writing WP-08
-(`packages/ui`) and WP-09 (`apps/web`) — both since deleted — **into the same working tree** — nine new
-component files, a modified `packages/ui/package.json`, and a `pnpm install` that
-rewrote `pnpm-lock.yaml` mid-run, all within a four-minute window.
+**This repository may be worked on concurrently.** Two agent sessions in one
+checkout can write into the same working tree at once — new files, a modified
+manifest, a `pnpm install` rewriting `pnpm-lock.yaml` mid-run — within minutes.
 
-Nothing was lost, because the CI work committed named paths rather than `git add
+Nothing is lost as long as each session commits named paths rather than `git add
 -A`. That is the discipline the hook is there to make automatic:
 
 - **Never `git add -A` or `git commit -a` in this repo.** Stage explicit paths.

@@ -2,10 +2,9 @@
  * Runtime interfaces.
  *
  * This package exists because of a risk, not because of an abstraction habit.
- * [ADR-006](../../../.claude/decisions/ADR-006.md) moved the stack to TypeScript, which
- * means on-device inference goes through `llama.rn` — and nobody has yet proved
+ * On a device, inference would go through `llama.rn`, and nobody has yet proved
  * that `llama.rn` can load a quantised 1B GGUF and complete a stage-3 call on a
- * mid-range Android (WP-10 gates exactly that).
+ * mid-range Android.
  *
  * If it cannot, **only this package changes.** That is the entire justification
  * for the indirection, and it is why the interfaces below are deliberately
@@ -57,7 +56,7 @@ export interface CompletionResult<T> {
   /** `null` when the runtime was unavailable or the output would not parse. */
   readonly value: T | null;
   readonly latencyMs: number;
-  /** Constrained decoding is not an absolute guarantee — Finding 6. */
+  /** Constrained decoding is not an absolute guarantee: about 1 in 140 calls on llama3.1:8b came back unparseable. */
   readonly parseFailed: boolean;
   /** Set when the runtime could not be reached at all. Degrade, do not throw. */
   readonly unavailable?: string;

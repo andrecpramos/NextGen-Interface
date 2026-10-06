@@ -1,5 +1,5 @@
 /**
- * The registry generator (WP-25).
+ * The registry generator.
  *
  * Point it at an application's source; it emits one capability registry per
  * role, a master inventory with the role annotations kept for review, and a

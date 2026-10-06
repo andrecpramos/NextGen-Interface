@@ -135,7 +135,7 @@ async function main() {
   console.log(`  stage 3    ${args.stage3 ? args.model : 'DISABLED'}`);
   console.log(`  thresholds tauHigh=${THRESHOLDS.tauHigh} delta=${THRESHOLDS.delta} tauAct=${THRESHOLDS.tauAct} tauFloor=${THRESHOLDS.tauFloor}\n`);
 
-  // WP-06: the router no longer knows what Ollama is. It takes a runtime.
+  // The router does not know what Ollama is. It takes a runtime.
   const runtime = args.stage3 ? new OllamaLlmRuntime({ model: args.model }) : undefined;
 
   const embedder = makeEmbedder(args.embedder);
@@ -182,7 +182,7 @@ async function main() {
 
   // Per-bucket top-1 and stage-3 cost. The bucket PASS rate above conflates a
   // wrong capability with a right capability resolved one stage too late — the
-  // exact distinction that matters when comparing two stage-3 models (WP-01),
+  // exact distinction that matters when comparing two stage-3 models,
   // because a smaller model degrades those two in different ways.
   for (const r of results) {
     const b = buckets[r.entry.bucket];
@@ -196,7 +196,7 @@ async function main() {
   const llmInvoked = results.filter((r) => r.trace.latency?.stage3 !== undefined).length;
   const modelFreeRate = 1 - llmInvoked / results.length;
 
-  // Stage-3 health. Finding 6 measured a 0.7% parse-failure rate on llama3.1:8b
+  // Stage-3 health. A 0.7% parse-failure rate was measured on llama3.1:8b
   // despite constrained decoding. A smaller model is the case where that rate,
   // and hallucinated ids, are most likely to move — so count them, per model.
   const noted = (r, needle) => (r.trace.notes || []).some((n) => n.includes(needle));

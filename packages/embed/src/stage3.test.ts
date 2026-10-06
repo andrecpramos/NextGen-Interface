@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SameOriginLlmRuntime } from './stage3.ts';
 
 /**
- * WP-52 (ADR-017). The one property that matters more than any other here: **this
+ * ADR-017. The one property that matters more than any other here: **this
  * transport POSTs to no origin other than the page's.** Every test that fetches proves it
  * either fetched the resolved same-origin URL, or never called fetch at all.
  */

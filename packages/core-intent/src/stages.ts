@@ -6,7 +6,7 @@ import { toSparse, type SparseVector } from './sparse.ts';
 import { exampleText } from '@nextgen/core-capability';
 import { THRESHOLDS, type Thresholds } from './config.ts';
 // The subpath, not the package root: the root re-exports the model store, which imports
-// node:crypto/fs/path, and stages.ts is in the browser bundle (lessons.md L11).
+// node:crypto/fs/path, and stages.ts is in the browser bundle.
 import { redactTag } from '@nextgen/core-inference/untrusted';
 import type { RegistryContext } from '@nextgen/core-capability';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
@@ -49,11 +49,11 @@ export function stage1(utterance: string, registry: Registry): Stage1Hit | null 
   // actually said. "how much did I spend on transport" must not match the bare
   // trigger "transport" and skip the semantics entirely.
   //
-  // Coverage is measured over CONTENT words, not characters (WP-38 lever 1).
+  // Coverage is measured over CONTENT words, not characters.
   // The character rule counted the question's wrapper against the trigger, so a
   // correct trigger sitting inside a normal question could not clear the bar:
-  // *"Para que serve a 'Composição corporal'?"* scored 0.53 with exactly the
-  // right trigger. Measured over the pilot app golden set, 102 entries had a
+  // *"Para que serve o 'Horário escolar'?"* scored 0.53 with exactly the
+  // right trigger. Measured over a real app's golden set, 102 entries had a
   // trigger on the correct capability, 2 cleared 0.6, and 100 sat below it.
   //
   // The bar itself is unchanged at 0.6, and the rule it enforces is unchanged:
@@ -279,8 +279,8 @@ export interface Stage3Result {
   readonly capabilityId: string | null;
   /**
    * The model's own claim about how sure it is. Not calibrated, and at 1B not
-   * even informative (FINDINGS Finding 8) — no longer gates anything as of
-   * WP-17; see REQUIRES_STAGE2_AGREEMENT in config.ts. Kept in the trace for
+   * even informative — gates nothing; see REQUIRES_STAGE2_AGREEMENT in
+   * config.ts. Kept in the trace for
    * `why` and for debugging, not as a safety signal.
    */
   readonly selfReportedConfidence: number;
@@ -291,7 +291,7 @@ export interface Stage3Result {
   readonly parseFailed?: boolean;
   readonly hallucinatedId?: string;
   /**
-   * The model's free-text answer (ADR-019, WP-53), exactly as it wrote it — trimmed, not
+   * The model's free-text answer (ADR-019), exactly as it wrote it — trimmed, not
    * validated. `undefined` when it left `prose` empty, which is a correct answer, not a
    * missing one: nothing here means the destination or the declared explanation was
    * already the whole answer. The caller (`cascade.ts`) is what runs `validateClaims`;
@@ -304,7 +304,7 @@ export interface Stage3Result {
 interface Stage3Options {
   /**
    * The runtime to ask. Required — stage 3 no longer knows what Ollama is, which
-   * is the point of WP-06: swapping in llama.rn on a phone touches nothing here.
+   * is the point: swapping in another runtime touches nothing here.
    */
   readonly runtime: LlmRuntime;
   readonly model?: string | undefined;
@@ -326,11 +326,10 @@ interface Stage3Options {
  *      latency and stops stage 3 from *introducing* a destructive capability
  *      that stage 2's own ranking did not already surface.
  *      ⚠️ It does NOT stop injected text from getting a destructive capability
- *      ranked into that top-k in the first place — `gs-0174` (WP-17,
- *      2026-09-09) is stage 2 itself ranking `module.delete` first for text
+ *      ranked into that top-k in the first place — `gs-0174` is stage 2 itself ranking `module.delete` first for text
  *      carrying a hidden delete instruction. That gap is open; see
- *      FINDINGS.md and REQUIRES_STAGE2_AGREEMENT in config.ts for what does
- *      and does not defend against it.
+ *      REQUIRES_STAGE2_AGREEMENT in config.ts for what does and does not
+ *      defend against it.
  *   2. Output is schema-constrained. Ollama's `format` is the equivalent of
  *      llama.cpp's GBNF grammar — it makes the JSON almost always parseable. It
  *      does NOT make it correct, which is what REQUIRES_STAGE2_AGREEMENT is
@@ -409,7 +408,7 @@ export async function stage3(
       route: cap.route,
       title: cap.title,
       description: cap.description,
-      // `explanation` is the registry's own declared answer to "what is this" (WP-36).
+      // `explanation` is the registry's own declared answer to "what is this".
       // Handing it to the model as context, not as a template, is what part 1 of
       // ADR-019 asks for: something to draw ON, not something to just echo back.
       ...(cap.explanation ? { explanation: cap.explanation } : {}),
@@ -432,14 +431,14 @@ export async function stage3(
   // this call on lexical evidence — "more" and "what time is it" score alike —
   // so domain membership is decided here, where it is a semantic judgement.
   //
-  // WP-01 caveat: that only works if the model will actually pick it. gemma3:1b
-  // never does, across 140 calls (FINDINGS Finding 7). The mechanism below is
+  // Caveat: that only works if the model will actually pick it. gemma3:1b
+  // never does, across 140 calls. The mechanism below is
   // correct and insufficient; do not assume out-of-scope input is caught here.
   // rule2-ok: `confidence` is the only number the model is asked for anywhere in
   // this codebase, and it is never shown to a user. It is routing telemetry —
   // read by the dispatcher's threshold gate and recorded in the trace, which is
   // exactly why it is named `selfReportedConfidence` at every point it is
-  // handled. FINDINGS Finding 8 measured it near-constant at 1B, so it is not
+  // handled. It was measured near-constant at 1B, so it is not
   // even trustworthy as telemetry; displaying it would be worse than useless.
   const schema: JsonSchema = {
     type: 'object',
@@ -447,7 +446,7 @@ export async function stage3(
       capabilityId: { type: 'string', enum: [...menu.map((m) => m.id), OUT_OF_SCOPE_ID] },
       confidence: { type: 'number' },
       ...(withParams ? { params: { type: 'object' } } : {}),
-      // ADR-019, WP-53. `prose` is the model's second job: a short written answer, in
+      // ADR-019. `prose` is the model's second job: a short written answer, in
       // the visitor's OWN words, drawing on the capabilities above rather than quoting
       // one back. Optional and not in `required` — silence is a correct answer when the
       // menu already says everything (a plain "go to X" turn needs no elaboration).
@@ -463,9 +462,9 @@ export async function stage3(
 
   const known = knowledgeBlock(registry.context);
 
-  // WP-16 (Rule 1, D-2): the application description comes from the registry,
-  // never from a string written into core-intent. core-intent knows no subject
-  // matter — that is the product boundary (PLAN.md §1.5) — so the ONLY thing
+  // Rule 1: the application description comes from the registry, never from
+  // a string written into core-intent. core-intent knows no subject matter —
+  // that is the product boundary — so the ONLY thing
   // distinguishing one adopter's prompt from another's must be data threaded
   // through `Registry`, not a branch or a constant in this file.
   const system = [

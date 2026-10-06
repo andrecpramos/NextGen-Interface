@@ -27,7 +27,7 @@ Copy [`adapter/`](../adapter/) from this repository into your project. Any place
 page calls it `nextgen-tool/`.
 
 ```bash
-cp -r path/to/AI-Interface/adapter  your-app/nextgen-tool
+cp -r path/to/NextGen-Interface/adapter  your-app/nextgen-tool
 ```
 
 It is about 4 MB and it is a tool, not application code. **Commit it**, so your CI and your
@@ -85,7 +85,7 @@ Ready-made handlers for Express and Next.js are under "Serving it" in
 **b. Add one line to your page.** Your server writes in the signed-in user's role:
 
 ```html
-<script src="/nextgen/nextgen.js" data-nextgen-role="COACH" defer></script>
+<script src="/nextgen/nextgen.js" data-nextgen-role="MANAGER" defer></script>
 ```
 
 It uses no inline script or style, so it works under a strict Content-Security-Policy.

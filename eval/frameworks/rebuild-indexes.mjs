@@ -8,7 +8,7 @@
 // only what the generator already wrote.
 //
 //   node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs           # rewrite them
-//   node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs --check   # WP-46: are they current?
+//   node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs --check   # are they current?
 //
 // `--check` rebuilds into a temporary folder and compares the result with what is
 // shipped, ignoring `generatedAt`. It uses the same `writeIndexes` the generator
@@ -32,7 +32,7 @@ for (const name of readdirSync(GEN).sort()) {
 }
 
 if (!CHECK) {
-  // writeIndexes fits a fresh encoder per registry (lessons.md L10).
+  // writeIndexes fits a fresh encoder per registry.
   const written = await writeIndexes(GEN, registries, 'hashing');
   console.log(`rebuilt ${written.length} index file(s): ${written.join(', ')}`);
 } else {

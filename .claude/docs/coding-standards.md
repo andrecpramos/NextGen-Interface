@@ -1,9 +1,7 @@
 # Coding Standards
 
-**Stack:** TypeScript, pnpm workspaces, Node 23.6+, vitest, Next.js for the web
-surface. [ADR-006](../decisions/ADR-006.md) superseded the original Flutter choice
-and [ADR-007](../decisions/ADR-007.md) superseded Drift; if you find Dart or
-Riverpod described anywhere as current, it is drift — report it.
+**Stack:** TypeScript, pnpm workspaces, Node 23.6+, vitest, and esbuild for the widget
+bundle.
 
 ## Structure
 
@@ -81,16 +79,13 @@ export type Result<T> =
 - No `any` outside JSON-boundary code, and no non-null assertion unless the
   invariant is documented on the line above.
 - Money is signed **integer minor units plus a currency code**. Never a float.
-  Not in an entity, not in a DTO, not in a test fixture ([ADR-010](../decisions/ADR-010.md)).
+  Not in an entity, not in a DTO, not in a test fixture (Rule 6).
 - All timestamps stored UTC; converted at the presentation edge only.
 
 > **No linter is configured.** There is no root lint script and no package defines
 > one. Typecheck and tests are the only automated style gates today. Do not claim a
 > lint rule enforces something; none does.
->
-> *(The empty `tooling/eslint-config` stub that used to stand in for this was deleted
-> in WP-37 — the absence of lint is deliberate and documented; an empty package
-> pretending otherwise was not.)*
+
 
 ## Capability entries
 
@@ -130,7 +125,7 @@ for the person.
 `explanation` to the completion that already produced `description` and `examples`
 cost **7 points of top-1 accuracy** on a real registry — the explanation was fine
 and the other two fields got worse. Output fields compete for attention exactly
-like stacked instructions do (§6 of PLAN.md, and WP-14 before it).
+like stacked instructions do.
 
 The committed registries under `eval/frameworks/<app>/generated/` are derived from the
 generator. **Regenerate them in the same commit as the change that alters them** — CI fails
@@ -152,8 +147,7 @@ Non-negotiable, because these are the failure modes that actually bite:
    or do not call the model. A grammar guarantees *valid*, not *correct* —
    confidence gating and clarify handle the semantic errors.
 2. **Never let the model compute a number the user sees.** It phrases;
-   TypeScript computes, from the store. This has already caught a real bug —
-   PLAN.md section 6.
+   TypeScript computes. This has already caught a real bug.
 3. **Never let the model emit SQL, a route string, or a capability id that is not
    validated against the registry** before use. An unknown id becomes a clarify,
    never a best-effort guess.

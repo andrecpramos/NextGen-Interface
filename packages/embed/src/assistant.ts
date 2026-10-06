@@ -11,7 +11,7 @@
 //
 // When a turn resolves to a destination the browser moves at once — never after the answer has
 // been read aloud — and the panel stays open beside the new page. When the registry declares steps
-// for that screen (WP-27), the panel gives way to a guide that walks the visitor through it,
+// for that screen, the panel gives way to a guide that walks the visitor through it,
 // highlighting each field.
 //
 // When the app already has an assistant of its own — a model-backed chat, a guided tour — it is

@@ -8,7 +8,7 @@ import { readPage } from './pages.ts';
 import type { FieldRule, FormField } from './types.ts';
 
 /**
- * WP-54 — ADR-020's **read** tier: constraints an application writes down,
+ * ADR-020's **read** tier: constraints an application writes down,
  * read from a real control's own attributes or from a validation schema bound
  * through react-hook-form's `resolver`.
  *
@@ -200,7 +200,7 @@ describe('schemaFieldRules — yup, bound through react-hook-form', () => {
   });
 });
 
-describe('schemaFieldRules — the documented scope limit (PLAN.md §7.8 WP-54 stop-if)', () => {
+describe('schemaFieldRules — the documented scope limit', () => {
   it('reads nothing through a namespace this module does not recognise', () => {
     const file = tmp(
       'Wrapped.tsx',

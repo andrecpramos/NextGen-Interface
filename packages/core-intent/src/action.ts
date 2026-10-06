@@ -5,18 +5,18 @@
  * ADR-009. The declared-boundary mechanism is sound; its only input was topic
  * similarity, and **what makes "book my son a hospital appointment" out-of-scope
  * is its verb, not its subject.** A medical page and a request to book a medical
- * appointment are about the same thing, so cosine ranks them together — WP-39
- * built section-scoped boundaries to fix that, raised the boundary's score, and
- * moved detection by exactly nothing.
+ * appointment are about the same thing, so cosine ranks them together. Section-scoped
+ * boundaries were built to fix that; they raised the boundary's score and moved
+ * detection by exactly nothing.
  *
- * WP-38 then produced the strongest evidence for this ADR from the other
+ * Improving retrieval then produced the strongest evidence for this ADR from the other
  * direction: improving *topical* retrieval made refusal measurably **worse**
  * (out-of-scope 32.4% → 26.5%), because ranking real capabilities higher offers
  * the model more plausible wrong answers. Topic is not the signal.
  *
  * ## Measured before it was proposed
  *
- * an experiment script deleted with the pilot's evidence, ADR-018, `nomic-embed-text`, held-out split:
+ * On a real application's golden set, `nomic-embed-text`, held-out split:
  *
  * | | flagged as an action request |
  * |---|---|
@@ -43,8 +43,8 @@
  *
  * ## The honest limitation
  *
- * The verb lists are Portuguese and English, because that is what the pilot
- * application ships. **This is per-adopter vocabulary in engine code**, which is
+ * The verb lists are Portuguese and English, the two languages the tool
+ * supports. **This is per-adopter vocabulary in engine code**, which is
  * the wrong home for it long-term — a Spanish adopter gets no signal at all and
  * silently falls back to the topic-only behaviour, which is the pre-ADR-015
  * state rather than a failure. ADR-015 records this as accepted for now and owed
@@ -61,8 +61,8 @@
  * Grouped by **concept**, not by language — and that grouping is load-bearing
  * rather than tidiness.
  *
- * WP-40 measured why. The guard below asks whether the application itself does
- * the thing being requested, and the pilot app documents itself in Portuguese while
+ * Measured, not assumed. The guard below asks whether the application itself does
+ * the thing being requested, and an app may document itself in Portuguese while
  * its users ask in both languages. The registry says *"pode **eliminar** uma
  * tarefa"*; the question says *"I want to **delete** a task"*. With two flat
  * per-language lists those never meet, so the guard could not see that the app
@@ -112,12 +112,10 @@ const HOW_TO_FRAME = new RegExp(
 /**
  * Is the user asking what something *is*, rather than to be taken to it?
  *
- * WP-36's deferred half. Explanations have been declared, generated and served
- * verbatim since 2026-09-10; what was missing was knowing that a turn *asked*
- * for one. PLAN.md deferred it deliberately rather than building a second frame
- * detector alongside ADR-015's — *"when ADR-015 is accepted, this reuses its
- * frame layer"* — so it lives here, next to `HOW_TO_FRAME`, sharing the same
- * shape and the same discipline.
+ * Explanations are declared, generated and served verbatim; this knows that a
+ * turn *asked* for one. Rather than a second frame detector alongside ADR-015's,
+ * it reuses that frame layer, so it lives here, next to `HOW_TO_FRAME`, sharing
+ * the same shape and the same discipline.
  *
  * **This changes no routing decision.** The capability still resolves, the route
  * still resolves, and Rule 7 still holds — every screen the assistant can reach
@@ -139,7 +137,7 @@ const EXPLANATION_FRAME = new RegExp(
     // The trailing boundary is a lookahead, NOT `\b`. JavaScript's `\b` is
     // ASCII-only, so there is no boundary between the "é" of "o que é" and the
     // space after it, and this alternative silently never matched — which is
-    // exactly the bug WP-36's own `stripGreeting` shipped with ("Olá!"), caught
+    // exactly the bug an earlier `stripGreeting` shipped with ("Olá!"), caught
     // then and re-made here. Every accented alternative below needs the same
     // care.
     '\\bo que\\s+(e|é|sao|são|faz|fazem|significa)(?=\\s|$|[?!.,])',
@@ -173,8 +171,8 @@ export function isExplanationRequest(utterance: string): boolean {
  * Word-boundary match on a closed list, minus the instructional frame.
  * Model-free by construction, which is the whole point: ADR-009 exists because a
  * safety property that depends on a model call is not a safety property on a
- * small model, and FINDINGS Finding 7 measured a 1B model emitting the
- * out-of-scope sentinel zero times in 140 calls.
+ * small model: a 1B model was measured emitting the out-of-scope sentinel zero
+ * times in 140 calls.
  */
 export function isActionRequest(utterance: string): boolean {
   return actionConceptsIn(utterance).length > 0;
@@ -236,14 +234,14 @@ function actionConceptsIn(utterance: string): string[] {
  * request **and** something the app does. Lowering the boundary bar there would
  * make the assistant refuse its own feature.
  *
- * ## Why `kind` alone is not enough — measured, WP-40
+ * ## Why `kind` alone is not enough — measured
  *
  * The ADR framed the guard as "the top candidate is not `write`/`destructive`".
  * On a hand-written registry that works. On a **generated** one it is inert: the
  * generator emits `kind: 'navigate'` for every capability, because it derives
  * them from routes and a route has no verb. So the guard never fired, and four
  * of the five in-domain questions it should have protected were about
- * The pilot app's own *"Delete task"* screen:
+ * One real app's own *"Delete task"* screen:
  *
  * > *"I need to remove a task from the list."*
  * > *"What is the purpose of the 'Delete task?' screen?"*

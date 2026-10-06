@@ -24,14 +24,14 @@ export interface CapabilityDefinition {
   readonly title: string;
   readonly description: string;
   /**
-   * What the user is told when they ask what this is (WP-36). Served verbatim,
+   * What the user is told when they ask what this is. Served verbatim,
    * never generated per turn. Required — a capability without one is a question
    * the assistant would have to escalate or invent an answer to.
    */
   readonly explanation: string;
   /** Where that text came from, so a wrong answer can be traced and fixed. */
   readonly explanationSource?: string;
-  /** Guided steps for the page this capability lands on (WP-27). */
+  /** Guided steps for the page this capability lands on. */
   readonly steps?: readonly GuidedStep[];
   readonly triggers?: readonly string[];
   readonly params?: Readonly<Record<string, ParamSpec>>;

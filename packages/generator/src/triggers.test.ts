@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { assignTriggers } from './triggers.ts';
 
 /**
- * WP-38 lever 1.
+ * Stage-1 triggers from nav labels.
  *
  * The property under test is not "triggers get emitted" — it is that an
  * *ambiguous* one never does. Stage 1 answers with score 1.0 and no margin

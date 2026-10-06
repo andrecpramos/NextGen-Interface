@@ -1,4 +1,4 @@
-# WP-43 — Rule 17 on an app we do not own
+# Rule 17 on an app we do not own
 
 **Measured 2026-09-12** against [GROUND_TRUTH.md](GROUND_TRUTH.md), which was written from
 the app's source **before** the generator was run on it.
@@ -29,7 +29,7 @@ discovered and deliberately not turned into capabilities"*, and `doctor` finishe
 *"Built, and nothing needs fixing."* The only signal anywhere was `init`'s one line:
 **GUESSED role table: (none)**.
 
-**PLAN.md §8's kill criterion — *"any role mis-assignment by the generator, ever"* — fired
+**The pre-committed kill criterion — *"any role mis-assignment by the generator, ever"* — fired
 on the first app that could trigger it.**
 
 ### Why
@@ -41,9 +41,9 @@ The app gates routes in a **third shape**, which the generator could not read:
   <Route path='/admin/users' element={<UserManagement />} />
 ```
 
-| App | Where its roles live | Read before WP-43? |
+| App | Where its roles live | Read before this run? |
 |---|---|---|
-| `fut-app` | `roles: ROUTE_ROLES.squadManage`, resolved from a permissions module | yes |
+| the fixture app | `roles: ROUTE_ROLES.staff`, resolved from a permissions module | yes |
 | bulletproof-react | inside the page: `<Authorization allowedRoles={[ROLES.ADMIN]}>` | no — still not |
 | **Tutor-Support-System** | **on a parent route's element, inherited by its children** | **now yes** |
 
@@ -95,7 +95,7 @@ hidden.
 - **`admin/analytics` is written without a leading slash** in the source. React Router
   resolves it relative to the parent, and discovery emitted `/admin/analytics`.
 - **`/:id` is a bare parameter at the root.** It is a real route and is declared, and the
-  script tag will not navigate to it without a value (WP-41's `fillParams`).
+  script tag will not navigate to it without a value (the kit's `fillParams`).
 
 ---
 

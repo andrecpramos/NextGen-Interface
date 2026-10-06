@@ -2,10 +2,9 @@
 //
 // One interface, swappable runtimes.
 //
-// This package exists because of a risk, not an abstraction habit: nobody has
-// yet proved that llama.rn can load a quantised 1B GGUF and complete a stage-3
-// call on a mid-range Android (WP-10 gates exactly that). If it cannot, only
-// this package changes.
+// This package exists because of a risk, not an abstraction habit: where a
+// model runs (a local server, the adopter's origin, a device) will change, and
+// when it does, only this package changes.
 
 export {
   ModelIntegrityError,

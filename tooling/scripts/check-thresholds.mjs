@@ -15,7 +15,7 @@
 // that what ships is what the last sweep recommended.
 //
 // Deliberately NOT compared:
-//   topK  -- a model knob, not an encoder one (WP-01). The sweep does not emit it.
+//   topK  -- a model knob, not an encoder one. The sweep does not emit it.
 //   The `alternatives` array -- informational; `recommended` is the decision.
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -109,7 +109,7 @@ if (problems.length > 0) {
   console.error(
     '\n  Thresholds are calibrated against the whole golden set, per encoder, never' +
       '\n  hand-set and never copied between encoders. Hand-tuning has cost accuracy' +
-      '\n  three times here (FINDINGS 1 and 11). If a case is failing, differentiate' +
+      '\n  three times here. If a case is failing, differentiate' +
       '\n  the overlapping capability descriptions -- do not move the threshold.\n',
   );
   process.exit(1);

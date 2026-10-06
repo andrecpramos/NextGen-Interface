@@ -229,7 +229,7 @@ describe('resolveMoney — currency', () => {
     // The utterance is genuinely ambiguous about which currency the 50 is in,
     // and the resolver resolves it by declaration order with no signal to the
     // caller. A currency mismatch should probably force a Clarify; that is a
-    // domain decision (WP-04 / WP-07), not one for a domain-agnostic router.
+    // domain decision, not one for a domain-agnostic router.
     expect(resolveMoney('convert 50 euros to dollars')).toEqual({
       amountMinor: 5000,
       currency: 'EUR',
@@ -248,12 +248,11 @@ describe('resolveMoney — negative amounts', () => {
    * Whether that is wrong depends on a decision nobody has made. In this
    * registry the sign is carried by the category (income vs expense), not by
    * the amount, so a positive magnitude may well be correct. What is not
-   * defensible is doing it silently on a financial write path — "-50" and "50"
+   * defensible is doing it silently on a write path — "-50" and "50"
    * must not be indistinguishable to the caller.
    *
-   * Owed by WP-04 (which defines the money column) and WP-07 (which defines
-   * what a transaction amount means). Pinned here so the behaviour cannot drift
-   * before then.
+   * Owed by whichever capability first carries an amount (Rule 6). Pinned here
+   * so the behaviour cannot drift before then.
    */
   it('drops a leading minus sign', () => {
     expect(resolveMoney('-50')).toEqual({ amountMinor: 5000, currency: null });
@@ -387,7 +386,7 @@ describe('Rule 11 — deterministic params always win', () => {
   it('lets the deterministic value overwrite the model value', () => {
     // The real regression: asked for "last month" the model answered with 30
     // days back and, with the spread the wrong way round, overwrote the correct
-    // calendar month. That cost 44 points of param exactness (FINDINGS 3).
+    // calendar month. That cost 44 points of param exactness.
     const fromModel = modelParams({ from: '2026-07-29', to: '2026-08-29', note: 'model' });
     const fromCode = deterministicParams({ from: '2026-07-01', to: '2026-07-31' });
 

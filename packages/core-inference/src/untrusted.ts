@@ -21,8 +21,8 @@
  * **Behavioural, and model-dependent:** whether the model then *treats* what is
  * inside the fence as data rather than instruction. Nothing here forces that.
  *
- * The distinction is the point. FINDINGS' WP-01 verdict put it as *"a mechanism
- * that depends on the model being good is not a mechanism, it is a hope"* — so
+ * The distinction is the point: *a mechanism that depends on the model being
+ * good is not a mechanism, it is a hope* — so
  * this file is deliberate about which half is which. Fencing raises the cost of
  * an injection and makes one auditable after the fact; it is defence in depth,
  * not a proof, and `critical-infrastructure.md` should keep saying so.

@@ -9,8 +9,8 @@ import type { CompletionRequest, CompletionResult, LlmRuntime } from './types.ts
  * where inference has never actually run — and that discovery belongs in
  * development, not in a store review.
  *
- * The interface is the deliverable here. WP-06's purpose is that if `llama.rn`
- * turns out to be inadequate, only this file changes.
+ * The interface is the deliverable here: if `llama.rn` turns out to be
+ * inadequate, only this file changes.
  */
 
 export class NotImplementedRuntimeError extends Error {
@@ -26,8 +26,7 @@ export class NotImplementedRuntimeError extends Error {
 /**
  * On-device inference for iOS and Android via `llama.rn`.
  *
- * **The highest-risk unknown in the project.** WP-10 gates the mobile app on
- * proving this loads a quantised 1B GGUF and completes 10 stage-3 calls on a
+ * **Unproven.** Before it is relied on, it has to be shown that this loads a quantised 1B GGUF and completes 10 stage-3 calls on a
  * physical mid-range Android, measuring first-token latency, peak RSS and
  * thermals. Desktop numbers say nothing about it: `qwen2.5:1.5b` at 151ms p95
  * leaves real headroom, but that is desktop silicon with no thermal envelope.
@@ -42,10 +41,9 @@ export class LlamaRnRuntime implements LlmRuntime {
   constructor() {
     throw new NotImplementedRuntimeError(
       'LlamaRnRuntime',
-      'it needs a React Native host and a physical device. WP-10 gates the mobile app on ' +
-        'proving llama.rn loads a quantised 1B GGUF and completes 10 stage-3 calls on a ' +
-        'mid-range Android, with first-token latency, peak RSS and thermals measured. ' +
-        'If that fails, fall back to desktop/web-first and record an ADR.',
+      'it needs a React Native host and a physical device. It first has to be proven that ' +
+        'llama.rn loads a quantised 1B GGUF and completes 10 stage-3 calls on a ' +
+        'mid-range Android, with first-token latency, peak RSS and thermals measured.',
     );
   }
 
@@ -54,7 +52,7 @@ export class LlamaRnRuntime implements LlmRuntime {
   }
 
   async complete<T>(_request: CompletionRequest): Promise<CompletionResult<T>> {
-    throw new NotImplementedRuntimeError('LlamaRnRuntime', 'see WP-10');
+    throw new NotImplementedRuntimeError('LlamaRnRuntime', 'it needs a React Native host and a physical device');
   }
 }
 
@@ -62,7 +60,7 @@ export class LlamaRnRuntime implements LlmRuntime {
  * Browser inference via WebGPU.
  *
  * Lower risk than the mobile case and lower priority: the shipped script tag routes
- * with stages 1 and 2 and needs no model at all (WP-24).
+ * with stages 1 and 2 and needs no model at all.
  */
 export class WebGpuRuntime implements LlmRuntime {
   readonly name = 'webgpu';
@@ -70,8 +68,8 @@ export class WebGpuRuntime implements LlmRuntime {
   constructor() {
     throw new NotImplementedRuntimeError(
       'WebGpuRuntime',
-      'it needs a browser with WebGPU. WP-09 uses Ollama for local development, so this is ' +
-        'only required to run the web app without a local server.',
+      'it needs a browser with WebGPU. Local development uses Ollama, so this is ' +
+        'only required to run a model in the browser without a local server.',
     );
   }
 
@@ -80,6 +78,6 @@ export class WebGpuRuntime implements LlmRuntime {
   }
 
   async complete<T>(_request: CompletionRequest): Promise<CompletionResult<T>> {
-    throw new NotImplementedRuntimeError('WebGpuRuntime', 'see WP-09');
+    throw new NotImplementedRuntimeError('WebGpuRuntime', 'it needs a browser with WebGPU');
   }
 }

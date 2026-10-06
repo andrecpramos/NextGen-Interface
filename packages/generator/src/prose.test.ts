@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { judgeProse } from './prose.ts';
 
 /**
- * WP-30's verdict, miss #2: three routes with entirely correct roles that a
+ * The first spike's miss #2: three routes with entirely correct roles that a
  * careful developer still leaves out, because the app's own prose says they are
  * legacy or dev-only. Reading that prose is easy; reading it *correctly* is the
  * part that decides whether a live destination survives.

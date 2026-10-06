@@ -63,6 +63,6 @@ export {
   type SimilarPair,
 } from './audit.ts';
 
-// Each domain writes its own generated/registry.json (WP-47). This stops a build
+// Each domain writes its own generated/registry.json. This stops a build
 // pointed at the wrong path from replacing one application's registry with another's.
 export { checkRegistryOwnership, type OwnershipVerdict } from './registry-owner.ts';

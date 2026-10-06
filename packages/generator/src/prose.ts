@@ -2,7 +2,7 @@
  * Reading a developer's prose for the one judgement it holds and no code does:
  * **is this route still meant to be used?**
  *
- * WP-30's verdict, miss #2: `/squad/teams`, `/tactics/overall` and `/dev/icons`
+ * The first spike's miss #2: `/classes/groups`, `/timetable/overall` and `/dev/icons`
  * were generated with entirely correct roles, and the ground truth still leaves
  * them out — not because access is wrong but because a careful developer knows
  * they are a legacy duplicate, a one-release shim and a dev-only utility. That

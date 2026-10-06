@@ -27,9 +27,8 @@ import { arg, BUNDLE_DIR, CALIBRATION_FILE, self, shown, stripBom } from './path
  *
  * **This command requires a golden set the adopter wrote**, and deliberately
  * offers no way to calibrate from the generator's own examples. That is not an
- * oversight — it was measured on the pilot app, where both kinds of data exist, and
- * the decision rule was written before the run
- * (an experiment script deleted with the pilot's evidence, ADR-018):
+ * oversight — it was measured on a real application where both kinds of data
+ * exist, and the decision rule was written before the run:
  *
  * | arm | settled | accepts right | wrongly refused |
  * |---|---|---|---|
@@ -103,14 +102,14 @@ export async function calibrate(kitDir: string, goldenFile: string): Promise<Cal
 
   // One embedder per registry. A shared, re-fitted encoder leaves every registry
   // but the last holding vectors from a vocabulary that no longer exists — this
-  // repository has paid for that once already (lessons.md L10).
+  // repository has paid for that once already.
   const scorers = new Map<string, Scorer>();
   for (const role of roles) {
     // `HashingEmbedder` directly rather than `makeEmbedder('hashing')`, and the reason is
     // the artefact rather than the API: `makeEmbedder` branches on a string, so a bundler
     // cannot prove the Ollama branch unreachable and ships its HTTP client into
     // `adapter/scan.mjs`. Naming the encoder that is actually wanted keeps the copied
-    // folder free of any client for a remote host (ADR-018 D-6). The sweep has always
+    // folder free of any client for a remote host (ADR-018). The sweep has always
     // been hashing-only: a calibration must be reproducible with nothing installed.
     const embedder = new HashingEmbedder();
     scorers.set(role, { registry: await loadRegistry(join(bundle, `registry.${role}.json`), embedder), embedder });

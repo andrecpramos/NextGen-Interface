@@ -103,7 +103,7 @@ export async function route(
     trace.decidedAt = stage;
     trace.kind = cap.kind;
     trace.route = cap.route;
-    // Declared at build time, served verbatim (WP-36). This is the second half
+    // Declared at build time, served verbatim. This is the second half
     // of the promise — take them there, and tell them what they will find.
     trace.explanation = cap.explanation ?? null;
 
@@ -241,7 +241,7 @@ export async function route(
   trace.latency.stage3 = s3.latencyMs;
   trace.selfReportedConfidence = s3.selfReportedConfidence;
 
-  // ADR-019, WP-53. Runs regardless of which branch below decides the turn — a written
+  // ADR-019. Runs regardless of which branch below decides the turn — a written
   // answer can accompany an execute, an explain-via-out-of-scope, or even a degrade to
   // clarify, and every one of those still deserves the same check before anything from
   // the model reaches a visitor. `registry` here is the same one `route()` was called
@@ -271,9 +271,9 @@ export async function route(
     return finish(OUTCOME.CLARIFY);
   }
 
-  // The bar to act scales with what the action costs to get wrong (WP-01).
-  // WP-17 replaced the signal: self-reported confidence was close to constant
-  // at 1B (Finding 8) and did not stand between a weak signal and a write.
+  // The bar to act scales with what the action costs to get wrong.
+  // Stage-2 agreement replaced the signal: self-reported confidence was close to constant
+  // at 1B and did not stand between a weak signal and a write.
   // Stage-2/stage-3 agreement is a signal the model cannot inflate — see
   // REQUIRES_STAGE2_AGREEMENT's doc comment for what it does and does not
   // cover (`isExecutableKind` narrows past 'unsupported', which never

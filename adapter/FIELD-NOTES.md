@@ -21,7 +21,7 @@ Treat everything here as blocking.
 
 ### An app in a monorepo: roles and pages live in sibling packages
 
-The pilot app's current source came out as **0 screens, 65 left out** — every route "role guard could
+One real app's source came out as **0 screens, 65 left out** — every route "role guard could
 not be evaluated" — because its route table reads `ROUTE_ROLES` from `@acme/core/permissions` and its
 pages from `@acme/engine/…`, workspace packages beside the app, and the scan resolved only relative
 imports and path aliases. The kit now walks up from the app to the workspace root (`pnpm-workspace.yaml`,
@@ -29,17 +29,17 @@ or `workspaces` in `package.json`, npm and yarn), and follows a bare import into
 workspace declares** through its `exports` (explicit subpaths and `*` wildcards) — and into nothing else:
 not `node_modules`, not a package the repository does not list. `init` finds the role module by
 resolving what the route table imports, so it reads one file per import, not the whole monorepo. Rerun
-on the full pilot: **56 screens across 10 roles**, roles found automatically, `PLAYER` reaching only its
-own `/my/*` screens.
+on the full app: **56 screens across 10 roles**, roles found automatically, the most restricted role
+reaching only its own `/my/*` screens.
 
 Things to check on a monorepo: `explanationSource` paths now begin `../../packages/…`; and translations
 that live in a package rather than the app are read only if `localesDir` points at them. A route table
-that ends `...clubeRoutes` is followed into the module that declares the array (with that module's own
-imports) when the array is written out; a *computed* spread — the pilot's `...workspaces.flatMap(…)`,
+that ends `...adminRoutes` is followed into the module that declares the array (with that module's own
+imports) when the array is written out; a *computed* spread — such as `...workspaces.flatMap(…)`,
 which assembles routes from installed plugins — cannot be read statically, and is now **listed in
-`SKIPPED.md` with the expression quoted**. Before, it vanished without a word. The pilot's own
-"clube" and "futebol" workspace screens are exactly what that line stands for: this scan does not
-have them, and `doctor` should not be read as covering them. **Always copy the whole
+`SKIPPED.md` with the expression quoted**. Before, it vanished without a word. Screens
+contributed by plugin workspaces are exactly what that line stands for: this scan does not have them,
+and `doctor` should not be read as covering them. **Always copy the whole
 repository when rehearsing** — copying only the app folder makes every sibling package vanish and
 reproduces the 0-screen failure for a reason that is your setup, not the scanner.
 
@@ -145,9 +145,9 @@ and code is not evaluated. Those screens fall through to their component name.
   accident, and *"Genre movie"* became *"Movie"* — worse, for the pages of one genre. Hence
   rule 3 above naming from the last **two** segments, so a screen keeps its section.
 - **Two routes sharing one component share a title.** `/editor` and `/editor/:slug`; `/profile`
-  and `/profile/@:user`; `/squad/new` and `/squad/:id/edit`. They compete with each other during
+  and `/profile/@:user`; `/classes/new` and `/classes/:id/edit`. They compete with each other during
   retrieval. Where the two addresses end in different words, the title is now told apart with
-  that word ("Squad player Form · new" / "· edit") — the developer's own word, in their own
+  that word ("Class Form · new" / "· edit") — the developer's own word, in their own
   language, never a translation. Two addresses that end alike are still left as they are, and
   those are worth a look.
 - **A locale in front of every route is not a section.** On a next-intl app every route began
@@ -166,19 +166,19 @@ and code is not evaluated. Those screens fall through to their component name.
 - **Only reading `t(...)`.** An app calling `tp('announcements.title')` or any other wrapper
   loses its title keys and falls back to component names.
 - **The route's component is the guard, not the page.** `<Route element={<ProtectedRoute>
-  <WellnessFormPage /></ProtectedRoute>} />` named the screen "Protected Route" and described it
+  <FeedbackFormPage /></ProtectedRoute>} />` named the screen "Protected Route" and described it
   with the login wall's own words. A guard-shaped wrapper (`Protected…`, `Require…`, `…Guard`,
   `…Route`) with exactly one child is now read as that child; who may reach it is still read from
   the guard's props. A wrapper that is not named like a guard (a layout shell) is read through as
   before, and two children are never guessed between.
-- **next-intl.** `const t = await getTranslations('portal.athlete')` and `useTranslations('ns')`
+- **next-intl.** `const t = await getTranslations('portal.member')` and `useTranslations('ns')`
   bind a namespace exactly as `useTranslation('ns')` does; before this, every page of a next-intl
   app was described from nothing. Its messages are one nested file per language.
-- **HTML entities.** `Match &amp; results` is now `Match & results`.
-- **What the page "shows" came from wherever `t()` was called first.** On the pilot that meant toasts
-  ("Bem-estar registado com sucesso!"), delete confirmations ("Eliminar ementa?"), the shared
+- **HTML entities.** `Terms &amp; conditions` is now `Terms & conditions`.
+- **What the page "shows" came from wherever `t()` was called first.** On one real app that meant toasts
+  ("Registo guardado com sucesso!"), delete confirmations ("Eliminar item?"), the shared
   namespace's buttons ("Eliminar, Cancelar") — and, in 9 of 56 screens, a sentence with its placeholder
-  still in it ("Desenvolvimento de {{name}}"). A sentence with `{{x}}`, `{x}` or `%s` in it is now dropped,
+  still in it ("Progresso de {{name}}"). A sentence with `{{x}}`, `{x}` or `%s` in it is now dropped,
   and strings whose *key* says toast, error, success, confirm, delete, dialog, validation, or that live in
   `common`/`shared`/`actions`, come after what the page renders, and only when it renders nothing else.
   The rule reads the developer's key names, so an app whose keys say nothing (`t('a1')`) gets none of it.
@@ -217,13 +217,13 @@ comment) or in the title, not in the prompt.
 **What the visitor is shown under a screen's name** is the first sentence of its explanation, and
 with no model that sentence used to be a template in English with a route in it ("Entrar is a
 screen in the auth area of this application, at /:locale/auth/login."). It is now what the screen
-shows ("This screen shows: Sign in, Access the FPJ portal…"), in the app's own language when that
+shows ("This screen shows: Sign in, Access the members' portal…"), in the app's own language when that
 is Portuguese or English, each item clipped at a word. The area and the route stay in
 `description`, which retrieval matches on and no one reads. A screen the scanner can say nothing
 about is still "X is a screen in this application" — read `review/KNOWLEDGE-GAPS.md` for those.
 
 **The app's language.** A Next.js app that routes by locale sets `<html lang={locale}>` per request, so
-the kit fell back to the first language *alphabetically* — English, for a Portuguese federation whose
+the kit fell back to the first language *alphabetically* — English, for a Portuguese organisation whose
 routing file says `defaultLocale: 'pt'`. It now reads `defaultLocale` from `i18n/routing.ts`,
 `next.config` or the middleware, and only accepts one the app has messages for.
 
@@ -257,13 +257,13 @@ retrieval defect that needs no judgement to spot, and it is invisible in normal 
 
 ### What no check will catch
 
-One description read, translated, *"The player can manage their navigation team."* Fluent,
+One description read, translated, *"The member can manage their navigation group."* Fluent,
 grammatical, in the right language, the right length, and meaningless. No mechanical rule
 catches that. Only someone reading it does.
 
 Similarly: when a description names a role, only the role the sentence **opens as** is a claim
-about audience. *"A doctor or coach can check an athlete's availability"* names an athlete
-because the screen is about athletes, not because athletes can open it.
+about audience. *"A teacher or counsellor can check a student's attendance"* names a student
+because the screen is about students, not because students can open it.
 
 ---
 
@@ -320,8 +320,8 @@ The opposite failure to "decoration", found by running this kit on a small real 
 seen (a 2-route landing page, no `knowledge.json`, uncalibrated). Descriptions came from the
 page's own labels alone, so a visitor's everyday words matched no screen at all: every real
 screen scored ~0.00, and a declared limit with the slightest word in common (0.07–0.16) cleared
-the default margin and **won**. Of 12 everyday questions ("how do I sign up", "who are the
-trainers", "what is the price", "how does it work"), **7 were refused** — as "changing records",
+the default margin and **won**. Of 12 everyday questions ("how do I sign up", "who is on the
+team", "what is the price", "how does it work"), **7 were refused** — as "changing records",
 "acting outside this application" and "anything else". Four unrelated controls ("what is the
 weather tomorrow", "write me a poem") scored 0.19–0.32 and were refused too, so a limit's
 *absolute* score did separate them here; it did not on the reference fixture, where in-scope
@@ -332,7 +332,7 @@ are an anecdote, not a calibration.
 0.15` in its `thresholds.hashing.json`: a declared limit must score at least that in its own right,
 not just lead a near-zero screen, before it may refuse. On the same 12 questions, refusals fell from
 7 to 1 (the one left, "what are your opening hours", scored 0.16), and all seven out-of-scope controls
-were still refused — "delete my account" and "send an email to the gym" through the action-verb path,
+were still refused — "delete my account" and "send an email to the office" through the action-verb path,
 which is independent evidence and is not held to the floor (ADR-015). The 0.15 is not fitted: it is the
 "barely a match" bar the likely-one tier already uses for a screen, applied to a limit too — but it
 *was* chosen after this data was seen, so treat it as a stand-in. **A calibration replaces the whole

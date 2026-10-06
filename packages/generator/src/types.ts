@@ -15,8 +15,8 @@ export type RoleName = string;
  *
  * Every skip is recorded and reported. A generator that silently drops routes
  * is indistinguishable from one that cannot find them, and the difference
- * decides whether an adopter trusts the output (WP-25 acceptance: "skipped-
- * capability report exists and is legible").
+ * decides whether an adopter trusts the output: the skipped-capability report
+ * must exist and be legible.
  */
 export type SkipReason =
   | 'unresolved-roles'
@@ -26,7 +26,7 @@ export type SkipReason =
   | 'no-component'
   | 'duplicate-route'
   | 'no-roles'
-  /** WP-28: discovery found the route but could not read its path or component. */
+  /** Discovery found the route but could not read its path or component. */
   | 'unreadable-route'
   /** A catch-all (`[...slug]`, a Remix `$` splat) serving pages that come from content, not code. */
   | 'catch-all'
@@ -103,7 +103,7 @@ export interface PageFacts {
   /** Leading block comment on the default export — why the page exists. */
   readonly doc: string | null;
   /**
-   * The form controls the page renders, in source order (WP-27). What guided
+   * The form controls the page renders, in source order. What guided
    * steps are generated from. Labels are untrusted adopter text (Rule 15).
    */
   readonly fields: readonly FormField[];
@@ -113,7 +113,7 @@ export interface PageFacts {
    */
   readonly title: string | null;
   /**
-   * ADR-020's **inferred** tier (WP-55): a condition this page's own code
+   * ADR-020's **inferred** tier: a condition this page's own code
    * appeared to enforce before its form would submit. Every candidate found is
    * here, whether or not it was confident enough to ship — see
    * `InferredCandidate.recognized` and `inferred-rules.ts`'s own header for why
@@ -133,7 +133,7 @@ export type InferredPattern = 'disabled-submit' | 'guard-message';
 
 /**
  * One condition read from a handler or a `disabled` expression, before it is
- * known whether it is confident enough to ship (ADR-020, WP-55).
+ * known whether it is confident enough to ship (ADR-020).
  *
  * `recognized: false` never reaches a registry — it is only ever written to
  * `review/INFERRED.md`, for a human to read. `statement` is `null` until it is
@@ -164,7 +164,7 @@ export interface FormField {
   readonly name: string | null;
   readonly type: string | null;
   /**
-   * What constrains this control — ADR-020's **read** tier (WP-54): a native
+   * What constrains this control — ADR-020's **read** tier: a native
    * HTML attribute, or a validation schema bound through the form. Always an
    * array, possibly empty; see `field-rules.ts` for what is read and why.
    */
@@ -215,7 +215,7 @@ export interface GeneratorOutput {
   readonly boundaries: readonly Capability[];
   readonly skipped: readonly SkippedRoute[];
   /**
-   * An inferred-tier candidate (ADR-020, WP-55) found but not confident enough
+   * An inferred-tier candidate (ADR-020) found but not confident enough
    * to ship — `review/INFERRED.md`, never a registry. What *did* ship the same
    * way is indistinguishable from a `read`-tier rule except for its `tier`
    * field on the capability that carries it; there is no separate list for it.
@@ -225,7 +225,7 @@ export interface GeneratorOutput {
   readonly roles: readonly RoleName[];
 }
 
-/** A found-but-not-shipped inferred candidate, for a human to read (ADR-020, WP-55). */
+/** A found-but-not-shipped inferred candidate, for a human to read (ADR-020). */
 export interface ReviewInferredEntry {
   readonly route: string;
   readonly pattern: InferredPattern;
@@ -275,7 +275,7 @@ export interface GeneratorConfig {
   readonly allRolesExport: string;
   /**
    * Hand-maintained navigation manifests — a far richer signal than JSX,
-   * because a developer wrote them for humans (PLAN.md §7.2).
+   * because a developer wrote them for humans.
    */
   readonly manifests: readonly string[];
   /** `i18n/locales/<lang>/<namespace>.json`. */
@@ -288,13 +288,13 @@ export interface GeneratorConfig {
    * This is not cosmetic. The document stage 2 embeds is title + description +
    * examples, and the hashing embedder matches lexically: an English
    * description in a Portuguese application cannot be reached by a Portuguese
-   * question. Measured on the pilot target — with `en` first, "o que é o centro
-   * clínico" scored `competition.matches_detail` above `medical.centre`.
+   * question. Measured on a real app — with `en` first, "o que é a pauta
+   * de avaliação" scored `classes.detail` above `grades.report`.
    */
   readonly languages: readonly string[];
   /**
    * What this application is, in one or two sentences. Supplied only when the
-   * adopter wants to override the generated one (WP-16, D-2).
+   * adopter wants to override the generated one.
    */
   readonly domainDescription?: string;
   /**

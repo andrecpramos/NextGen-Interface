@@ -5,8 +5,8 @@ import { dirname, join, resolve } from 'node:path';
  * The packages of a monorepo the application sits in.
  *
  * An app in a workspace imports its pages and its role sets from sibling packages by bare name —
- * `@acme/engine/training/pages/TrainingHomePage`, `@acme/core/permissions` — and a scan that resolved only
- * relative imports and path aliases found none of them: the pilot app's current source came out as 0
+ * `@acme/engine/lessons/pages/LessonsHomePage`, `@acme/core/permissions` — and a scan that resolved only
+ * relative imports and path aliases found none of them: one real app's source came out as 0
  * screens, 65 "left out". A workspace package is the adopter's own code in the same repository, so a bare
  * import is followed into a package **the workspace itself declares**, and into nothing else — not
  * `node_modules`, not a package the repository does not list, not a specifier that names no package.

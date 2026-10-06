@@ -1,5 +1,5 @@
 ---
-description: Audit the working tree against the numbered non-negotiable rules (PLAN.md section 2)
+description: Audit the working tree against the numbered non-negotiable rules (docs/RULES.md)
 allowed-tools: Bash, Read, Grep, Glob
 ---
 
@@ -13,7 +13,7 @@ git status --porcelain
 ```
 
 Read the rule register at the path in `docs.rules` from `.claude/sdlc.config.json`
-(in this repo: `PLAN.md` §2). If it does not exist, say so and stop — there is
+(in this repo: `docs/RULES.md`). If it does not exist, say so and stop — there is
 nothing to audit against, and inventing rules to check would be worse than
 reporting none.
 

@@ -7,7 +7,7 @@ import type { StoredVector } from './sparse.ts';
 import type { Capability, EnumIndex, Registry, RegistryFile } from './types.ts';
 
 /**
- * Build a `Registry` from data that is already in memory (WP-24).
+ * Build a `Registry` from data that is already in memory.
  *
  * `loadRegistry` reads a file with `readFileSync` and fits an embedder over the
  * corpus — both fine on a server, and neither available in a browser. This is
@@ -29,8 +29,7 @@ import type { Capability, EnumIndex, Registry, RegistryFile } from './types.ts';
  * vectors mean nothing except relative to the corpus they were fitted on.
  * Shipping the vectors means the ranking a user gets is the ranking that was
  * measured, rather than one reproduced from the same inputs and hopefully the
- * same code. Lessons L10 is what happens when that assumption is wrong and
- * nobody checks — an embedder re-fitted between building an index and querying
+ * same code. When that assumption is wrong and nobody checks, an embedder re-fitted between building an index and querying
  * it produced a twelvefold error that stood as a headline finding.
  *
  * ## What this does NOT do
@@ -85,7 +84,7 @@ export class IndexMismatchError extends Error {
 export function assertIndexMatches(registry: RegistryFile, index: ShippedIndex): void {
   if (index.schemaVersion !== registry.schemaVersion) {
     // Written as JSON, so a string "1" and a number 1 do not print as the same thing
-    // (Pilot-A field report, 2026-09-23: a server-side merge wrote the version as a string).
+    // (a server-side merge once wrote the version as a string).
     const shown = (v: unknown): string => `${JSON.stringify(v)} (${typeof v})`;
     throw new IndexMismatchError(
       `schema ${shown(index.schemaVersion)} against registry schema ${shown(registry.schemaVersion)}`,
@@ -172,7 +171,7 @@ export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Regis
  * `index.<ROLE>.json` with** (generator `writeIndexes`), so a computed index and a shipped one are the
  * same bytes — the shipped file is a cache, not a second source of truth.
  *
- * Why it exists (Pilot-A field report, 2026-09-23, P2-2): a user can hold several roles, and each role's
+ * Why it exists: a user can hold several roles, and each role's
  * index is its own vector space — the same capability had 56 of 56 components different between two
  * roles — so two shipped indexes cannot be concatenated. Two registries can be merged
  * (`mergeRegistryFiles`), and their index computed here, in milliseconds for a few hundred screens.
@@ -183,7 +182,7 @@ export function registryFromIndex(raw: RegistryFile, index: ShippedIndex): Regis
  */
 export function indexFor(raw: RegistryFile, generatedAt: string = new Date().toISOString()): ShippedIndex {
   const documents = raw.capabilities.map(capabilityDocument);
-  // A fresh encoder, fitted on exactly this registry — never one shared or re-fitted (lessons L10).
+  // A fresh encoder, fitted on exactly this registry — never one shared or re-fitted.
   const embedder = new HashingEmbedder();
   embedder.fit(documents);
   const vectors = documents.map((d) => embedder.embedSparse(d));

@@ -13,7 +13,7 @@ import { run } from './run.ts';
  * A flag that turns a capability off still ships the capability. Whoever reviews this
  * folder before letting it near their codebase — and someone will, since it arrives as
  * 3.6MB of minified JavaScript — cannot audit a default. Removing the capability from the
- * artefact is auditable; switching it off is a promise (ADR-018 D-6).
+ * artefact is auditable; switching it off is a promise (ADR-018).
  *
  * ## What is still in the bundle, stated exactly
  *

@@ -9,7 +9,7 @@ import type { GeneratorConfig } from './types.ts';
 /**
  * What a screen "shows", when the words come from translation files.
  *
- * Found by running the scanner on the pilot app's current source. The first four strings a page says are
+ * Found by running the scanner on a real application's source. The first four strings a page says are
  * what the assistant tells a visitor it shows, and they came from wherever `t()` was called first in the
  * file: a toast ("Bem-estar registado com sucesso!"), a delete confirmation ("Eliminar ementa?"), an error
  * ("Erro ao submeter"), a generic button from the shared namespace — and, in 9 of 56 screens, a sentence

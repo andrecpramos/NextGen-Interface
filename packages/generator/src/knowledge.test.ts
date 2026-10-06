@@ -369,7 +369,7 @@ describe('rules — how the app works, told to the model', () => {
   });
 });
 
-/** Pilot-A, 2026-09-23: 133 questions is an interview nobody finishes. The ones that help most come first. */
+/** 133 questions is an interview nobody finishes. The ones that help most come first. */
 describe('screenPriority — which screens to ask about first', () => {
   const everyone = cap({ id: 'calendar', route: '/calendar', title: 'Calendário', roles: ['COACH', 'PARENT', 'PLAYER'] });
   const one = cap({ id: 'audit', route: '/admin/audit', title: 'Registo de Auditoria', roles: ['ADMIN'] });

@@ -1,4 +1,4 @@
-// ADR-019, WP-53 — every claim the model's free-text prose makes about the application
+// ADR-019 — every claim the model's free-text prose makes about the application
 // is checked against the registry the visitor actually received, before any of it is
 // rendered. Rule 4 applied to prose: until now the only model-produced identifier was the
 // selected capability id; free text produces identifiers too (screen names, routes), and
@@ -59,9 +59,9 @@ const ROUTE_TOKEN = /\/[a-zA-Z0-9][\w-]*(?:\/[\w-]+)*/g;
  *
  * - `QUALIFIED_EN` — English past participles that are common, ordinary words on their
  *   own ("called", "added", "updated", "changed", "sent"). *"This screen is called
- *   Settings"* or *"shows recently added players"* are completely normal explanatory
+ *   Settings"* or *"shows recently added students"* are completely normal explanatory
  *   sentences, not action claims — a bare-word match here would strip safe answers for
- *   exactly the reason WP-53's Stop-if exists. These only count inside a first-person
+ *   exactly the reason the validator must not over-strip. These only count inside a first-person
  *   perfect frame ("I've/I have/I just/I already ___") or an explicit passive-perfect
  *   ("has/have/is/are/was/were been ___"), both of which are genuinely rare outside a
  *   claim of completion.

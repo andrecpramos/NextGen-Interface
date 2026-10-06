@@ -1,4 +1,4 @@
-# WP-12 · CI. Gates the non-negotiable rules from PLAN.md §2 that a human
+# CI. Gates the non-negotiable rules in docs/RULES.md that a human
 # reviewer cannot reliably check by eye.
 #
 # Node 24, not the `engines: >=20` in package.json. This repo runs TypeScript
@@ -146,7 +146,7 @@ jobs:
       - name: A copy of adapter/ runs with nothing installed (Rule 16)
         run: node tooling/scripts/check-adapter.mjs
 
-      # WP-52 (ADR-017). kit and embed deliberately do not share the stage-3 config type
+      # ADR-017. kit and embed deliberately do not share the stage-3 config type
       # across the package boundary — kit has no DOM lib, embed's root is DOM-typed — so
       # this proves they still agree on the wire by making a real bundle interoperate
       # across a mocked network: off by default, on reaches the exact same-origin URL,
@@ -175,20 +175,20 @@ jobs:
       - name: Thresholds match their calibration (Rule 14)
         run: node tooling/scripts/check-thresholds.mjs
 
-      # WP-46 — the artefacts a browser receives must follow their inputs. The
+      # The artefacts a browser receives must follow their inputs. The
       # step above checks the reference registry's thresholds against their
       # calibration file. This one rebuilds what eval/frameworks/family/generated derives
       # (the per-role indexes and the per-registry thresholds) and replays the
       # browser's decisions against the server's. On 2026-09-11, a one-line change
       # to normalize() left ten shipped indexes stale while every job here stayed
       # green. Only a manual parity run noticed.
-      # A fourth check joined this in WP-54 (ADR-020): an extracted rule's source
+      # A fourth check joined this with ADR-020: an extracted rule's source
       # ("<file>:<line>") must still resolve against the fixture it names, proved the
       # same way — made to fail on purpose against a line past a real file's end.
-      - name: Derived artefacts are current (WP-46, ADR-020)
+      - name: Derived artefacts are current (ADR-020)
         run: node tooling/scripts/check-derived-artefacts.mjs
 
-      # WP-45. Runs the BUILT bundle in a real DOM and audits every state a user
+      # Runs the BUILT bundle in a real DOM and audits every state a user
       # can reach. It found one real defect on its first run: focus fell to the
       # document body when an answer replaced the link the user was standing on.
       #
@@ -196,7 +196,7 @@ jobs:
       # and not "pass" - jsdom computes no layout, and the widget paints in system
       # colours that belong to the user's OS. eval/a11y/NVDA-CHECKLIST.md is the
       # half a person runs, and the accessibility claim waits on it.
-      - name: Accessibility - no serious or critical violations (WP-45)
+      - name: Accessibility - no serious or critical violations
         run: node tooling/scripts/check-accessibility.mjs
 
       # The widget under a strict Content-Security-Policy, in headless Chrome (the
@@ -210,8 +210,8 @@ jobs:
       # The model-free floor on the GENERATED registries. The router job scores the
       # frozen 7-capability fixture; this scores what the generator actually emits for
       # a whole application, so a change to a description, a trigger or normalize()
-      # that moves what the router decides cannot pass unseen. That is what L9 cost
-      # seven accuracy points. Deterministic (hashing, no stage 3) and ~0.3s, and
+      # that moves what the router decides cannot pass unseen. An unseen change of
+      # exactly that kind once cost seven accuracy points. Deterministic (hashing, no stage 3) and ~0.3s, and
       # timing is excluded from the comparison so a busy runner cannot fail it.
       - name: Generated registries still decide the same way
         run: node --experimental-strip-types eval/frameworks/evaluate-golden.mjs --embedder hashing --check

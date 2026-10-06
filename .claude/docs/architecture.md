@@ -1,9 +1,7 @@
 # Architecture
 
-**Rewritten 2026-09-20.** The earlier version of this file described a Dart/Flutter mobile
-finance assistant — Drift, SQLCipher, GoRouter, llama.cpp over FFI, a dispatcher and a query
-engine — a product ADR-006, ADR-013 and ADR-018 replaced. What survived is below, described
-by what the code does. Where this file and an accepted ADR disagree, the ADR wins.
+Described by what the code does. Where this file and an accepted ADR disagree, the ADR
+wins.
 
 ## System view
 
@@ -89,7 +87,7 @@ capability; `toOutcome` in `core-intent/src/types.ts` maps that pair to one of:
 | `answer` | say what a screen is or does, from its declared explanation |
 | `clarify` | ask, or offer the two likeliest screens to choose from, each with what it is for |
 | `out_of_scope` | the request is for something the application does not do — a declared limit (ADR-009), or an action request the router recognises by its verb (ADR-015) — so say so plainly |
-| `perform` | an action that needs confirmation. Defined, and **deferred**: nothing ships a `write` or `destructive` capability to an adopter until WP-48 (PLAN.md §7.5) |
+| `perform` | an action that needs confirmation. Defined, and **deferred**: nothing ships a `write` or `destructive` capability to an adopter yet (Rule 5 is dormant) |
 
 **Refusing to answer is a correct outcome.** In the field it offers rather than decides: for
 most questions it shows at most two screens and the person picks. See README.md, "Does it work?".
@@ -134,10 +132,9 @@ have, because the registry is read from the application's own route table.
 
 The `examples` block is not documentation. It is the test fixture *and* the retrieval text
 the router scores against, which is why every capability needs at least three (Rule 10,
-`pnpm registry:check`). There is no dispatcher any more: the package that executed a `write` or
-`destructive` capability under a confirmation policy (ADR-004) was deleted with ADR-018, and
-nothing ships such a capability to an adopter until WP-48 lands. Rule 5 therefore currently
-governs code that does not exist.
+`pnpm registry:check`). There is no dispatcher: nothing ships a `write` or `destructive` capability to an adopter,
+so the confirmation policy of ADR-004 governs code that does not exist yet (Rule 5 is
+dormant).
 
 ## Trace: how explainability is actually built
 

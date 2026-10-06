@@ -1,8 +1,5 @@
 # Testing Strategy
 
-**Rewritten 2026-09-20.** The earlier version of this file described a mobile finance
-assistant: money arithmetic, widget golden images, voice word-error rates, device battery
-budgets, a 200-entry golden set gated at ≥90% top-1. None of that describes this repository.
 Where this file and an accepted ADR disagree, the ADR wins.
 
 The hard problem: **the router's correctness is statistical, and stage 3 is a model.**
@@ -51,7 +48,7 @@ What CI gates, and how:
 | `router:floor` → `check-scorecard.mjs` | the model-free run (hashing encoder, stage 3 off) against the committed baseline scorecard, within a tolerance. Deterministic, so it is the only cascade configuration CI can run |
 | `eval:apps:check` | the generated registries still decide the same way as their committed scorecard |
 | `check-thresholds.mjs` | thresholds are the calibrated ones, never hand-set (Rule 14) |
-| `check-derived-artefacts.mjs` | shipped indexes, thresholds and the browser's decisions follow their inputs (WP-46) |
+| `check-derived-artefacts.mjs` | shipped indexes, thresholds and the browser's decisions follow their inputs |
 | `check-adversarial.mjs` | adversarial → destructive stays at **zero**. Needs a model server, so it runs locally, not in CI |
 
 The model-backed runs (`router:eval`, `router:baseline`) need a local Ollama and are
@@ -97,16 +94,16 @@ purpose before it was trusted; the record is in
 ### 7. What only a person can check
 
 A screen-reader pass ([`eval/a11y/NVDA-CHECKLIST.md`](../../eval/a11y/NVDA-CHECKLIST.md),
-about 15 minutes) and the owner's acceptance run on a real application
-([ACCEPTANCE-RUN.md](../../.MDFiles/ACCEPTANCE-RUN.md)). Until they are done the claims are
-*"automated accessibility checks pass; no screen reader has confirmed it"*, and no
-cost-per-session figure at all.
+about 15 minutes), and an acceptance run on a real application by someone who did not
+build the tool. Until they are done the claims are *"automated accessibility checks pass;
+no screen reader has confirmed it"*, and no cost-per-session figure at all.
 
 ## Test data
 
-Fixtures are synthetic and checked in. **No real application's structure lives here**: the
-private pilot's generated artefacts were removed for exactly that reason (ADR-018), and
-`eval/frameworks/family` reproduces its hard cases without being it.
+Fixtures are synthetic and checked in. **No real application's structure lives here.**
+The reference fixture in `eval/frameworks/` reproduces the hard cases real apps present —
+two addresses for one screen, placeholder titles, untranslated duplicates, wrapper pages —
+in a made-up school portal.
 
 ## CI
 

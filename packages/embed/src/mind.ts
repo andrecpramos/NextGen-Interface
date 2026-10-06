@@ -14,7 +14,7 @@
 // A look is an engine motion plus a tempo and option overrides, because idle and thinking are
 // one geometry: what tells them apart is the scan and the pace, which is what makes a change
 // of state read as the same thing waking up rather than one thing replaced by another. (Idle was
-// the engine's slow morphing ring until 2026-09-21; the owner asked for a complete sphere.)
+// the engine's slow morphing ring until 2026-09-21; it is now a complete sphere.)
 //
 // Only `thinking-orbs/engine` is imported: pure geometry, no React, no DOM, ~19KB of it.
 // It hands back finished dots (position, radius, depth); the painting is ours, because

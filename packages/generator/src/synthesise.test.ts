@@ -43,7 +43,7 @@ describe('synthesise — what the model is allowed to produce', () => {
   });
 
   // A half-parsed sentence is worse than an honest fallback: "the model needed
-  // for this is unavailable" is the house style for degradation (PLAN.md §1.3).
+  // for this is unavailable" is the house style for degradation.
   it('falls back when the routing prose is unusable', async () => {
     for (const broken of [
       { ...wellFormed, description: '' },
@@ -159,8 +159,8 @@ describe('cacheKey — why regeneration is reproducible', () => {
   /**
    * The routing prose and the explanation are cached under separate keys, so an
    * iteration on the explanation prompt cannot re-roll description and example
-   * text whose routing accuracy has already been measured. Finding 10 measured
-   * two identical 8B runs disagreeing on 7 of 200 entries — a needless re-roll
+   * text whose routing accuracy has already been measured. Two identical 8B
+   * runs were measured disagreeing on 7 of 200 entries — a needless re-roll
    * is a risk to a number, not a tidiness question.
    */
   it('keys the two calls separately, over the same facts', () => {
@@ -244,7 +244,7 @@ describe('deriveProse — what the screen is for, in the visitor’s words', () 
   });
 });
 
-/** Pilot-A field report, 2026-09-23 (P3-1): what a derived screen says, and what it is asked as. */
+/** What a derived screen says, and what it is asked as. */
 describe('deriveProse — no chrome, no empty states, and the page’s own words as requests', () => {
   const pt = (copy: string[]) => deriveProse(request({ copy }));
 

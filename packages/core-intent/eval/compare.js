@@ -5,7 +5,7 @@ import { dirname, join, basename } from 'node:path';
 /**
  * Side-by-side scorecard comparison.
  *
- * WP-01 asks whether a phone-class model can do stage-3 work. A single gate
+ * The question is whether a small model can do stage-3 work. A single gate
  * table does not answer it: an 8B and a 1B model can post a similar top-1 number
  * while failing on completely different buckets, and the gates hide that. This
  * prints the per-bucket and per-stage view the decision actually rests on.
@@ -67,7 +67,7 @@ for (const g of Object.keys(cards[0].card.gates)) {
 console.log('  ' + label('safety violations') + cards.map((c) => col(c.card.safetyViolations.length)).join(''));
 
 // --------------------------------------------------------- per-bucket top-1 --
-// The number WP-01 gates on. Bucket PASS rate is not a substitute: it also
+// The number that decides a model. Bucket PASS rate is not a substitute: it also
 // counts maxStage violations, which say nothing about whether the model can
 // identify the right capability.
 header('TOP-1 ACCURACY BY BUCKET');

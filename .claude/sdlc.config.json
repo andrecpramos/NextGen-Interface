@@ -106,7 +106,7 @@
       "blocking": true,
       "rule": "15",
       "localOnly": true,
-      "fix": "A NEW entry made the router select a forbidden capability. Establish which layer moved before recording it: did the fence stop applying (check-prompt-fencing.mjs), or did the model disregard an intact fence (Finding 14's case — print the prompt and count the delimiters before assuming a bypass)? This gate is deliberately absent from CI: GitHub Actions has no model server, which is exactly why the adversarial bucket passed trivially there for so long and why three of Finding 14's four violations had never been seen. It skips cleanly with a loud message when Ollama is unreachable."
+      "fix": "A NEW entry made the router select a forbidden capability. Establish which layer moved before recording it: did the fence stop applying (check-prompt-fencing.mjs), or did the model disregard an intact fence (the recorded case — print the prompt and count the delimiters before assuming a bypass)? This gate is deliberately absent from CI: GitHub Actions has no model server, which is exactly why the adversarial bucket passed trivially there for so long and why three of the four recorded violations had never been seen. It skips cleanly with a loud message when Ollama is unreachable."
     },
     {
       "id": "network-egress",
@@ -133,7 +133,7 @@
     },
     {
       "id": "derived-artefacts",
-      "title": "WP-46 — shipped indexes, thresholds and browser decisions follow their inputs",
+      "title": "Shipped indexes, thresholds and browser decisions follow their inputs",
       "command": "node tooling/scripts/check-derived-artefacts.mjs",
       "blocking": true,
       "rule": "14",
@@ -143,7 +143,7 @@
         "packages/generator/src/**",
         "eval/frameworks/**"
       ],
-      "fix": "Something upstream of eval/frameworks/family/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements. Its fourth check (ADR-020, WP-54) is different in kind: an extracted rule's source no longer resolving means a page moved — rebuild the registry — or field-rules.ts computed the wrong line."
+      "fix": "Something upstream of eval/frameworks/family/generated changed: normalize(), the encoder, capabilityDocument(), or a registry. Regenerate with rebuild-indexes.mjs, then calibrate-registries.mjs --embedder hashing, and commit the result with the change that caused it. Never hand-edit these files: they are measurements. Its fourth check (ADR-020) is different in kind: an extracted rule's source no longer resolving means a page moved — rebuild the registry — or field-rules.ts computed the wrong line."
     },
     {
       "id": "generated-golden",
@@ -160,7 +160,7 @@
     },
     {
       "id": "accessibility",
-      "title": "WP-45 — the shipped widget has no serious or critical a11y violations",
+      "title": "The shipped widget has no serious or critical a11y violations",
       "command": "node tooling/scripts/check-accessibility.mjs",
       "blocking": true,
       "when": [
@@ -258,9 +258,9 @@
   ],
   "docs": {
     "root": ".claude",
-    "rules": ".MDFiles/PLAN.md",
+    "rules": "docs/RULES.md",
     "decisions": ".claude/decisions",
-    "plan": ".MDFiles/PLAN.md"
+    "plan": null
   },
   "guard": {
     "denyBroadStaging": true,

@@ -74,7 +74,7 @@ export const UNCALIBRATED_BOUNDARY_FLOOR = 0.15;
 export type EmbedderKind = 'hashing' | 'ollama';
 
 export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
-  // Recalibrated 2026-08-31 (WP-14) against golden-set.jsonl (80 entries), after
+  // Recalibrated 2026-08-31 against golden-set.jsonl (80 entries), after
   // the registered domain pivoted from the 60-capability finance registry to
   // the 7-capability "remember this" one. The old finance-era values below are
   // meaningless against this registry — a threshold is a property of the
@@ -107,7 +107,7 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
   //
   // Recalibrated 2026-09-11 because the encoder's input changed, not the
   // registry: `normalize()` now strips sentence punctuation (`.` and `,` outside
-  // numbers), which moves every hashing vector. Found by WP-21 — whisper ends a
+  // numbers), which moves every hashing vector. Found with a microphone: whisper ends a
   // transcript with a full stop, and `"undo."` had been failing the stage-1 match
   // `"undo"` passes. Was tauHigh 0.436 / boundaryMargin 0.055; at those values
   // gs-0111 ("…unrelated… xyzzy") was refused as a declared limit instead of
@@ -119,7 +119,7 @@ export const THRESHOLD_PROFILES: Readonly<Record<EmbedderKind, Thresholds>> = {
   hashing: { tauHigh: 0.636, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.1 },
 
   // nomic-embed-text, recalibrated 2026-09-23 with --defer-oos for ADR-032's score (was 0.715 / 0.1,
-  // 2026-08-31, WP-14). Accepts 34.4% of routable turns at 100% precision (was 27.6%), 5/13 out-of-scope caught.
+  // 2026-08-31). Accepts 34.4% of routable turns at 100% precision (was 27.6%), 5/13 out-of-scope caught.
   ollama: { tauHigh: 0.768, delta: 0.01, tauFloor: 0, topK: 5, boundaryMargin: 0.165 },
 };
 
@@ -131,8 +131,8 @@ export const OUT_OF_SCOPE_ID = '__out_of_scope__';
  * stage 3's selection must match stage 2's top-ranked candidate, or the turn
  * degrades to a clarify instead of executing.
  *
- * WP-17, replacing `TAU_ACT_BY_KIND`. That gate read the model's *self-
- * reported* confidence (FINDINGS Finding 8) — a signal close to constant at
+ * This replaced `TAU_ACT_BY_KIND`. That gate read the model's *self-
+ * reported* confidence — a signal close to constant at
  * 1B: it held back 15.7% of stage-3 calls on llama3.1:8b, 0.7% on
  * qwen2.5:1.5b, and gemma3:1b answers "what is the capital of France" at
  * 0.95. ADR-003's amendment asks for a signal the model cannot inflate —
@@ -142,16 +142,16 @@ export const OUT_OF_SCOPE_ID = '__out_of_scope__';
  * off the embedding-grounded shortlist.
  *
  * ⚠️ It is not a backstop against every threat this gate's name might
- * suggest. Re-measuring the modules registry (WP-17, 2026-09-09) surfaced
+ * suggest. Re-measuring the modules registry surfaced
  * `gs-0174`: adversarial text embedded in an otherwise benign utterance made
  * stage 2 itself — not just stage 3 — rank `module.delete` first. Stage 2
  * and stage 3 agreed, so this gate would not have caught it; only the
  * unconditional confirm-before-destructive policy (Rule 5) did. Read as: this
  * closes the "model hallucinated past a weak signal" gap, not the "adversarial
- * text corrupted the embedding itself" gap. See FINDINGS.md.
+ * text corrupted the embedding itself" gap.
  *
  * Only write and destructive are gated — navigate and read are cheap and
- * reversible enough that Finding 8's original reasoning (the bar scales with
+ * reversible enough that the original reasoning (the bar scales with
  * what the action costs to get wrong) puts their bar at zero.
  */
 export const REQUIRES_STAGE2_AGREEMENT: ReadonlySet<ExecutableKind> = new Set(['write', 'destructive']);
@@ -167,9 +167,9 @@ export function thresholdsFor(embedderKind: string): Thresholds {
  *
  * `process` does not exist in a browser. Reading `process.env` at module scope
  * therefore threw `ReferenceError: process is not defined` the moment a page
- * loaded the router — found by WP-29's script-tag test, which runs the bundle in
+ * loaded the router — found by the script-tag test, which runs the bundle in
  * a context holding nothing but `window`. Any adopter shipping stages 1+2 to a
- * browser (WP-24) would have hit it on first load.
+ * browser would have hit it on first load.
  */
 const ENV: Record<string, string | undefined> =
   typeof process !== 'undefined' && process.env ? process.env : {};

@@ -3,11 +3,10 @@
 Six public applications, one per routing style the kit did not read on 2026-09-13. Each
 is listed here **by reading its source tree by hand, before a single line of adapter code
 was written**, so the adapters are scored against what the application is and not against
-what they happen to find. This is WP-31's method, applied to frameworks rather than to
-one app ([PLAN.md §8](../../.MDFiles/PLAN.md): ground truth independent of the generator, or the
-score is meaningless).
+what they happen to find. Ground truth must be independent of the generator, or the score is
+meaningless.
 
-None of these is tuned for. The owner's own field test is on a project nobody here has
+None of these is tuned for. The real field test is on a project nobody here has
 seen; these six exist so that "adapts to unknown projects" is a measurement before that
 test, not a hope.
 
@@ -30,7 +29,7 @@ the results are committed. Re-clone at the commits below to reproduce.
   page), layouts, error and not-found pages, and components that merely live beside a page.
 - **A content catch-all** (`[...slug]`) matches pages that come from content, not code. It
   cannot be declared as one screen, and it must be **reported** as left out, never dropped
-  silently (lessons.md L12). An *optional* catch-all (`[[...slug]]`) also matches its own
+  silently. An *optional* catch-all (`[[...slug]]`) also matches its own
   base URL, which is a destination.
 - **Roles.** None of the six gates a route by role. Every gate is authentication only
   (next-auth middleware, a SvelteKit `redirect` in `load`, `meta.requiresAuth`, an Angular

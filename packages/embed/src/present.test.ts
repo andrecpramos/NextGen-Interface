@@ -43,7 +43,7 @@ describe('present — when it moves the browser', () => {
     expect(view.title).toBe('Opening Calendar');
   });
 
-  it('does not move when the user asked what a screen is (WP-36)', () => {
+  it('does not move when the user asked what a screen is', () => {
     const view = present(trace({ capabilityId: 'calendar.overview', explanationRequest: true }), registry, '/', words);
     expect(view.destination).toBeNull();
     expect(view.choices).toEqual([{ label: 'Open Calendar', route: '/calendar' }]);
@@ -597,7 +597,7 @@ describe('smalltalkView — a friendly answer that never refuses', () => {
 });
 
 /**
- * ADR-019 (WP-53). `trace.prose` is the model's answer, already checked by
+ * ADR-019. `trace.prose` is the model's answer, already checked by
  * `validateClaims` before this trace existed — `present()`'s only job is to prefer it
  * over the fixed, build-time text when it is there, exactly like every other field on a
  * trace that overrides a default.

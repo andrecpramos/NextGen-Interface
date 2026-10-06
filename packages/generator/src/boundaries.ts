@@ -6,7 +6,7 @@ import type { DiscoveredRoute } from './types.ts';
  * What the application deliberately does not do (Rule 13, ADR-009).
  *
  * These are the entries that make refusal work **without a model call** — the
- * single most important mechanism in the product (PLAN.md §1.2: declared
+ * single most important mechanism in the product (ADR-009: declared
  * boundaries improved refusal accuracy in proportion to how badly the model
  * failed, 0% → 40% on a model that never refused anything on its own).
  *
@@ -42,7 +42,7 @@ interface CatalogueEntry {
   /**
    * The same limit in another language, by two-letter code, for an application whose primary language
    * it is. A Portuguese app used to declare "Processing a payment" and refuse in English to visitors who
-   * had asked in Portuguese (Pilot-A field report, 2026-09-23, P3-1). The examples stay bilingual either way.
+   * had asked in Portuguese. The examples stay bilingual either way.
    */
   readonly localized?: Readonly<Record<string, { readonly title: string; readonly description: string; readonly refusal: string }>>;
 }

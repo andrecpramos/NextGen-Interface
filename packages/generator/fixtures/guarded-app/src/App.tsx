@@ -8,7 +8,7 @@ import Users from './pages/admin/Users'
 import Secret from './pages/admin/Secret'
 
 /**
- * The third guard shape (WP-43), copied in miniature from a public app we do not
+ * The third guard shape, copied in miniature from a public app we do not
  * own: the roles live on a PARENT route's element, and its children inherit them.
  */
 interface ProtectedRouteProps {

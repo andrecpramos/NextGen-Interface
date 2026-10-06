@@ -19,8 +19,8 @@ import type { RoleName } from './types.ts';
  *    `security.md` requires for a memo field; the text is just someone else's
  *    now.
  *
- * Determinism (a WP-25 acceptance criterion) is not obtained by trusting a
- * temperature setting — Finding 10 measured two identical 8B runs disagreeing
+ * Determinism is not obtained by trusting a temperature setting — two
+ * identical 8B runs were measured disagreeing
  * on 7 of 200 entries. It is obtained by *caching prose against a hash of the
  * facts that produced it*: regenerating from unchanged source reuses the
  * previous sentence exactly, and a diff appears only where the app itself
@@ -47,7 +47,7 @@ export interface ProseRequest {
 export interface Prose {
   readonly description: string;
   /**
-   * What a user is told when they ask what this screen is (WP-36).
+   * What a user is told when they ask what this screen is.
    *
    * Written here, once, and served verbatim at run time. It is longer and more
    * human than `description`, which exists to be *matched* rather than read.
@@ -67,7 +67,7 @@ export interface ProseModel {
  * Eight, most of them in the application's first language.
  *
  * Four, spread evenly over two languages, left a Portuguese screen two Portuguese
- * phrasings. On the pilot app (2026-09-14) that model prose routed *worse* than the flat
+ * phrasings. On a real app that model prose routed *worse* than the flat
  * derived examples — "abre anúncios", "leva-me para anúncios" — which at least repeat
  * the screen's own words in the language users type.
  */
@@ -152,11 +152,11 @@ const UNTRUSTED_PREAMBLE = [
  * The text stage 2 matches on: a description and example utterances.
  *
  * **This is one call, and the explanation is not in it.** Asking for all three
- * fields in a single completion cost 7 points of top-1 accuracy on the pilot
- * target — 54.5% to 47.2% — with nothing else changed. PLAN.md section 6
- * already records the mechanism from WP-14: "system prompt stacked several
- * instructions, laziness recurred once instructions competed", and "attention
- * degrades with each instruction sharing the message". It cost a measurement to
+ * fields in a single completion cost 7 points of top-1 accuracy on a real
+ * app — 54.5% to 47.2% — with nothing else changed. The mechanism was already
+ * known: a system prompt stacking several instructions makes laziness recur
+ * once instructions compete, and attention degrades with each instruction
+ * sharing the message. It cost a measurement to
  * learn that the same is true of output *fields*, not only of instructions.
  *
  * Two build-time calls per screen instead of one is the price, and it is the
@@ -225,7 +225,7 @@ function truncate(text: string, limit: number): string {
  *
  * A model that returns something else has failed, and the deterministic
  * fallback is better than a half-parsed sentence — "the model needed for this
- * is unavailable" is the house style for degradation (PLAN.md §1.3).
+ * is unavailable" is the house style for degradation.
  */
 /**
  * The longest a served explanation may be.
@@ -273,15 +273,15 @@ function readExplanation(value: unknown): string | null {
  *
  * Deliberately flat. It must never read like a description someone wrote,
  * because it is not one — a generator that invents a purpose it cannot support
- * is exactly the failure WP-30 found ("Staff use this page to view and manage
- * the team's schedule", written about a page with no content of its own).
+ * is exactly the failure the first spike had ("Staff use this page to view and
+ * manage the class schedule", written about a page with no content of its own).
  */
 export function deriveProse(request: ProseRequest): Prose {
   const titles = Object.values(request.titles).filter(Boolean);
   const primary = titles[0] ?? request.route;
   const description = `${primary} — part of the ${request.feature} area of the application, at ${request.route}.`;
   // Says only what is known: what the screen itself says, or failing that its name and where it sits.
-  // An explanation that reads like someone wrote it, when nobody did, is the failure WP-30 found — a
+  // An explanation that reads like someone wrote it, when nobody did, is the failure the first spike had — a
   // fabricated purpose stated confidently.
   //
   // It is the first thing a visitor reads under the screen's name when the assistant offers it, so it
@@ -303,9 +303,9 @@ export function deriveProse(request: ProseRequest): Prose {
     for (const verb of verbs) examples.push(`${verb} ${title.toLowerCase()}`);
   }
   if (examples.length === 0) for (const verb of ASK_TO_GO.en!) examples.push(`${verb} ${primary.toLowerCase()}`);
-  // "open X", "take me to X", "go to X" repeat the title and add no word a visitor might use (Pilot-A field
-  // report, 2026-09-23, P3-1). What the page itself shows does: a column, a section, a label — "ver
-  // elegibilidade", "see match squad". Short lines only, and only the first two: a page's own words as a
+  // "open X", "take me to X", "go to X" repeat the title and add no word a visitor might use. What the
+  // page itself shows does: a column, a section, a label — "ver
+  // assiduidade", "see class list". Short lines only, and only the first two: a page's own words as a
   // request, never a sentence someone wrote, so nothing is invented.
   const see = SEE[(request.languages[0] ?? 'en').split('-')[0]!.toLowerCase()] ?? SEE.en!;
   for (const text of content.filter(isLabel).slice(0, 2)) examples.push(`${see} ${text.trim().toLowerCase()}`);
@@ -341,9 +341,9 @@ function isLabel(text: string): boolean {
 }
 
 /**
- * What the page renders that says nothing about what the screen is for (Pilot-A field report, 2026-09-23):
- * a unit ("min"), a control ("+ Princípio", "Mover para cima"), and an empty state ("Sem equipas
- * registadas", "Cria a primeira equipa…") — the page saying it has nothing yet. Served as "This screen
+ * What the page renders that says nothing about what the screen is for:
+ * a unit ("min"), a control ("+ Critério", "Mover para cima"), and an empty state ("Sem turmas
+ * registadas", "Cria a primeira turma…") — the page saying it has nothing yet. Served as "This screen
  * shows: min, Mover para cima", they read as broken. Coarse and bilingual, like the rest of this file.
  */
 export function worthShowing(text: string): boolean {
@@ -437,7 +437,7 @@ export type ProseCache = Record<
  * two independent completions, so they get two independent cache entries: an
  * iteration on the explanation prompt must not invalidate — or silently
  * re-roll — description and example text whose routing accuracy has already been
- * measured. Finding 10 measured two identical 8B runs disagreeing on 7 of 200
+ * measured. Two identical 8B runs were measured disagreeing on 7 of 200
  * entries, so a needless re-roll is a real risk to a number, not a tidiness
  * question.
  */

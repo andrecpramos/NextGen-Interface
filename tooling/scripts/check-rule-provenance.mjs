@@ -1,4 +1,4 @@
-// ADR-020, WP-54 — an extracted rule's `source` is a promise: "<file>:<line>" names
+// ADR-020 — an extracted rule's `source` is a promise: "<file>:<line>" names
 // exactly where in the adopter's own tree that rule came from. Nothing else about the
 // rule is checkable against the adopter's source (the statement is generated text, in
 // their own words about their own control) — the pointer is the whole contract, and this
@@ -73,4 +73,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`\n  Rule provenance OK — ${rules.length} extracted rule(s), every source resolves (ADR-020, WP-54).`);
+console.log(`\n  Rule provenance OK — ${rules.length} extracted rule(s), every source resolves (ADR-020).`);

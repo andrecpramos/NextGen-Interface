@@ -4,7 +4,7 @@ import AppShell from './routes/app/shell'
 
 const computed = () => '/computed'
 
-// WP-28's second fixture: the data-router style a code-split app uses — paths
+// The second fixture: the data-router style a code-split app uses — paths
 // read from a table through an alias, pages as `lazy` imports, one of them
 // through the alias too. Modelled on a real public application we do not own.
 export const router = createBrowserRouter([

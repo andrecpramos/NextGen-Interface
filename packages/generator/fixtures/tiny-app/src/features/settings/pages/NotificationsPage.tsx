@@ -4,7 +4,7 @@ import { PageHeader } from '../../../components/ui'
 /** Which emails and push messages this account receives. */
 export default function NotificationsPage() {
   const { t } = useTranslation('settings')
-  // A real multi-field form, because WP-27's guided steps are generated from
+  // A real multi-field form, because guided steps are generated from
   // exactly this: a label bound by `htmlFor`, a literal label, an `aria-label`
   // with no visible label at all, and a submit button named by its own text.
   return (

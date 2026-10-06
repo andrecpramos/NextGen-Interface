@@ -9,7 +9,7 @@ import { detectApp, init } from './detect.ts';
 /**
  * `init` on an app in a monorepo: the role sets live in a sibling package.
  *
- * Found on the pilot app's current source. `init` searched only the app's own `src/`, saw no permissions
+ * Found on a real app's source. `init` searched only the app's own `src/`, saw no permissions
  * module ("no permissions module, so the roles come from the route table itself"), guessed the default
  * names, and `build` then omitted every route it could not evaluate a guard for: **0 screens**. The
  * routes file names the module it reads — `import { ROUTE_ROLES } from '@acme/core/permissions'` — so that

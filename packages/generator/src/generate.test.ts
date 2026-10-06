@@ -13,7 +13,7 @@ import type { GeneratorConfig, GeneratorOutput } from './types.ts';
 
 const run = () => generate({ config: FIXTURE_CONFIG, model: null });
 
-/** A minimal, standalone app — its own temp dir, so WP-55's fixtures never touch tiny-app. */
+/** A minimal, standalone app — its own temp dir, so these fixtures never touch tiny-app. */
 function tinyApp(pageSource: string): GeneratorConfig {
   const appRoot = mkdtempSync(join(tmpdir(), 'nextgen-generate-'));
   mkdirSync(join(appRoot, 'features', 'expenses', 'pages'), { recursive: true });
@@ -58,7 +58,7 @@ describe('generate — end to end, with no model', () => {
     for (const entry of output.skipped) expect(entry.detail.length).toBeGreaterThan(10);
   });
 
-  // The two halves of WP-30's most consequential miss, in one assertion: a
+  // The two halves of the first spike's most consequential miss, in one assertion: a
   // redirect that stays inside its own section is that section's landing page,
   // and a component that renders a real view is a destination whatever its name.
   it('keeps a section landing and a data-resolving redirect', async () => {
@@ -94,7 +94,7 @@ describe('generate — end to end, with no model', () => {
   });
 
   /**
-   * WP-36. "What is this page?" is answered from a string written at build
+   * "What is this page?" is answered from a string written at build
    * time and served verbatim — the same move ADR-009 made for refusals.
    * Generating one per turn would forfeit the cost argument entirely.
    */
@@ -124,11 +124,10 @@ describe('generate — end to end, with no model', () => {
 });
 
 /**
- * WP-25 acceptance: "deterministic — same source ⇒ same registry, or the diff
- * is explainable". Without a model this is exact. With one it holds because
+ * Deterministic: same source, same registry, or the diff is explainable. Without a model this is exact. With one it holds because
  * prose is cached against a hash of the facts that produced it, so a second run
  * over unchanged source reuses every sentence rather than re-rolling it —
- * Finding 10 measured two identical 8B runs disagreeing on 7 of 200 entries, so
+ * Two identical 8B runs were measured disagreeing on 7 of 200 entries, so
  * "temperature 0" was never going to be the answer.
  */
 describe('generate — determinism', () => {
@@ -161,8 +160,8 @@ function fingerprint(directory: string): string {
  *
  * "The installer never modifies the adopter's source. It reads their code and
  * writes only new, additive artefacts, and removing it must leave the app
- * exactly as it was." WP-25's acceptance asks for a test that `git status` in
- * the target stays clean; a content fingerprint is the same assertion without
+ * exactly as it was." The natural test is that `git status` in the target
+ * stays clean; a content fingerprint is the same assertion without
  * needing the target to be a git repository.
  */
 describe('generate — Rule 16', () => {
@@ -175,13 +174,13 @@ describe('generate — Rule 16', () => {
 });
 
 /**
- * WP-55 — the full pipeline, not only the extractor in isolation:
+ * The inferred tier through the full pipeline, not only the extractor in isolation:
  * `inferredCandidates` on its own (`inferred-rules.test.ts`) proves the AST
  * reading; this proves `generate.ts` actually wires a recognised candidate
  * into the shipped capability's `rules`, and an unrecognised one into
  * `output.reviewInferred` instead — never both, never neither.
  */
-describe('generate — the inferred tier (ADR-020, WP-55)', () => {
+describe('generate — the inferred tier (ADR-020)', () => {
   it('ships a recognised disabled-submit rule, tagged inferred, traceable to its line', async () => {
     const config = tinyApp(
       [
@@ -263,7 +262,7 @@ describe('generate — the inferred tier (ADR-020, WP-55)', () => {
     ]);
   });
 
-  it('merges a read-tier rule (WP-54) and an inferred-tier rule (WP-55) on the same capability', async () => {
+  it('merges a read-tier rule and an inferred-tier rule on the same capability', async () => {
     const config = tinyApp(
       [
         'export default function ExpensePage() {',
@@ -281,7 +280,7 @@ describe('generate — the inferred tier (ADR-020, WP-55)', () => {
     expect(capability?.rules?.map((r) => r.tier).sort()).toEqual(['inferred', 'read']);
   });
 
-  // Found in the WP-55 read-sample measurement (PLAN.md §7.8): the noun-phrase
+  // Found by reading a sample of the output before it shipped: the noun-phrase
   // template read as a run-on for a checkbox whose own label is already a
   // sentence — "The form asks for I accept the terms before it will submit."
   it('phrases a disabled checkbox differently from a disabled text field', async () => {

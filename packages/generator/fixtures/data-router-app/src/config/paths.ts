@@ -1,6 +1,6 @@
 // The path table a data-router app keeps its routes in. The route table refers
 // to `paths.app.reports.path` rather than writing the string, which is exactly
-// what discovery could not follow before WP-28.
+// what discovery once could not follow.
 export const paths = {
   home: { path: '/' },
   app: {

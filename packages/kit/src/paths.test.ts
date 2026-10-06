@@ -7,7 +7,7 @@ import { arg, self, shown } from './paths.ts';
 /**
  * Every "Next:" line the kit prints is copied and pasted. Until 2026-09-22 each said `node scan.mjs …`
  * with an absolute kit path, which fails from the app's root — where the adopter is, and where the tool
- * is `nextgen-tool/scan.mjs` (judo_app rehearsal).
+ * is `nextgen-tool/scan.mjs`.
  */
 describe('printed commands run from where they were printed', () => {
   const app = resolve('/work/my-app');

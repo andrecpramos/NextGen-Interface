@@ -7,7 +7,7 @@ import { gzipSync } from 'node:zlib';
 import vm from 'node:vm';
 
 /**
- * WP-29 — Ladder C3, tested as the artefact it is: one file, loaded the way a
+ * The script tag, tested as the artefact it is: one file, loaded the way a
  * `<script src>` loads it.
  *
  * The built `dist/nextgen.js` is run in a fresh V8 context holding nothing but
@@ -45,13 +45,13 @@ const bundle = (role: string) => ({
   thresholds: JSON.parse(readFileSync(`${GEN}/thresholds.hashing.json`, 'utf8')).thresholds,
 });
 
-describe('the script-tag artefact (WP-29)', () => {
+describe('the script-tag artefact', () => {
   it('defines window.NextGen with no module system and nothing else in scope', () => {
     const window = loadLikeAScriptTag();
     const api = window.NextGen as Record<string, unknown>;
     expect(typeof api.create).toBe('function');
     expect(typeof api.load).toBe('function');
-    // WP-41: the chat box ships in the same file, and still loads without a DOM.
+    // The chat box ships in the same file, and still loads without a DOM.
     expect(typeof api.start).toBe('function');
     expect(typeof api.mount).toBe('function');
     expect(typeof api.mountAssistant).toBe('function');
@@ -63,7 +63,7 @@ describe('the script-tag artefact (WP-29)', () => {
     const assistant = NextGen.create(bundle('PARENT'));
     // A real bundle, not an empty one: the point of the assertion is that the script tag
     // loaded a whole role's registry, not its exact size. It was `> 10` while this read a
-    // 145-capability pilot registry; the fixture PARENT ships 10, and pinning the number
+    // 145-capability registry; the fixture PARENT ships fewer, and pinning the number
     // to whatever the current fixture happens to emit would make it a maintenance tax
     // rather than a check.
     expect(assistant.capabilities).toBeGreaterThan(5);
@@ -94,8 +94,8 @@ describe('the script-tag artefact (WP-29)', () => {
   it('is small enough to be a script tag', () => {
     const gz = gzipSync(Buffer.from(code)).length;
     // The router is pure arithmetic over shipped vectors, so this should be a
-    // few tens of KB. The index is fetched separately and measured in WP-24.
-    // 70 KB since 2026-09-25 (ADR-029 addendum, the owner's decision): one file an adopter serves, with
+    // few tens of KB. The index is fetched separately and measured on its own.
+    // 70 KB since 2026-09-25 (ADR-029 addendum): one file an adopter serves, with
     // room for server voice, the mashing filter and the companion hand-over.
     expect(gz).toBeLessThan(70 * 1024);
   });

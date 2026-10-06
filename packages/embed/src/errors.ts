@@ -1,7 +1,7 @@
 // Failing to start, out loud.
 //
-// Pilot-A field report, 2026-09-23: a backend that returned 404 left the page with no orb, no message and
-// nothing in the console, and the owner concluded the product did not work. So every failure to start
+// Found in a real integration: a backend that returned 404 left the page with no orb, no message and
+// nothing in the console, and the developer concluded the product did not work. So every failure to start
 // is announced on the window as `nextgen:error`, with a reason a page can act on — whichever way the
 // assistant was started — and `start()` rejects with the same reason.
 
