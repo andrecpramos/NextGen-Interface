@@ -1,10 +1,13 @@
 import { relative } from 'node:path';
 
-import { isLocaleParam, type CapabilityText } from '@nextgen/core-capability';
+import { isLocaleParam, type Capability, type CapabilityText } from '@nextgen/core-capability';
+import { actionVocabularyOf } from '@nextgen/core-intent';
 
-import { discoverRoutes, importResolver } from './discover.ts';
-import { readManifests, readSourceLabels, readTranslations, translate, type Translations } from './labels.ts';
+import { SINGLE_AUDIENCE, discoverRoutes, importResolver, readRoleScope } from './discover.ts';
+import { chooseNavLabel, placementVotes, readLocales, readManifests, readSourceLabels, translate, type Translations } from './labels.ts';
 import { EMPTY_FACTS, readLocalScreen, readScreen } from './pages.ts';
+import { isChrome, readControls, type Control } from './controls.ts';
+import { readMarkupControls } from './markup.ts';
 import { synthesiseId, routeSegments, featureOf } from './ids.ts';
 import { judgeProse } from './prose.ts';
 import { synthesiseBoundaries } from './boundaries.ts';
@@ -20,7 +23,7 @@ import {
   type ProseModel,
   type ProseRequest,
 } from './synthesise.ts';
-import { splitByRole } from './emit.ts';
+import { forRole, splitByRole } from './emit.ts';
 import { applyKnowledge, declaredScreens, EMPTY_KNOWLEDGE, knowledgeBoundaries, knowledgeContext, type AppKnowledge } from './knowledge.ts';
 import { assignTriggers } from './triggers.ts';
 import { stepsEntry } from './steps.ts';
@@ -31,8 +34,10 @@ import type {
   DiscoveredRoute,
   GeneratorConfig,
   GeneratorOutput,
+  NavLabel,
   PageFacts,
   ReviewInferredEntry,
+  RoleName,
   SkippedRoute,
 } from './types.ts';
 
@@ -108,6 +113,8 @@ interface Accepted {
   readonly facts: PageFacts;
   readonly labelKey: string | null;
   readonly groupLabelKey: string | null;
+  /** How many nav placements give the route that label: one per role's sidebar, 1 for a plain manifest entry. */
+  readonly labelVotes: number;
   /** A label for this route found outside the configured manifests, used only when nothing else names it. */
   readonly fallbackLabelKey: string | null;
   /** The component a user sent here sees: its own, or the page a resolver lands on. */
@@ -360,6 +367,150 @@ function humanise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1).replace(/[_-]+/g, ' ');
 }
 
+/** Lowercase words without accents, a camelCase key split too: "Centro Clínico" is `centro`, `clinico`. */
+function words(text: string): string[] {
+  return text
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3);
+}
+
+/** One word, give or take a plural ending: `tatica` and `taticas`, `plan` and `plans`. */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 4 && long.length - short.length <= 2 && long.startsWith(short);
+}
+
+/**
+ * Does `title` already say `group`? Every word of three letters or more, case, accents and a plural
+ * ending aside: "Sessões de Treino" says "Treino", "Biblioteca de táticas" says "Tática", "Visão geral"
+ * says neither. A group of only short words is said when the title begins with it.
+ */
+function namesGroup(title: string, group: string): boolean {
+  const theirs = words(group);
+  if (theirs.length === 0) return title.toLowerCase().startsWith(group.toLowerCase());
+  const own = words(title);
+  return theirs.every((word) => own.some((candidate) => sameWord(word, candidate)));
+}
+
+/**
+ * How strongly a nav placement names this route, to break a tie between two sidebars that label it
+ * differently: its label says the route's area or a word of its own address (2), its group says the
+ * area (1). Read in every language the app ships and in the label's own key — a developer's word, as
+ * the area fallback is. `/medical/centre` is "Retorno ao jogo" in a coach's sidebar and "Centro
+ * Clínico" in the medical team's, both under "Médico": the groups tie, and `nav.medicalCentre` —
+ * "Clinical Centre" — says the address.
+ */
+function placementRank(
+  route: DiscoveredRoute,
+  translations: ReadonlyMap<string, Translations>,
+  languages: readonly string[],
+): (placement: NavLabel) => number {
+  const feature = featureOf(route);
+  const area = new Set([...words(feature), ...Object.values(areaLabels(feature, translations, languages)).flatMap(words)]);
+  const address = new Set(
+    routeSegments(route.path)
+      .filter((segment) => !segment.startsWith(':') && segment !== '*')
+      .flatMap(words),
+  );
+  const said = (key: string): string[] => [
+    ...words(key.split(/[.:]/).pop() ?? ''),
+    ...languages.flatMap((language) => {
+      const dictionary = translations.get(language);
+      const value = dictionary ? translate(dictionary, key) : null;
+      return value ? words(value) : [];
+    }),
+  ];
+  return (placement) => {
+    const label = said(placement.labelKey);
+    const group = placement.groupLabelKey ? said(placement.groupLabelKey) : [];
+    return (label.some((word) => area.has(word) || address.has(word)) ? 2 : 0) + (group.some((word) => area.has(word)) ? 1 : 0);
+  };
+}
+
+/** The title a screen's nav label gave it, per language, and how many placements give it that label. */
+interface NavClaim {
+  readonly titles: Readonly<Record<string, string>>;
+  readonly votes: number;
+  readonly grouped: boolean;
+}
+
+/**
+ * A nav label under the group heading it is written to sit under: "Treino · Sessões".
+ *
+ * A sidebar leaf is half a name — "Sessões", "Planos", "Biblioteca" — and the group heading above it
+ * supplies the other half. Taken bare, one real app's psychology sessions and training sessions were
+ * both "Sessões", and its club-settings pages lost the "Definições do Clube" their own pages show. A
+ * leaf that already says its group ("Sessões de Treino" under "Treino") is left as it is, and a leaf
+ * with no group stays bare. `qualifyTitles` then never prefixes the group a second time.
+ */
+function prefixGroups(
+  titles: Map<string, Record<string, string>>,
+  context: ReadonlyMap<string, TitleContext>,
+  labelled: ReadonlyMap<string, NavClaim>,
+): void {
+  for (const [id, perLanguage] of titles) {
+    const claim = labelled.get(id);
+    if (!claim?.grouped) continue;
+    for (const [language, title] of Object.entries(perLanguage)) {
+      const group = context.get(id)?.groups[language];
+      if (!group || claim.titles[language] !== title || namesGroup(title, group)) continue;
+      perLanguage[language] = `${group} · ${title}`;
+    }
+  }
+}
+
+/**
+ * One ungrouped nav label on two screens a role reaches: the screen most sidebars give it keeps it, and
+ * the other is named by the heading its own page renders.
+ *
+ * One real app labels three screens "Dashboard", each in a different role's sidebar: the staff
+ * dashboard (four roles), a player's or guardian's home (two) and the administration overview (one).
+ * The staff dashboard has no role guard, so a guardian's registry holds it beside their home, and
+ * telling the pair apart by address gave "Dashboard · my" where the home's own page says "A Minha
+ * Página". A heading that a screen of a shared role already uses, or none at all, leaves the title to
+ * `qualifyTitles` and `separateTwins`, as before.
+ *
+ * On a tie — as many sidebars give the label to one screen as to the other — neither is its owner, so
+ * each that has a heading of its own takes it, and both can lose the label. That is deliberate: nothing
+ * says which of the two the label means, and picking one by declaration order would let the order of a
+ * route table rename a screen. The renames are decided before any is applied, so the outcome does not
+ * depend on the order the screens are visited in either.
+ */
+function yieldToHeadings(
+  titles: Map<string, Record<string, string>>,
+  context: ReadonlyMap<string, TitleContext>,
+  labelled: ReadonlyMap<string, NavClaim>,
+  headings: ReadonlyMap<string, Readonly<Record<string, string>>>,
+): void {
+  const holders = new Map<string, string[]>();
+  for (const [id, perLanguage] of titles) {
+    for (const title of new Set(Object.values(perLanguage))) holders.set(title, [...(holders.get(title) ?? []), id]);
+  }
+  const meet = (a: string, b: string): boolean => {
+    const theirs = new Set(context.get(b)?.roles ?? []);
+    return (context.get(a)?.roles ?? []).some((role) => theirs.has(role));
+  };
+  const renamed: [id: string, language: string, title: string][] = [];
+  for (const [id, perLanguage] of titles) {
+    const claim = labelled.get(id);
+    if (!claim || claim.grouped) continue;
+    for (const [language, title] of Object.entries(perLanguage)) {
+      if (claim.titles[language] !== title) continue;
+      const rivals = (holders.get(title) ?? []).filter((other) => other !== id && meet(id, other));
+      if (rivals.length === 0 || rivals.every((other) => (labelled.get(other)?.votes ?? 0) < claim.votes)) continue;
+      const heading = headings.get(id)?.[language];
+      if (!heading || heading === title || (holders.get(heading) ?? []).some((other) => other !== id && meet(id, other))) continue;
+      renamed.push([id, language, heading]);
+    }
+  }
+  for (const [id, language, title] of renamed) titles.get(id)![language] = title;
+}
+
 /**
  * Make every title say which screen it is, among the screens it competes with.
  *
@@ -404,14 +555,14 @@ function qualifyTitles(
     for (const [language, title] of Object.entries(perLanguage)) {
       if (!(holders.get(title) ?? []).some((other) => other !== id && meet(id, other))) continue;
       const group = own.groups[language];
-      if (group && !title.toLowerCase().startsWith(group.toLowerCase())) {
+      if (group && !namesGroup(title, group)) {
         renamed.push([id, language, `${group} · ${title}`]);
         continue;
       }
       // `app` is what featureOf answers when nothing names a section: prefixing it says nothing,
       // and it made the home page of two field apps "App home". The root page keeps its title.
       const area = own.areas[language];
-      if (own.feature === 'app' || !area || title.toLowerCase().startsWith(area.toLowerCase())) continue;
+      if (own.feature === 'app' || !area || title.toLowerCase().startsWith(area.toLowerCase()) || namesGroup(title, area)) continue;
       renamed.push([id, language, `${area} ${title.charAt(0).toLowerCase()}${title.slice(1)}`]);
     }
   }
@@ -552,13 +703,20 @@ export interface GenerateOptions {
 export async function generate(options: GenerateOptions): Promise<GeneratorOutput> {
   const { config } = options;
   const { routes, roles, unreadable } = discoverRoutes(config);
-  const manifests = readManifests(config);
+  // A nav map keyed by role is checked against the roles the application declares, when it declares any.
+  const roleNames = roles.allRoles.length === 1 && roles.allRoles[0] === SINGLE_AUDIENCE ? null : roles.allRoles;
+  const manifests = readManifests(config, roleNames);
   const sourceLabels = readSourceLabels(config.appRoot);
   const resolveImport = importResolver(config.appRoot);
+  // Who may use each control on a screen is read against the same permissions module as the routes (ADR-042).
+  const roleScope = readRoleScope(config);
 
   const translations = new Map<string, Translations>();
+  let translationCollisions = 0;
   for (const language of config.languages) {
-    translations.set(language, readTranslations(config, language));
+    const read = readLocales(config, language);
+    translations.set(language, read.translations);
+    translationCollisions += read.collisions;
   }
 
   const skipped: SkippedRoute[] = [];
@@ -573,13 +731,51 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     // A component declared beside the route table has no import to follow: read it where it is written.
     const local =
       !route.componentFile && route.routedIn && route.component ? readLocalScreen(route.routedIn, route.component, resolveImport) : null;
-    const facts = route.componentFile
+    const read = route.componentFile
       ? readScreen(route.componentFile, resolveImport)
       : local
         ? local
         : route.redirectTo
           ? { ...EMPTY_FACTS, isPureRedirect: true, redirectTargets: [route.redirectTo] }
           : EMPTY_FACTS;
+    // ADR-042: what the screen lets a visitor do, read through the app's own components it renders. A
+    // JSX page's openers come from the same reading, so an opener a permission condition guards is left
+    // out of them too; a markup page (Vue, Svelte, Angular) keeps the openers its own reader found.
+    const controls = route.componentFile
+      ? readControls(route.componentFile, resolveImport, undefined, roleScope)
+      : local
+        ? readControls(route.routedIn!, resolveImport, route.component!, roleScope)
+        : null;
+    // A page read as markup — Vue, Svelte, an Angular component's template — carries its own controls
+    // (`markup.ts`, which sets `actions`); a JSX page's come from the reading above. An Angular component is a
+    // `.ts` file, so the extension cannot tell them apart.
+    const markupControls = read.actions !== undefined;
+    const jsx = controls !== null && !markupControls && /\.(tsx|jsx|ts|js)$/.test(route.componentFile ?? route.routedIn ?? '');
+    // A Vue or Svelte page is read through the components it renders, as a JSX page is; an Angular
+    // template (by selector) and a page read as text alone keep what their own file declares.
+    const throughChildren =
+      !jsx && route.componentFile && /\.(vue|svelte)$/.test(route.componentFile) ? readMarkupControls(route.componentFile, resolveImport) : null;
+    const found = jsx
+      ? controls
+      : {
+          actions: throughChildren?.actions ?? read.actions ?? [],
+          openers: read.openers ?? [],
+          guarded: throughChildren?.guarded ?? read.guardedControls ?? [],
+        };
+    // A control's name is not what the screen shows, and it is not every role's to read: "Justificar falta",
+    // shown to guardians only, came out in the players' "This screen shows: Home, Excuse an absence". Controls
+    // reach a registry through `actions`/`opens`, per role (ADR-042), and never through the page's copy.
+    const everyControl = [...found.actions, ...found.openers, ...found.guarded];
+    const controlKeys = new Set(everyControl.flatMap((c) => (c.labelKey ? [c.labelKey] : [])));
+    const controlLabels = new Set(everyControl.flatMap((c) => (c.label ? [c.label] : [])));
+    const facts: PageFacts = {
+      ...read,
+      i18nKeys: read.i18nKeys.filter((key) => !controlKeys.has(key)),
+      headings: read.headings.filter((heading) => !controlLabels.has(heading)),
+      openers: found.openers,
+      actions: found.actions,
+      guardedControls: found.guarded,
+    };
 
     if (route.roles === null) {
       skipped.push({
@@ -631,12 +827,29 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     seenRoutes.add(route.path);
     const id = synthesiseId(route, taken);
     taken.add(id);
+    // A configured manifest names the route first; failing that, the route entry's own `nav` map. A label
+    // and its group always come from the same placement.
+    const prefer = placementRank(route, translations, config.languages);
+    const fromManifest = manifest?.placements ? chooseNavLabel(manifest.placements, prefer) : null;
+    const fromNav = chooseNavLabel(route.navPlacements, prefer);
+    const named =
+      fromManifest ??
+      (manifest?.labelKey ? { labelKey: manifest.labelKey, groupLabelKey: manifest.groupLabelKey ?? null } : null) ??
+      fromNav;
+    const labelVotes = !named
+      ? 0
+      : named === fromManifest
+        ? placementVotes(manifest?.placements, named.labelKey)
+        : named === fromNav
+          ? placementVotes(route.navPlacements, named.labelKey)
+          : 1;
     accepted.push({
       route,
       id,
       facts,
-      labelKey: manifest?.labelKey ?? null,
-      groupLabelKey: manifest?.groupLabelKey ?? null,
+      labelKey: named?.labelKey ?? null,
+      groupLabelKey: named?.groupLabelKey ?? null,
+      labelVotes,
       fallbackLabelKey: sourceLabels.get(route.path) ?? null,
       pageFile: route.componentFile ?? (local ? route.routedIn! : null),
     });
@@ -649,9 +862,25 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const features = new Map<string, string>();
   const titleContext = new Map<string, TitleContext>();
   const siteName = sharedTitleSuffix(accepted.map(({ facts }) => facts.title));
-  for (const { route, id, facts, labelKey, groupLabelKey, fallbackLabelKey } of accepted) {
+  // Per screen and language: the title its nav label gave it, and the heading its page renders.
+  const labelled = new Map<string, NavClaim>();
+  const headings = new Map<string, Record<string, string>>();
+  for (const { route, id, facts, labelKey, groupLabelKey, labelVotes, fallbackLabelKey } of accepted) {
     const own = { ...facts, title: withoutSiteName(facts.title, siteName) };
-    titles.set(id, resolveTitles(route, labelKey, own, translations, config.languages, fallbackLabelKey));
+    const resolved = resolveTitles(route, labelKey, own, translations, config.languages, fallbackLabelKey);
+    titles.set(id, resolved);
+    const fromLabel: Record<string, string> = {};
+    const heading: Record<string, string> = {};
+    for (const language of config.languages) {
+      const dictionary = translations.get(language);
+      if (!dictionary) continue;
+      const label = labelKey ? readable(translate(dictionary, labelKey)) : null;
+      if (label && resolved[language] === label) fromLabel[language] = label;
+      const read = headingOf(dictionary, own) ?? firstResolvable(dictionary, own.i18nKeys);
+      if (read) heading[language] = read;
+    }
+    if (Object.keys(fromLabel).length > 0) labelled.set(id, { titles: fromLabel, votes: labelVotes, grouped: groupLabelKey !== null });
+    headings.set(id, heading);
     features.set(id, featureOf(route));
     titleContext.set(id, {
       feature: featureOf(route),
@@ -670,6 +899,8 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     [...titles].map(([id, perLanguage]) => [id, Object.values(perLanguage)]),
   );
 
+  prefixGroups(titles, titleContext, labelled);
+  yieldToHeadings(titles, titleContext, labelled, headings);
   qualifyTitles(titles, titleContext, new Set(accepted.filter(({ route }) => route.path === '/').map(({ id }) => id)));
   separateTwins(titles, titleContext, new Map(accepted.map(({ id, route }) => [id, route.path])));
 
@@ -707,20 +938,57 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
     const request = requests[index]!;
     const written: Prose = prose.get(id) ?? deriveProse(request);
     const localized = translationsOf(request.titles, facts, translations, config.languages);
-    // ADR-031: what only opens something here, named in every language the app ships — and in which.
-    const openerNames = (facts.openers ?? [])
-      .flatMap((o): { name: string; language: string }[] =>
-        o.labelKey
-          ? config.languages.flatMap((language) => {
-              const dictionary = translations.get(language);
-              const name = dictionary ? translate(dictionary, o.labelKey!) : null;
-              return name ? [{ name, language }] : [];
-            })
-          : o.label ? [{ name: o.label, language: config.languages[0] ?? 'en' }] : [],
-      )
-      .filter(({ name }) => name.trim() && name.length <= 80);
-    const opens = [...new Set(openerNames.map(({ name }) => name))].slice(0, 20);
-    const startPhrases = [...new Set(openerNames.slice(0, 6).flatMap(({ name, language }) => startExamples(name, language)))].slice(0, 6);
+    // Who may use a control here (ADR-042): the roles that open the screen, narrowed by the control's own
+    // condition. `null` is every one of them; an empty list is no one, and the control is not listed.
+    const screenRoles = route.roles ?? [];
+    const whoOf = (control: Control): readonly RoleName[] | null => {
+      if (!control.roles) return null;
+      const usable = screenRoles.filter((role) => control.roles!.includes(role));
+      return usable.length === screenRoles.length ? null : usable;
+    };
+    // A control's name in every language the app ships — in which, and for whom.
+    type Named = { name: string; language: string; who: readonly RoleName[] | null };
+    const namesOf = (controls: readonly Control[]): Named[] =>
+      controls
+        .flatMap((o): Named[] => {
+          const who = whoOf(o);
+          if (who !== null && who.length === 0) return [];
+          return o.labelKey
+            ? config.languages.flatMap((language) => {
+                const dictionary = translations.get(language);
+                const name = dictionary ? translate(dictionary, o.labelKey!) : null;
+                return name ? [{ name: name.trim(), language, who }] : [];
+              })
+            : o.label ? [{ name: o.label.trim(), language: config.languages[0] ?? 'en', who }] : [];
+        })
+        .filter(({ name }) => name && name.length <= 80);
+    // One entry per name, up to 20: whoever may use any control of that name may use one.
+    const listOf = (named: readonly Named[], keep: (name: string) => boolean) => {
+      const who = new Map<string, RoleName[] | null>();
+      for (const n of named) {
+        if (!keep(n.name)) continue;
+        const before = who.get(n.name);
+        if (before === undefined) who.set(n.name, n.who ? [...n.who] : null);
+        else if (before !== null) who.set(n.name, n.who ? [...new Set([...before, ...n.who])] : null);
+      }
+      const names = [...who.keys()].slice(0, 20);
+      const restricted = Object.fromEntries(names.filter((name) => who.get(name) !== null).map((name) => [name, who.get(name)!.sort()]));
+      return { names, restricted };
+    };
+    // ADR-031: what only opens something here.
+    const openerNames = namesOf(facts.openers ?? []);
+    const opens = listOf(openerNames, () => true);    // ADR-042: what the screen lets a visitor do. A translated name is held to the same bar a literal one
+    // was in `controls.ts` — no lone dialog word — and a name with a placeholder left in it ("Eliminar
+    // {{name}}") is a sentence about one item, not the control's name.
+    const actions = listOf(
+      namesOf(facts.actions ?? []),
+      (name) => !isChrome(name) && !/\{\{|\{\w*\}|%s|\$\{/.test(name) && !opens.names.includes(name),
+    );
+    // How a visitor asks to start what opens here — only from what every role that opens the screen has,
+    // because a phrasing is matched for everyone the registry goes to.
+    const startPhrases = [
+      ...new Set(openerNames.filter(({ who }) => who === null).slice(0, 6).flatMap(({ name, language }) => startExamples(name, language))),
+    ].slice(0, 6);
     // A locale prefix is not something the visitor supplies — the widget fills it from the page they are
     // on — so it is not a slot the router may find "missing" (it made every screen of a locale-routed app
     // a question, "sign in" included). It stays in the route.
@@ -761,7 +1029,10 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
       ...(rules.length > 0 ? { rules } : {}),
       roles: route.roles ?? [],
       ...(localized ? { translations: localized } : {}),
-      ...(opens.length > 0 ? { opens } : {}),
+      ...(opens.names.length > 0 ? { opens: opens.names } : {}),
+      ...(Object.keys(opens.restricted).length > 0 ? { opensRoles: opens.restricted } : {}),
+      ...(actions.names.length > 0 ? { actions: actions.names } : {}),
+      ...(Object.keys(actions.restricted).length > 0 ? { actionRoles: actions.restricted } : {}),
       ...(parameters.length > 0
         ? {
             params: Object.fromEntries(
@@ -789,9 +1060,52 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   const reviewInferred: ReviewInferredEntry[] = accepted.flatMap(({ route, facts, pageFile }) =>
     pageFile ? reviewInferredEntries(facts.inferredCandidates, route.path, config.appRoot, pageFile) : [],
   );
+  // ADR-042: controls left out because a permission condition guards them, named in the app's first
+  // language — for the review, never a registry.
+  const primary = translations.get(config.languages[0] ?? 'en');
+  // ADR-042: the keys the pages use that resolve in no locale folder listed. A folder that is listed and
+  // exists proves nothing (one real app's stale config listed folders the app had moved away from); a key
+  // that resolves nowhere does.
+  const usedKeys = new Set(
+    accepted.flatMap(({ facts }) => [
+      ...facts.titleKeys,
+      ...facts.i18nKeys,
+      ...[...(facts.openers ?? []), ...(facts.actions ?? [])].flatMap((c) => (c.labelKey ? [c.labelKey] : [])),
+    ]),
+  );
+  const unresolvedKeys = [...usedKeys].filter((key) => !primary || translate(primary, key) === null);
+  const byNamespace = new Map<string, number>();
+  for (const key of unresolvedKeys) {
+    const namespace = key.includes(':') ? key.slice(0, key.indexOf(':')) : '(no namespace)';
+    byNamespace.set(namespace, (byNamespace.get(namespace) ?? 0) + 1);
+  }
+  const untranslatedKeys = {
+    used: usedKeys.size,
+    unresolved: unresolvedKeys.length,
+    namespaces: [...byNamespace].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([namespace]) => namespace),
+  };
+  const guardedControls = accepted
+    .map(({ route, facts }) => ({
+      route: route.path,
+      names: [...new Set((facts.guardedControls ?? []).map((c) => c.label ?? (primary && c.labelKey ? translate(primary, c.labelKey) : null) ?? `key ${c.labelKey}`))],
+    }))
+    .filter(({ names }) => names.length > 0);
 
-  // The generic catalogue, then the limits this adopter declared in their own words.
-  const boundaries = [...synthesiseBoundaries(routes, config.languages[0] ?? 'en', config.languages.slice(1)), ...knowledgeBoundaries(knowledge)];
+  // The generic catalogue, then the limits this adopter declared in their own words. Per role (ADR-042): a
+  // generic limit is left out of a role's registry when a screen or control that role has does what it
+  // refuses — "I can't send messages for you" is true for a parent and false for a coach of the same app.
+  const declaredLimits = knowledgeBoundaries(knowledge);
+  const limitsByRole = new Map<RoleName, Capability[]>(
+    roles.allRoles.map((role) => {
+      const reachable = master.filter((capability) => capability.roles.includes(role)).map((capability) => forRole(capability, role));
+      // Only a control is evidence the app does something: a purpose that says parents "pay the fee
+      // at the office" is not a pay button, and must not drop the limit that says it cannot pay.
+      const does = actionVocabularyOf(reachable.map(({ actions, opens }) => ({ ...(actions ? { actions } : {}), ...(opens ? { opens } : {}) })));
+      return [role, [...synthesiseBoundaries(routes, config.languages[0] ?? 'en', config.languages.slice(1), does), ...declaredLimits]];
+    }),
+  );
+  // Every limit some role receives, once — what the review and `doctor` report.
+  const boundaries = [...new Map([...limitsByRole.values()].flat().map((limit) => [limit.id, limit])).values()];
   const domainDescription =
     config.domainDescription ?? knowledge.app.about ?? (await describeApplication(master, options.model ?? null, cache));
 
@@ -804,13 +1118,16 @@ export async function generate(options: GenerateOptions): Promise<GeneratorOutpu
   }
 
   return {
-    registries: splitByRole(master, boundaries, domainDescription, roles.allRoles, (role) => knowledgeContext(knowledge, role), config.languages[0]),
+    registries: splitByRole(master, (role) => limitsByRole.get(role) ?? [], domainDescription, roles.allRoles, (role) => knowledgeContext(knowledge, role), config.languages[0]),
     master,
     boundaries,
     skipped,
     reviewInferred,
+    guardedControls,
+    untranslatedKeys,
     domainDescription,
     roles: roles.allRoles,
+    translationCollisions,
   };
 }
 

@@ -105,3 +105,40 @@ describe('stage 2 — an acting limit refuses only a request to act (ADR-025)', 
     expect(s.boundaryId).toBe('unsupported.declared.fees');
   });
 });
+
+/**
+ * Rule 19's reading, for a refusal (ADR-042). "apaga a ficha médica do meu filho" was refused as "fees are
+ * handled by the office", by 0.004, on the words "meu filho" — which the child's medical screen declares
+ * too. Words both declare are not evidence for either; a limit refuses only on a word that is its own.
+ */
+describe('stage 2 — a limit does not refuse on words the best screen shares', () => {
+  const caps: Capability[] = [
+    defineCapability({
+      id: 'guardian.medical', kind: 'navigate', route: '/my/children/medical',
+      title: 'Estado médico', description: 'Se o meu filho pode jogar.',
+      explanation: 'O estado médico do educando.',
+      examples: ['estado médico do meu filho', 'o meu filho está lesionado', 'ficha médica'],
+    }),
+    defineBoundary({
+      id: 'unsupported.declared.fees', title: 'Quotas',
+      description: 'As quotas do meu filho são tratadas na secretaria.',
+      examples: ['quota do meu filho', 'fatura do meu filho', 'quanto devo pelo meu filho'],
+      refusal: 'As quotas são tratadas na secretaria.',
+    }),
+  ];
+  const leadsOnSharedWords = { ...base, boundaryMargin: 0, actionBoundaryMargin: 0 };
+
+  it('does not refuse when every word tying the request to the limit is the screen’s too', async () => {
+    const { registry, embedder } = await build(caps);
+    const s = await stage2('apaga tudo do meu filho', registry, embedder, leadsOnSharedWords);
+    expect(s.all[0]!.capabilityId).toBe('unsupported.declared.fees');
+    expect(s.decision).not.toBe('refuse');
+  });
+
+  it('still refuses on a word that is the limit’s own', async () => {
+    const { registry, embedder } = await build(caps);
+    const s = await stage2('a quota do meu filho', registry, embedder, leadsOnSharedWords);
+    expect(s.decision).toBe('refuse');
+    expect(s.boundaryId).toBe('unsupported.declared.fees');
+  });
+});

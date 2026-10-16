@@ -217,15 +217,26 @@ describe('present — a request to change something', () => {
   const change = (over: Partial<TurnTrace>): TurnTrace =>
     trace({ outcome: 'out_of_scope', capabilityId: 'calendar.overview', changeRequest: true, ...over });
 
-  it('says it cannot do it for them, and offers the screen as a link, without moving', () => {
+  // ADR-042: the app does it, so the answer is where — never "I can't do that", which visitors read as
+  // "this app can't" — and the screen is a link, not a move (Rule 20).
+  it('says where it is done, and offers the screen as a link, without moving', () => {
     const view = present(change({}), registry, '/', words);
-    expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, body: words.limitHelpHere, destination: null });
+    expect(view).toMatchObject({ tone: 'explain', title: words.doneIn('Calendar'), body: words.doneThere, destination: null });
     expect(view.choices).toEqual([{ label: 'Calendar', route: '/calendar', detail: 'Training and matches by day.' }]);
+    expect(view.title).not.toBe(words.limitDoTitle);
   });
 
-  it('says it is handled here when they are already on that screen — never a dead end', () => {
-    const view = present(change({}), registry, '/calendar', words);
-    expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, body: words.limitHandledHere, choices: [] });
+  it('names the control there that does it, when the router found one', () => {
+    const view = present(change({ control: 'Cancel session' }), registry, '/', words);
+    expect(view).toMatchObject({ title: words.doneIn('Calendar'), body: words.doneWith('Cancel session'), destination: null });
+  });
+
+  it('says it is done here when they are already on that screen — never a dead end', () => {
+    expect(present(change({}), registry, '/calendar', words)).toMatchObject({ tone: 'explain', title: words.doneHere, body: words.doneSelf, choices: [] });
+    expect(present(change({ control: 'Cancel session' }), registry, '/calendar', words)).toMatchObject({
+      title: words.doneHere,
+      body: words.doneHereWith('Cancel session'),
+    });
   });
 
   it('offers the list an item screen is reached from, when the page names no item', () => {
@@ -234,7 +245,7 @@ describe('present — a request to change something', () => {
     expect(view.choices.length).toBeLessThanOrEqual(1);
   });
 
-  it('asks as a limit, not "you probably want", when the router was not sure — and never moves, even eager', () => {
+  it('says where it is done, not "you probably want", when the router was not sure — and never moves, even eager', () => {
     const unsure = trace({
       outcome: 'clarify',
       changeRequest: true,
@@ -242,7 +253,7 @@ describe('present — a request to change something', () => {
     });
     for (const decide of ['balanced', 'eager'] as const) {
       const view = present(unsure, registry, '/', words, [], {}, decide);
-      expect(view).toMatchObject({ tone: 'limit', title: words.limitDoTitle, destination: null });
+      expect(view).toMatchObject({ tone: 'choose', title: words.doneInOneOf, destination: null });
       expect(view.choices[0]?.route).toBe('/calendar');
     }
   });

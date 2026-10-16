@@ -84,6 +84,10 @@ const WHY: Readonly<Record<SkipReason, { readonly means: string; readonly fix: s
     means: 'it only redirects to a screen that is offered at its own address, so it is an old name for that screen',
     fix: 'nothing to do',
   },
+  'declared-redirect': {
+    means: 'your route table marks it `redirect: true`: it only sends the user on, so it is not a screen to offer',
+    fix: 'nothing to do, if that is what it does',
+  },
 };
 
 function readJson<T>(file: string): T | null {

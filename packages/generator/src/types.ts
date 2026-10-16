@@ -33,7 +33,9 @@ export type SkipReason =
   /** The same screen as a route that picks its own parameter and redirects to it: declared once, there. */
   | 'reached-through-resolver'
   /** Only redirects to a screen that is declared at its own address: an old name for it, not a place. */
-  | 'redirect-alias';
+  | 'redirect-alias'
+  /** The route table itself marks it as only redirecting (`redirect: true`): not a screen of its own. */
+  | 'declared-redirect';
 
 export interface SkippedRoute {
   readonly path: string;
@@ -58,7 +60,8 @@ export interface DiscoveredRoute {
   /**
    * The file this route was written in, for a route whose component is not imported from anywhere — it
    * may be declared right beside the route table (`function MainPage() {…}`). Absent when
-   * `componentFile` resolved, or there is no component.
+   * `componentFile` resolved, or there is no component. Also the file a lazily loaded named export
+   * is declared in when that file declares other components too: the component is read by name there.
    */
   readonly routedIn?: string;
   /** `features/<feature>/pages/X.tsx` — the real information architecture. */
@@ -71,6 +74,12 @@ export interface DiscoveredRoute {
    * far as it is known at build time. Absent for a route that renders a page.
    */
   readonly redirectTo?: string | null;
+  /**
+   * Every placement the route entry's own `nav` map declares — `nav: { COACH: { labelKey, group }, … }` —
+   * in declaration order. Which one names the screen is chosen where the labels can be read
+   * (`chooseNavLabel`, in generate). Absent when the entry has no such map.
+   */
+  readonly navPlacements?: readonly NavLabel[];
   /** Registered only under a development-build guard. */
   readonly devOnly: boolean;
   /** Leading comment on the route entry, verbatim. Untrusted (Rule 15). */
@@ -126,6 +135,13 @@ export interface PageFacts {
    * who asked to start what they open. Untrusted (Rule 15); absent where the page is not read as TSX.
    */
   readonly openers?: readonly { readonly label: string | null; readonly labelKey: string | null }[];
+  /**
+   * Controls on the screen that do something — save, cancel, publish, export — read from the page and the
+   * application's own components it renders (ADR-042, `controls.ts`). Untrusted (Rule 15).
+   */
+  readonly actions?: readonly { readonly label: string | null; readonly labelKey: string | null }[];
+  /** Controls left out of `actions` and `openers` because a condition about who may use them guards them. */
+  readonly guardedControls?: readonly { readonly label: string | null; readonly labelKey: string | null }[];
 }
 
 /** Which shape of imperative guard an inferred candidate came from. */
@@ -186,9 +202,21 @@ export interface FieldRule {
 }
 
 /** A label a manifest attached to a route, with the reason it was recorded. */
+/** What one nav placement says a screen is called: its own label, and the label of its group. */
+export interface NavLabel {
+  readonly labelKey: string;
+  readonly groupLabelKey: string | null;
+}
+
 export interface ManifestEntry {
   readonly path: string;
   readonly labelKey: string | null;
+  /**
+   * Every placement a nav map keyed by route gives this route, one per role, in declaration order.
+   * `labelKey` and `groupLabelKey` are the plain choice among them; generate chooses again with the
+   * labels in hand, to break a tie by the route's own area.
+   */
+  readonly placements?: readonly NavLabel[];
   /**
    * The label of the nav group the entry sits in, when a nav config nests it:
    * `{ label: 'nav.squad', items: [{ label: 'nav.overview', route: '/squad' }] }`.
@@ -205,7 +233,16 @@ export interface ManifestEntry {
  * This is the *master* artefact, not a shipped one: `roles` never survives into
  * a registry a browser receives. See `emit.ts` for why.
  */
-export type AnnotatedCapability = Capability & { readonly roles: readonly RoleName[] };
+export type AnnotatedCapability = Capability & {
+  readonly roles: readonly RoleName[];
+  /**
+   * The controls in `actions` / `opens` that only some of `roles` may use, and which (ADR-042). A name not
+   * here is for every role that opens the screen. Like `roles`, never in a registry: each role's file gets
+   * only the names it may use.
+   */
+  readonly actionRoles?: Readonly<Record<string, readonly RoleName[]>>;
+  readonly opensRoles?: Readonly<Record<string, readonly RoleName[]>>;
+};
 
 export interface GeneratorOutput {
   /** One entry per role, each a plain `RegistryFile` with no role annotation. */
@@ -221,8 +258,24 @@ export interface GeneratorOutput {
    * field on the capability that carries it; there is no separate list for it.
    */
   readonly reviewInferred: readonly ReviewInferredEntry[];
+  /**
+   * Per screen, the controls left out because a condition about who may use them guards them (ADR-042) —
+   * for the review, never a registry: whether a role has one is decided at run time, by the app.
+   */
+  readonly guardedControls?: readonly { readonly route: string; readonly names: readonly string[] }[];
+  /**
+   * The translation keys the pages use — titles, headings, controls — and how many resolve in no locale
+   * folder listed, with their namespaces, most first (ADR-042). Many unresolved means `localesDir` is
+   * missing a folder: those screens are named and described from nothing in the app's own words.
+   */
+  readonly untranslatedKeys?: { readonly used: number; readonly unresolved: number; readonly namespaces: readonly string[] };
   readonly domainDescription: string;
   readonly roles: readonly RoleName[];
+  /**
+   * Translation keys a later locale folder defined again, summed over the languages read; the first
+   * folder's value was used. Always 0 with one folder.
+   */
+  readonly translationCollisions?: number;
 }
 
 /** A found-but-not-shipped inferred candidate, for a human to read (ADR-020). */
@@ -278,8 +331,12 @@ export interface GeneratorConfig {
    * because a developer wrote them for humans.
    */
   readonly manifests: readonly string[];
-  /** `i18n/locales/<lang>/<namespace>.json`. */
-  readonly localesDir: string | null;
+  /**
+   * Where the translations live: `i18n/locales/<lang>/<namespace>.json` (or `<lang>.json`), relative to
+   * `appRoot`. A list when they are spread over several folders — one per package in a monorepo: they
+   * merge per namespace and key, and the first folder listed wins a key two of them define.
+   */
+  readonly localesDir: string | readonly string[] | null;
   /**
    * Languages to resolve labels in. **The first is the application's own
    * language**, and it decides the language of every title and description in

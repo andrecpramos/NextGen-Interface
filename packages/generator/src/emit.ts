@@ -25,14 +25,34 @@ import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleNam
 
 export const SCHEMA_VERSION = 1;
 
-function withoutRoles(capability: AnnotatedCapability): Capability {
-  const { roles: _roles, ...rest } = capability;
-  return rest;
+/**
+ * One capability as `role` receives it: no role annotation, and only the controls `role` may use (ADR-042).
+ * A control only some roles have is absent from the others' files, not hidden in them — Rule 17 again.
+ */
+export function forRole(capability: AnnotatedCapability, role: RoleName): Capability {
+  const { roles: _roles, actionRoles, opensRoles, ...rest } = capability;
+  const restrictedBy: Record<string, Readonly<Record<string, readonly RoleName[]>> | undefined> = { actions: actionRoles, opens: opensRoles };
+  // Field by field, so a registry's keys keep their order and an unrestricted capability is unchanged.
+  const out: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(rest)) {
+    if (!(field in restrictedBy)) {
+      out[field] = value;
+      continue;
+    }
+    const restricted = restrictedBy[field];
+    const usable = (value as readonly string[]).filter((name) => !restricted || !Object.hasOwn(restricted, name) || restricted[name]!.includes(role));
+    if (usable.length > 0) out[field] = usable;
+  }
+  return out as unknown as Capability;
 }
 
 export function splitByRole(
   master: readonly AnnotatedCapability[],
-  boundaries: readonly Capability[],
+  /**
+   * The limits every role receives — or, per role, the limits true for what that role can do (ADR-042):
+   * "I can't send messages for you" is true for a parent and false for a coach of the same app.
+   */
+  boundaries: readonly Capability[] | ((role: RoleName, reachable: readonly Capability[]) => readonly Capability[]),
   domainDescription: string,
   roles: readonly RoleName[],
   /**
@@ -46,12 +66,13 @@ export function splitByRole(
 ): Map<RoleName, RegistryFile> {
   const out = new Map<RoleName, RegistryFile>();
   for (const role of roles) {
-    const reachable = master.filter((capability) => capability.roles.includes(role)).map(withoutRoles);
+    const reachable = master.filter((capability) => capability.roles.includes(role)).map((capability) => forRole(capability, role));
     const context = contextFor?.(role) ?? null;
     // A limit goes to every role, but where it points (helpAt) is a screen: kept only where this role
     // can open it, and dropped when none is left — Rule 17, and no link to nowhere.
     const routes = new Set(reachable.map((capability) => capability.route).filter(Boolean));
-    const limits = boundaries.map((limit): Capability => {
+    const declared = typeof boundaries === 'function' ? boundaries(role, reachable) : boundaries;
+    const limits = declared.map((limit): Capability => {
       if (!limit.helpAt) return limit;
       const { helpAt, ...rest } = limit;
       const open = helpAt.filter((route) => routes.has(route));
@@ -81,6 +102,7 @@ const REASON_HEADINGS: Record<SkippedRoute['reason'], string> = {
   'duplicate-route': 'Another capability already declares this route',
   'reached-through-resolver': 'The same screen as a route that picks its own parameter — declared once, there',
   'redirect-alias': 'Only redirects to a screen declared at its own address — an old name for it',
+  'declared-redirect': 'The route table marks it as a redirect — it sends the user on, and is not a screen of its own',
   // Before this reason existed such a route produced no entry at all —
   // under-discovery that no report could mention. Listed so it can be fixed.
   'unreadable-route': 'Found in the route table, but its path or component could not be read',
@@ -235,8 +257,53 @@ export function writeOutput(outputDir: string, appRoot: string, output: Generato
   );
   write('SKIPPED.md', formatSkipReport(output.skipped));
   write('INFERRED.md', formatInferredReport(output.reviewInferred));
+  const controls = formatControlsReport(output.master, output.guardedControls ?? []);
+  if (controls) write('CONTROLS.md', controls);
 
   return { files, invalid };
+}
+
+/**
+ * What each screen lets a visitor do, and who may (ADR-042) — for the developer to check, never served:
+ * it names every role beside every control. `null` when the scan found no control at all.
+ */
+export function formatControlsReport(
+  master: readonly AnnotatedCapability[],
+  guarded: readonly { readonly route: string; readonly names: readonly string[] }[],
+): string | null {
+  const screens = master.filter((c) => (c.actions?.length ?? 0) + (c.opens?.length ?? 0) > 0);
+  if (screens.length === 0 && guarded.length === 0) return null;
+  const named = (names: readonly string[] | undefined, restricted: Readonly<Record<string, readonly RoleName[]>> | undefined) =>
+    (names ?? []).map((name) => (restricted?.[name] ? `${name} (${restricted[name]!.join(', ')})` : name)).join(' · ');
+  const lines: string[] = [
+    '# What each screen lets a visitor do',
+    '',
+    'Read from each page and from the application’s own components it renders (ADR-042). A control is',
+    'listed for every role that opens its screen, or — in brackets — only for the roles every condition',
+    'above it lets through. The assistant names these when a visitor asks to do something; it never',
+    'presses one that changes anything. **Check both directions:** a control a role cannot use but is',
+    'listed for it is named to that role; a control missing here is one the assistant cannot point to.',
+    '',
+  ];
+  for (const c of [...screens].sort((a, b) => (a.route ?? '').localeCompare(b.route ?? ''))) {
+    lines.push(`## ${c.route} — ${c.title}`, '');
+    if (c.opens?.length) lines.push(`- Opens: ${named(c.opens, c.opensRoles)}`);
+    if (c.actions?.length) lines.push(`- Does: ${named(c.actions, c.actionRoles)}`);
+    lines.push('');
+  }
+  if (guarded.length > 0) {
+    lines.push(
+      '## Left out: who may use them could not be read',
+      '',
+      'A condition above each of these is about who the visitor is, and is not one this scan can evaluate',
+      '(a flag from a hook, a `<Can>` whose rule is not a role list). They are in no registry. If a role',
+      'does have one, say so in knowledge.json: what that screen is for, and how people ask for it.',
+      '',
+      ...guarded.map((g) => `- ${g.route}: ${g.names.join(' · ')}`),
+      '',
+    );
+  }
+  return lines.join('\n');
 }
 
 // ------------------------------------------------------- the shipped index --

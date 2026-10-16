@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { validateRegistry } from '@nextgen/core-capability';
 
-import { formatInferredReport, formatSkipReport, splitByRole, writeOutput } from './emit.ts';
+import { formatControlsReport, formatInferredReport, formatSkipReport, splitByRole, writeOutput } from './emit.ts';
 import type { AnnotatedCapability, GeneratorOutput } from './types.ts';
 
 const capability = (id: string, roles: string[]): AnnotatedCapability => ({
@@ -105,6 +105,49 @@ describe('splitByRole — Rule 17', () => {
       const result = validateRegistry(registry);
       expect(result.errors, `${role}: ${result.errors.map((e) => e.message).join('; ')}`).toEqual([]);
     }
+  });
+});
+
+/**
+ * ADR-042: Rule 17 for what a screen lets a visitor do. A control only some of a screen's roles may use is
+ * absent from the others' registries — and which roles may use it is never shipped to anyone.
+ */
+describe('splitByRole — controls only some roles may use', () => {
+  const sessions: AnnotatedCapability = {
+    ...capability('training.sessions', ['ADMIN', 'COACH', 'PARENT']),
+    actions: ['Export PDF', 'Cancel session', 'Excuse an absence'],
+    actionRoles: { 'Cancel session': ['ADMIN', 'COACH'], 'Excuse an absence': ['PARENT'] },
+    opens: ['New session'],
+    opensRoles: { 'New session': ['ADMIN', 'COACH'] },
+  };
+  const registries = splitByRole([sessions], [], 'A club application.', ['ADMIN', 'COACH', 'PARENT']);
+  const of = (role: string) => registries.get(role)!.capabilities[0]!;
+
+  it('gives each role only the controls it may use', () => {
+    expect(of('COACH').actions).toEqual(['Export PDF', 'Cancel session']);
+    expect(of('PARENT').actions).toEqual(['Export PDF', 'Excuse an absence']);
+    expect(of('COACH').opens).toEqual(['New session']);
+    expect(of('PARENT').opens).toBeUndefined();
+  });
+
+  it('ships no role annotation of any kind', () => {
+    for (const [, registry] of registries) {
+      const text = JSON.stringify(registry);
+      for (const leak of ['actionRoles', 'opensRoles', '"roles"']) expect(text).not.toContain(leak);
+    }
+  });
+
+  it('emits registries the engine will accept', () => {
+    for (const [role, registry] of registries) expect(validateRegistry(registry).errors, role).toEqual([]);
+  });
+
+  it('reports every control, who may use it, and what was left out — for the developer, in the review only', () => {
+    const report = formatControlsReport([sessions], [{ route: '/training/sessions', names: ['Delete session'] }])!;
+    expect(report).toContain('## /training/sessions — training.sessions');
+    expect(report).toContain('- Opens: New session (ADMIN, COACH)');
+    expect(report).toContain('- Does: Export PDF · Cancel session (ADMIN, COACH) · Excuse an absence (PARENT)');
+    expect(report).toContain('- /training/sessions: Delete session');
+    expect(formatControlsReport([capability('my.child', ['PARENT'])], [])).toBeNull();
   });
 });
 

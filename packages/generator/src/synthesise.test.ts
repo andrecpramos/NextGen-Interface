@@ -212,8 +212,34 @@ describe('deriveProse — what the screen is for, in the visitor’s words', () 
     expect(deriveProse(en({ copy: ['Players', 'Position'] })).explanation).toBe('This screen shows: Position.');
   });
 
-  it('ends one sentence, even when what it shows already ended one', () => {
-    expect(deriveProse(en({ copy: ['Monthly plans from thirty euros.'] })).explanation).toBe('This screen shows: Monthly plans from thirty euros.');
+  // ADR-042: a sentence the page writes about itself is the best answer to "what is this" — and served as
+  // it is, not as the first item of a list ("This screen shows: Dados, disponibilidade e evolução do atleta., Disponível").
+  it('says what the page says about itself, when it says it in a sentence', () => {
+    expect(deriveProse(en({ copy: ['Monthly plans from thirty euros.'] })).explanation).toBe('Monthly plans from thirty euros.');
+    expect(deriveProse(request({ copy: ['Plano, presenças e acompanhamento da sessão.', 'RPE planeado', 'Microciclo'] })).explanation)
+      .toBe('Plano, presenças e acompanhamento da sessão.');
+  });
+
+  it('lists the sections when the sentence is not the first thing the page says — it describes one of them', () => {
+    expect(deriveProse(en({ copy: ['Membership prices', 'Monthly plans from thirty euros.', 'Our team'] })).explanation)
+      .toBe('This screen shows: Membership prices, Monthly plans from thirty euros, Our team.');
+  });
+
+  it('ends one sentence, and never a list item with a full stop of its own', () => {
+    expect(deriveProse(request({ copy: ['Treinos do mês.', 'Jogos'] })).explanation).toBe('Este ecrã mostra: Treinos do mês, Jogos.');
+  });
+
+  // ADR-042, from a real app: "Este ecrã mostra: X (m), Z (m), Adversário, Transmissão.", "Jogo não
+  // encontrado., Ao vivo", "(cópia), Bolas Paradas, Pesquisar táticas...". Shown only — the examples, which
+  // are matched, are filtered by `worthShowing` alone, so no score moves (Rule 14).
+  it('leaves out columns with units, numbers, placeholders, errors and states, and what a form says is optional', () => {
+    const said = deriveProse(request({
+      copy: ['X (m)', 'Z (m)', '≥ 80%', '60–79', 'Pesquisar táticas...', 'Jogo não encontrado.', 'Título (opcional)', '(cópia)',
+        'Clip ainda não está pronto', 'A processar reconstrução', 'Pos',
+        // A fragment an expression interrupted, found on a real app: "Match &" {type}.
+        'Match &', 'Treinos de', 'Adversário'],
+    })).explanation;
+    expect(said).toBe('Este ecrã mostra: Adversário.');
   });
 
   it('clips a paragraph the page shows, at a word, so a list of four cannot run to a wall of text', () => {

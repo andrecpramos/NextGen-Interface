@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T21:17:53.091Z",
+  "generatedAt": "2026-10-15T23:21:27.389Z",
   "config": {
     "embedder": "hashing",
     "model": "llama3.1:8b",
@@ -63,8 +63,8 @@
       "top1Total": 0,
       "top1": null,
       "stage3Calls": 13,
-      "stage3p50": 555.3336999999992,
-      "stage3p95": 9825.4633
+      "stage3p50": 560.2718999999997,
+      "stage3p95": 6793.2282000000005
     }
   },
   "stage3Health": {
@@ -80,11 +80,11 @@
   },
   "modelFreeRate": 0,
   "latency": {
-    "p50": 555.9707999999991,
-    "p95": 9830.8703,
-    "stage1p95": 0.13389999999999702,
-    "stage2p95": 4.357099999999988,
-    "stage3p95": 9825.4633
+    "p50": 560.7476000000006,
+    "p95": 6798.077899999999,
+    "stage1p95": 0.117999999999995,
+    "stage2p95": 2.6341999999999928,
+    "stage3p95": 6793.2282000000005
   },
   "registryOverlap": [],
   "failures": [
@@ -124,7 +124,7 @@
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {
-          "target": "passport"
+          "target": "passport module"
         },
         "notes": []
       },
@@ -146,7 +146,7 @@
         "outcome": "execute",
         "decidedAt": "llm",
         "params": {
-          "target": "passport"
+          "target": "passport module"
         },
         "notes": []
       },

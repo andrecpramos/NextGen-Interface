@@ -1035,9 +1035,9 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
     onLevel: (level) => beam.setLevel(level),
   });
 
-  /** Read the adopter's look from the page as it is now, and wear it. */
-  function applyTheme(): void {
-    theme = readTheme(pageThemeSource(doc, view, host));
+  /** Read the adopter's look from the page as it is now (or take one just read), and wear it. */
+  function applyTheme(next: Theme = readTheme(pageThemeSource(doc, view, host))): void {
+    theme = next;
     for (const [name, value] of Object.entries(themeVariables(theme))) host.style.setProperty(name, value);
     for (const [name, value] of Object.entries(beamVariables(css(theme.accent), theme.scheme))) host.style.setProperty(name, value);
     liquid.refresh();
@@ -2727,6 +2727,30 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       : null;
   langWatch?.observe(doc.documentElement, { attributes: true, attributeFilter: ['lang'] });
 
+  // The app changed its look while the assistant runs (a light/dark switch, a new brand colour), and the
+  // assistant wears the new one at once, open or closed, instead of at the next open. Apps flip a look
+  // with an attribute on <html> or <body> (a class, a style, a data-* flag), or follow the system scheme
+  // through a media query. Any of those asks for one read on the next frame, and the look is worn again
+  // only when it actually changed, so the assistant's own scroll lock on <html> costs one read and nothing more.
+  let themeQueued = false;
+  const followTheme = (): void => {
+    themeQueued = false;
+    if (destroyed) return;
+    const next = readTheme(pageThemeSource(doc, view, host));
+    if (JSON.stringify(next) !== JSON.stringify(theme)) applyTheme(next);
+  };
+  const followThemeSoon = (): void => {
+    if (destroyed || themeQueued) return;
+    themeQueued = true;
+    if (typeof view?.requestAnimationFrame === 'function') view.requestAnimationFrame(followTheme);
+    else if (view) view.setTimeout(followTheme, 0);
+    else followTheme();
+  };
+  const themeWatch = MutationObserverCtor ? new MutationObserverCtor(followThemeSoon) : null;
+  for (const el of [doc.documentElement, doc.body]) if (el) themeWatch?.observe(el, { attributes: true });
+  const schemeQuery = typeof view?.matchMedia === 'function' ? view.matchMedia('(prefers-color-scheme: dark)') : null;
+  if (typeof schemeQuery?.addEventListener === 'function') schemeQuery.addEventListener('change', followThemeSoon);
+
   return {
     host,
     open: (how) => open(false, how?.expanded === true),
@@ -2755,6 +2779,8 @@ export function mountAssistant(target: Element, assistant: Routable, options: As
       destroyed = true;
       view?.removeEventListener('popstate', onHistory);
       langWatch?.disconnect();
+      themeWatch?.disconnect();
+      if (typeof schemeQuery?.removeEventListener === 'function') schemeQuery.removeEventListener('change', followThemeSoon);
       stopConversation();
       stopSpeaking();
       guide = [];

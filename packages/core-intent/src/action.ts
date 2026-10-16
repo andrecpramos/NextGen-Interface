@@ -51,6 +51,8 @@
  * a move into the generated registry.
  */
 
+import { normalize, tokens } from './text.ts';
+
 /**
  * Verbs that ask the assistant to perform something it does not perform.
  *
@@ -96,6 +98,36 @@ const ACTION_CONCEPTS: Readonly<Record<string, readonly string[]>> = {
 const CONCEPT_OF: ReadonlyMap<string, string> = new Map(
   Object.entries(ACTION_CONCEPTS).flatMap(([concept, words]) => words.map((w) => [w, concept] as const)),
 );
+
+/**
+ * "Marcar como lida", "marcar todos presentes": Portuguese marks things as well as booking them. Before
+ * these words, "marca"/"marcar" is marking, and carries no concept (ADR-042: a "Marcar todas como lidas"
+ * control said a parent's app books appointments, and dropped the limit that says it does not).
+ */
+const MARKING_NEXT: ReadonlySet<string> = new Set(['como', 'todos', 'todas', 'tudo']);
+
+/**
+ * "Transferir JSON", "transferir o PDF": in Portuguese a file is downloaded with the verb money is moved
+ * with. Before a file — straight after the verb or after an article — it is downloading, and carries no
+ * concept (ADR-042: a "Transferir JSON" control said a parent's app moves money).
+ */
+const FILE_WORDS: ReadonlySet<string> = new Set([
+  'json', 'csv', 'pdf', 'xlsx', 'excel', 'zip', 'ficheiro', 'ficheiros', 'arquivo', 'arquivos', 'dados',
+  'documento', 'documentos', 'relatorio', 'relatorios', 'copia', 'recibo', 'recibos', 'fatura', 'faturas',
+]);
+const ARTICLES: ReadonlySet<string> = new Set(['o', 'a', 'os', 'as', 'um', 'uma']);
+
+/** The concept `words[i]` carries, in the light of the words after it. */
+function conceptAt(words: readonly string[], i: number): string | undefined {
+  const word = words[i]!;
+  const next = words[i + 1] ?? '';
+  if ((word === 'marca' || word === 'marcar') && MARKING_NEXT.has(next)) return undefined;
+  if (word === 'transfere' || word === 'transferir') {
+    const object = ARTICLES.has(next) ? (words[i + 2] ?? '') : next;
+    if (FILE_WORDS.has(object)) return undefined;
+  }
+  return CONCEPT_OF.get(word);
+}
 
 /** First-person instructional framing — asking how, not asking for it to be done. */
 const HOW_TO_FRAME = new RegExp(
@@ -189,6 +221,14 @@ const START_CONCEPTS: ReadonlySet<string> = new Set(['book', 'create', 'fill']);
 const WHERE_FRAME = /\b(where|onde)\b/iu;
 
 /**
+ * A question about how much, when, which or whether — "quanto tenho de pagar este mês?", "há faturas por
+ * pagar?" — names a thing to look at, not a job to do (ADR-042: on a real app both were answered as
+ * requests to pay). At the start of the sentence only, and with a lookahead rather than `\b`, which is
+ * ASCII-only and never ends a match on "há".
+ */
+const QUESTION_FRAME = /^\s*(?:quant[oa]s?|quando|qual|quais|h[aá]|how (?:much|many)|when|which|is there|are there)(?=\s|$|[?!.,])/iu;
+
+/**
  * Does this utterance ask the assistant to change something that exists, or to do a job for the visitor,
  * rather than to start something new or to find where a thing is done? (Rule 20, ADR-041.)
  *
@@ -198,10 +238,10 @@ const WHERE_FRAME = /\b(where|onde)\b/iu;
  * the form, because the visitor does the task there. Model-free, a closed list, like everything here.
  */
 export function isChangeRequest(utterance: string): boolean {
-  if (WHERE_FRAME.test(utterance) || HOW_TO_FRAME.test(utterance)) return false;
+  if (WHERE_FRAME.test(utterance) || HOW_TO_FRAME.test(utterance) || QUESTION_FRAME.test(utterance)) return false;
   const words = utterance.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
   return words.some((word, i) => {
-    const concept = CONCEPT_OF.get(word);
+    const concept = conceptAt(words, i);
     if (!concept || START_CONCEPTS.has(concept)) return false;
     // "avisos por email", "any new messages", "my orders" name a thing, not a job: a word that is
     // also a noun counts only as a command — first, or after "please", "you" or "to".
@@ -219,8 +259,9 @@ const COMMAND_LEAD: ReadonlySet<string> = new Set(['please', 'you', 'to', 'favor
 function actionConceptsIn(utterance: string): string[] {
   if (HOW_TO_FRAME.test(utterance)) return [];
   const out = new Set<string>();
-  for (const word of utterance.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/)) {
-    const concept = CONCEPT_OF.get(word);
+  const words = utterance.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/);
+  for (const [i] of words.entries()) {
+    const concept = conceptAt(words, i);
     if (concept) out.add(concept);
   }
   return [...out];
@@ -288,15 +329,59 @@ export function actionSignalApplies(
  * application — whatever retrieval happens to rank first for it.
  */
 export function actionVocabularyOf(
-  capabilities: readonly { readonly title?: string; readonly description?: string }[],
+  capabilities: readonly {
+    readonly title?: string;
+    readonly description?: string;
+    readonly actions?: readonly string[];
+    readonly opens?: readonly string[];
+  }[],
 ): ReadonlySet<string> {
   const out = new Set<string>();
   for (const cap of capabilities) {
-    const words = `${cap.title ?? ''} ${cap.description ?? ''}`
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .split(/\s+/);
-    for (const word of words) { const concept = CONCEPT_OF.get(word); if (concept) out.add(concept); }
+    // ADR-042: a control that does or opens something says what the application does, title or not.
+    for (const text of [cap.title ?? '', cap.description ?? '', ...(cap.actions ?? []), ...(cap.opens ?? [])]) {
+      for (const concept of conceptsOf(text)) out.add(concept);
+    }
   }
   return out;
+}
+
+/** The action concepts any of `text`'s words carry — no frame excluded: a control's name is not a question. */
+function conceptsOf(text: string): Set<string> {
+  const words = normalize(text).split(' ');
+  return new Set(words.flatMap((_, i) => conceptAt(words, i) ?? []));
+}
+
+/**
+ * The control on a screen that a request to do something names (ADR-042) — "cancela o treino de amanhã"
+ * names "Cancelar sessão" on the sessions screen — or null when nothing there answers the request.
+ *
+ * Told where a change is made (Rule 20), the visitor is also told with what. A control is chosen by what it
+ * does first (the action concepts above: "envia" is what "Publicar" does), then by the words it shares with
+ * the request, then by the words it shares *exactly*, which is how a request asked in English finds the
+ * English name of a control the app names in both. Model-free, and silent rather than close: a control
+ * named wrongly sends the visitor looking for a button that does something else.
+ */
+export function controlFor(
+  utterance: string,
+  capability: { readonly actions?: readonly string[]; readonly opens?: readonly string[] },
+): string | null {
+  const names = [...(capability.actions ?? []), ...(capability.opens ?? [])];
+  if (names.length === 0) return null;
+  const asked = conceptsOf(utterance);
+  const stems = new Set(tokens(utterance));
+  const words = new Set(normalize(utterance).split(' '));
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const name of names) {
+    const does = [...conceptsOf(name)].filter((concept) => asked.has(concept)).length;
+    const shares = tokens(name).filter((stem) => stems.has(stem)).length;
+    const exactly = normalize(name).split(' ').filter((word) => words.has(word)).length;
+    const score = does * 2 + shares + exactly / 2;
+    if (score > bestScore) {
+      best = name;
+      bestScore = score;
+    }
+  }
+  return best;
 }

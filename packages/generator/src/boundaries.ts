@@ -34,6 +34,12 @@ interface CatalogueEntry {
    */
   readonly relevantWhen: RegExp | null;
   /**
+   * Never emit when the application has a control that does one of these (ADR-042) — the action concepts
+   * of `core-intent`'s `actionVocabularyOf`. A limit that says the app cannot send a message, on an app
+   * with a "Publicar" button, tells the visitor something false and wins over the screen that does it.
+   */
+  readonly unlessTheAppDoes?: readonly string[];
+  /**
    * `'action'` when the entry is about the assistant *doing* something, and so refuses only a request to
    * act (ADR-025). Its examples share their topics with real screens — an appointment, a son, an email —
    * and refusing on topic alone refused "my kid's appointments" as if it were "book an appointment for my son".
@@ -63,6 +69,7 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       'envia um email ao responsável',
     ],
     relevantWhen: null,
+    unlessTheAppDoes: ['send', 'book'],
     refuses: 'action',
     localized: {
       pt: {
@@ -74,31 +81,10 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       },
     },
   },
-  {
-    id: 'unsupported.data_changes',
-    title: 'Changing records for you',
-    description:
-      'Creating, editing or deleting a record. This assistant takes the user to the screen where they can do it themselves; it never fills a form or saves a change on their behalf.',
-    refusal:
-      'I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself.',
-    examples: [
-      'delete this record for me',
-      'change the date on this for me',
-      'fill in this form for me',
-      'apaga este registo por mim',
-      'altera a data disto por mim',
-    ],
-    relevantWhen: null,
-    refuses: 'action',
-    localized: {
-      pt: {
-        title: 'Alterar registos por si',
-        description:
-          'Criar, editar ou apagar um registo. Este assistente leva o utilizador ao ecrã onde o pode fazer; nunca preenche um formulário nem grava uma alteração em seu nome.',
-        refusal: 'Posso levá-lo ao ecrã certo e dizer-lhe o que fazer lá, mas não crio, altero nem apago registos por conta própria.',
-      },
-    },
-  },
+  // "Changing records for you" was here until ADR-042. That the assistant never changes a record is held
+  // by code — a request to change something is offered its screen and never followed there (Rule 20) — so
+  // a limit saying so could only ever win over that screen, and tell a coach the app cannot cancel a
+  // session it has a "Cancelar sessão" button for.
   {
     id: 'unsupported.payments',
     title: 'Processing a payment',
@@ -114,6 +100,7 @@ const CATALOGUE: readonly CatalogueEntry[] = [
       'processa a minha quota',
     ],
     relevantWhen: /finance|billing|invoice|payment|payroll|fee|quota|fatura/i,
+    unlessTheAppDoes: ['pay'],
     refuses: 'action',
     localized: {
       pt: {
@@ -154,12 +141,23 @@ const CATALOGUE: readonly CatalogueEntry[] = [
  * The boundaries worth declaring for this application.
  *
  * Relevance is judged from the routes themselves, so a catalogue entry is never
- * emitted on the strength of a guess about the domain.
+ * emitted on the strength of a guess about the domain — and `does`, the action concepts the
+ * application's own screens and controls name (ADR-042), keeps out every entry the app contradicts.
  */
-export function synthesiseBoundaries(routes: readonly DiscoveredRoute[], language = 'en', others: readonly string[] = []): Capability[] {
+export function synthesiseBoundaries(
+  routes: readonly DiscoveredRoute[],
+  language = 'en',
+  others: readonly string[] = [],
+  does: ReadonlySet<string> = new Set(),
+): Capability[] {
   const surface = routes.map((route) => `${route.path} ${route.feature ?? ''}`).join(' ');
   const code = language.toLowerCase().slice(0, 2);
-  return CATALOGUE.filter((entry) => entry.relevantWhen === null || entry.relevantWhen.test(surface)).map((entry) => {
+  const emitted = CATALOGUE.filter(
+    (entry) =>
+      (entry.relevantWhen === null || entry.relevantWhen.test(surface)) &&
+      !(entry.unlessTheAppDoes ?? []).some((concept) => does.has(concept)),
+  );
+  return emitted.map((entry) => {
     // In the app's own language where the catalogue has it; English otherwise.
     const said = entry.localized?.[code] ?? entry;
     // And in the app's other languages, for a visitor reading one of them (ADR-030).

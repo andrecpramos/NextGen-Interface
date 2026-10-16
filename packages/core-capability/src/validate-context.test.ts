@@ -106,3 +106,31 @@ describe('validateRegistry — what a screen opens', () => {
     }
   });
 });
+
+/** ADR-042: what a screen lets a visitor do — the same shape as `opens`, and only on a screen. */
+describe('validateRegistry — what a screen lets a visitor do', () => {
+  const withActions = (actions: unknown): RegistryFile =>
+    ({ ...base(), capabilities: base().capabilities.map((c) => ({ ...c, actions })) }) as RegistryFile;
+
+  it('accepts a few short names', () => {
+    expect(errors(withActions(['Cancelar sessão', 'Export PDF']))).toEqual([]);
+  });
+
+  it('refuses anything else', () => {
+    for (const bad of ['Export PDF', [42], [''], ['x'.repeat(81)], Array.from({ length: 21 }, (_, i) => `n${i}`)]) {
+      expect(errors(withActions(bad)), JSON.stringify(bad).slice(0, 40)).toContain('actions-shape');
+    }
+  });
+
+  it('refuses them on something that is not a screen', () => {
+    const limit = {
+      ...base(),
+      capabilities: [
+        ...base().capabilities,
+        { id: 'unsupported.payments', kind: 'unsupported', route: null, title: 'Payments', description: 'Paying for things.',
+          refusal: 'I cannot pay.', examples: ['pay this', 'pay my fee', 'transfer money'], actions: ['Pay'] },
+      ],
+    } as RegistryFile;
+    expect(errors(limit)).toContain('actions-misplaced');
+  });
+});

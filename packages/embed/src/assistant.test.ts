@@ -279,6 +279,81 @@ describe('the assistant layer — at rest', () => {
   });
 });
 
+/**
+ * The app switches light/dark while the assistant runs: the assistant wears the new look at once, open or
+ * closed, instead of keeping the old one until it is next opened.
+ */
+describe('the look follows the app', () => {
+  const DARK: Record<string, string> = { 'background-color': 'rgb(10, 11, 13)', color: 'rgb(233, 234, 236)' };
+  const LIGHT: Record<string, string> = { 'background-color': 'rgb(255, 255, 255)', color: 'rgb(20, 24, 28)' };
+
+  /** A page whose look the test can flip, and the observers the assistant put on it. */
+  function switchable() {
+    let look = DARK;
+    const watchers: { callback: () => void; watching: number }[] = [];
+    class Observer {
+      callback: () => void;
+      watching = 0;
+      constructor(callback: () => void) {
+        this.callback = callback;
+        watchers.push(this);
+      }
+      observe(): void {
+        this.watching++;
+      }
+      disconnect(): void {
+        this.watching = 0;
+      }
+    }
+    const page = (doc: FakeDocument): void => {
+      const view = doc.defaultView as unknown as Record<string, unknown>;
+      (doc as unknown as { styleSheets: unknown[] }).styleSheets = [{}];
+      view.getComputedStyle = () => ({ getPropertyValue: (name: string) => look[name] ?? '' });
+      view.MutationObserver = Observer;
+    };
+    return {
+      page,
+      watchers,
+      /** The app flips its look: new styles, and an attribute change on <html>. */
+      flip(next: Record<string, string>): void {
+        look = next;
+        for (const w of watchers) w.callback();
+      },
+    };
+  }
+
+  it('wears the new look when the app switches, without being opened', async () => {
+    const page = switchable();
+    const { host } = setup(answering({}), {}, { page: page.page });
+    expect(host.style['--ng-scheme']).toBe('dark');
+    page.flip(LIGHT);
+    await settle(50);
+    expect(host.style['--ng-scheme']).toBe('light');
+  });
+
+  it('follows while the panel is open, both ways', async () => {
+    const page = switchable();
+    const { host, mounted } = setup(answering({}), {}, { page: page.page });
+    mounted.open();
+    page.flip(LIGHT);
+    await settle(50);
+    expect(host.style['--ng-scheme']).toBe('light');
+    page.flip(DARK);
+    await settle(50);
+    expect(host.style['--ng-scheme']).toBe('dark');
+  });
+
+  it('stops watching the page once removed', async () => {
+    const page = switchable();
+    const { host, mounted } = setup(answering({}), {}, { page: page.page });
+    mounted.destroy();
+    expect(page.watchers.every((w) => w.watching === 0)).toBe(true);
+    page.flip(LIGHT);
+    await settle(50);
+    expect(host.style['--ng-scheme']).toBe('dark');
+  });
+});
+
 /** What the page's own scrolling is set to, with nothing set read as the page's own default. */
 const overflow = (doc: FakeDocument): string => doc.documentElement.style.overflow ?? '';
 

@@ -126,6 +126,11 @@ export async function run(): Promise<number> {
       },
     });
     console.log(`\n  ${record.capabilities} screen(s) across ${record.roles.length} role(s); ${record.skipped.length} left out.`);
+    if (record.locales && record.locales.folders > 1) {
+      console.log(
+        `  Translations: ${record.locales.folders} locale folders merged; ${record.locales.collisions} key(s) defined in more than one (the first folder listed wins).`,
+      );
+    }
     if (record.stage3) {
       console.log(`  Stage 3 is ON: unsettled turns will POST to "${record.stage3.path}" on your own origin.`);
     }

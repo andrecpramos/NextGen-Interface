@@ -47,6 +47,12 @@ describe('isChangeRequest — change, not start, and not "where"', () => {
     'my orders',
     'any new messages',
     'recent changes',
+    // ADR-042: a question about how much, when, which or whether names a thing to look at, not a job to do.
+    'quanto tenho de pagar este mês?',
+    'há faturas por pagar?',
+    'quando é que tenho de pagar a quota?',
+    'how much do I have to pay this month',
+    'when do I have to pay the fee',
   ])('"%s" does not', (said) => {
     expect(isChangeRequest(said)).toBe(false);
   });
@@ -74,7 +80,8 @@ const capabilities = [
   }),
 ];
 
-async function build(): Promise<{ registry: Registry; embedder: HashingEmbedder }> {
+async function build(caps = capabilities): Promise<{ registry: Registry; embedder: HashingEmbedder }> {
+  const capabilities = caps;
   const embedder = new HashingEmbedder();
   const documents = capabilities.map(capabilityDocument);
   embedder.fit(documents);
@@ -134,6 +141,21 @@ describe('Rule 20 — a request to change something is offered its screen, never
     expect(trace.outcome).toBe(OUTCOME.OUT_OF_SCOPE);
     expect(trace.capabilityId).toBe('sessions.list');
     expect(trace.notes.join(' ')).toMatch(/offered, not opened \(Rule 20\)/);
+    // No controls declared: nothing to name.
+    expect(trace.control).toBeNull();
+  });
+
+  // ADR-042: the turn's record says which control there does it, so the widget can name it.
+  it('records the control on that screen that does it, when one answers the request', async () => {
+    const withControls = capabilities.map((c) =>
+      c.id === 'sessions.list' ? { ...c, actions: ['Duplicate session', 'Cancel session'] } : c,
+    );
+    const { registry, embedder } = await build(withControls);
+    const trace = await route('cancel the training session', here, { registry, embedder, thresholds: eager, useStage3: false });
+    expect(trace.outcome).toBe(OUTCOME.OUT_OF_SCOPE);
+    expect(trace.capabilityId).toBe('sessions.list');
+    expect(trace.control).toBe('Cancel session');
+    expect(trace.notes.join(' ')).toMatch(/done there with "Cancel session"/);
   });
 
   it('still moves a request to start something: the visitor does it there', async () => {

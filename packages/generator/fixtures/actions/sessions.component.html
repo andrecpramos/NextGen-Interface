@@ -1,0 +1,11 @@
+<!-- ADR-042: controls that do something, in an Angular template. Read by markup-actions.test.ts alone. -->
+<button mat-button (click)="cancelSession(id)">Cancel session</button>
+<button mat-raised-button type="submit">Save changes</button>
+<button (click)="openDialog()">New session</button>
+<button *ngIf="canDelete" (click)="remove(id)">Delete session</button>
+@if (auth.isAdmin()) {
+  <button (click)="archive()">Archive season</button>
+}
+@if (sessions.length) {
+  <button (click)="exportCsv()">Export CSV</button>
+}

@@ -210,6 +210,19 @@ describe('SameOriginLlmRuntime — the wire contract', () => {
     expect('think' in bodies[1]).toBe(false);
   });
 
+  // ADR-043: the adopter's proxy has to give the model this much context, or Ollama cuts the prompt's front.
+  it('passes on the context the model needs, and sends nothing when the request does not say', async () => {
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ capabilityId: 'x' }), { status: 200 })) as unknown as typeof fetch;
+    const runtime = new SameOriginLlmRuntime({ path: 'stage3' });
+
+    await runtime.complete({ ...request, contextTokens: 5300 });
+    await runtime.complete(request);
+
+    const bodies = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+    expect(bodies[0].contextTokens).toBe(5300);
+    expect('contextTokens' in bodies[1]).toBe(false);
+  });
+
   it('a per-request model wins over the configured default', async () => {
     globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ capabilityId: 'x' }), { status: 200 })) as unknown as typeof fetch;
     const runtime = new SameOriginLlmRuntime({ path: 'stage3', model: 'default-model' });

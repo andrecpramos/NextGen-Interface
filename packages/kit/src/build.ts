@@ -19,6 +19,8 @@ import {
   generate,
   knowledgeGaps,
   loadKnowledge,
+  localeFolders,
+  localesDirProblem,
   writeIndexes,
   writeOutput,
   type GeneratorConfig,
@@ -92,6 +94,8 @@ export interface BuildRecord {
   readonly prose: string;
   readonly bundleFiles: readonly string[];
   readonly warnings: readonly string[];
+  /** How many locale folders `localesDir` lists, and how many keys a later one defined again (the first was kept). */
+  readonly locales?: { readonly folders: number; readonly collisions: number };
   /**
    * What the adopter wrote about their own app (`knowledge.json`), and how much of the app it
    * covers. The gaps themselves are in review/KNOWLEDGE-GAPS.md, as questions.
@@ -120,6 +124,8 @@ export function readConfig(kitDir: string): { config: GeneratorConfig; appRoot: 
     throw new Error(`No ${CONFIG_FILE} in ${resolve(kitDir)}. Run "${self()} init <your app folder>" first.`);
   }
   const config = JSON.parse(stripBom(readFileSync(file, 'utf8'))) as GeneratorConfig;
+  const locales = localesDirProblem(config.localesDir);
+  if (locales) throw new Error(`${file}: ${locales}.`);
   // Relative to the config file, not to wherever the command was run from.
   return { config, appRoot: resolve(dirname(file), config.appRoot) };
 }
@@ -174,6 +180,22 @@ function scriptTagFile(): string {
   return bundle;
 }
 
+/**
+ * A warning when many of the translation keys the pages use resolve in no locale folder listed (ADR-042),
+ * or null. One real app had moved its pages to new packages and the config still listed the old folders,
+ * which still existed: the build said "6 locale folders merged", and every title and control of the moved
+ * pages came out as nothing. A fifth of the keys, over at least twenty, is not a typo: a folder is missing.
+ */
+export function untranslatedWarning(keys: { used: number; unresolved: number; namespaces: readonly string[] } | undefined): string | null {
+  if (!keys || keys.used < 20 || keys.unresolved / keys.used < 0.2) return null;
+  const share = Math.round((100 * keys.unresolved) / keys.used);
+  return (
+    `${share}% of the translation keys this app's pages use (${keys.unresolved} of ${keys.used}) resolve in no locale folder listed — ` +
+    `most of them in: ${keys.namespaces.slice(0, 6).join(', ')}. Those screens are named and described without the app's own words, ` +
+    `and their buttons are not read. Is a folder missing from "localesDir" in ${CONFIG_FILE}, or listed from where the app used to keep it?`
+  );
+}
+
 export async function build(kitDir: string, options: BuildOptions = {}): Promise<BuildRecord> {
   const kit = resolve(kitDir);
   const { config, appRoot } = readConfig(kit);
@@ -213,6 +235,15 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
   // Rule 14: thresholds belong to a registry. A calibration the adopter produced
   // wins. Otherwise the shipped profile is used, and says it is not theirs.
   const warnings: string[] = [];
+  const folders = localeFolders(config).length;
+  const collisions = output.translationCollisions ?? 0;
+  if (collisions > 0) {
+    warnings.push(
+      `${collisions} translation key(s) are defined in more than one of the ${folders} locale folders; the first folder listed was used for each.`,
+    );
+  }
+  const untranslated = untranslatedWarning(output.untranslatedKeys);
+  if (untranslated) warnings.push(untranslated);
   for (const problem of loaded.problems) warnings.push(`knowledge.json: ${problem.path ? `${problem.path}: ` : ''}${problem.message}`);
   const calibration = join(kit, CALIBRATION_FILE);
   let thresholds: Thresholds;
@@ -307,6 +338,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     prose: 'derived from the app’s own labels (no model)',
     bundleFiles: readdirSync(bundleDir).sort(),
     warnings,
+    locales: { folders, collisions },
   };
   writeFileSync(join(reviewDir, 'build.json'), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   // How to make it better, numbered, with where this build stands on each (ladder.ts) — for the developer

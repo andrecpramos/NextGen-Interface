@@ -21,6 +21,22 @@ import type { GeneratorConfig } from './types.ts';
 
 export interface ConfigProblem {
   readonly missing: readonly string[];
+  /** A field that is present but cannot be used, said in a sentence the adopter can act on. */
+  readonly invalid?: readonly string[];
+}
+
+/**
+ * What is wrong with a `localesDir`, or null when nothing is: one folder, a list of folders, or null.
+ * A list arrives as untrusted JSON like everything else here, and a number or an empty entry in it
+ * would otherwise be read as no translations at all — every title then a component's name.
+ */
+export function localesDirProblem(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  // A single string is read as before: an empty one names no folder.
+  if (typeof value === 'string') return null;
+  const usable = (entry: unknown): boolean => typeof entry === 'string' && entry.trim().length > 0;
+  if (Array.isArray(value) && value.length > 0 && value.every(usable)) return null;
+  return 'localesDir must be a folder relative to appRoot, a list of such folders (the first listed wins a key two of them define), or null';
 }
 
 /** The fields without which the generator cannot begin. Everything else has a default. */
@@ -42,7 +58,8 @@ export function normaliseConfig<T extends Partial<GeneratorConfig>>(
   raw: T,
 ): { config: T & GeneratorConfig; problem: null } | { config: null; problem: ConfigProblem } {
   const missing = REQUIRED.filter((key) => !raw?.[key]);
-  if (missing.length > 0) return { config: null, problem: { missing } };
+  const locales = localesDirProblem(raw?.localesDir);
+  if (missing.length > 0 || locales) return { config: null, problem: { missing, ...(locales ? { invalid: [locales] } : {}) } };
 
   return {
     config: {

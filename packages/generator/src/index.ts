@@ -27,7 +27,8 @@ export {
 export { KNOWLEDGE_FILE, loadKnowledge, type LoadedKnowledge } from './knowledge-file.ts';
 export { discoverRoutes, importResolver, readRoleModel, type RoleModel } from './discover.ts';
 export { readPage } from './pages.ts';
-export { readManifest, readManifests, readTranslations, translate } from './labels.ts';
+export { localeFolders, readLocales, readManifest, readManifests, readTranslations, translate } from './labels.ts';
+export { localesDirProblem } from './config.ts';
 export { synthesiseId, featureOf, routeSegments } from './ids.ts';
 export { judgeProse, type ProseVerdict } from './prose.ts';
 export { synthesiseBoundaries } from './boundaries.ts';

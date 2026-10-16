@@ -43,3 +43,5 @@ How to write one, and whether a change needs one, is the `write-adr` skill.
 | [ADR-039](ADR-039.md) | Keyboard mashing is recognised from the app's own letter pairs and never reaches a model | Accepted |
 | [ADR-040](ADR-040.md) | An uncalibrated build does not get a hand-set margin rule; the gap is closed by calibrating sooner | Accepted |
 | [ADR-041](ADR-041.md) | No wrong move without a model, and a request to change something is offered its screen, never followed | Accepted |
+| [ADR-042](ADR-042.md) | The assistant knows what each screen lets a visitor do, and who may; a limit never contradicts the app | Accepted |
+| [ADR-043](ADR-043.md) | Stage 3 chooses from the role's whole application, and says how much context it needs | Accepted |

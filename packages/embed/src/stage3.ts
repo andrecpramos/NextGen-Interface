@@ -145,6 +145,9 @@ export class SameOriginLlmRuntime implements LlmRuntime {
           // Whether a reasoning model may reason first. The proxy passes it to its model (Ollama's
           // `think`); a proxy that ignores it still works, only slower on a reasoning model.
           ...(request.think !== undefined ? { think: request.think } : {}),
+          // The context the model needs to read all of it (ADR-043). The proxy must give at least this
+          // (Ollama's `num_ctx`): past its default, Ollama drops the front of the prompt without a word.
+          ...(request.contextTokens !== undefined ? { contextTokens: request.contextTokens } : {}),
           ...(request.images && request.images.length > 0 ? { images: request.images } : {}),
         }),
         signal: AbortSignal.timeout(request.timeoutMs ?? this.#timeoutMs),

@@ -107,6 +107,29 @@ describe('build refuses a model rather than ignoring the flag', () => {
   }, 60_000);
 });
 
+describe('build reads translations from every locale folder the config lists', () => {
+  const withLocales = (localesDir: unknown): string => {
+    const kit = kitFolder();
+    init(TINY, kit);
+    const file = join(kit, 'nextgen.config.json');
+    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), localesDir }), 'utf8');
+    return kit;
+  };
+
+  it('merges a list of folders and records how many keys two of them defined', async () => {
+    const record = await build(withLocales(['i18n/locales', 'i18n/locales']), { scriptTag: false });
+    expect(record.locales).toEqual({ folders: 2, collisions: expect.any(Number) });
+    expect(record.locales!.collisions).toBeGreaterThan(0);
+    expect(record.warnings.some((warning) => /defined in more than one of the 2 locale folders/.test(warning))).toBe(true);
+  }, 60_000);
+
+  it('refuses a localesDir it cannot read as folders, before writing anything', async () => {
+    const kit = withLocales([42]);
+    await expect(build(kit, { scriptTag: false })).rejects.toThrow(/localesDir must be a folder relative to appRoot/);
+    expect(existsSync(join(kit, 'bundle'))).toBe(false);
+  });
+});
+
 describe('Rule 16 — the kit only writes into its own folder', () => {
   it('refuses a kit folder inside the application source, before writing anything', () => {
     const inside = join(TINY, 'src', 'nextgen');

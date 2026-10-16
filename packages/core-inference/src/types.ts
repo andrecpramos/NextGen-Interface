@@ -44,6 +44,15 @@ export interface CompletionRequest {
    */
   readonly think?: boolean;
   /**
+   * How many tokens of context the model needs to read the whole request and answer it — an estimate,
+   * on the generous side. A runtime that lets the caller set its context (Ollama's `num_ctx`) must give
+   * at least this much: Ollama's default is 2048, and a prompt past it is cut from the front, silently —
+   * the system message and the start of the list go, and the model still answers, from whatever was left
+   * (measured 2026-10-15: a 5,288-token stage-3 prompt read as 2,050 tokens, "what's the weather on
+   * Saturday" sent to an unrelated screen). Absent: the runtime's own default.
+   */
+  readonly contextTokens?: number;
+  /**
    * Base64-encoded image bytes (no data-URI prefix), for a vision-capable
    * model. Additive and optional — a runtime or model that doesn't support
    * vision simply ignores it rather than failing; degrade, don't throw, is

@@ -37,6 +37,8 @@ export interface CapabilityDefinition {
   readonly params?: Readonly<Record<string, ParamSpec>>;
   /** At least three (coding-standards.md). The validator enforces it. */
   readonly examples: readonly (string | CapabilityExample)[];
+  /** The controls on this screen that do something (ADR-042). Matched, listed to stage 3, never pressed. */
+  readonly actions?: readonly string[];
 }
 
 /**
@@ -78,6 +80,7 @@ export function defineCapability(def: CapabilityDefinition): Capability {
     ...(def.triggers ? { triggers: def.triggers } : {}),
     ...(def.params ? { params: def.params } : {}),
     examples: def.examples,
+    ...(def.actions && def.actions.length > 0 ? { actions: def.actions } : {}),
   };
 }
 

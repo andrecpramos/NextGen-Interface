@@ -15,11 +15,35 @@ const route = (path: string, feature: string): DiscoveredRoute => ({
 });
 
 describe('synthesiseBoundaries — the catalogue', () => {
-  it('always declares the limits true of any navigation assistant', () => {
+  it('declares the limits true of an assistant over an app that does none of them', () => {
     const ids = synthesiseBoundaries([route('/home', 'home')]).map((b) => b.id);
     expect(ids).toContain('unsupported.external_actions');
-    expect(ids).toContain('unsupported.data_changes');
     expect(ids).toContain('unsupported.other_applications');
+  });
+
+  /**
+   * ADR-042. "Changing records for you" refused "cancela o treino de amanhã" as something the app does not
+   * do, on an app whose sessions screen has a "Cancelar sessão" button. That the assistant never changes a
+   * record is held by code (Rule 20: the screen is offered, never followed), so a limit saying it only
+   * ever told visitors the app could not do what it can.
+   */
+  it('never declares that records cannot be changed', () => {
+    expect(synthesiseBoundaries([route('/home', 'home')]).map((b) => b.id)).not.toContain('unsupported.data_changes');
+  });
+
+  /**
+   * ADR-042. The first production integration refused "envia um email aos pais dos sub-15" as "acting outside
+   * this application" — on an app whose communications screen sends email, SMS and push to the parents. A
+   * generic limit is emitted only when the application has no control that does what the limit refuses.
+   */
+  it('never declares a limit the application contradicts with a control of its own', () => {
+    const routes = [route('/finance/invoices', 'finance'), route('/communication', 'communication')];
+    const of = (does: string[]) => synthesiseBoundaries(routes, 'en', [], new Set(does)).map((b) => b.id);
+    expect(of([])).toEqual(expect.arrayContaining(['unsupported.external_actions', 'unsupported.payments']));
+    expect(of(['send'])).not.toContain('unsupported.external_actions');
+    expect(of(['book'])).not.toContain('unsupported.external_actions');
+    expect(of(['pay'])).not.toContain('unsupported.payments');
+    expect(of(['send', 'pay'])).toEqual(['unsupported.other_applications']);
   });
 
   // A payments refusal in an app with no money anywhere is noise in the stage-2

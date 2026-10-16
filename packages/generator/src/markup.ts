@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { aboutWho, INERT_CALL, INERT_HANDLER, isChrome } from './control-words.ts';
 import type { FormField, PageFacts } from './types.ts';
 
 /**
@@ -216,7 +217,8 @@ function onlyShows(handler: string): boolean {
 
 /** An opening tag, skipping `>` inside quoted or braced values (`on:click={() => …}`). */
 const OPEN_TAG = /<([a-zA-Z][\w-]*)((?:[^>"'{]|"[^"]*"|'[^']*'|\{[^}]*\})*)>/g;
-const CLICK_HANDLER = /(?:@click|v-on:click|\(click\)|onclick)(?:\.[\w.]+)?\s*=\s*(?:"([^"]*)"|'([^']*)')|on:click\s*=\s*\{([^}]*(?:\}[^}]*)?)\}/;
+// Svelte 4's `on:click={…}` and Svelte 5's `onclick={…}` both take an expression in braces.
+const CLICK_HANDLER = /(?:@click|v-on:click|\(click\)|onclick)(?:\.[\w.]+)?\s*=\s*(?:"([^"]*)"|'([^']*)')|(?:on:click|onclick)\s*=\s*\{([^}]*(?:\}[^}]*)?)\}/;
 
 /** Controls whose only job is to show something, named by their text, a translation key, or `aria-label` (ADR-031). */
 function openersOf(markup: string): { label: string | null; labelKey: string | null }[] {
@@ -234,6 +236,167 @@ function openersOf(markup: string): { label: string | null; labelKey: string | n
     if (out.length === 20) break;
   }
   return out;
+}
+
+type Control = { label: string | null; labelKey: string | null };
+
+/** Elements with no closing tag: never open in the stack below. */
+const VOID = new Set(['input', 'br', 'img', 'hr', 'meta', 'link', 'area', 'base', 'col', 'embed', 'source', 'track', 'wbr']);
+/** On the element itself: shown or usable only when the condition holds. */
+const CONDITION_ATTR = /(?:^|\s)(?:v-if|v-else-if|v-show|\*ngIf|\[hidden\]|:disabled|\[disabled\]|disabled|hidden)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{([^}]*)\})/g;
+
+/**
+ * Does pressing a markup control do something a visitor would name? Its handler — Vue `@click="save()"`,
+ * Angular `(click)="remove(id)"`, Svelte `on:click={publish}` — calls anything but state, navigation and
+ * event plumbing (`INERT_CALL`), or is a bare handler named for something else (`INERT_HANDLER`). Assigning
+ * a flag does nothing a visitor would name.
+ */
+function markupDoesSomething(code: string): boolean {
+  const calls = [...code.matchAll(/([\w$]+)\s*\(/g)].map((m) => m[1]!).filter((name) => name !== 'function');
+  if (calls.length > 0) return calls.some((name) => !INERT_CALL.test(name.replace(/^\$/, '')));
+  const bare = code.trim().replace(/^\{|\}$/g, '').trim();
+  return /^[\w$.]+$/.test(bare) && !INERT_HANDLER.test(bare.split('.').pop()!);
+}
+
+/**
+ * What a markup page's controls do (ADR-042), as `controls.ts` reads TSX — conservatively, because nothing
+ * here is evaluated: no role is read, so a control under a condition about who the visitor is (`v-if=
+ * "canDelete"`, `{#if $user.isAdmin}`, `@if (auth.isAdmin()) {`, `*ngIf`, `:disabled="!canEdit"`) is left
+ * out and reported, never listed for everyone. A condition about anything else narrows nothing.
+ *
+ * The text is scanned once, keeping a stack of open elements and conditional blocks (Svelte's `{#if}`,
+ * Angular's `@if (…) {`); scripts, styles, comments and `{{ … }}` are blanked first, position for position,
+ * so a label is still read from the original text.
+ */
+function controlsOfMarkup(text: string): { actions: Control[]; guarded: Control[]; children: { tag: string; guarded: boolean }[] } {
+  const blank = (s: string) => s.replace(/[^\n]/g, ' ');
+  const masked = text
+    .replace(/<script\b[\s\S]*?<\/script>|<style\b[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, blank)
+    .replace(/\{\{[\s\S]*?\}\}/g, blank);
+  const TOKEN =
+    /<\/([\w-]+)\s*>|<([\w-]+)((?:[^>"'{]|"[^"]*"|'[^']*'|\{[^}]*\})*?)(\/?)>|\{#(?:if|each|await|key)\s+([^}]*)\}|\{:else[^}]*\}|\{\/(?:if|each|await|key)\}|@(else\s+if|else|if|for|switch|case|default|defer|placeholder|loading|error|empty)\s*(?:\(((?:[^()]|\([^()]*\))*)\))?\s*\{|\}/g;
+  type Open = { readonly name: string; readonly guarded: boolean; readonly angular: boolean };
+  const stack: Open[] = [];
+  let lastAngular = false;
+  const actions: Control[] = [];
+  const guarded: Control[] = [];
+  const children: { tag: string; guarded: boolean }[] = [];
+  const seen = new Set<string>();
+  const about = (condition: string | undefined) => !!condition && aboutWho(condition);
+  const under = () => stack.some((open) => open.guarded);
+
+  for (const match of masked.matchAll(TOKEN)) {
+    const [whole, closing, tag, attrs, selfClose, svelteIf, angularKind, angularCondition] = match;
+    if (closing) {
+      const at = stack.map((open) => open.name).lastIndexOf(closing.toLowerCase());
+      if (at > -1) stack.length = at;
+      continue;
+    }
+    if (whole.startsWith('{#')) {
+      stack.push({ name: '{#', guarded: about(svelteIf), angular: false });
+      continue;
+    }
+    if (whole.startsWith('{:')) continue; // the else of a block keeps its block's condition
+    if (whole.startsWith('{/')) {
+      const at = stack.map((open) => open.name).lastIndexOf('{#');
+      if (at > -1) stack.length = at;
+      continue;
+    }
+    if (angularKind) {
+      // `} @else {` reopens what the `@if` before it was about.
+      const inherits = /^else/.test(angularKind) && lastAngular;
+      stack.push({ name: '@', guarded: inherits || about(angularCondition), angular: true });
+      continue;
+    }
+    if (whole === '}') {
+      const at = stack.map((open) => open.name).lastIndexOf('@');
+      if (at > -1 && stack.slice(at + 1).every((open) => !open.angular)) {
+        lastAngular = stack[at]!.guarded;
+        stack.length = at;
+      }
+      continue;
+    }
+    if (!tag) continue;
+    const original = text.slice(match.index!, match.index! + whole.length);
+    const own = [...original.matchAll(CONDITION_ATTR)].some((m) => about(m[1] ?? m[2] ?? m[3]));
+    const name = tag.toLowerCase();
+    // A component the page renders (`<Editor />`, `<article-form>`), and whether a condition about who
+    // stands above it — for `readMarkupControls` to read through.
+    if (/^[A-Z]/.test(tag) || tag.includes('-')) children.push({ tag, guarded: own || under() });
+    const handler = CLICK_HANDLER.exec(attrs ?? '');
+    const code = handler ? (CLICK_HANDLER.exec(original)?.slice(1).find((g) => g !== undefined) ?? '') : '';
+    const buttonLike = name === 'button' || /(button|btn)$/.test(name);
+    const typed = /(?:^|\s)type\s*=/.test(attrs ?? '');
+    // `type="submit"`, or no type at all inside a form — which submits it, by HTML's default (SvelteKit's
+    // form actions are written this way).
+    const submit =
+      buttonLike && (/(?:^|\s)type\s*=\s*["']submit["']/.test(attrs ?? '') || (!typed && stack.some((open) => open.name === 'form')));
+    const isAction = (handler && !onlyShows(code) && markupDoesSomething(code)) || (!handler && submit);
+    if (isAction) {
+      const after = match.index! + whole.length;
+      const close = text.indexOf(`</${tag}>`, after);
+      let { text: label, key } = textOrKey(close > after ? text.slice(after, close) : '');
+      if (!label && !key) ({ text: label, key } = named(attributesOf(attrs ?? ''), 'aria-label'));
+      const id = label ?? `key:${key}`;
+      if ((label || key) && !seen.has(id)) {
+        seen.add(id);
+        if (own || under()) guarded.push({ label, labelKey: key });
+        else if (key || !isChrome(label!)) actions.push({ label, labelKey: key });
+      }
+    }
+    if (!selfClose && !VOID.has(name)) stack.push({ name, guarded: own, angular: false });
+  }
+  return { actions: actions.slice(0, 20), guarded, children };
+}
+
+/** `<article-form>` and `<ArticleForm>` are the same imported `ArticleForm`. */
+const pascal = (tag: string) => tag.replace(/(^|-)(\w)/g, (_, __, c: string) => c.toUpperCase());
+
+/**
+ * What a Vue or Svelte page lets a visitor do, read through the components it renders (ADR-042) — the
+ * markup counterpart of `readControls`. SvelteKit's `/editor` renders `<Editor />`, and the form is in
+ * there. A component is followed when the page imports it by name from a file the app owns
+ * (`resolveImport`), two levels down; one rendered under a condition about who passes that on to every
+ * control in it, which is then reported, never listed. An Angular template names components by selector,
+ * which is not followed. Fails soft: a file that cannot be read contributes nothing.
+ */
+export function readMarkupControls(
+  file: string,
+  resolveImport: (specifier: string, from: string) => string | null,
+): { actions: Control[]; guarded: Control[] } {
+  const actions: Control[] = [];
+  const guarded: Control[] = [];
+  const seenNames = new Set<string>();
+  const seenFiles = new Set<string>();
+  const keep = (into: Control[], control: Control) => {
+    const id = control.label ?? `key:${control.labelKey}`;
+    if (seenNames.has(id) || into.length >= 20) return;
+    seenNames.add(id);
+    into.push(control);
+  };
+  const walk = (path: string, depth: number, underGuard: boolean): void => {
+    if (seenFiles.has(path)) return;
+    seenFiles.add(path);
+    let text: string;
+    try {
+      text = readFileSync(path, 'utf8');
+    } catch {
+      return;
+    }
+    const found = controlsOfMarkup(text);
+    for (const control of found.actions) keep(underGuard ? guarded : actions, control);
+    for (const control of found.guarded) keep(guarded, control);
+    if (depth >= 2) return;
+    const imports = new Map<string, string>();
+    for (const m of scriptsOf(text).matchAll(/import\s+([A-Z][\w$]*)\s+from\s+['"]([^'"]+)['"]/g)) imports.set(m[1]!, m[2]!);
+    for (const child of found.children) {
+      const specifier = imports.get(pascal(child.tag));
+      const target = specifier ? resolveImport(specifier, path) : null;
+      if (target && /\.(vue|svelte)$/.test(target)) walk(target, depth + 1, underGuard || child.guarded);
+    }
+  };
+  walk(file, 0, false);
+  return { actions, guarded };
 }
 
 function readMarkupText(text: string): PageFacts {
@@ -254,5 +417,10 @@ function readMarkupText(text: string): PageFacts {
     inferredCandidates: [],
     // Read from the raw text: `visibleMarkup` drops what a handler says.
     openers: openersOf(text),
+    // ADR-042: what the screen lets a visitor do, and what a condition about who left out.
+    ...(() => {
+      const { actions, guarded } = controlsOfMarkup(text);
+      return { actions, guardedControls: guarded };
+    })(),
   };
 }

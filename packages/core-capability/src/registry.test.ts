@@ -317,6 +317,23 @@ describe('capabilityDocument — the retrieval text', () => {
    * boundaries, which carry no triggers, got no such boost. Measured: capability
    * ranking improved and out-of-scope refusal fell 32.4% → 26.5%.
    */
+  /**
+   * ADR-042. "cancela o treino de amanhã" shares no word with "Training sessions" — it shares one with the
+   * control that does it. What a screen lets a visitor do is matched, after everything else, and a name
+   * the title or description already carries is not counted twice.
+   */
+  it('matches what the screen lets a visitor do, once', () => {
+    const c = ok({ examples: ['a', 'b', 'c'], actions: ['Export CSV', 'Transactions'] });
+    expect(capabilityDocument(c)).toBe(
+      'Transactions. Browse and filter the full list of recorded transactions. a. b. c. Export CSV',
+    );
+  });
+
+  it('leaves the document of a capability with no actions exactly as it was', () => {
+    const c = ok({ examples: ['a', 'b', 'c'] });
+    expect(capabilityDocument(c)).toBe('Transactions. Browse and filter the full list of recorded transactions. a. b. c');
+  });
+
   it('does not count a trigger that the title or description already contains', () => {
     const c = ok({ triggers: ['transactions'], examples: ['a', 'b', 'c'] });
     // "transactions" appears in both the title and the description already.

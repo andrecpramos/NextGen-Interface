@@ -40,6 +40,21 @@ describe('normaliseConfig', () => {
     expect(config!.localesDir).toBe('i18n/locales');
   });
 
+  it('keeps a list of locale folders, in the order given', () => {
+    const { config, problem } = normaliseConfig({ ...minimal, localesDir: ['../i18n/src/i18n', 'i18n'] });
+    expect(problem).toBeNull();
+    expect(config!.localesDir).toEqual(['../i18n/src/i18n', 'i18n']);
+  });
+
+  it('refuses a localesDir it could only read as no translations at all, and says what it takes', () => {
+    for (const localesDir of [42, [], ['i18n', 7], ['  ']] as unknown[]) {
+      const { config, problem } = normaliseConfig({ ...minimal, localesDir } as never);
+      expect(config).toBeNull();
+      expect(problem!.missing).toEqual([]);
+      expect(problem!.invalid?.[0]).toMatch(/localesDir must be a folder relative to appRoot, a list of such folders/);
+    }
+  });
+
   it('treats an empty languages list as an omission, not as "no languages"', () => {
     // A config that declares `"languages": []` would otherwise generate nothing at all,
     // silently — generate.ts loops over this list to produce every title.

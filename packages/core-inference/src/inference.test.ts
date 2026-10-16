@@ -202,3 +202,37 @@ describe('ModelStore — verify before load, fail closed', () => {
     expect(await sha256File(p)).toBe(createHash('sha256').update(payload).digest('hex'));
   });
 });
+
+/**
+ * Past `num_ctx`, Ollama drops the front of a prompt without a word: a 5,288-token stage-3 prompt was read
+ * as 2,050 tokens, and the model answered from what was left (2026-10-15). A request that says how much
+ * context it needs gets at least that much.
+ */
+describe('OllamaLlmRuntime — the context a request needs', () => {
+  const sent = async (over: Partial<CompletionRequest>): Promise<{ options: Record<string, unknown> }> => {
+    const { OllamaLlmRuntime } = await import('./ollama.ts');
+    let body: { options: Record<string, unknown> } | null = null;
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ message: { content: '{"capabilityId":"x","confidence":1}' } }));
+    }) as unknown as typeof fetch;
+    try {
+      await new OllamaLlmRuntime().complete({ ...request('hello'), ...over });
+    } finally {
+      globalThis.fetch = original;
+    }
+    return body!;
+  };
+
+  it('asks for at least the context the request needs, and room to answer', async () => {
+    const { options } = await sent({ contextTokens: 5300, maxTokens: 200 });
+    expect(options.num_ctx).toBeGreaterThanOrEqual(5500);
+    expect((options.num_ctx as number) % 1024).toBe(0);
+  });
+
+  it('leaves the model its own default when the request says nothing', async () => {
+    const { options } = await sent({});
+    expect(options).not.toHaveProperty('num_ctx');
+  });
+});
