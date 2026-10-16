@@ -14,3 +14,12 @@ export const ROUTE_ROLES = {
   studentSelf: readRoles('STUDENT'),
   parentSelf: readRoles('PARENT'),
 }
+
+// Who may use a control inside a screen (ADR-042), read by the generator the way ROUTE_ROLES is.
+export const CAPABILITY_ROLES = {
+  excuseAbsence: readRoles('PARENT'),
+}
+
+export function hasCapability(roles: readonly BackendRole[], ...allowed: BackendRole[]): boolean {
+  return roles.some((role) => allowed.includes(role))
+}

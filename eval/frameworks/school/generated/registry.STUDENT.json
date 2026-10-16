@@ -304,28 +304,6 @@
       }
     },
     {
-      "id": "unsupported.data_changes",
-      "kind": "unsupported",
-      "route": null,
-      "title": "Alterar registos por si",
-      "description": "Criar, editar ou apagar um registo. Este assistente leva o utilizador ao ecrã onde o pode fazer; nunca preenche um formulário nem grava uma alteração em seu nome.",
-      "refusal": "Posso levá-lo ao ecrã certo e dizer-lhe o que fazer lá, mas não crio, altero nem apago registos por conta própria.",
-      "examples": [
-        "delete this record for me",
-        "change the date on this for me",
-        "fill in this form for me",
-        "apaga este registo por mim",
-        "altera a data disto por mim"
-      ],
-      "refuses": "action",
-      "translations": {
-        "en": {
-          "title": "Changing records for you",
-          "refusal": "I can take you to the right screen and tell you what to do there, but I don’t create, change or delete records myself."
-        }
-      }
-    },
-    {
       "id": "unsupported.other_applications",
       "kind": "unsupported",
       "route": null,

@@ -1,3 +1,4 @@
 {
-  "overview": { "title": "Lessons summary" }
+  "overview": { "title": "Lessons summary" },
+  "actions": { "newSupportClass": "New support class", "cancelSupportClass": "Cancel support class" }
 }
