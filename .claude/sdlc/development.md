@@ -32,7 +32,7 @@ it, or change what ships to an adopter.
 
 # 2. Change the generator (or core-intent), then regenerate the fixture app's output.
 node --experimental-strip-types packages/generator/src/cli.ts \
-  eval/frameworks/family/generator.config.json --no-model
+  eval/frameworks/school/generator.config.json --no-model
 node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
 pnpm eval:calibrate      # Rule 14 — sweep thresholds; NEVER hand-tune
 
@@ -87,12 +87,6 @@ Important: **8B results do not predict 1B results.** Any threshold or prompt
 tuned on `llama3.1:8b` must be re-validated against a 1–1.5B model before it is
 trusted. Pull `gemma3:1b` or `qwen2.5:1.5b` for that comparison.
 
-*(Historical: an earlier version of this section described working around a
-missing Flutter install. That predates [ADR-006](../decisions/ADR-006.md), which
-replaced Flutter with the TypeScript monorepo. The router work it anticipated was
-done as WP-01 — see [PLAN.md](../../.MDFiles/PLAN.md) section 7 and
-[eval/FINDINGS.md](../../packages/core-intent/eval/FINDINGS.md).)*
-
 ## Code review
 
 Reviewer checks, in priority order:
@@ -143,7 +137,7 @@ today.
 
 ## Definition of Done
 
-See [planning.md](planning.md) and PLAN.md section 11. The two most commonly
+See [docs/RULES.md](../../docs/RULES.md#definition-of-done). The two most commonly
 skipped items, listed here because they are the ones that matter: **golden-set
-entries added**, and **an ADR written if an architectural choice was made** —
-WP-14 was the counter-example: ADR-013 was written after the work it recorded.
+entries added**, and **an ADR written if an architectural choice was made** — an ADR
+written after the work it records is a rationalisation, not a decision.

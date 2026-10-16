@@ -8,14 +8,14 @@ import { normalize } from '@nextgen/core-intent';
 /**
  * Stage-1 triggers, from the application's own nav labels.
  *
- * WP-38 lever 1, and the cheapest of the three. The generator emitted **zero**
- * triggers across 145 capabilities, which means stage 1 — the 2ms, no-model,
- * exact-match path — never fired once in the whole pilot app measurement. The
+ * The cheapest lever there is. The generator once emitted **zero** triggers
+ * across 145 capabilities, which means stage 1 — the 2ms, no-model,
+ * exact-match path — never fired once in a whole real-app measurement. The
  * model-free rate could not have been anything but low: two of the three stages
  * were doing all the work and the free one was switched off.
  *
  * The source is the label a person wrote for other people to read on a sidebar.
- * PLAN.md §7.2 is explicit that this is a far richer signal than JSX, and it is
+ * It is a far richer signal than JSX, and it is
  * the vocabulary a user is most likely to type, because it is the vocabulary
  * they have been reading.
  *
@@ -35,9 +35,9 @@ import { normalize } from '@nextgen/core-intent';
  *
  * **Ambiguity is judged inside a registry.** Stage 1 looks a phrase up in one role's
  * registry (ADR-014), so two capabilities that no role reaches together never share a
- * trigger index. Judged across the whole application, the pilot app's `/my` — "Dashboard", for
- * players and guardians — lost its only trigger to the coaches' `/dashboard`, which no
- * player's or guardian's registry contains.
+ * trigger index. Judged across the whole application, an app's `/my` — "Dashboard", for
+ * students and parents — lost its only trigger to the teachers' `/dashboard`, which no
+ * student's or parent's registry contains.
  */
 
 /**

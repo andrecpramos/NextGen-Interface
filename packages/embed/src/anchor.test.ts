@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { accessibleName, resolveAnchor, resolveSteps, type AnchorNode, type AnchorRoot } from './anchor.ts';
 
 /**
- * WP-27's "Stop if": *anchors mispoint rather than degrade under a deliberate
- * change to the app.* Every test below either points correctly or refuses —
+ * The failure that must never happen: *anchors mispoint rather than degrade
+ * under a deliberate change to the app.* Every test below either points correctly or refuses —
  * and the ones that matter most are the deliberate changes, which must refuse.
  *
  * The page is a hand-built tree behind the resolver's two-method interface, so
@@ -59,7 +59,7 @@ const notificationsForm = () =>
     { tag: 'button', attrs: { type: 'submit' }, text: 'Save preferences' },
   );
 
-describe('resolveAnchor — D-3 (c): semantic matching is primary', () => {
+describe('resolveAnchor — semantic matching is primary', () => {
   it('finds a field by the label bound to it with `for`', () => {
     const root = notificationsForm();
     const r = resolveAnchor({ label: 'Email address', role: 'textbox' }, root);
@@ -92,7 +92,7 @@ describe('resolveAnchor — D-3 (c): semantic matching is primary', () => {
   });
 });
 
-describe('resolveAnchor — D-3 (a): the selector is a fallback, never trusted alone', () => {
+describe('resolveAnchor — the selector is a fallback, never trusted alone', () => {
   it('falls back to the selector when the label is not on the page', () => {
     const root = page({ tag: 'input', attrs: { id: 'notify-email', name: 'email' } });
     const r = resolveAnchor({ label: 'Email address', selector: '#notify-email' }, root);

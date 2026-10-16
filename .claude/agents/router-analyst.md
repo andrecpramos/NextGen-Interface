@@ -14,8 +14,7 @@ drop is a defect, not noise.**
 **Never recommend raising a threshold to make a failing case pass.** Thresholds
 are calibrated against the whole corpus with an explicit objective, per encoder,
 never hand-set and never copied between encoders (Rule 14). Hand-tuning has cost
-accuracy three times in this repo — Findings 1 and 11 in
-`packages/core-intent/eval/FINDINGS.md`. Raising a threshold moves the symptom,
+accuracy three times in this repo. Raising a threshold moves the symptom,
 keeps the cause, and degrades every capability that was fine.
 
 ## Method

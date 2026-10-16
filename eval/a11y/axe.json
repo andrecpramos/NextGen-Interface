@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-09-23T20:08:48.036Z",
+  "checkedAt": "2026-10-06T14:29:38.782Z",
   "artefact": "packages/embed/dist/nextgen.js",
-  "data": "eval/frameworks/family/generated (PARENT)",
+  "data": "eval/frameworks/school/generated (PARENT)",
   "tool": "axe-core 4.13.0 in jsdom",
   "cannotCheck": [
     "colour contrast (no layout, and system colours)",
@@ -21,7 +21,7 @@
         "color-contrast"
       ]
     },
-    "choose (2 links)": {
+    "choose (1 links)": {
       "violations": [],
       "incomplete": [
         "color-contrast"
@@ -55,7 +55,7 @@
     },
     {
       "ok": true,
-      "label": "choose (2 links): 0 serious/critical",
+      "label": "choose (1 links): 0 serious/critical",
       "detail": "incomplete (jsdom cannot judge): color-contrast"
     },
     {
@@ -110,7 +110,7 @@
     },
     {
       "ok": true,
-      "label": "screen answered (2 links): 0 serious/critical",
+      "label": "screen answered (1 links): 0 serious/critical",
       "detail": "incomplete (jsdom cannot judge): color-contrast"
     },
     {
@@ -228,7 +228,7 @@
     {
       "ok": true,
       "label": "assistant.ts: every declared motion is cancelled under reduced motion",
-      "detail": "17 animated rule(s), all guarded"
+      "detail": "19 animated rule(s), all guarded"
     },
     {
       "ok": true,

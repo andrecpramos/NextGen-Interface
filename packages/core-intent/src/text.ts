@@ -11,7 +11,7 @@ const COMBINING = /[̀-ͯ]/g;
  * to survive for the slot resolvers. But it kept them everywhere, so `"my
  * modules."` normalised to `my modules.` and never met the trigger `my modules`.
  *
- * WP-21 found it, and the way it found it is the point: whisper.cpp ends every
+ * Found with a microphone, and the way it was found is the point: whisper.cpp ends every
  * transcript with a full stop. Measured on the registered application, 10 of 40
  * spoken utterances routed differently from the same words typed, and most of
  * the ten were this — *"my modules"* resolving at stage 1, *"My modules."*
@@ -57,7 +57,7 @@ function stem(word: string): string {
 
 /**
  * Words that carry no intent — function words and the frame a question is
- * wrapped in, in the two languages the pilot application actually ships.
+ * wrapped in, in the two languages the tool supports.
  *
  * **Deliberately separate from `STOP`.** `STOP` feeds `tokens()` and therefore
  * the hashing embedder's vocabulary; this file's own header warns that changing
@@ -65,10 +65,10 @@ function stem(word: string): string {
  * invalidate the committed scorecard for a reason unrelated to what is being
  * measured. This set is read by stage 1's coverage rule and nothing else.
  *
- * WP-38 lever 1 is why it exists. Triggers went from 0 to 245 and stage 1 fired
+ * Why it exists: on a generated registry, triggers went from 0 to 245 and stage 1 fired
  * **twice in 210 turns** — because coverage was measured in *characters* over
  * the raw utterance, and a real question is mostly wrapper. For *"Para que serve
- * a 'Composição corporal'?"* the correct trigger is present and covers 0.53 of
+ * o 'Horário escolar'?"* the correct trigger is present and covers 0.53 of
  * the string, against a 0.6 bar. Measured across the golden set: 102 entries had
  * a trigger on the right capability, 2 cleared the bar, and **100 sat below it**.
  *

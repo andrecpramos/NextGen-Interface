@@ -43,7 +43,7 @@ describe('synthesise — what the model is allowed to produce', () => {
   });
 
   // A half-parsed sentence is worse than an honest fallback: "the model needed
-  // for this is unavailable" is the house style for degradation (PLAN.md §1.3).
+  // for this is unavailable" is the house style for degradation.
   it('falls back when the routing prose is unusable', async () => {
     for (const broken of [
       { ...wellFormed, description: '' },
@@ -159,8 +159,8 @@ describe('cacheKey — why regeneration is reproducible', () => {
   /**
    * The routing prose and the explanation are cached under separate keys, so an
    * iteration on the explanation prompt cannot re-roll description and example
-   * text whose routing accuracy has already been measured. Finding 10 measured
-   * two identical 8B runs disagreeing on 7 of 200 entries — a needless re-roll
+   * text whose routing accuracy has already been measured. Two identical 8B
+   * runs were measured disagreeing on 7 of 200 entries — a needless re-roll
    * is a risk to a number, not a tidiness question.
    */
   it('keys the two calls separately, over the same facts', () => {
@@ -244,7 +244,7 @@ describe('deriveProse — what the screen is for, in the visitor’s words', () 
   });
 });
 
-/** Pilot-A field report, 2026-09-23 (P3-1): what a derived screen says, and what it is asked as. */
+/** What a derived screen says, and what it is asked as. */
 describe('deriveProse — no chrome, no empty states, and the page’s own words as requests', () => {
   const pt = (copy: string[]) => deriveProse(request({ copy }));
 
@@ -254,14 +254,14 @@ describe('deriveProse — no chrome, no empty states, and the page’s own words
   });
 
   it('keeps ordinary content, in both languages', () => {
-    for (const text of ['Elegibilidade', 'Match squad', 'Minutos jogados', 'Next fixtures']) expect(worthShowing(text), text).toBe(true);
-    for (const text of ['ok', '→ Next', 'Load more', 'There are no players yet', 'Nenhum resultado', 'Create your first team']) expect(worthShowing(text), text).toBe(false);
+    for (const text of ['Assiduidade', 'Class list', 'Minutos de aula', 'Next tests']) expect(worthShowing(text), text).toBe(true);
+    for (const text of ['ok', '→ Next', 'Load more', 'There are no students yet', 'Nenhum resultado', 'Create your first class']) expect(worthShowing(text), text).toBe(false);
   });
 
-  it('asks for the page’s own labels — "ver elegibilidade" — and never for a sentence', () => {
-    const prose = pt(['Elegibilidade', 'Convocatória do jogo', 'Esta página mostra a elegibilidade de cada atleta.', 'Minutos']);
-    expect(prose.examples).toContain('ver elegibilidade');
-    expect(prose.examples).toContain('ver convocatória do jogo');
+  it('asks for the page’s own labels — "ver assiduidade" — and never for a sentence', () => {
+    const prose = pt(['Assiduidade', 'Pauta da turma', 'Esta página mostra a assiduidade de cada aluno.', 'Minutos']);
+    expect(prose.examples).toContain('ver assiduidade');
+    expect(prose.examples).toContain('ver pauta da turma');
     expect(prose.examples.some((e) => e.includes('esta página'))).toBe(false);
     // Two at most: the page's words add vocabulary, and do not drown the title's.
     expect(prose.examples.filter((e) => e.startsWith('ver '))).toHaveLength(2);

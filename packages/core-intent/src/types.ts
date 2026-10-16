@@ -8,7 +8,7 @@
  *   Rule 4  every model-produced identifier is validated against the registry
  *   Rule 11 deterministic slot values always win over model-extracted ones
  *
- * Rule 11 in particular was a real bug (FINDINGS Finding 3): one reversed spread
+ * Rule 11 in particular was a real bug: one reversed spread
  * cost 44 points of param exactness and was invisible in review. It is now a
  * compile error — see `DeterministicParams` / `ModelParams` below.
  *
@@ -51,7 +51,7 @@ export interface EnumIndex {
 /** A loaded registry: the file plus everything the stages precompute from it. */
 export interface Registry {
   readonly schemaVersion: number;
-  /** What application stage 3 is routing for (WP-16, D-2). See `RegistryFile`. */
+  /** What application stage 3 is routing for. See `RegistryFile`. */
   readonly domainDescription: string;
   /** The language its capabilities' own words are in (ADR-030). See `RegistryFile`. */
   readonly language?: string;
@@ -72,7 +72,7 @@ export interface Registry {
    *
    * **Registry-wide on purpose, not top-candidate.** The guard answers "does
    * this application do this?", and that is a property of the registry — not of
-   * whatever retrieval happened to rank first. WP-40 measured the difference:
+   * whatever retrieval happened to rank first. Measured, the difference:
    * asking the top candidate silenced *none* of the five in-domain false flags,
    * because for all five the top candidate was the wrong screen. Basing a safety
    * guard on the ranking makes it fail exactly when retrieval fails, which is
@@ -98,7 +98,7 @@ export type Utterance = string & { readonly __brand?: 'Utterance' };
 /**
  * Where the user is when they say it.
  *
- * `selection` is not decorative: FINDINGS Part I identified resolving a target
+ * `selection` is not decorative: the router spike identified resolving a target
  * from the current selection as the single largest available reduction in
  * stage-3 escalation. A free-text `target` param can never be resolved
  * deterministically, but "delete that one" on a screen with a row selected can.
@@ -131,7 +131,7 @@ export interface DeterministicParams {
 /**
  * Params extracted by the model. Untrusted, and specifically untrusted about
  * *numbers*: asked for "last month" the model answered with thirty days back
- * (FINDINGS Finding 3). Never let these overwrite a deterministic value.
+ * Never let these overwrite a deterministic value (Rule 11).
  */
 export interface ModelParams {
   readonly [MODEL_BRAND]: true;
@@ -193,7 +193,7 @@ export type Stage = (typeof STAGE)[keyof typeof STAGE];
  * The dispatch-level outcome from architecture.md.
  *
  * The router does not produce these — it produces a `RouterDecision` plus a
- * capability, and the dispatcher (WP-03) turns that pair into one of these.
+ * capability, and the dispatcher turns that pair into one of these.
  * The type lives here because it is the contract between the two, and because
  * `toOutcome` below is the only place the kind → outcome mapping is written
  * down. An outcome may combine: a typical turn is Perform, then Navigate, then
@@ -249,7 +249,7 @@ export interface ProseRemoval {
  * `candidates` and `notes`, never from the model describing its own reasoning.
  * That is still true; `reasoning` from stage 3 is still not carried through.
  *
- * What changed (ADR-019, WP-53): the model MAY now write a `prose` answer, and
+ * What changed (ADR-019): the model MAY now write a `prose` answer, and
  * that answer IS carried through, in its own field, kept separate from the
  * explainability record on purpose — `prose` is what the visitor reads,
  * `decidedAt`/`candidates`/`notes` are what *why?* is answered from. Every
@@ -271,7 +271,7 @@ export interface TurnTrace {
   kind: string | null;
   route: string | null;
   /**
-   * The resolved capability's declared explanation, copied verbatim (WP-36).
+   * The resolved capability's declared explanation, copied verbatim.
    *
    * This is what closes the second half of §1.1's promise — *"it takes them to
    * the right place, and tells them what to do once they are there"*. The
@@ -285,7 +285,7 @@ export interface TurnTrace {
   explanation: string | null;
   /**
    * Did the user ask what something *is*, rather than to be taken to it?
-   * (WP-36's detection half, reusing ADR-015's frame layer.)
+   * (Reuses ADR-015's frame layer.)
    *
    * Model-free, and it changes **no** routing decision — the capability and the
    * route resolve identically either way. It tells a surface which half of the
@@ -309,7 +309,7 @@ export interface TurnTrace {
   latency: StageLatency;
   notes: string[];
   /**
-   * The model's own answer, after `validateClaims` (ADR-019, WP-53). `null`
+   * The model's own answer, after `validateClaims` (ADR-019). `null`
    * unless stage 3 ran, wrote something, AND at least one sentence survived
    * validation — `null` is exactly the state a bundle built without stage 3
    * has always been in, so a surface that ignores this field keeps behaving
@@ -330,7 +330,7 @@ export interface TurnTrace {
    * The model's *self-reported* confidence. Named for what it is, because it is
    * not calibrated and at 1B it is very nearly a constant: the gate held back
    * 15.7% of stage-3 calls on llama3.1:8b and 0.7% on qwen2.5:1.5b
-   * (FINDINGS Finding 8). Do not read this as a probability, and do not add a
+   * Do not read this as a probability, and do not add a
    * gate that depends on it being one without measuring on the smallest model
    * you intend to ship.
    */

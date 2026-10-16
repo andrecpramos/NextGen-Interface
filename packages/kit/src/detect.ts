@@ -10,9 +10,9 @@ import { assertOutsideApp, CONFIG_FILE, REVIEW_DIR, toPosix } from './paths.ts';
  *
  * Every answer carries its evidence, and says whether it was found or guessed.
  * The kit will be run by someone who did not write it, on an application nobody
- * on this project has read (PLAN.md WP-41, WP-35). A wrong guess that is stated
+ * on this project has read. A wrong guess that is stated
  * can be corrected in one line of config. A wrong guess that is silent becomes a
- * missing screen that no report mentions (lessons.md L12).
+ * missing screen that no report mentions.
  */
 
 export interface Finding {

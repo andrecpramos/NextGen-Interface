@@ -1,6 +1,6 @@
 # Branching model
 
-**Adopted:** 2026-08-30 · Repository: `andrecpramos/NextGen-Interface` (public, published from a private repository)
+**Adopted:** 2026-08-30
 
 ```
 main       production. Release only.
@@ -57,12 +57,9 @@ also block the user's own `git push origin main` after a local release merge —
 turning "only on command" into "only via the GitHub UI". The policy is enforced
 for the *agent*, which is what was asked for, while the human keeps a direct
 path. If more than one person ever commits here, revisit this: add a ruleset
-requiring a PR from `develop` and passing CI.
-
-**`wp-01-1b-validation` still exists on the remote.** It is identical to `main`
-and `develop` at the point this model was adopted, and a concurrent session is
-still working on it locally. It is an ordinary feature branch under the new
-rules and merges into `develop`. Nothing was deleted.
+requiring a PR from `develop` and passing CI. Now that the repository is public,
+branch protection is available on the free plan, so this is a choice rather than a
+limitation.
 
 ## Releasing
 
@@ -82,7 +79,7 @@ what before forcing anything.
 
 `main` moving **is** the release. There is no tag, no version number and no attached
 artefact ([ADR-021](../decisions/ADR-021.md)): an adopter copies [`adapter/`](../../adapter/)
-from the commit they choose, and [GETTING-STARTED.md](../../.MDFiles/GETTING-STARTED.md) says
+from the commit they choose, and [GETTING-STARTED.md](../../docs/GETTING-STARTED.md) says
 so. Two things follow for whoever performs a release:
 
 1. **`adapter/` must be current on `develop` before the merge.** It is committed build

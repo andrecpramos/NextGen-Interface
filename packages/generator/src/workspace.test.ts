@@ -10,8 +10,8 @@ import type { GeneratorConfig } from './types.ts';
 /**
  * An app in a monorepo.
  *
- * Found by running the scanner on the pilot app's current source: its route table imports its pages
- * (`@cheattah/engine/training/pages/TrainingHomePage`) and its role sets (`@cheattah/core/permissions`)
+ * Found by running the scanner on a real app's source: its route table imports its pages
+ * (`@acme/engine/lessons/pages/LessonsHomePage`) and its role sets (`@acme/core/permissions`)
  * from *sibling workspace packages*, and discovery resolved only relative imports and path aliases — "a
  * package is null". So all 65 routes were left out ("role guard could not be evaluated") and the kit
  * reported **0 screens**. A workspace package is the adopter's own code, in the same repository, and

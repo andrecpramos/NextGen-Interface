@@ -10,7 +10,7 @@ import { OUTCOME, STAGE, type Registry } from './types.ts';
 
 /**
  * ADR-039. Keyboard mashing is recognised from the app's own letter pairs, before stage 1, and never
- * reaches a model. Measured on every committed registry (the family fixture's three roles, the reference
+ * reaches a model. Measured on every committed registry (the reference fixture's three roles, the reference
  * fixture): 0 false positives over every golden question, every registry phrase and a few names and
  * foreign sentences; 10 of 12 mashed strings caught.
  */

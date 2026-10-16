@@ -1,4 +1,4 @@
-// The stage-3 transport for the script tag (WP-52, ADR-017).
+// The stage-3 transport for the script tag (ADR-017).
 //
 // Stages 1 and 2 always work with no model and no network — that stays true whether or
 // not this file is ever reached. What this adds is what happens to a turn stages 1–2

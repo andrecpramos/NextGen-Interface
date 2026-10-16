@@ -7,7 +7,7 @@ import { readPage } from './pages.ts';
 import type { InferredCandidate } from './types.ts';
 
 /**
- * WP-55 — ADR-020's **inferred** tier, "the risky one": a condition read from what a
+ * ADR-020's **inferred** tier, "the risky one": a condition read from what a
  * page's own code *does*, rather than from something it declares. Every test here is
  * really testing one thing over and over, in different shapes: does an exact pattern
  * ship (`recognized: true`), and does everything else — a near-miss, an `&&` instead of

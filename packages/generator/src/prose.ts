@@ -2,7 +2,7 @@
  * Reading a developer's prose for the one judgement it holds and no code does:
  * **is this route still meant to be used?**
  *
- * WP-30's verdict, miss #2: `/squad/teams`, `/tactics/overall` and `/dev/icons`
+ * The first spike's miss #2: `/classes/groups`, `/timetable/overall` and `/dev/icons`
  * were generated with entirely correct roles, and the ground truth still leaves
  * them out — not because access is wrong but because a careful developer knows
  * they are a legacy duplicate, a one-release shim and a dev-only utility. That
@@ -53,12 +53,12 @@ function sentences(text: string): string[] {
  *
  * The distinction is positional and it is load-bearing. In
  *
- *   "/match-hub/:matchId is a legacy deep-link kept one release"
+ *   "/gradebook/:termId is a legacy deep-link kept one release"
  *
  * the legacy thing is named *before* the marker, and it is not the route the
- * comment sits on — `/match-hub` itself is current. Whereas in
+ * comment sits on — `/gradebook` itself is current. Whereas in
  *
- *   "Legacy team list — /squad/team is the canonical store-driven landing"
+ *   "Legacy group list — /classes/group is the canonical store-driven landing"
  *
  * the marker comes first and the other path is named as the *replacement*, so
  * the route being described is the legacy one. Getting this backwards drops a

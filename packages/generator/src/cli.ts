@@ -18,7 +18,7 @@ import type { GeneratorConfig } from './types.ts';
  *
  * The config is a `GeneratorConfig` plus an `out` path. Both are the adopter's
  * to write once; nothing here is interactive, because "no human step" is the
- * goal WP-25 is measured against.
+ * goal the generator is measured against.
  */
 
 interface CliConfig extends GeneratorConfig {
@@ -93,7 +93,7 @@ async function main(): Promise<void> {
 
   const result = writeOutput(outputDir, appRoot, output);
 
-  // WP-24: the precomputed index, so stages 1+2 can run with no model server
+  // The precomputed index, so stages 1+2 can run with no model server
   // and no fit on the critical path of the first turn.
   const indexes = await writeIndexes(outputDir, output.registries);
 
@@ -103,7 +103,7 @@ async function main(): Promise<void> {
 
   console.log(`\n${formatRoleSummary(output)}\n`);
   console.log(`  wrote ${result.files.length + indexes.length + 1} files to ${outputDir}`);
-  console.log(`  including ${indexes.length} precomputed embedding index/indexes (WP-24)`);
+  console.log(`  including ${indexes.length} precomputed embedding index/indexes`);
 
   if (result.invalid.length > 0) {
     console.error(`\n  ${result.invalid.length} role registry/registries failed validation:\n`);

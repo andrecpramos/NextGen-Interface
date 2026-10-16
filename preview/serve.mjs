@@ -5,7 +5,7 @@
 // every answer — which stage decided, what else it considered, by what margin.
 //
 //   pnpm preview                 # the only fixture app, whichever it is
-//   pnpm preview -- --app family # by name, once there is more than one
+//   pnpm preview -- --app school # by name, once there is more than one
 //   PORT=5000 pnpm preview
 //
 // It serves **every role's bundle at once**, which is exactly what production must never

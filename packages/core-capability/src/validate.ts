@@ -113,7 +113,7 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
     err(null, 'schema-version', 'registry has no numeric schemaVersion');
   }
   if (!registry.domainDescription?.trim()) {
-    err(null, 'domain-description-required', 'registry has no domainDescription — stage 3 needs to know what application it serves (Rule 1, WP-16)');
+    err(null, 'domain-description-required', 'registry has no domainDescription — stage 3 needs to know what application it serves (Rule 1)');
   }
   if (registry.context !== undefined) validateContext(registry.context, err, warn);
   if (!Array.isArray(registry.capabilities) || registry.capabilities.length === 0) {
@@ -255,7 +255,7 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     warn(id, 'description-thin', `"${id}" has a very short description; stage-2 margin depends on it being distinctive`);
   }
 
-  // --- the declared explanation (WP-36) ---------------------------------------
+  // --- the declared explanation ---------------------------------------
   // "What is this / what does this page do" is answered from a string written
   // once, not from a model called per turn. A capability with no explanation is
   // a question the assistant has to escalate or guess at, which is exactly the
@@ -263,7 +263,7 @@ function validateOne(cap: Capability, ctx: Ctx): void {
   // its `refusal` already answers the same question.
   if (!isBoundary) {
     if (!cap.explanation?.trim()) {
-      err(id, 'explanation-required', `"${id}" has no explanation — "what is this?" would have to be generated per turn (WP-36)`);
+      err(id, 'explanation-required', `"${id}" has no explanation — "what is this?" would have to be generated per turn`);
     } else if (cap.explanation.trim().length < 30) {
       warn(id, 'explanation-thin', `"${id}" has a very short explanation; it is served to the user verbatim`);
     }
@@ -272,10 +272,10 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     }
   }
 
-  // --- guided steps (WP-27, D-3) -----------------------------------------------
+  // --- guided steps -----------------------------------------------
   // A step's text is what a user gets when its anchor cannot be found, so a step
   // without text is a highlight with no instruction. And a selector-only anchor
-  // is D-3's option (a) on its own, which breaks silently on the next redesign.
+  // breaks silently on the next redesign.
   if (isBoundary && (cap.steps?.length ?? 0) > 0) {
     err(id, 'steps-on-boundary', `"${id}" is a declared limit and cannot have steps — there is no page to guide anyone through`);
   }
@@ -286,14 +286,14 @@ function validateOne(cap: Capability, ctx: Ctx): void {
     }
     const anchor = step.anchor;
     if (anchor && !anchor.label && !anchor.role && anchor.selector) {
-      warn(id, 'step-anchor-selector-only', `${where} anchors by CSS selector alone — it will break silently on the next redesign (D-3: a selector is the fallback, never the only signal)`);
+      warn(id, 'step-anchor-selector-only', `${where} anchors by CSS selector alone — it will break silently on the next redesign (a selector is the fallback, never the only signal)`);
     }
     if (anchor && !anchor.label && !anchor.selector) {
       warn(id, 'step-anchor-empty', `${where} declares an anchor with nothing to match`);
     }
   }
 
-  // --- extracted rules (ADR-020, WP-54) ---------------------------------------
+  // --- extracted rules (ADR-020) ---------------------------------------
   // Rule 13 gains a sibling: a limit is declared, never judged by the model, and
   // now an application rule is *extracted*, never judged by the model either.
   // What makes an extracted rule trustworthy is exactly what makes an

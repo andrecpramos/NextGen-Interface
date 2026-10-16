@@ -10,9 +10,9 @@ import type { FormField, PageFacts } from './types.ts';
 /**
  * What a page component's own body says about it.
  *
- * WP-30's verdict named this the single most consequential gap: the spike
+ * The first spike's single most consequential gap: the spike
  * decided whether a route was a real destination from the component's *name*,
- * and got it wrong in both directions — it dropped `MatchHubRedirectPage` and
+ * and got it wrong in both directions — it dropped `GradebookRedirectPage` and
  * `GuardianChildRedirectPage`, which are the correct destinations for "the next
  * match" and "my child's medical page", while keeping `DashboardPage`, which is
  * a bookmark that bounces most roles somewhere else.
@@ -156,9 +156,9 @@ type KeyOf = (node: ts.Node, keyOnly?: boolean) => string | null;
 /**
  * How this page calls its translations: a function from a call to its namespaced key.
  *
- * `const { t } = useTranslation('squad')` binds `t` to one namespace, and a page that
- * reads a second binds it under another name: `const { t: tp } = useTranslation('player')`.
- * The pilot app's announcements screen takes its title from `tp('announcements.title')`, and
+ * `const { t } = useTranslation('classes')` binds `t` to one namespace, and a page that
+ * reads a second binds it under another name: `const { t: ts } = useTranslation('student')`.
+ * An announcements screen takes its title from `ts('announcements.title')`, and
  * reading only calls to `t` lost it — the screen was named after its component, "My
  * Announcements", in English, in a Portuguese application.
  *
@@ -286,15 +286,15 @@ function insideIf(node: ts.Node): boolean {
  * `*.title` keys a page renders — a dialog's, a card's, an empty state's — by where it is
  * rendered, rather than guessed from the shape of the key as `PAGE_TITLE_KEY` has to.
  *
- * The pilot app's child medical page names itself through a variable,
- * `const title = childName ? tg('medical.titleFor', { name }) : tg('medical.title')`. The
+ * A child's grades page may name itself through a variable,
+ * `const title = childName ? tg('grades.titleFor', { name }) : tg('grades.title')`. The
  * variable is followed, and a call that interpolates a value is not a name: it is a
  * sentence with a child's name in it.
  *
  * A header rendered from inside an `if` is not read at all. That is an early return —
  * `if (isPending) return <PageHeader title={t('hub.loading')} />` — and it names a moment
- * rather than the screen: the pilot app's match hub came out as "Jogo não encontrado" from its
- * not-found branch, and a team's page as "A carregar…".
+ * rather than the screen: a gradebook came out as "Turma não encontrada" from its
+ * not-found branch, and a class's page as "A carregar…".
  */
 function titleKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
   const out: string[] = [];
@@ -335,7 +335,7 @@ function titleKeys(source: ts.SourceFile, keyOf: KeyOf): string[] {
 /**
  * What a screen shows when it **fails**, which is not what the screen is.
  *
- * WP-42 found this by auditing descriptions: bulletproof-react's discussion
+ * Found by auditing descriptions: bulletproof-react's discussion
  * screen has no doc comment, and the only literal text under it is an
  * `ErrorBoundary`'s fallback — "Failed to load comments. Try to refresh the
  * page." That was the entire on-screen text the model was given, so it
@@ -436,7 +436,7 @@ function literalAttr(attributes: ts.JsxAttributes, name: string): string | null 
  * The visible text of an element's children: literal text, or the key of a
  * single `t('…')` call. A label that is computed any other way is returned as
  * nothing rather than guessed — a step anchored to a guessed label would be
- * exactly the confident mispoint WP-27 forbids.
+ * exactly the confident mispoint guided steps must never make.
  */
 function childText(node: ts.Node): { text: string | null; key: string | null } {
   if (!ts.isJsxElement(node)) return { text: null, key: null };
@@ -520,7 +520,7 @@ function openers(source: ts.SourceFile): { label: string | null; labelKey: strin
 }
 
 /**
- * The form controls a page renders, with whatever names them (WP-27).
+ * The form controls a page renders, with whatever names them.
  *
  * A control's name comes from, in order: its own `aria-label`, a `<label
  * htmlFor>` pointing at its `id`, its `placeholder`, and — for a button — its own
@@ -551,7 +551,7 @@ function formFields(source: ts.SourceFile): FormField[] {
   };
   visit(source);
 
-  // WP-54: whatever a zod/yup schema constrains, read once for the whole file
+  // Whatever a zod/yup schema constrains, read once for the whole file
   // and joined to each control below by the same key `register('…')` and a
   // literal `name="…"` both resolve to.
   const schemaRules = schemaFieldRules(source);
@@ -653,7 +653,7 @@ function componentDoc(source: ts.SourceFile): string | null {
       .replace(/\s+/g, ' ')
       // A one-line comment closes on the same line as its text, so the line-start
       // strip above never sees it: `/** The signed-in shell. */` kept its `*/`,
-      // and the model was handed it as part of the sentence (WP-42).
+      // and the model was handed it as part of the sentence.
       .replace(/\s*\*+\/\s*$/, '')
       .trim();
     if (doc.length > 0) return doc;
@@ -715,7 +715,7 @@ function readComponent(file: string, props: ReadonlyMap<string, string>): Compon
     fields: fields.map((f) =>
       f.labelKey && namespace && !f.labelKey.includes(':') ? { ...f, labelKey: `${namespace}:${f.labelKey}` } : f,
     ),
-    // WP-55, ADR-020's inferred tier: matched against the same, un-namespaced
+    // ADR-020's inferred tier: matched against the same, un-namespaced
     // fields — a candidate's `field` is a `name`/`id`, never a label key.
     inferredCandidates: inferredCandidates(source, fields),
     // ADR-031. Namespaced as the fields are, so a `t('events.new')` resolves against the page's own copy.
@@ -754,7 +754,7 @@ const SHARED_UI = /[\\/](?:ui|design-system|primitives)[\\/]/i;
 /**
  * A screen, read through the components it renders when its own file says nothing.
  *
- * 19 of the pilot app's 141 declared screens are wrappers. `/settings/notifications` is
+ * In one real app, 19 of 141 declared screens were wrappers. `/settings/notifications` is
  * `<PersonalSettingsLayout active="notif"><PersonalNotificationsSection /></PersonalSettingsLayout>`
  * and nothing more. Read alone, such a page has no heading, no copy and no form: it was
  * named after its component, "Personal Notifications", and described from nothing. Its

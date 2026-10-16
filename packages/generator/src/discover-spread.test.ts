@@ -12,10 +12,10 @@ import type { GeneratorConfig } from './types.ts';
  *
  *   export const routes = [ { path: '/a', element: <A /> }, ...extraRoutes, ...workspaces.flatMap(w => w.routes) ]
  *
- * Found by running the scanner on the pilot app, whose route table ends `...workspaces`. A spread of an
+ * Found by running the scanner on a real app whose route table ends `...workspaces`. A spread of an
  * imported array was not followed and a computed one was not read — and **neither was reported**: the
- * routes simply were not there, and `SKIPPED.md` said nothing. That is the failure WP-28 named (under-
- * discovery that no skip report can mention). A spread now either is followed, into the module that
+ * routes simply were not there, and `SKIPPED.md` said nothing. That is the worst failure a
+ * generator can have: under-discovery that no skip report can mention. A spread now either is followed, into the module that
  * declares it, or is reported with the expression quoted.
  */
 

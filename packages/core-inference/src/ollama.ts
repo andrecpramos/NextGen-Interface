@@ -23,7 +23,7 @@ export interface OllamaOptions {
 
 const DEFAULTS = {
   // Guarded: `process` does not exist in a browser, and reading it at module
-  // scope crashed any page that loaded this file (found by WP-29's script-tag test).
+  // scope crashed any page that loaded this file (found by the script-tag test).
   host: (typeof process !== 'undefined' ? process.env.OLLAMA_HOST : undefined) || 'http://127.0.0.1:11434',
   model: (typeof process !== 'undefined' ? process.env.SPIKE_MODEL : undefined) || 'qwen2.5:1.5b',
   embedModel: (typeof process !== 'undefined' ? process.env.SPIKE_EMBED_MODEL : undefined) || 'nomic-embed-text',
@@ -113,7 +113,7 @@ export class OllamaLlmRuntime implements LlmRuntime {
     try {
       return { value: JSON.parse(json.message?.content ?? '') as T, latencyMs, parseFailed: false };
     } catch {
-      // Rare, not impossible — 1 in ~140 calls on llama3.1:8b (Finding 6). If
+      // Rare, not impossible — 1 in ~140 calls on llama3.1:8b. If
       // this rate ever climbs, the runtime has stopped honouring the constraint
       // and that is a finding in itself.
       return { value: null, latencyMs, parseFailed: true };

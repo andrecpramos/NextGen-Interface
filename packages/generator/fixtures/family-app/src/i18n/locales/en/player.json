@@ -1,8 +1,0 @@
-{
-  "announcements": {
-    "title": "Announcements",
-    "subtitle": "Messages from the club",
-    "empty": { "title": "No announcements" }
-  },
-  "medical": { "title": "My medical status" }
-}

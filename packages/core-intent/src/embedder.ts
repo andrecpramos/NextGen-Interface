@@ -2,7 +2,7 @@ import { features } from './text.ts';
 // The subpath, not the package root. The root re-exports `ModelStore`, which
 // imports `node:crypto`, `node:fs` and `node:path` at module scope — so pulling
 // the root into `@nextgen/core-intent/browser` made every browser bundle fail to
-// resolve them (WP-29 found it; esbuild refuses at `platform: 'browser'`).
+// resolve them (esbuild refuses at `platform: 'browser'`).
 // `ollama.ts` itself is `fetch` only.
 import { OllamaEmbeddingRuntime } from '@nextgen/core-inference/ollama';
 import { dotStored, type SparseVector, type StoredVector } from './sparse.ts';
@@ -47,8 +47,8 @@ export function cosine(a: StoredVector, b: StoredVector): number {
  * tauFloor, which is exactly the OutOfScope behaviour we want, for free.
  *
  * (Measured, that property is weaker than it sounds: "more" and "what time is
- * it" score 0.154 and 0.127, and no threshold separates them. See FINDINGS
- * Finding 2 — the free out-of-scope detection is not free after all.)
+ * it" score 0.154 and 0.127, and no threshold separates them: the free
+ * out-of-scope detection is not free after all. ADR-009 is the answer.)
  */
 export class HashingEmbedder implements Embedder {
   readonly name = 'hashing';
@@ -126,7 +126,7 @@ export class HashingEmbedder implements Embedder {
 // ----------------------------------------------------------------- ollama ---
 //
 // The Ollama encoder used to live here and call `fetch` directly. It moved to
-// `@nextgen/core-inference` in WP-06 — this package no longer contains any
+// `@nextgen/core-inference` — this package no longer contains any
 // transport code, which is what makes swapping the runtime a one-package change.
 //
 // `OllamaEmbeddingRuntime` is re-exported for callers that used to import it

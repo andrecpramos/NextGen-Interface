@@ -1,0 +1,101 @@
+{
+  "app": {
+    "name": "Escola Ribeira",
+    "about": "A aplicação de uma escola: os encarregados de educação acompanham os seus filhos, os alunos veem o que a escola lhes diz e as suas avaliações, e os professores acompanham as turmas e as aulas. / A school app: parents follow their children, students see what the school tells them and their grades, and teachers run their classes and lessons."
+  },
+  "glossary": [
+    { "term": "educando", "means": "um aluno ao cuidado de um encarregado de educação", "aliases": ["filho", "filha", "criança", "miúdo", "child", "son", "daughter", "kid"] },
+    { "term": "turma", "means": "o grupo de alunos que um professor acompanha", "aliases": ["turmas", "alunos", "classe", "class", "classes", "students"] },
+    { "term": "anúncios", "means": "mensagens que a escola publica para todos", "aliases": ["novidades", "comunicados", "notícias", "news", "announcements"] },
+    { "term": "notificações", "means": "avisos automáticos da aplicação sobre o que aconteceu", "aliases": ["alertas", "notifications", "alerts"] },
+    { "term": "avaliações", "means": "as notas e a assiduidade de um aluno, por disciplina", "aliases": ["notas", "pauta", "faltas", "testes", "grades", "marks", "report card"] }
+  ],
+  "cannot": [
+    {
+      "about": "Pagamentos, propinas e faturas",
+      "say": "Não trato de pagamentos. As propinas e as faturas são geridas pela secretaria da escola.",
+      "askedAs": ["quanto tenho de pagar este mês", "pagar a cantina do meu filho", "quando vence a fatura", "how much do I owe the school"]
+    },
+    {
+      "about": "Contactar uma pessoa",
+      "say": "Não consigo enviar mensagens nem contactar ninguém por si. Pode ler os anúncios da escola ou falar diretamente com o professor ou a secretaria.",
+      "askedAs": ["quero falar com o professor", "como contacto a escola", "fala com a secretaria por mim", "message the teacher"],
+      "instead": ["/my/announcements"]
+    }
+  ],
+  "rules": [
+    "Os Anúncios são as mensagens que a escola publica para todos; as Notificações são avisos automáticos da aplicação. Quem pergunta por mensagens da escola, novidades ou comunicados quer quase sempre os Anúncios.",
+    "As preferências de avisos, incluindo o email onde se recebem, estão nas Definições e não nas Notificações: as Notificações só mostram o que já aconteceu.",
+    { "text": "Um encarregado só vê os seus próprios educandos. As avaliações são as de um educando: mostram as notas e a assiduidade por disciplina, e o encarregado pode pedir uma reunião ao diretor de turma.", "roles": ["PARENT"] },
+    { "text": "Um aluno vê as suas próprias avaliações e os anúncios da escola, mas não as dos outros alunos.", "roles": ["STUDENT"] },
+    { "text": "O professor acompanha as suas turmas e prepara as aulas. O lançamento de notas é feito noutro sistema da escola, não nesta aplicação.", "roles": ["TEACHER"] }
+  ],
+  "screens": {
+    "/my": {
+      "purpose": "A página inicial de quem é aluno ou encarregado de educação: o ponto de partida com o resumo do que importa.",
+      "contains": ["resumo", "atalhos"],
+      "aliases": ["início", "página inicial", "home", "painel"],
+      "askedAs": ["levar-me para o início", "voltar à página inicial", "quero ver o resumo", "take me home"]
+    },
+    "/dashboard": {
+      "purpose": "A página inicial do professor: o ponto de partida com o resumo das turmas e das aulas.",
+      "contains": ["resumo das turmas", "resumo das aulas"],
+      "aliases": ["início do professor", "página inicial", "home", "painel do professor"],
+      "askedAs": ["ir para o início", "voltar ao painel", "página inicial do professor", "take me to the dashboard"]
+    },
+    "/my/announcements": {
+      "purpose": "Onde se leem os anúncios e as mensagens que a escola publica para alunos e encarregados.",
+      "contains": ["mensagens da escola", "comunicados", "quem enviou cada anúncio"],
+      "aliases": ["novidades da escola", "comunicados", "notícias da escola", "school news"],
+      "askedAs": ["o que anunciou a escola", "quero ler os comunicados", "há novidades na escola", "any school news"]
+    },
+    "/my/children": {
+      "purpose": "Onde o encarregado de educação vê os filhos que tem inscritos na escola e escolhe um para ver mais.",
+      "contains": ["lista dos educandos", "acesso às avaliações de cada um"],
+      "aliases": ["os meus filhos", "as minhas crianças", "my children"],
+      "askedAs": ["quero ver os meus filhos", "quem tenho inscrito na escola", "lista de educandos", "show me my kids"]
+    },
+    "/my/children/grades": {
+      "purpose": "Onde o encarregado de educação vê as avaliações de um educando: as notas e a assiduidade por disciplina, e pode pedir uma reunião ao diretor de turma.",
+      "contains": ["notas por disciplina", "assiduidade", "pedido de reunião"],
+      "aliases": ["notas do meu filho", "pauta", "faltas do meu filho", "child grades"],
+      "askedAs": ["como vai o meu filho na escola", "o meu filho tem faltas", "quero ver as notas do meu filho", "how is my child doing at school"]
+    },
+    "/my/grades": {
+      "purpose": "Onde o aluno vê as suas próprias avaliações: as notas e a assiduidade por disciplina.",
+      "contains": ["notas por disciplina", "assiduidade"],
+      "aliases": ["as minhas notas", "pauta", "my grades"],
+      "askedAs": ["que nota tive a matemática", "quantas faltas tenho", "ver a minha pauta", "what are my marks"]
+    },
+    "/my/notifications": {
+      "purpose": "Onde se veem as notificações: os avisos automáticos da aplicação sobre o que aconteceu de novo.",
+      "contains": ["alertas recentes", "avisos da aplicação"],
+      "aliases": ["alertas", "avisos da aplicação", "notifications"],
+      "askedAs": ["tenho alertas novos", "ver as minhas notificações", "o que aconteceu de novo na aplicação", "any new alerts"]
+    },
+    "/settings/notifications": {
+      "purpose": "Onde cada pessoa escolhe que avisos quer receber e por que meio, incluindo o email.",
+      "contains": ["escolher avisos", "email para os avisos", "tutoriais"],
+      "aliases": ["preferências de avisos", "avisos por email", "alertas por email", "notification settings"],
+      "askedAs": ["não quero receber emails", "desligar os avisos por email", "mudar o email onde recebo os avisos", "stop the emails"]
+    },
+    "/settings": {
+      "purpose": "As definições da conta: as preferências pessoais, as notificações e o endereço de email.",
+      "contains": ["preferências", "notificações", "endereço de email"],
+      "aliases": ["configurações", "opções", "a minha conta", "account settings"],
+      "askedAs": ["mudar as minhas definições", "abrir as configurações", "alterar o meu email", "open my settings"]
+    },
+    "/classes": {
+      "purpose": "O resumo das turmas para o professor: os alunos e as turmas que acompanha.",
+      "contains": ["alunos", "turmas"],
+      "aliases": ["as minhas turmas", "os meus alunos", "classes", "my classes"],
+      "askedAs": ["ver os meus alunos", "como estão as minhas turmas", "lista da turma", "show my students"]
+    },
+    "/lessons": {
+      "purpose": "O resumo das aulas para o professor: as aulas e os planos de aula da semana.",
+      "contains": ["aulas", "plano semanal"],
+      "aliases": ["horário", "planos de aula", "sumários", "lesson plans"],
+      "askedAs": ["quando é a próxima aula", "ver as aulas planeadas", "plano de aulas da semana", "when is my next lesson"]
+    }
+  }
+}

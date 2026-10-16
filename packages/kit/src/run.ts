@@ -21,7 +21,7 @@ import { teach } from './teach.ts';
  * The one entry point is `cli-copied.ts`, bundled into `adapter/scan.mjs`. It has no model
  * to reach: no client, no endpoint, and no flag that would name one — a flag that turns a
  * capability off still ships the capability, and this ships neither. That is what makes
- * "it cannot reach the network" checkable rather than promised (ADR-018 D-6, ADR-021;
+ * "it cannot reach the network" checkable rather than promised (ADR-018, ADR-021;
  * `tooling/scripts/check-network-egress.mjs` and `check-adapter.mjs` cover `adapter/`).
  *
  * The kit folder defaults to ./nextgen. Nothing is ever written outside it
@@ -32,7 +32,7 @@ import { teach } from './teach.ts';
  * deliberately no way to calibrate from the generator's own examples — measured,
  * that makes the engine wrongly refuse real requests. See calibrate.ts.
  *
- * `--stage3 <path>` (WP-52, ADR-017): a turn stages 1-2 cannot settle POSTs to
+ * `--stage3 <path>` (ADR-017): a turn stages 1-2 cannot settle POSTs to
  * that path on the ADOPTER'S OWN origin instead of asking a clarifying question.
  * Off unless this is passed — there is no bare `--stage3` with a guessed default,
  * because the path is a server the developer has to actually run, rate-limit and

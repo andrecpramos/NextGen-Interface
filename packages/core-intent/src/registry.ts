@@ -11,7 +11,7 @@ import type { Capability, Embedder, EnumIndex, Registry, RegistryFile } from './
  * Loads registry.json and prepares the derived structures each stage needs.
  *
  * In the real app this is generated from capability definitions by codegen
- * (architecture.md, WP-03). Here it is hand-written JSON with the same shape, so
+ * (architecture.md). Here it is hand-written JSON with the same shape, so
  * the spike validates the schema as well as the router.
  *
  * Note what is deliberately NOT done here: `kind` is not narrowed to

@@ -19,9 +19,9 @@ bug.
 ├── agents/              delegated, context-isolated workers
 ├── commands/            /slash-commands, mechanical and on demand
 │
-├── decisions/           ADRs — the constitution. 21 of them
+├── decisions/           ADRs — the constitution; README.md is the index
 ├── sdlc/                per-phase process definitions + agent-workflow
-└── docs/                architecture, testing, standards, the enforcement register, lessons, …
+└── docs/                architecture, testing, standards, security, the enforcement register
 ```
 
 ## Where the truth lives
@@ -29,15 +29,13 @@ bug.
 1. **[`decisions/`](decisions/)** — binding. Superseded ADRs stay with a
    forward-pointing `Status:`. Cited from production source — `cascade.ts`,
    `core-capability/src/types.ts`.
-2. **[PLAN.md](../.MDFiles/PLAN.md) §2** — the twenty non-negotiable rules (5 and 6 dormant until WP-48). Their
+2. **[docs/RULES.md](../docs/RULES.md)** — the twenty non-negotiable rules (5 and 6 dormant). Their
    enforcement is mapped in the register below, not restated here.
 3. **[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md)** — read
    this before assuming a rule is protected. It maps every rule to the gate, hook
    or test holding it up, and lists the gaps. It never claims protection that does
    not exist.
-4. **[`docs/lessons.md`](docs/lessons.md)** — mistakes this repo has already made,
-   and the enforcement level each one reached.
-5. **[`sdlc.config.json`](sdlc.config.json)** — the machine-readable version.
+4. **[`sdlc.config.json`](sdlc.config.json)** — the machine-readable version.
    Every hook and command reads it; nothing hardcodes a branch name or a gate.
 
 ## Hooks — the part you do not have to remember
@@ -88,17 +86,15 @@ Review with `/hooks`. A newly created `settings.json` may not be picked up until
 
 **The working tree is shared.** More than one session works in this checkout at
 once. Stage explicit paths, re-check `git status` immediately before committing,
-and leave dirty files you did not create alone. Not theoretical — see
-[`docs/lessons.md`](docs/lessons.md).
+and leave dirty files you did not create alone.
 
-**Nothing here can block a merge.** Branch protection is unavailable on this
-repository's plan, so every CI gate is advisory in the mechanical sense and the
-local hooks are the only layer that actually denies anything — and they bind
-agents, not humans. Detail in
-[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md) §0.
+**Nothing here can block a merge yet.** Branch protection is not configured, so
+every CI gate is advisory in the mechanical sense and the local hooks are the only
+layer that actually denies anything — and they bind agents, not humans. Detail in
+[`docs/critical-infrastructure.md`](docs/critical-infrastructure.md) §6.
 
 ## Related
 
 - [../CLAUDE.md](../CLAUDE.md) — the always-loaded contract
-- [../PLAN.md](../.MDFiles/PLAN.md) — §2 the rules, §7 the work packages
+- [../docs/RULES.md](../docs/RULES.md) — the rules and the definition of done
 - `sdlc-kit` — the portable version of all this, kept outside this repo so it can be reused across projects. Not tracked here.

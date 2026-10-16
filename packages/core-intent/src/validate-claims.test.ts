@@ -4,7 +4,7 @@ import { validateClaims } from './validate-claims.ts';
 import type { Registry } from './types.ts';
 
 /**
- * ADR-019 (WP-53). The table the ADR itself writes down, each row its own test:
+ * ADR-019. The table the ADR itself writes down, each row its own test:
  *
  *   a route in this role's registry           -> kept
  *   a route NOT in this role's registry        -> that sentence dropped

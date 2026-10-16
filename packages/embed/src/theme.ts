@@ -65,7 +65,7 @@ export const GRAPHITE: Theme = {
   field: [26, 30, 36, 1],
   text: [230, 233, 238, 1],
   // #848D99: AA on the raised surface with room to spare. #7A838F measured 4.50:1 on #171B21 — AA only
-  // to the second decimal, and below it on any step lighter (Pilot-A field report, 2026-09-23).
+  // to the second decimal, and below it on any step lighter.
   muted: [132, 141, 153, 1],
   border: [255, 255, 255, 0.09],
   accent: [121, 192, 206, 1],

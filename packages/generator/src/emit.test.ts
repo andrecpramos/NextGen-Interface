@@ -39,11 +39,10 @@ const master = [
 /**
  * Rule 17 is a security property, not a UX filter.
  *
- * The pilot app is role-gated throughout, and one ADMIN capability in a guardian's
+ * A role-gated app leaks through one ADMIN capability in a guardian's
  * registry reveals the shape of a surface that user must not know exists —
  * route names, screen titles, the vocabulary of an administrative system.
- * PLAN.md §8 gives generator role handling a zero-tolerance kill criterion for
- * exactly this reason, so the property is asserted by diffing two registries
+ * Generator role handling has zero tolerance for exactly this reason, so the property is asserted by diffing two registries
  * rather than by inspecting the code that builds them.
  */
 describe('splitByRole — Rule 17', () => {
@@ -123,8 +122,8 @@ describe('writeOutput — Rule 16', () => {
   /**
    * The installer never modifies the adopter's source. A tool that edits a
    * repository it does not own cannot be cleanly uninstalled and turns every
-   * upgrade into a merge conflict — PLAN.md Rule 16, and the reason WP-26 exists
-   * at all. This guard is the one line between this package and that promise.
+   * upgrade into a merge conflict — Rule 16, and the reason the adapter is a
+   * folder that is copied rather than code that is merged. This guard is the one line between this package and that promise.
    */
   it('refuses to write anywhere inside the application it read', () => {
     const appRoot = mkdtempSync(join(tmpdir(), 'nextgen-app-'));
@@ -156,7 +155,7 @@ describe('formatSkipReport', () => {
   });
 });
 
-describe('formatInferredReport — ADR-020, WP-55', () => {
+describe('formatInferredReport — ADR-020', () => {
   it('says plainly that nothing was found, rather than an empty section', () => {
     expect(formatInferredReport([])).toContain('Nothing found.');
   });

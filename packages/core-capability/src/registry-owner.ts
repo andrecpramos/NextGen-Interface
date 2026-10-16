@@ -2,13 +2,13 @@
  * Who owns the generated registry?
  *
  * Each domain writes its own `packages/domain-<name>/generated/registry.json`
- * (WP-47, ADR-016). This refuses a write whose capability namespaces describe a
+ * (ADR-016). This refuses a write whose capability namespaces describe a
  * *different* application than the file already on disk — so a build pointed at
  * the wrong output path stops and names both sides, rather than leaving a
  * registry that the router reads correctly and that describes the wrong app.
  * `--force` overrides.
  *
- * It was written for a sharper problem. Until WP-47 all domains wrote one global
+ * It was written for a sharper problem. Until ADR-016 all domains wrote one global
  * `packages/core-intent/eval/registry.json`, only one could be authoritative at a
  * time, and `critical-infrastructure.md` carried it as *"survivable with two
  * domains and a documented order; not survivable with three"*. This made that

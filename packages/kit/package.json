@@ -8,7 +8,7 @@
     "url": "git+https://github.com/andrecpramos/NextGen-Interface.git",
     "directory": "packages/kit"
   },
-  "description": "WP-41: the drop-in kit. One command reads an application, writes everything into its own folder, and explains what it could not read.",
+  "description": "The drop-in kit. One command reads an application, writes everything into its own folder, and explains what it could not read.",
   "type": "module",
   "engines": {
     "node": ">=20"

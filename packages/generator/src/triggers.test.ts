@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { assignTriggers } from './triggers.ts';
 
 /**
- * WP-38 lever 1.
+ * Stage-1 triggers from nav labels.
  *
  * The property under test is not "triggers get emitted" — it is that an
  * *ambiguous* one never does. Stage 1 answers with score 1.0 and no margin
@@ -59,8 +59,8 @@ describe('assignTriggers', () => {
    * trigger is only useful if it is byte-identical to what stage 1 looks up.
    */
   it('stores the normalised form, so the registry shows what will actually match', () => {
-    const { triggers } = from({ 'a.b': ['  Avaliações  FÍSICAS!  '] });
-    expect(triggers.get('a.b')).toEqual(['avaliacoes fisicas']);
+    const { triggers } = from({ 'a.b': ['  Horário  ESCOLAR!  '] });
+    expect(triggers.get('a.b')).toEqual(['horario escolar']);
   });
 
   it('deduplicates spellings that normalise to the same phrase', () => {

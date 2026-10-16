@@ -6,7 +6,7 @@ import { generate } from './generate.ts';
 import type { GeneratorConfig } from './types.ts';
 
 /**
- * WP-43 — the third way an application gates a route, found on a public app we do
+ * The third way an application gates a route, found on a public app we do
  * not own (Tutor-Support-System, MIT).
  *
  * The roles are on a **parent** route's element, and its children inherit them:
@@ -17,7 +17,7 @@ import type { GeneratorConfig } from './types.ts';
  * Run against that app before this existed, the generator emitted all 16 screens —
  * including four admin-only ones — into a single `PUBLIC` registry, reported **0**
  * skips, and `doctor` finished with "nothing needs fixing". Rule 17 is a security
- * property and that was a leak, which is what WP-43 existed to find.
+ * property and that was a leak, found by measuring against ground truth written first.
  */
 
 const ROOT = fileURLToPath(new URL('../fixtures/guarded-app/src', import.meta.url));
@@ -35,7 +35,7 @@ const CONFIG: GeneratorConfig = {
 const rolesFor = (path: string): readonly string[] | null | undefined =>
   discoverRoutes(CONFIG).routes.find((route) => route.path === path)?.roles;
 
-describe('discoverRoutes — a guard on a parent route (WP-43)', () => {
+describe('discoverRoutes — a guard on a parent route', () => {
   it('gives a child only the roles its guard allows', () => {
     expect(rolesFor('/admin/overview')).toEqual(['ADMIN']);
     expect(rolesFor('/admin/users')).toEqual(['ADMIN']);

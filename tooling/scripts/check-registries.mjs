@@ -25,14 +25,9 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 // Where registries legitimately live. `review/` and `master.json` are deliberately
 // excluded: a master carries a `roles` annotation that a shipped RegistryFile must not
-// have (ADR-014), so validating it here would assert the wrong shape.
-//
-// `ground-truth.registry.json` is excluded and must stay excluded: it is WP-31's
-// hand-written answer key, scored *against*, not shipped. It has its own runner,
-// runner (`eval/fut-app/verify.mjs`, deleted with the pilot's evidence, ADR-018), which
-// applied validateRegistry plus WP-31's own acceptance checks. That runner reported FAIL — WP-36 added the `explanation` requirement
-// after the key was written — and excluding the file here neither causes nor hides that;
-// see the note in GROUND_TRUTH.md.
+// have (ADR-014), so validating it here would assert the wrong shape. A hand-written
+// ground-truth registry is an answer key, scored *against* and never shipped, so its
+// name does not match `IS_REGISTRY` either.
 const ROOTS = ['eval', 'packages/core-intent/eval', 'adapter'];
 const IS_REGISTRY = /^(registry\.[A-Z_]+\.json|registry\.json|fixture-registry\.json)$/;
 

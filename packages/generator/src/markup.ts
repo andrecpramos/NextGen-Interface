@@ -56,7 +56,7 @@ function scriptsOf(text: string): string {
  * failure state.
  *
  * A block shown only when something went wrong (`v-if="error"`, `{#if error}`) is what
- * the screen looks like when it is not working. WP-42 found the TSX version of this
+ * the screen looks like when it is not working. An audit found the TSX version of this
  * mistake describing a discussion screen as its own error message; the same rule
  * applies here. The match is approximate — the first closing tag of the same name — and
  * errs towards removing too little rather than guessing structure.
@@ -135,7 +135,7 @@ function textOrKey(inner: string): { text: string | null; key: string | null } {
   return call ? { text: null, key: call[2]! } : { text: null, key: null };
 }
 
-/** Form controls and what names them, in the accessible-name order pages.ts uses (WP-27). */
+/** Form controls and what names them, in the accessible-name order pages.ts uses. */
 function fieldsOf(markup: string): FormField[] {
   const labels = new Map<string, { text: string | null; key: string | null }>();
   for (const match of markup.matchAll(/<label\b([^>]*)>([\s\S]*?)<\/label>/gi)) {
@@ -159,7 +159,7 @@ function fieldsOf(markup: string): FormField[] {
     if (!label.text && !label.key) label = named(attributes, 'placeholder');
     if (!label.text && !label.key && tag === 'button' && match[3]) label = textOrKey(match[3]);
     if (!label.text && !label.key) continue;
-    // WP-54's schema/JSX-attribute extraction is TSX-specific (`field-rules.ts`
+    // Schema/JSX-attribute extraction is TSX-specific (`field-rules.ts`
     // walks a TypeScript AST); this regex-based reader for Vue/Svelte/HTML
     // markup does not have rules to attach yet.
     out.push({ tag, label: label.text, labelKey: label.key, id, name, type, rules: [] });
@@ -249,7 +249,7 @@ function readMarkupText(text: string): PageFacts {
     doc: null,
     fields: fieldsOf(markup),
     title: declaredTitle(text, scriptsOf(text)),
-    // WP-55's extractor walks a TypeScript AST (`inferred-rules.ts`); this
+    // The inferred-tier extractor walks a TypeScript AST (`inferred-rules.ts`); this
     // regex-based reader for Vue/Svelte/HTML markup has no candidates to offer.
     inferredCandidates: [],
     // Read from the raw text: `visibleMarkup` drops what a handler says.

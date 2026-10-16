@@ -1,9 +1,0 @@
-{
-  "pageTitle": "Os meus filhos",
-  "medical": {
-    "titleFor": "Estado médico de {{name}}",
-    "page": { "heading": "Estado médico do educando" },
-    "subtitle": "Estado de aptidão e recuperação (sem diagnóstico)",
-    "confirm": { "share": { "title": "Partilhar com o treinador?" } }
-  }
-}

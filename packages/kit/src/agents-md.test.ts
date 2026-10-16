@@ -55,7 +55,7 @@ describe('adapter/AGENTS.md keeps the decisions that are the developer\'s to mak
   });
 
   it('does not offer a model flag for scan.mjs, because that build has none', () => {
-    // ADR-018 D-6, ADR-021: `--model` is refused. An agent told to offer it would waste the
+    // ADR-018, ADR-021: `--model` is refused. An agent told to offer it would waste the
     // developer's time on an impossible option.
     expect(AGENTS).not.toMatch(/--model\s+<?name>?/);
     expect(AGENTS).toMatch(/does not reach the network/i);

@@ -79,9 +79,9 @@ title is only "Conduit", becomes "Home".
   cure is in the name of last resort: a page with no title of its own and no named component is now
   named from the last **two** named segments of its path, so it keeps its section ("Genre Movie",
   "Profile Favorites"). A declared title or a component name still wins.
-- The counting bug predates this item. The committed `fut-app` registries were generated with it and
-  are **not** regenerated here, because that would move artefacts calibrated against them (Rule 14). A
-  rebuild will un-prefix titles that were identical in both of fut-app's languages.
+- The counting bug predates this item. Registries generated before the fix keep the prefix until they
+  are rebuilt; a rebuild un-prefixes titles that were identical in both of an app's languages, and moves
+  what was calibrated against them, so recalibrate in the same change (Rule 14).
 
 **Still weak:**
 - movies' `/:type` pages are "Type" and "Type Id". Their real titles are a conditional
@@ -150,4 +150,4 @@ them are the names the apps gave their code, which is all there is to read when 
 - **Custom `pageExtensions`** in `next.config`, and a React Router 7 `app/routes.ts` that lists
   routes explicitly instead of calling `flatRoutes()`, are not read.
 - **Routing quality.** This measures discovery and titles, not whether a question reaches the
-  right screen. That needs questions written for each app, which is the owner's field test.
+  right screen. That needs questions written for each app, by someone who knows it.

@@ -8,11 +8,11 @@ import type { GeneratorConfig, ManifestEntry } from './types.ts';
 /**
  * The application's own words for its own screens.
  *
- * A route path is a developer's spelling; `nav.trainingCalendar` resolved
+ * A route path is a developer's spelling; `nav.lessonCalendar` resolved
  * against the locale files is what the user actually reads on the sidebar. The
- * second is the vocabulary an assistant has to match, and PLAN.md §7.2 is
- * explicit that a hand-maintained nav manifest is "a far richer signal than
- * JSX" — because a person wrote it for other people.
+ * second is the vocabulary an assistant has to match. A hand-maintained nav
+ * manifest is a far richer signal than JSX, because a person wrote it for
+ * other people.
  *
  * Everything read here is untrusted text (Rule 15): it is the adopter's copy,
  * not ours, and it reaches a prompt only through `synthesise.ts`'s isolation.
@@ -62,8 +62,8 @@ export function readManifest(file: string): ManifestEntry[] {
   const source = parse(file);
   const out: ManifestEntry[] = [];
   // The labels of the nav groups being read, innermost last. A group is an object with a
-  // `label` and an `items` array: the pilot app's sidebar nests every "Visão geral" leaf in one,
-  // and its command palette names the leaf "Plantel · Visão geral" from exactly that.
+  // `label` and an `items` array: a sidebar may nest every "Visão geral" leaf in one, and a
+  // command palette names the leaf "Turmas · Visão geral" from exactly that.
   const groups: (string | null)[] = [];
 
   const visit = (node: ts.Node): void => {
@@ -135,7 +135,7 @@ const NOT_SOURCE = new Set(['node_modules', '.git', 'dist', 'build', 'out', 'cov
  * Nav-shaped entries written anywhere in the application's source: route -> label key.
  *
  * A configured manifest is where an app keeps its navigation, but not always all of it.
- * The pilot app renders its pinned Settings item inline in `Sidebar.tsx` —
+ * An app may render its pinned Settings item inline in `Sidebar.tsx` —
  * `{ label: 'nav.settings', route: '/settings' }` — so `/settings` had no label and was
  * named after its component: "Settings", in a Portuguese registry. Read with the same
  * shape-driven reader as a manifest, and used only as a last resort: a title the page or

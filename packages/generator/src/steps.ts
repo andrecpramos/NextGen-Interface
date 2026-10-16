@@ -4,12 +4,12 @@ import { translate, type Translations } from './labels.ts';
 import type { FormField } from './types.ts';
 
 /**
- * Guided steps from the form a page renders (WP-27).
+ * Guided steps from the form a page renders.
  *
  * *"Take me there and tell me what to do."* Navigation existed; guidance did
  * not. The generator already reads the component tree, which is what makes this
- * tractable — PLAN.md's note on WP-27 is that reading from source lets the anchor
- * be *derived* rather than guessed.
+ * tractable: reading from source lets the anchor be *derived* rather than
+ * guessed.
  *
  * ## Deliberately a template, not a model
  *
@@ -20,7 +20,7 @@ import type { FormField } from './types.ts';
  * (Rule 15). A model could write friendlier prose; it could also write a step
  * for a field that is not there.
  *
- * ## The anchor carries both D-3 signals
+ * ## The anchor carries both signals
  *
  * `label` + `role` for semantic matching at run time (primary), and a `selector`
  * captured from source as the fallback — `#id` when the control has one,
@@ -87,7 +87,7 @@ export function visibleLabel(field: FormField, dictionary: Translations | undefi
  *
  * A field whose label cannot be resolved to text is dropped: a step that cannot
  * name its field cannot be matched semantically, and one anchored by selector
- * alone is the D-3 option the validator warns about.
+ * alone is the option the validator warns about.
  */
 export function stepsFor(
   fields: readonly FormField[],

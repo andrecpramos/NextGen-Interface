@@ -15,8 +15,8 @@ The old site keeps working exactly as it does. **Every screen the assistant can 
 stays reachable without it** — that one is not negotiable
 ([ADR-005](.claude/decisions/ADR-005.md)).
 
-> **Adding this to your app?** Start with **[GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md)**: one page,
-> five steps. Everything below is about how it was built and measured.
+> **Adding this to your app?** Start with **[GETTING-STARTED.md](docs/GETTING-STARTED.md)**:
+> one page, five steps. Everything below is about how it works and how it is measured.
 
 ## Does it work?
 
@@ -56,53 +56,27 @@ tells the installing agent to ask about exactly this.
 ### Routing quality, reproducible from this repository
 
 `pnpm eval:apps` runs the whole pipeline — generate, calibrate, route — over the fixture
-applications in [eval/frameworks](eval/frameworks), and is a CI gate. On the reference
-fixture (11 capabilities, 3 roles, 2 languages, 69 questions), with no model, re-measured
-2026-10-02:
+application in [eval/frameworks](eval/frameworks), and is a CI gate. On the reference
+fixture (a school portal: 11 capabilities, 3 roles, 2 languages, 69 questions), with no
+model:
 
 | | |
 |---|---|
 | Sent straight to a wrong screen | **0%** — the gate fails on any ([ADR-041](.claude/decisions/ADR-041.md)) |
-| Sent straight to the right screen | 70.9% (39 of 55) |
-| In-scope questions wrongly refused | 0% |
+| Sent straight to the right screen | 72.7% (40 of 55) |
+| In-scope questions wrongly refused | 1.8% (1 of 55) |
 | Out-of-scope refused | 71.4% (10 of 14) |
 | Settled with no model call | 100% of turns reached a decision without one |
 
 **These are an upper bound.** They include the fixture's `knowledge.json`
-([ADR-023](.claude/decisions/ADR-023.md)), which the tool's author wrote against these same
-questions. Before the fixture had one, the router refused 50% of out-of-scope requests and
-wrongly refused 3.7% of in-scope ones.
+([ADR-023](.claude/decisions/ADR-023.md)), written against these same questions by the
+tool's author.
 
 **When it is not sure, it asks one question rather than guessing.** If one screen leads, it
 asks "Are you looking for X?". If two are close, it asks "Do you mean X, or Y?". It never
 shows a menu and never names a third screen, because a visitor who has never seen the app
 cannot rank unfamiliar names ([ADR-026](.claude/decisions/ADR-026.md)). That costs a tap
-more than a perfect guess, but it has sent nobody to a wrong place. When it was measured on
-2026-09-21, the right screen was among the first two in 21 of the 21 turns the router would
-not act on, and a third added none.
-
-### The pilot, and why its numbers are no longer here
-
-Until 2026-09-17 the headline was a pilot against a private 146-page application: **53.4%
-right screen first against that app's own command palette at 42.6%**, over 176 real
-questions, and **11.0% of turns settled without a model against a 60% target** — a
-pre-committed kill criterion that triggered, after which the cheap-inference claim was
-withdrawn rather than restated.
-
-**Those measurements happened; their evidence is deliberately no longer in this
-repository.** The generated artefacts were the complete screen inventory of a real
-application, by role, and a tool whose whole claim is generality should not ship one app's
-private structure as its proof. They are kept in the private repository this one is
-published from, and are not in this repository's history either, so they cannot be
-verified from here.
-
-What survives from that pilot is what generalises: every naming and description failure it
-found is written up in [FIELD-NOTES.md](adapter/FIELD-NOTES.md), and the fixture in
-`eval/frameworks/family` reproduces its hard cases — two addresses for one screen,
-placeholder titles, untranslated duplicates — without being it.
-
-**The product is a better way to navigate; a cheaper one is not claimed** until a
-deployment measures it.
+more than a perfect guess, but it sends nobody to a wrong place.
 
 ## The idea
 
@@ -123,15 +97,38 @@ involved** — which stage decided, what else it considered and by what margin. 
 product feature, not a debug tool: *"prove why it sent this user there"* is what a
 regulated adopter asks first.
 
+## The rules
+
+Twenty numbered rules hold for every change, and most are enforced by a test, a CI gate or
+a package boundary: **[docs/RULES.md](docs/RULES.md)**. The load-bearing ones:
+
+1. **The registry is the contract.** One declaration generates the route and the thing
+   the router selects, so they cannot drift.
+2. **The cascade escalates only when it must**, and the model is constrained to a
+   shortlist it did not choose. ([ADR-003](.claude/decisions/ADR-003.md))
+3. **The application declares its own limits**, and a request outside them is refused by
+   retrieval rather than by a model's judgement. ([ADR-009](.claude/decisions/ADR-009.md))
+4. **A capability a user cannot reach is absent from the registry they receive**, not
+   hidden in it. ([ADR-014](.claude/decisions/ADR-014.md))
+5. **The installer never modifies the adopter's source.** It reads their code and writes
+   only new, additive artefacts.
+6. **The model never computes a number the user sees, never emits SQL, and never
+   produces an identifier that is not validated against the registry.**
+7. **Nothing on the critical path needs a network**, and nothing a visitor says goes to a
+   third party.
+8. **Without a model, it never moves a visitor to a wrong screen, and it never acts.**
+
 ## Structure
 
 ```
 adapter/           WHAT AN ADOPTER COPIES — one folder, no package manager, no network
-  AGENTS.md        the front door: what to do, and the eight decisions that are
-                   the developer's to make rather than the agent's
+  AGENTS.md        the front door: what to do, and the decisions that are the
+                   developer's to make rather than the agent's
   FIELD-NOTES.md   what real applications taught this tool; read before trusting output
   scan.mjs         init / build / doctor / calibrate, in one file, no dependencies
   runtime/         the assistant, already compiled
+
+docs/              GETTING-STARTED.md for adopters, RULES.md for contributors
 
 preview/           THE BENCH — never exported. `pnpm preview`
                    ask and see the whole trace; the real widget on a mock app
@@ -144,31 +141,30 @@ packages/          the source that builds the adapter
   embed/           the widget, as one script tag under a strict CSP
   kit/             init / build / doctor / preview / calibrate
 
-eval/frameworks    the measurement: fixture apps, one per routing framework
+eval/frameworks    the measurement: a fixture app, its golden set and generated output
 eval/field-apps    six public apps, ground truth written before the tool ran
 tooling/scripts    the CI gates that are not tests
 ```
 
 **The boundary that matters:** the engine knows nothing about any particular application.
 The only application it ever sees is the adopter's, at run time, as declared data it reads
-— never as an import. Until 2026-09-17 two reference-application packages lived here to
-prove that; they were deleted along with the terminal app and everything else that never
-reached an adopter ([ADR-018](.claude/decisions/ADR-018.md)).
+— never as an import ([ADR-018](.claude/decisions/ADR-018.md)).
 
-**Both are built and both are checked by running them.** `pnpm adapter:check` copies
-`adapter/` and a fixture application into a scratch directory outside this repository —
-with no `node_modules` anywhere above it — and runs `init`, `build` and `doctor` for real,
-then fingerprints the application to prove nothing was written into it.
-`pnpm preview:check` loads the bench in a headless browser and asserts two turns from the
-committed golden set.
+**Both deliverables are checked by running them.** `pnpm adapter:check` copies `adapter/`
+and a fixture application into a scratch directory outside this repository — with no
+`node_modules` anywhere above it — and runs `init`, `build` and `doctor` for real, then
+fingerprints the application to prove nothing was written into it. `pnpm preview:check`
+loads the bench in a headless browser and asserts two turns from the committed golden set.
 
 ## Run it
+
+Node 23.6 or newer.
 
 ```bash
 pnpm install --ignore-scripts    # a fresh clone needs the flag; see CLAUDE.md
 pnpm preview                     # the bench: ask, and see why it decided that
 pnpm check                       # typecheck + every test + registry validation
-pnpm eval:apps                   # generate, calibrate and route over a fixture app
+pnpm eval:apps                   # generate, calibrate and route over the fixture app
 pnpm adapter:build               # rebuild adapter/ after changing packages/
 pnpm adapter:check               # prove a copy of it runs with nothing installed
 pnpm export:adopter <folder>     # the folder an adopter is handed: adapter/, the docs, the licence, checksums
@@ -176,8 +172,6 @@ pnpm export:adopter <folder>     # the folder an adopter is handed: adapter/, th
 
 `pnpm preview` is where to start: it serves the real widget on a mock application built
 from a generated registry, plus a bench showing the full trace behind every answer.
-`pnpm app` and `pnpm app:offline` went with the composition root in
-[ADR-018](.claude/decisions/ADR-018.md); the bench replaces them.
 
 Ollama is probed, not required. Without it the router drops to its deterministic stages
 and says so, rather than guessing.
@@ -205,101 +199,46 @@ pnpm router:eval        # full cascade against the golden set
 Warm every model with a throwaway call first and run them sequentially, or every latency
 figure is meaningless.
 
-## The load-bearing ideas
-
-1. **The registry is the contract.** One declaration generates the route and the thing
-   the router selects, so they cannot drift.
-2. **The cascade escalates only when it must**, and the model is constrained to a
-   shortlist it did not choose. ([ADR-003](.claude/decisions/ADR-003.md))
-3. **Policy is code in the dispatcher, never prompt text.** Read executes, write
-   confirms, destructive confirms and undoes, unclassified **refuses**.
-   ([ADR-004](.claude/decisions/ADR-004.md))
-4. **The application declares its own limits**, and a request outside them is refused by
-   retrieval rather than by a model's judgement.
-   ([ADR-009](.claude/decisions/ADR-009.md)).
-5. **A capability a user cannot reach is absent from the registry they receive**, not
-   hidden in it. ([ADR-014](.claude/decisions/ADR-014.md))
-6. **The installer never modifies the adopter's source.** It reads their code and writes
-   only new, additive artefacts.
-7. **The model never computes a number the user sees, never emits SQL, and never
-   produces an identifier that is not validated against the registry.**
-
 ## Where to look
 
 | Question | File |
 |---|---|
+| How do I add it to my app? | **[GETTING-STARTED.md](docs/GETTING-STARTED.md)** |
 | Does this work on an app it has never seen? | **[field-apps/RESULT.md](eval/field-apps/RESULT.md)** · [tutor-app/RESULT.md](eval/tutor-app/RESULT.md) |
 | What goes wrong when it meets a real app? | **[adapter/FIELD-NOTES.md](adapter/FIELD-NOTES.md)** |
-| **What is the state right now?** | **[STATUS.md](.MDFiles/STATUS.md)** — one page |
-| What is the plan, and what is next? | [PLAN.md](.MDFiles/PLAN.md) §0 |
-| How do I add it to my app? | [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) |
-| How do I run this repo itself (as a contributor)? | §Run it, above · [PLAN.md](.MDFiles/PLAN.md) §10 |
-| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — 41 ADRs |
-| What was already tried, and what did it cost? | [.claude/docs/lessons.md](.claude/docs/lessons.md) |
-| What did the router actually score? | [FINDINGS.md](packages/core-intent/eval/FINDINGS.md) · `pnpm eval:apps` |
+| What rules does every change follow? | **[docs/RULES.md](docs/RULES.md)** |
+| Which of those rules are actually enforced, and where? | [critical-infrastructure.md](.claude/docs/critical-infrastructure.md) |
+| Why is it shaped this way? | [.claude/decisions/](.claude/decisions/) — the ADRs |
+| How is the code laid out? | [architecture.md](.claude/docs/architecture.md) |
 | Working in this repo as an agent? | [CLAUDE.md](CLAUDE.md) |
 
-## Status
+## Limits, stated plainly
 
-The engine is built and measured. The generation works. **The cost model is resolved, and
-it resolved against us**: on the pilot, turns settling without a model call fell far short
-of the 60% target that was a pre-committed kill criterion, and it triggered. A fixed budget
-was then spent trying to fix it, every lever was measured, and the claim was withdrawn
-rather than restated — [PLAN.md](.MDFiles/PLAN.md) §13 D-4. The numbers were published
-rather than buried, which is the point.
+- **It is not production-tested at scale.** It has not been measured on a live deployment
+  with real visitors' questions, or field-tested by someone other than its author. Treat
+  every accuracy figure above as a measurement on test applications.
+- **It declines about half of the requests for things an app cannot do**, unless the
+  developer describes what the app cannot do. It carries out none of them, and asks a
+  clarifying question for the ones it does not decline. On the reference fixture it
+  declines 71.4% with its `knowledge.json`, which is an upper bound.
 
-Built since then: the browser runtime, guided steps, a script tag that runs under a strict
-Content-Security-Policy, and the drop-in kit — `init / build / doctor / preview / calibrate`,
-bundled into `adapter/scan.mjs` ([GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md)). The kit
-reads React Router, Vue Router, Angular, Next.js, Remix, SvelteKit and Nuxt apps, and on six
-public apps it had never seen it found every route in ground truth written beforehand and
-changed none of their files ([RESULT.md](eval/field-apps/RESULT.md)).
-
-**The first real integration was on 2026-09-23.** An agent integrated the tool into a private
-130-screen application (React Router 7, 10 roles, pt-PT), and the owner used it there. They
-found six problems:
-
-- It waited 11 seconds before moving.
-- It added a second navigation to the app.
-- Two assistants shared one corner.
-- It answered with a menu of unfamiliar screens.
-- The model stage timed out on a reasoning model.
-- Voice was unavailable almost everywhere.
-
-Each is fixed and recorded in [ADR-026](.claude/decisions/ADR-026.md) to
-[ADR-041](.claude/decisions/ADR-041.md).
-
-Not done: real visitors' questions, a live deployment measured with its users, and a field
-test by someone other than its author. The owner runs these. Nothing here is
-production-ready.
-
-**A disclosed limit (PLAN.md §13, D-5).** Some requests ask for things the app cannot do,
-and the assistant does not decline all of them. It carries out none of them and asks a
-clarifying question for the ones it does not decline. Against a target of about 70%:
-
-- **On the reference fixture with its `knowledge.json`:** it declines 71.4% (10 of 14). That
-  file was written against the same questions, so this is the upper bound.
-- **On the same fixture without that file:** 50.0%.
-- **On the pilot:** between 41% and 47%.
-
-On an app whose developer has not described what it cannot do, expect it to decline about
-**half**.
-
-The cause is known and is a lesson for adopters rather than a bug: a declared limit is
-reached by *similarity*, so generic boundaries — "questions about anything else" — do not
-resemble the questions they are meant to catch. Every mechanism tried against this is
-measured in PLAN.md §7.2 (WP-39, WP-40), and the practical guidance is in
-[FIELD-NOTES.md §5](adapter/FIELD-NOTES.md). The ceiling is accepted and stated here, not
-hidden.
+  The cause is known and is a lesson for adopters rather than a bug: a declared limit is
+  reached by *similarity*, so generic boundaries — "questions about anything else" — do not
+  resemble the questions they are meant to catch. The practical guidance is in
+  [FIELD-NOTES.md §5](adapter/FIELD-NOTES.md).
+- **A cheaper assistant is not claimed.** The product is a better way to navigate. How
+  often it settles a turn without a model on a large real app has to be measured on that
+  app.
+- **English and Portuguese only.** It speaks the page's language when that is one of the
+  two, and English otherwise.
 
 ## Installing it, and the license
 
 An adopter **copies one folder**, [`adapter/`](adapter/), with no package manager, no registry
 and no private release ([ADR-018](.claude/decisions/ADR-018.md),
-[ADR-021](.claude/decisions/ADR-021.md)). [GETTING-STARTED.md](.MDFiles/GETTING-STARTED.md) has
+[ADR-021](.claude/decisions/ADR-021.md)). [GETTING-STARTED.md](docs/GETTING-STARTED.md) has
 the steps. The packages under `packages/` are the source that builds it: none is installable
-and none is published. It was six tarballs on a GitHub Release until ADR-021; nothing was ever
-released, so nobody was on that path.
+and none is published.
 
 **Proprietary — all rights reserved.** Use requires a written agreement with the copyright
 holder; see [LICENSE](LICENSE).

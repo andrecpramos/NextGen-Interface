@@ -11,7 +11,7 @@ import { ModelIntegrityError, type ModelDescriptor, type ModelStatus } from './t
  *
  *  1. **The asset cannot be bundled.** A quantised 1B GGUF is 0.9–1.6 GB against
  *     a 200 MB store cap, so it arrives on demand and the app has to be useful
- *     before it finishes (WP-10).
+ *     before it finishes.
  *  2. **Verify before load, fail closed.** A model file is executable weight
  *     fetched over a network. A truncated download and a substituted file look
  *     identical to a loader, and "the model behaved strangely" is not a

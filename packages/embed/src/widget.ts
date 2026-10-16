@@ -4,7 +4,7 @@
 // follow. The decisions are all in present.ts; this file only draws them.
 //
 // - Shadow DOM, so the host app's stylesheet cannot break the widget and the
-//   widget's cannot break the app (WP-35's "survives the host's CSS").
+//   widget's cannot break the app.
 // - No inline style. The stylesheet is constructed and adopted by the shadow root,
 //   which a strict Content-Security-Policy does not govern; a <style> element is
 //   used only where the browser cannot construct one (`adoptStyles`, below).
@@ -16,7 +16,7 @@
 //   standing on, and is left alone otherwise (`showResult`, below).
 //   Audited by tooling/scripts/check-accessibility.mjs, which is where that focus
 //   rule came from - it was claimed here before it was true. Still not verified
-//   with a screen reader: eval/a11y/NVDA-CHECKLIST.md is the owner's pass (WP-45).
+//   with a screen reader: eval/a11y/NVDA-CHECKLIST.md is the manual pass.
 // - Choices are real `<a href>` links. Every destination stays reachable without
 //   the assistant, by keyboard, middle-click or copy (Rule 7).
 
@@ -192,7 +192,7 @@ export function mount(target: Element, assistant: Routable, options: MountOption
   };
 
   /**
-   * Replace the answer without dropping the user's place (WP-45).
+   * Replace the answer without dropping the user's place.
    *
    * A keyboard or screen-reader user can be standing on a link from the last
    * answer when the next one lands — submit a question, tab into the results

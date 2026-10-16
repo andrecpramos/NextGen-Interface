@@ -6,7 +6,7 @@ import { generate } from './generate.ts';
 import type { GeneratorConfig } from './types.ts';
 
 /**
- * WP-28 — a target app we do not own.
+ * A target app we do not own.
  *
  * Run against a real public React Router application (bulletproof-react), the
  * generator discovered **one** capability out of eight real routes and reported
@@ -33,7 +33,7 @@ const CONFIG: GeneratorConfig = {
   languages: ['en'],
 };
 
-describe('discoverRoutes — the data-router shape (WP-28)', () => {
+describe('discoverRoutes — the data-router shape', () => {
   it('reads paths from a path table imported through a tsconfig alias', () => {
     const { routes } = discoverRoutes(CONFIG);
     expect(routes.map((r) => r.path).sort()).toEqual(['/', '/app', '/app/reports', '/app/reports/:reportId']);

@@ -1,19 +1,19 @@
-// WP-46 — the shipped browser artefacts must follow their inputs.
+// The shipped browser artefacts must follow their inputs.
 //
-// eval/frameworks/family/generated/ holds what an adopter's browser receives: per
+// eval/frameworks/school/generated/ holds what an adopter's browser receives: per
 // registry, a registry, a precomputed index and a calibrated threshold file. The
 // index and the thresholds are DERIVED. They depend on the registry, the encoder,
 // capabilityDocument() and normalize(). On 2026-09-11, a one-line change to
 // normalize() left ten shipped indexes and two threshold profiles stale, and CI
-// stayed green. Only a manual parity run noticed. That is lessons.md L6 again: a
-// check that nobody runs is not a gate.
+// stayed green. Only a manual parity run noticed. A check that nobody runs is
+// not a gate.
 //
 // Four checks. Each is an existing script, run exactly as a person would run it,
 // so the gate cannot drift from the code that builds the artefacts:
 //   1. rebuild-indexes.mjs --check       each shipped index equals a fresh rebuild
 //   2. calibrate-registries.mjs --check  the shipped thresholds equal a fresh sweep (Rule 14)
 //   3. verify-browser-parity.mjs         the shipped index makes the server's decision, turn by turn
-//   4. check-rule-provenance.mjs         an extracted rule's source resolves to the line it names (ADR-020, WP-54)
+//   4. check-rule-provenance.mjs         an extracted rule's source resolves to the line it names (ADR-020)
 //
 // The first two are exact. The third is behavioural. It is the one that would
 // still catch a drift that the first two were written not to see. The fourth is a
@@ -37,7 +37,7 @@ const CHECKS = [
     args: ['eval/frameworks/calibrate-registries.mjs', '--embedder', 'hashing', '--check'],
   },
   { name: 'the shipped index reproduces the server decision on every turn', args: ['eval/frameworks/verify-browser-parity.mjs'] },
-  { name: "an extracted rule's source resolves to the line it names (ADR-020, WP-54)", args: ['tooling/scripts/check-rule-provenance.mjs'] },
+  { name: "an extracted rule's source resolves to the line it names (ADR-020)", args: ['tooling/scripts/check-rule-provenance.mjs'] },
 ];
 
 let failed = 0;
@@ -56,7 +56,7 @@ if (failed > 0) {
   console.log(`
   Derived artefacts are STALE — ${failed} of ${CHECKS.length} check(s) failed.
 
-  If check 1, 2 or 3 failed: something upstream of eval/frameworks/family/generated/
+  If check 1, 2 or 3 failed: something upstream of eval/frameworks/school/generated/
   changed — normalize(), the encoder, capabilityDocument(), or a registry. Regenerate,
   in this order, and commit the result together with the change that caused it:
 

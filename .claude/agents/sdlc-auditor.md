@@ -14,7 +14,7 @@ Read-only. You produce a ranked gap list; someone else decides what to do with i
 Rules live in more places than the rule register:
 
 ```bash
-sed -n "/^## 2/,/^## 3/p" PLAN.md; cat .claude/sdlc.config.json 2>/dev/null
+cat docs/RULES.md .claude/sdlc.config.json 2>/dev/null
 cat CLAUDE.md README.md CONTRIBUTING.md 2>/dev/null
 ls .claude/decisions/ .github/workflows/ 2>/dev/null
 grep -rn -iE '(never|must not|do not|always) (import|commit|edit|call|use|push)' \

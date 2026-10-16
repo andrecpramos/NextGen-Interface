@@ -4,7 +4,7 @@ import { checkRegistryOwnership } from './registry-owner.ts';
 
 /**
  * These cover the judgement that decides whether a write replaces one
- * application's capabilities with another's. Since WP-47 each domain writes its
+ * application's capabilities with another's. Since ADR-016 each domain writes its
  * own path, so the refusal is a backstop rather than a daily hazard — the
  * judgement it encodes is unchanged.
  */

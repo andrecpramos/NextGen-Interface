@@ -4,8 +4,8 @@ description: Review a change against the repo's layer boundaries and numbered ru
 tools: Read, Grep, Glob, Bash
 ---
 
-Review a change against the boundaries in `.claude/docs/architecture.md` and the seventeen non-negotiable rules in
-`PLAN.md` §2.
+Review a change against the boundaries in `.claude/docs/architecture.md` and the twenty non-negotiable rules in
+`docs/RULES.md`.
 
 Read-only. You report; someone else fixes.
 

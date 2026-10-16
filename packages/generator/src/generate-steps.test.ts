@@ -4,7 +4,7 @@ import { generate } from './generate.ts';
 import { FIXTURE_CONFIG } from './fixture-app.ts';
 
 /**
- * WP-27 end to end: source in, guided steps out, with no model.
+ * Guided steps end to end: source in, guided steps out, with no model.
  *
  * The fixture's notifications page is a real multi-field form — a label bound by
  * `htmlFor` whose text is an i18n key, a literal label, an aria-label with no

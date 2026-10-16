@@ -6,8 +6,8 @@ import type { Capability } from './types.ts';
  *
  * A phrase two capabilities both claim names neither. It used to go to whichever registered last, with
  * a console warning nobody reads — and when two roles' registries were merged for a user who holds both
- * (a coach who is also a parent), "nutrição" silently became the guardian's screen for the coach too
- * (Pilot-A field report, 2026-09-23, P2-5). Dropped, the phrase reaches stage 2, which ranks both screens
+ * (a teacher who is also a parent), "avaliações" silently became the guardian's screen for the teacher
+ * too. Dropped, the phrase reaches stage 2, which ranks both screens
  * on everything else the visitor said, and asks when they are close.
  */
 export function buildTriggerIndex(capabilities: readonly Capability[]): {

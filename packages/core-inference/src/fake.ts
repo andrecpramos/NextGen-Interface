@@ -10,10 +10,10 @@ import type {
  * Deterministic runtimes for tests.
  *
  * The point is not convenience. Integration tests that hit a real model are
- * slow, need a machine with the model installed, and — per Finding 10 — are not
- * even deterministic at `temperature: 0`, where two identical 8B runs flipped 7
- * of 200 entries. A test suite built on that flakes, and a flaky test on a
- * financial path gets deleted rather than fixed.
+ * slow, need a machine with the model installed, and are not even deterministic
+ * at `temperature: 0`, where two identical 8B runs flipped 7 of 200 entries. A
+ * test suite built on that flakes, and a flaky test gets deleted rather than
+ * fixed.
  *
  * So the integration tests run against these: no network, no model, same answer
  * every time.
@@ -31,7 +31,7 @@ export interface FakeLlmOptions {
   readonly fallback?: unknown;
   /** Simulate the model being missing or the server being down. */
   readonly unavailable?: string;
-  /** Simulate constrained decoding producing unparseable output (Finding 6). */
+  /** Simulate constrained decoding producing unparseable output (measured: about 1 in 140 calls on llama3.1:8b). */
   readonly parseFailsEvery?: number;
   readonly latencyMs?: number;
 }

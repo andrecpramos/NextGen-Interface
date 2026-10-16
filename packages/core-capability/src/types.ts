@@ -109,17 +109,17 @@ export interface Capability {
   readonly description: string;
   /**
    * What a user is told when they ask *"what is this / what does this page
-   * do"* — **served verbatim, never generated per turn** (WP-36).
+   * do"* — **served verbatim, never generated per turn**.
    *
    * This is the same move [ADR-009](../../../.claude/decisions/ADR-009.md) made
    * for refusals, applied to answers. Written once at build time from the
    * application's own copy, it stays model-free, reproducible and auditable, and
    * a wrong answer is fixed by editing a string rather than by tuning a prompt.
    * Generating one per turn would forfeit the whole cost argument and make this
-   * a chat widget with our name on it (PLAN.md §1.6, Ladder A1).
+   * a chat widget with our name on it.
    *
    * Deliberately **not** part of `capabilityDocument`. Adding it would change
-   * every vector and invalidate every calibrated threshold (Rule 14, Finding 1)
+   * every vector and invalidate every calibrated threshold (Rule 14)
    * — the explanation is what gets *served*, not what gets *matched*.
    *
    * Required on everything that is not a declared limit; a limit answers the
@@ -129,13 +129,13 @@ export interface Capability {
   /**
    * Where the explanation came from — a path in the adopter's source.
    *
-   * WP-36's acceptance: "the explanation is traceable to its source file, so a
-   * wrong answer is fixable". Without it, a bad sentence in an adopter's
+   * The explanation is traceable to its source file, so a wrong answer is
+   * fixable. Without it, a bad sentence in an adopter's
    * assistant is unattributable and therefore unfixable.
    */
   readonly explanationSource?: string;
   /**
-   * Guided steps — *"tell me what to do here"* (WP-27).
+   * Guided steps — *"tell me what to do here"*.
    *
    * A route gets someone to a page; a step tells them what to do once they are
    * there. Written at build time from the form the generator found in the page's
@@ -145,7 +145,7 @@ export interface Capability {
   readonly steps?: readonly GuidedStep[];
   /**
    * Rules the generator read from this page's own source — a validation
-   * schema, a `required`/`min`/`max`/`pattern` attribute (ADR-020, WP-54).
+   * schema, a `required`/`min`/`max`/`pattern` attribute (ADR-020).
    * Written at build time, never generated per turn, for the same reason
    * `explanation` and `steps` are: served verbatim, auditable, fixable by
    * editing the source it names rather than a prompt.
@@ -159,7 +159,7 @@ export interface Capability {
   /**
    * Only on `unsupported`. `'action'`: this limit is about the assistant *doing* something — acting in
    * another system, changing a record, moving money — so it refuses only a request to act, never a
-   * question that merely shares its topic ("injury info for my kid" is not "book a physio for my son").
+   * question that merely shares its topic ("my kid's appointments" is not "book an appointment for my son").
    * Absent: it refuses on topic, as every limit did before (ADR-025).
    */
   readonly refuses?: 'action';
@@ -194,14 +194,14 @@ export interface CapabilityText {
 }
 
 /**
- * Where a guided step points — D-3, answered 2026-09-11.
+ * Where a guided step points.
  *
- * **(c) semantic matching is primary** — `label` and `role`, matched against the
+ * **Semantic matching is primary** — `label` and `role`, matched against the
  * page's accessibility tree at run time, because a visible label survives a
  * redesign far better than a class name and is how a person finds a field.
- * **(a) a build-time `selector` is the fallback**, and it is never trusted on its
+ * **A build-time `selector` is the fallback**, and it is never trusted on its
  * own: the runtime refuses a selector match whose accessible name contradicts
- * `label`. **(b) an attribute the adopter adds is never required** — it would be
+ * `label`. **An attribute the adopter adds is never required** — it would be
  * a human step in their codebase, which the product promises not to ask for.
  *
  * An anchor that no longer matches degrades to the step's text. It never points
@@ -228,7 +228,7 @@ export interface GuidedStep {
  * `read` came from something written down — a validation schema, a `required`
  * attribute, an enum. `inferred` came from a condition in a handler or effect,
  * where the extractor is reading behaviour rather than a declaration. Nothing
- * with tier `inferred` ships in a registry yet (WP-55); the type exists now so
+ * with tier `inferred` ships in a registry yet; the type exists now so
  * the field does not need reshaping when it does.
  */
 export type RuleTier = 'read' | 'inferred';
@@ -289,7 +289,7 @@ export interface RegistryFile {
    * "A personal finance tracker. It records transactions, budgets, categories
    * and account balances." Read by `core-intent`'s stage-3 prompt so the model
    * knows what app it serves without that knowledge being hardcoded into
-   * `core-*` (Rule 1; WP-16, D-2). Required: an engine that silently falls
+   * `core-*` (Rule 1). Required: an engine that silently falls
    * back to a default description on a missing one reproduces the exact
    * defect this field exists to fix.
    */

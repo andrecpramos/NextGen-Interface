@@ -31,7 +31,7 @@ import { ladder, ladderMarkdown } from './ladder.ts';
 import { arg, assertOutsideApp, BUNDLE_DIR, CALIBRATION_FILE, CONFIG_FILE, REVIEW_DIR, self, shown, stripBom } from './paths.ts';
 
 /**
- * The shape of `bundle/thresholds.hashing.json`'s `stage3` field (WP-52, ADR-017).
+ * The shape of `bundle/thresholds.hashing.json`'s `stage3` field (ADR-017).
  *
  * Declared here rather than imported from `@nextgen/embed`, which owns the runtime that
  * actually reads this back (`SameOriginLlmRuntime` in `embed/src/stage3.ts`). That is a
@@ -62,7 +62,7 @@ export interface BuildOptions {
   readonly scriptTag?: boolean;
   readonly onProgress?: (done: number, total: number) => void;
   /**
-   * Turn on stage 3 for the bundle this writes (WP-52, ADR-017). Absent: a turn stages
+   * Turn on stage 3 for the bundle this writes (ADR-017). Absent: a turn stages
    * 1–2 cannot settle ends in a clarifying question, exactly as it always has — off is
    * the only default, and nothing except this option can turn it on.
    */
@@ -78,11 +78,11 @@ export interface BuildRecord {
   readonly perRole: Readonly<Record<string, number>>;
   readonly capabilities: number;
   readonly boundaries: number;
-  /** Rules read from validation schemas and control attributes (ADR-020, WP-54). */
+  /** Rules read from validation schemas and control attributes (ADR-020). */
   readonly rules: number;
-  /** Rules inferred from a handler or a disabled condition, shipped because the pattern was exactly recognised (ADR-020, WP-55). */
+  /** Rules inferred from a handler or a disabled condition, shipped because the pattern was exactly recognised (ADR-020). */
   readonly inferredRules: number;
-  /** Candidates WP-55 found but did not ship — read them in review/INFERRED.md. */
+  /** Inferred-tier candidates found but not shipped — read them in review/INFERRED.md. */
   readonly reviewInferred: number;
   readonly skipped: readonly SkippedRoute[];
   /** Role registries that failed `validateRegistry()`, with the report. */
@@ -196,7 +196,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
     config: { ...config, appRoot },
     knowledge: loaded.knowledge,
     // Descriptions are derived from the app's own labels: nothing installed, no network.
-    // There is no model to pass here, and no client for one in this bundle (ADR-018 D-6,
+    // There is no model to pass here, and no client for one in this bundle (ADR-018,
     // ADR-021). The generator's own CLI still takes `--model`, for work in this repository.
     model: null,
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -230,7 +230,7 @@ export async function build(kitDir: string, options: BuildOptions = {}): Promise
       `the default hashing profile, calibrated on a 7-screen reference app rather than this one, ` +
       `with declared limits held to a floor of ${UNCALIBRATED_BOUNDARY_FLOOR} until you calibrate`;
   }
-  // WP-52 (ADR-017). `stage3` rides in the same manifest `load()` already fetches
+  // ADR-017. `stage3` rides in the same manifest `load()` already fetches
   // unconditionally, so turning this on costs the visitor's browser nothing extra until a
   // turn actually needs it — no fourth request, no new file for an adopter to remember to
   // serve. Absent here is what makes "off by default" true of the artefact rather than of

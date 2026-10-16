@@ -9,7 +9,7 @@ import type { FieldRule, FormField } from './types.ts';
 
 /**
  * ADR-020's **read** tier — constraints an application writes down rather than
- * ones this generator would have to infer (WP-54).
+ * ones this generator would have to infer.
  *
  * Two sources, both mechanical:
  *
@@ -23,7 +23,7 @@ import type { FieldRule, FormField } from './types.ts';
  * already reading for the control itself. Nothing here is a law until
  * `generate.ts` phrases it and attaches the file: this module only reads.
  *
- * WHAT THIS DOES NOT DO, ON PURPOSE (the stop-if in PLAN.md §7.8 WP-54)
+ * WHAT THIS DOES NOT DO, ON PURPOSE
  *   Only `z`/`yup` as the namespace identifier is recognised — a schema built
  *   through a re-exported wrapper (`import { schema as z } from './zod-setup'`)
  *   is not found, and neither is a schema assembled with `.extend()` or
@@ -377,7 +377,7 @@ function phrase(rule: FieldRule, label: string, language: string): string {
     case 'pattern':
       // The regex itself is never shown — it is source syntax, not something a
       // visitor asked to read, and quoting it verbatim would be exactly the
-      // "shows the wrong state" failure WP-42 found in a different reader.
+      // "shows the wrong state" failure an audit of descriptions found in a different reader.
       return pt ? `${label} tem de seguir um formato específico.` : `${label} must match a specific format.`;
     case 'email':
       return pt ? `${label} tem de ser um email válido.` : `${label} must be a valid email address.`;

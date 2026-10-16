@@ -6,7 +6,7 @@ import type { DiscoveredRoute } from './types.ts';
  * What the application deliberately does not do (Rule 13, ADR-009).
  *
  * These are the entries that make refusal work **without a model call** — the
- * single most important mechanism in the product (PLAN.md §1.2: declared
+ * single most important mechanism in the product (ADR-009: declared
  * boundaries improved refusal accuracy in proportion to how badly the model
  * failed, 0% → 40% on a model that never refused anything on its own).
  *
@@ -35,14 +35,14 @@ interface CatalogueEntry {
   readonly relevantWhen: RegExp | null;
   /**
    * `'action'` when the entry is about the assistant *doing* something, and so refuses only a request to
-   * act (ADR-025). Its examples share their topics with real screens — an injury, a son, an email — and
-   * refusing on topic alone refused "injury info for my kid" as if it were "book a physio for my son".
+   * act (ADR-025). Its examples share their topics with real screens — an appointment, a son, an email —
+   * and refusing on topic alone refused "my kid's appointments" as if it were "book an appointment for my son".
    */
   readonly refuses?: 'action';
   /**
    * The same limit in another language, by two-letter code, for an application whose primary language
    * it is. A Portuguese app used to declare "Processing a payment" and refuse in English to visitors who
-   * had asked in Portuguese (Pilot-A field report, 2026-09-23, P3-1). The examples stay bilingual either way.
+   * had asked in Portuguese. The examples stay bilingual either way.
    */
   readonly localized?: Readonly<Record<string, { readonly title: string; readonly description: string; readonly refusal: string }>>;
 }
@@ -56,11 +56,11 @@ const CATALOGUE: readonly CatalogueEntry[] = [
     refusal:
       'I can take you anywhere in this application and explain what you find there, but I can’t book appointments, send messages or act in another system for you.',
     examples: [
-      'book a physio appointment for my son',
-      'send an email to the coach about this',
-      'schedule a doctor’s visit for this injury',
+      'book an appointment for my son',
+      'send an email to the manager about this',
+      'schedule a visit for next week',
       'marca uma consulta para o meu filho',
-      'envia um email ao treinador',
+      'envia um email ao responsável',
     ],
     relevantWhen: null,
     refuses: 'action',

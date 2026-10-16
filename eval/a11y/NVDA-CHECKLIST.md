@@ -3,10 +3,9 @@
 **This is the half that decides whether the accessibility claim is made.** The
 automated run ([RESULT.md](./RESULT.md)) checks what a machine can check and
 nothing more; it makes this pass shorter, and it does not shorten it to zero. If
-an item here fails, the fix or the withdrawal of the claim is the outcome —
-PLAN.md WP-45's *Stop if*.
+an item here fails, the fix or the withdrawal of the claim is the outcome.
 
-**Who runs it:** the owner. An agent cannot do this: every item below is a
+**Who runs it:** a person with a screen reader. An agent cannot do this: every item below is a
 judgement about what a person hears, sees or can reach.
 
 ## Before you start (3 minutes)
@@ -80,7 +79,7 @@ they are here for that reason:
 ## Recording the result
 
 Write what you heard in the table, save this file with the date and the NVDA and
-browser versions, and record the outcome in PLAN.md's WP-45 acceptance. **A blank
+browser versions, and commit it. **A blank
 column is not a pass.** Until this is filled in, the honest statement is
 *"automated checks pass; no screen reader has confirmed it"*, and that is what
 the README and the write-up must say.

@@ -3,7 +3,7 @@
 Reads an application's source and emits **one capability registry per role**,
 plus a report of every route it refused to declare and why.
 
-This is WP-25 — the piece PLAN.md §1.4 calls "build time, once". Everything else
+This is the piece that runs at build time, once. Everything else
 in the platform consumes what this produces.
 
 ```bash
@@ -18,7 +18,7 @@ node --experimental-strip-types packages/generator/src/cli.ts <config.json> \
 | `registry.<ROLE>.json` | A plain `RegistryFile` holding only what that role can reach, each capability carrying its declared `explanation`. This is what ships. |
 | `master.json` | Every capability with its `roles` annotation, for review and diffing. Never shipped to a browser. |
 | `SKIPPED.md` | Every discovered route that did **not** become a capability, with the application's own words as evidence. |
-| `INFERRED.md` | Every candidate rule found in a handler or control but not confidently recognised, held back rather than guessed (ADR-020, WP-55). |
+| `INFERRED.md` | Every candidate rule found in a handler or control but not confidently recognised, held back rather than guessed (ADR-020). |
 | `prose-cache.json` | Model-written descriptions and examples, keyed by a hash of the facts that produced them. This is what makes regeneration deterministic. Written only when a model ran; with `--no-model` there is nothing to cache and no file. |
 
 ## The two rules it exists to keep
@@ -36,7 +36,7 @@ The `roles` annotation is stripped on the way out: the registry a session
 receives *is* its entitlement, so nothing at run time needs to be told who else
 can see what.
 
-Role extraction has a zero-tolerance kill criterion (PLAN.md §8). There is no
+Role extraction has a zero-tolerance kill criterion (Rule 17). There is no
 "probably open to everyone" branch anywhere in `discover.ts`: a guard expression
 that cannot be evaluated with certainty yields `null`, and `null` is a recorded
 skip, never a default.
@@ -56,7 +56,7 @@ In order, each failure recorded with evidence:
    before it, or describing "the legacy routes below", is not about this one.
 4. **It must not be a bookmark shim.** Decided from the component's body — does
    every branch render a redirect, and does that redirect leave its own section
-   — never from its name. `MatchHubRedirectPage` is a destination;
+   — never from its name. `GradebookRedirectPage` is a destination;
    `DashboardPage` is not.
 
 Anything not confidently `read` or `navigate` is **omitted, never guessed**
@@ -118,7 +118,7 @@ A component's name is used only when the application names the screen in no lang
 - **A duplicate is judged inside a registry.** Two screens only compete when some role
   reaches both (ADR-014). A duplicate is qualified in the title's own language, with:
   - its nav group's label, the way the app's command palette writes it
-    ("Plantel · Visão geral"), or
+    ("Turmas · Visão geral"), or
   - its area's name.
 
   An English folder name never qualifies a Portuguese title. Trigger ambiguity is judged
@@ -132,7 +132,7 @@ A component's name is used only when the application names the screen in no lang
     that screen, and is skipped as `redirect-alias`. One that lands a section on its own
     first page is kept.
 
-How a screen is named was rebuilt against a real pilot; the failures it found, generalised, are in [FIELD-NOTES.md](../../adapter/FIELD-NOTES.md).
+How a screen is named was rebuilt against a real application; the failures it found, generalised, are in [FIELD-NOTES.md](../../adapter/FIELD-NOTES.md).
 
 ## Adapters
 
@@ -140,7 +140,7 @@ Set by `router` in the config (`init` detects it from `package.json` and the fol
 
 | `router` | Reads | Since |
 |---|---|---|
-| `react-router` (default) | a route table: a route-config array or nested `<Route>` elements, TypeScript or JavaScript | WP-25 |
+| `react-router` (default) | a route table: a route-config array or nested `<Route>` elements, TypeScript or JavaScript | — |
 | `next` | the `app` router (route groups, `[param]`, optional catch-alls at their base URL; private folders, `@slots`, interceptions, `route.*` handlers and special files are not pages) and the `pages` router beside it (`index`, `[param]`; `api/`, `_app`, `_document`, `404` are not) | readiness 3a |
 | `remix` | flat routes in `app/routes`: `_index`, pathless `_layout.`, `name_`, `$param`, `(optional)`, `[.]` escapes, folder `route.tsx`. A module with no default export is a resource route, not a page; a layout and its `_index` are one destination | readiness 3a |
 | `sveltekit` | `src/routes`: a folder with `+page.svelte` is a page; groups `(name)`, `[param]`, `[param=matcher]`, optional `[[param]]` (declared without it), a literal prefix such as `@[user]`; `+layout`, `+error` and a server-only route are not pages | readiness 3b |
@@ -169,7 +169,7 @@ A `canActivate` or `beforeEnter` guard is code, and authentication is not a role
 Measured on six public apps not written for it, against ground truth recorded first:
 [eval/field-apps/RESULT.md](../../eval/field-apps/RESULT.md).
 
-**The data-router shape** (WP-28, 2026-09-11) is also read:
+**The data-router shape** is also read:
 - `lazy: () => import(...)`;
 - paths taken from a constants table such as `paths.app.users.path`, followed through
   constants and named imports;
@@ -178,15 +178,15 @@ Measured on six public apps not written for it, against ground truth recorded fi
 On a public app we do not own, these were invisible, and discovery found **1 of 8**
 routes. It now finds 8. **What discovery still cannot read, it reports.** An unevaluable
 path or a missing component becomes an `unreadable-route` skip in `SKIPPED.md`, instead of
-disappearing (see [lessons.md L12](../../.claude/docs/lessons.md)). The
+disappearing. The
 `fixtures/data-router-app/` fixture holds this.
 
-## Guided steps (WP-27)
+## Guided steps
 
 A page with a form gets `steps` on its capability. Each step is one sentence per field,
 plus one for the submit button, in the app's first language. Each step carries an
 **anchor**:
-- the field's accessible name and role, which is primary (decided in D-3);
+- the field's accessible name and role, which is primary;
 - a build-time CSS selector, as the fallback.
 
 `steps.ts` writes them, and `pages.ts` reads the form fields. The runtime resolver in

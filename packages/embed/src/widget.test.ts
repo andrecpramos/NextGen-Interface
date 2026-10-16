@@ -200,7 +200,7 @@ describe('the chat box — a turn', () => {
   });
 
   it('keeps the user\'s place when a new answer removes the link they were on', async () => {
-    // WP-45, found by the axe run and not by anyone reading this code: submit a
+    // Found by the axe run and not by anyone reading this code: submit a
     // question, tab into the previous answer while it is still in flight, and
     // `replaceChildren` deletes the focused link. Focus then falls to the
     // document body — a screen-reader user is silently returned to the top of

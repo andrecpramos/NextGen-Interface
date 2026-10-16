@@ -1,0 +1,9 @@
+{
+  "pageTitle": "Os meus filhos",
+  "grades": {
+    "titleFor": "Avaliações de {{name}}",
+    "page": { "heading": "Avaliações do educando" },
+    "subtitle": "Notas e assiduidade por disciplina",
+    "confirm": { "meeting": { "title": "Pedir uma reunião ao diretor de turma?" } }
+  }
+}

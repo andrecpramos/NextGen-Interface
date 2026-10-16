@@ -209,7 +209,7 @@ let boundaryMargin = null;
 //
 // Like every other threshold here it is an artefact of the ENCODER, not a
 // constant — carrying the nomic-embed-text value onto the TF-IDF encoder costs
-// real accuracy, which is Finding 1 all over again.
+// real accuracy (Rule 14).
 //
 // The objective is asymmetric on purpose: refusing a real request is worse than
 // failing to catch an off-domain one. A missed refusal wastes a turn; a wrong

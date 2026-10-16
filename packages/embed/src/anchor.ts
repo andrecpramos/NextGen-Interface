@@ -1,19 +1,18 @@
 import type { GuidedStep, StepAnchor } from '@nextgen/core-capability';
 
 /**
- * Where does a guided step point? (WP-27, D-3)
+ * Where does a guided step point?
  *
- * D-3 was answered 2026-09-11: **(c) semantic matching at run time is primary,
- * (a) a build-time CSS selector is the fallback, and (b) an attribute the adopter
- * adds is never required.** (b) would be a human step in their codebase, which
- * the product promises not to ask for.
+ * **Semantic matching at run time is primary, a build-time CSS selector is the
+ * fallback, and an attribute the adopter adds is never required.** That last
+ * would be a human step in their codebase, which the product promises not to
+ * ask for.
  *
  * ## The one property this file exists to hold
  *
  * **An anchor that no longer matches degrades to text. It never points at the
- * wrong element.** WP-27's acceptance says it in so many words — *"a confidently
- * wrong hint is worse than none"* — and its "Stop if" is exactly the failure:
- * anchors mispointing rather than degrading under a deliberate change to the app.
+ * wrong element.** A confidently wrong hint is worse than none, and the failure
+ * to avoid is exactly that: anchors mispointing rather than degrading under a deliberate change to the app.
  *
  * So the resolver refuses in every case where it is not sure:
  *
@@ -139,7 +138,7 @@ function byLabel(label: string, root: AnchorRoot): AnchorNode[] {
 /**
  * Resolve one anchor against the live page.
  *
- * Label first — D-3's (c) — narrowed by role when the step declares one. The
+ * Label first — semantic matching — narrowed by role when the step declares one. The
  * build-time selector is consulted only when the label finds nothing, and even
  * then it must not contradict the label.
  */
@@ -168,7 +167,7 @@ export function resolveAnchor(anchor: StepAnchor | undefined, root: AnchorRoot):
       // The redesign guard. The selector was captured at build time; if the
       // element it now finds carries a *different* name than the field the step
       // was written for, the selector has drifted onto another control. Pointing
-      // there would be the confidently wrong hint WP-27 forbids.
+      // there would be the confidently wrong hint this file exists to prevent.
       if (anchor.label) {
         const name = accessibleName(el, root);
         if (name !== null && norm(name) !== norm(anchor.label)) {

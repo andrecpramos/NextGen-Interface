@@ -11,8 +11,8 @@ import type { AnnotatedCapability, GeneratorOutput, ReviewInferredEntry, RoleNam
  *
  * **Rule 17 lives in `splitByRole`.** A capability the current user cannot
  * reach is not in the registry they receive — not filtered at render, *absent*.
- * That is a security property, not a UX filter: the pilot app is role-gated, and
- * shipping one registry to every role would hand a guardian the shape of the
+ * That is a security property, not a UX filter: in a role-gated app, shipping
+ * one registry to every role would hand a guardian the shape of the
  * admin surface (route names, screen titles, the vocabulary of a system they
  * must not see) even if every one of those entries were greyed out.
  *
@@ -81,7 +81,7 @@ const REASON_HEADINGS: Record<SkippedRoute['reason'], string> = {
   'duplicate-route': 'Another capability already declares this route',
   'reached-through-resolver': 'The same screen as a route that picks its own parameter — declared once, there',
   'redirect-alias': 'Only redirects to a screen declared at its own address — an old name for it',
-  // WP-28. Before this reason existed such a route produced no entry at all —
+  // Before this reason existed such a route produced no entry at all —
   // under-discovery that no report could mention. Listed so it can be fixed.
   'unreadable-route': 'Found in the route table, but its path or component could not be read',
 };
@@ -242,7 +242,7 @@ export function writeOutput(outputDir: string, appRoot: string, output: Generato
 // ------------------------------------------------------- the shipped index --
 
 /**
- * Emit the precomputed embedding index, one file per role (WP-24).
+ * Emit the precomputed embedding index, one file per role.
  *
  * The runtime can compute these itself — the zero-dependency encoder is pure
  * arithmetic — so this is not about capability. It is about two things:
@@ -258,12 +258,11 @@ export function writeOutput(outputDir: string, appRoot: string, output: Generato
  * ⚠️ **One embedder per registry, and this is not stylistic.** `fit()` replaces
  * the encoder's vocabulary, so a single instance reused across ten roles leaves
  * nine indexes describing a vector space that no longer exists. That exact bug
- * stood as a headline finding in this project for two days — lessons.md L10 —
- * and building the index is precisely where it would do the most damage,
+ * stood as a headline finding in this project for two days, and building the index is precisely where it would do the most damage,
  * because the result would then be shipped rather than merely measured.
  *
  * Measured cost of what this writes: ~41KB gzipped at 50 capabilities, ~126KB at
- * 145, against WP-24's ~500KB budget.
+ * 145, against a ~500KB budget.
  */
 export async function writeIndexes(
   outputDir: string,

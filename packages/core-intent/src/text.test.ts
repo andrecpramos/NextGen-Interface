@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { normalize } from './text.ts';
 
 /**
- * WP-21 found this with a microphone: whisper.cpp ends every transcript with a
+ * Found with a microphone: whisper.cpp ends every transcript with a
  * full stop, and `normalize()` kept it, so `"My modules."` never met the stage-1
  * trigger `"my modules"`. 10 of 40 spoken turns routed differently from the same
  * words typed; after the fix, 1 of 40 — and that one is a mishearing.

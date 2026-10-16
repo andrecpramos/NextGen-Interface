@@ -5,16 +5,16 @@
  * a capability registry; this package turns an utterance into an Outcome plus a
  * trace explaining how it got there.
  *
- * See ../README.md for the run commands and eval/FINDINGS.md for the measured
- * behaviour of the cascade — including the two mechanisms that stop working on
- * a phone-class model (Findings 7 and 8). Read those before relying on
- * out-of-scope detection or on the confidence gate.
+ * See ../README.md for the run commands and the measured behaviour of the
+ * cascade — including the two mechanisms that stop working on a small model:
+ * the out-of-scope sentinel and self-reported confidence. Read it before
+ * relying on out-of-scope detection or on the confidence gate.
  */
 
 export { route, type RouteDeps } from './cascade.ts';
 export { loadRegistry, similarityAudit, type SimilarPair } from './registry.ts';
 
-// WP-24. `loadRegistry` reads a file and fits an embedder — neither is available
+// `loadRegistry` reads a file and fits an embedder — neither is available
 // in a browser. This is the same construction from data already in memory: no
 // I/O, no embedder, no network.
 export {

@@ -9,10 +9,10 @@ import type { Translations } from './labels.ts';
 import type { FormField, InferredCandidate, ReviewInferredEntry } from './types.ts';
 
 /**
- * ADR-020's **inferred** tier (WP-55) — "the risky one". Everything `field-rules.ts`
+ * ADR-020's **inferred** tier — "the risky one". Everything `field-rules.ts`
  * reads is written down; everything here is read from what the code *does*: a submit
  * button disabled until a field is filled, a handler that bails out and tells the user
- * why. Both are real signal — WP-42 never had this before it, and it is exactly the
+ * why. Both are real signal — an audit of descriptions never had this before it, and it is exactly the
  * knowledge that turns "take me to the expense form" into "take me to the expense form,
  * and it needs a receipt before it will let you submit".
  *
@@ -313,7 +313,7 @@ export function inferredCandidates(source: ts.SourceFile, fields: readonly FormF
  *
  * A checkbox's label reads as a sentence already — "I accept the terms" — and "the
  * form asks for I accept the terms" reads as a run-on. Found in the read-sample
- * measurement (PLAN.md §7.8 WP-55) before it shipped: `steps.ts` already makes the
+ * measurement before it shipped: `steps.ts` already makes the
  * same distinction for guided steps ("Tick … if it applies"), so a checkbox is
  * phrased the same way here instead of through the noun-phrase template.
  */

@@ -4,7 +4,7 @@ import { stepsFor, stepsEntry } from './steps.ts';
 import type { FormField } from './types.ts';
 
 /**
- * WP-27 — guided steps from a page's form.
+ * Guided steps from a page's form.
  *
  * The anchors these produce are consumed by `packages/embed`'s resolver, so the
  * properties tested here are the ones that resolver depends on: a real label to
@@ -28,7 +28,7 @@ const dictionary = new Map<string, Record<string, unknown>>([
 ]);
 
 describe('stepsFor', () => {
-  it('writes one step per named field, in source order, with both D-3 signals', () => {
+  it('writes one step per named field, in source order, with both anchor signals', () => {
     const steps = stepsFor(
       [
         field({ id: 'notify-email', name: 'email', type: 'email', labelKey: 'settings:notifications.email' }),
@@ -49,7 +49,7 @@ describe('stepsFor', () => {
 
   /**
    * A step that cannot name its field cannot be matched semantically, and one
-   * anchored by selector alone is D-3's option (a) on its own — the thing that
+   * anchored by selector alone — the thing that
    * breaks silently on the next redesign. Dropped, not emitted.
    */
   it('drops a field whose label cannot be resolved to text', () => {

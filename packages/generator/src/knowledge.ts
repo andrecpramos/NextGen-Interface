@@ -506,7 +506,7 @@ export interface KnowledgeGap {
   readonly message: string;
   /**
    * For a question about a screen: how much answering it is likely to help, higher first (`screenPriority`).
-   * 133 questions is an interview nobody finishes (Pilot-A field report, 2026-09-23); the first ten are.
+   * 133 questions is an interview nobody finishes; the first ten are.
    */
   readonly priority?: number;
 }

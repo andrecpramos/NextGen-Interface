@@ -13,9 +13,9 @@ import { OUTCOME, STAGE } from './types.ts';
 import type { RegistryFile } from './types.ts';
 
 /**
- * WP-24 — stages 1+2 from a shipped index, with no I/O and no network.
+ * Stages 1+2 from a shipped index, with no I/O and no network.
  *
- * The acceptance says *"a test fails if any request is made"*, so the network
+ * The requirement says *"a test fails if any request is made"*, so the network
  * assertion here is not a comment: `fetch`, `XMLHttpRequest` and
  * `WebSocket` are replaced with throwing stubs for the duration, and the
  * assertion is that routing completes anyway.
@@ -145,7 +145,7 @@ describe('assertIndexMatches — refusing an index that cannot belong here', () 
 });
 
 /**
- * WP-24's load-bearing acceptance: *"stages 1+2 run in a browser with zero
+ * The load-bearing requirement: *"stages 1+2 run in a browser with zero
  * network calls — a test fails if any request is made"*.
  */
 describe('stages 1+2 make no network call', () => {
@@ -157,7 +157,7 @@ describe('stages 1+2 make no network call', () => {
 
   beforeEach(() => {
     const boom = (what: string) => () => {
-      throw new Error(`WP-24: stages 1+2 attempted a ${what} call. The offline claim is the product.`);
+      throw new Error(`stages 1+2 attempted a ${what} call. The offline claim is the product.`);
     };
     globalThis.fetch = vi.fn(boom('fetch')) as unknown as typeof fetch;
     (globalThis as Record<string, unknown>).XMLHttpRequest = boom('XMLHttpRequest');
@@ -174,7 +174,7 @@ describe('stages 1+2 make no network call', () => {
     registry: registryFromIndex(registryFile, await shippedIndex()),
     embedder: (() => {
       // The query encoder still has to be fitted to the same corpus the index
-      // was built from — that is the whole of L10 — so it is constructed here
+      // was built from — a re-fitted encoder silently changes every score — so it is constructed here
       // from the registry's own documents, not shared with anything.
       const e = new HashingEmbedder();
       e.fit(registryFile.capabilities.map(capabilityDocument));
@@ -210,17 +210,17 @@ describe('stages 1+2 make no network call', () => {
 });
 
 /**
- * Pilot-A field report, 2026-09-23 (P2-2, P2-5). A user who holds several roles needs one registry, and a
+ * A user who holds several roles needs one registry, and a
  * registry needs its own index: each role's is its own vector space. So the index must be computable
  * from the registry alone, identically to the file the build ships — and a phrase two roles' screens
  * both claim must name neither.
  */
 describe('indexFor — the shipped index is a cache of a pure function', () => {
-  const GENERATED = new URL('../../../eval/frameworks/family/generated/', import.meta.url);
+  const GENERATED = new URL('../../../eval/frameworks/school/generated/', import.meta.url);
   const read = (file: string): unknown => JSON.parse(readFileSync(new URL(file, GENERATED), 'utf8'));
 
   it('reproduces every committed index of the reference app, byte for byte but the timestamp', () => {
-    for (const role of ['COACH', 'PARENT', 'PLAYER']) {
+    for (const role of ['PARENT', 'STUDENT', 'TEACHER']) {
       const shipped = read(`index.${role}.json`) as ShippedIndex;
       const computed = indexFor(read(`registry.${role}.json`) as RegistryFile, shipped.generatedAt);
       expect(computed, role).toEqual(shipped);
@@ -254,17 +254,17 @@ describe('mergeRegistryFiles — one registry for a user with several roles', ()
         triggers: ['squad overview'], examples: ex(3),
       }),
       defineCapability({
-        id: 'guardian.nutrition', kind: 'navigate', route: '/my/children/nutrition',
-        title: 'My children’s nutrition', description: 'Meal plans for your children',
+        id: 'guardian.meals', kind: 'navigate', route: '/my/children/meals',
+        title: 'My children’s meals', description: 'Meal plans for your children',
         explanation: 'What your children eat, week by week.',
-        triggers: ['nutrition'], examples: ex(3),
+        triggers: ['meals'], examples: ex(3),
       }),
     ],
   });
 
   it('keeps every capability once, in the first registry’s order, then the new ones', () => {
     const merged = mergeRegistryFiles([registryFile, other]);
-    expect(merged.capabilities.map((c) => c.id)).toEqual(['squad.overview', 'training.sessions', 'unsupported.payments', 'guardian.nutrition']);
+    expect(merged.capabilities.map((c) => c.id)).toEqual(['squad.overview', 'training.sessions', 'unsupported.payments', 'guardian.meals']);
     expect(merged.domainDescription).toBe(registryFile.domainDescription);
     expect(mergeRegistryFiles([registryFile])).toBe(registryFile);
   });
@@ -292,20 +292,20 @@ describe('mergeRegistryFiles — one registry for a user with several roles', ()
       thresholds: THRESHOLD_PROFILES.hashing,
       useStage3: false,
     });
-    expect(trace.candidates[0]?.capabilityId).toBe('guardian.nutrition');
+    expect(trace.candidates[0]?.capabilityId).toBe('guardian.meals');
   });
 });
 
 describe('buildTriggerIndex — a contested phrase names neither screen', () => {
   it('drops a phrase two capabilities claim, and keeps the rest', () => {
     const caps = [
-      { id: 'nutrition.overview', triggers: ['Nutrição', 'plano alimentar'] },
-      { id: 'guardian.nutrition', triggers: ['nutricao'] },
+      { id: 'meals.overview', triggers: ['Refeições', 'plano semanal'] },
+      { id: 'guardian.meals', triggers: ['refeicoes'] },
     ] as unknown as RegistryFile['capabilities'];
     const { index, contested } = buildTriggerIndex(caps);
-    expect(index.has('nutricao')).toBe(false);
-    expect([...contested.values()]).toEqual([['nutrition.overview', 'guardian.nutrition']]);
-    expect(index.get('plano alimentar')).toBe('nutrition.overview');
+    expect(index.has('refeicoes')).toBe(false);
+    expect([...contested.values()]).toEqual([['meals.overview', 'guardian.meals']]);
+    expect(index.get('plano semanal')).toBe('meals.overview');
   });
 
   it('is not contested by the same capability claiming a phrase twice', () => {

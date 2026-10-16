@@ -8,7 +8,7 @@ const page = (feature: string, name: string) =>
   readPage(join(FIXTURE_ROOT, 'features', feature, 'pages', `${name}.tsx`));
 
 /**
- * WP-30's verdict, miss #1 — the single most consequential gap it found, and
+ * The first spike's miss #1 — the single most consequential gap it had, and
  * the reason this module exists. The spike judged a destination by whether the
  * component's *name* contained "Redirect", and was wrong in both directions.
  */
@@ -51,7 +51,7 @@ describe('readPage — the application’s own words', () => {
 });
 
 /**
- * WP-42, found by auditing descriptions against the pages they describe.
+ * Found by auditing descriptions against the pages they describe.
  *
  * bulletproof-react's discussion screen has no doc comment, and the only literal
  * text under it is an `ErrorBoundary` fallback. The model was handed that as the
@@ -90,7 +90,7 @@ describe('readPage — the failure state is not the screen', () => {
 });
 
 /**
- * WP-27. Guided steps are generated from these, and the anchor each step gets is
+ * Guided steps are generated from these, and the anchor each step gets is
  * matched at run time by accessible name — so the name read here has to come
  * from the same sources, in the same order, that a screen reader uses.
  */
@@ -99,7 +99,7 @@ describe('fields — the form controls a page renders', () => {
     expect(page('settings', 'NotificationsPage').fields).toEqual([
       // A <label htmlFor> whose text is t('…'): kept as a key, namespaced like
       // the page's other copy, and resolved against the locales later. Its
-      // `required` attribute is a WP-54 rule, read rather than guessed.
+      // `required` attribute is a read-tier rule (ADR-020), read rather than guessed.
       {
         tag: 'input',
         label: null,

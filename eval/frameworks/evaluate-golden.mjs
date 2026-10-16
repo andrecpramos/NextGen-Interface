@@ -2,8 +2,8 @@
 // registries, and compare with the CommandPalette baseline recorded on each
 // entry.
 //
-// Matching is **by route, never by capability id**. WP-31's ground truth and
-// WP-25's generator name their capabilities independently, and an id is an
+// Matching is **by route, never by capability id**. A hand-written ground truth
+// and the generator name their capabilities independently, and an id is an
 // implementation detail: what a user cares about is arriving at the right
 // screen. Comparing ids would score the generator on whether it guessed the
 // same names a person chose.
@@ -11,7 +11,7 @@
 //   node --experimental-strip-types eval/frameworks/evaluate-golden.mjs [--stage3 llama3.1:8b] [--embedder hashing]
 //
 // With no --stage3 the run is the model-free floor: stages 1+2 only, no network,
-// which is the number the whole cost argument rests on (business-case §5).
+// which is the number the whole cost argument rests on.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -33,10 +33,10 @@ const EMBEDDER = flag('embedder', 'hashing');
 const STAGE3_MODEL = flag('stage3', null);
 
 /**
- * `--no-stage1` — isolate what stage 1 is actually worth (WP-38 lever 1).
+ * `--no-stage1` — isolate what stage 1 is actually worth.
  *
  * Adding triggers does TWO things, and reporting their sum as "the lever" would
- * be a confounded measurement of exactly the kind PLAN.md's acceptance forbids:
+ * be a confounded measurement:
  *
  *   1. it switches stage 1 on, and
  *   2. it changes every stage-2 score, because `capabilityDocument()` embeds a
@@ -110,7 +110,7 @@ for (const entry of entries) {
   // Rule 20 (ADR-041): a request to change something ends with its screen offered, not opened. That is
   // the right answer when the offered screen is the expected one.
   const offered = trace.changeRequest && trace.outcome === OUTCOME.OUT_OF_SCOPE ? chosenRoute : null;
-  // A question the owner judged genuinely ambiguous in the app names every screen that answers it (Rule 12).
+  // A question judged genuinely ambiguous in the app names every screen that answers it (Rule 12).
   const accepted = expectedRoute ? [expectedRoute, ...(entry.expect.alsoAccept ?? [])] : [];
   const correct = expectedRoute
     ? (trace.outcome === OUTCOME.EXECUTE && accepted.includes(chosenRoute)) || accepted.includes(offered)
@@ -214,7 +214,7 @@ const scorecard = {
  * The model-free floor is deterministic — hashing encoder, no stage 3 — so any
  * change to a description, a trigger, `normalize()` or a threshold moves it, and
  * nothing in CI noticed until now. A top-1 regression across a prompt change cost
- * seven points once already (lessons.md L9).
+ * seven points once already.
  *
  * Compared field by field with **timing excluded**: `generatedAt`, the latency
  * percentiles and each entry's `ms` are properties of the machine, not of the

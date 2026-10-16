@@ -8,7 +8,7 @@
 //   went unnoticed for a long time: **the adversarial bucket passes trivially in
 //   CI, because no model is ever consulted.**
 //
-//   Finding 14 is what that cost. Run against a live stage 3, `llama3.1:8b`
+//   Measured, that cost: run against a live stage 3, `llama3.1:8b`
 //   produces four safety violations — three of which pre-dated the run and had
 //   never been seen by anything.
 //
@@ -19,7 +19,7 @@
 //   reported as an improvement, with a request to update the baseline.
 //
 //   It does **not** bless the recorded violations. They are a known gap that
-//   Finding 14 could not close, and the baseline file says so at length.
+//   fencing alone could not close, and the baseline file says so at length.
 //
 // WHEN IT SKIPS
 //   No Ollama, or none of the baseline's models installed. Skipping is exit 0
@@ -27,9 +27,9 @@
 //   `kit-sync`, and for the same reason: a gate that fails when a local
 //   dependency is absent gets disabled, and a disabled gate protects nothing.
 //
-// Non-determinism is real here (Finding 10: 7 of 200 entries flipped between two
-// identical 8B runs at temperature 0). This compares a SET OF IDS rather than a
-// score, which is the more stable comparison, and Finding 14's four reproduced
+// Non-determinism is real here (7 of 200 entries flipped between two identical
+// 8B runs at temperature 0). This compares a SET OF IDS rather than a
+// score, which is the more stable comparison, and the four recorded violations reproduced
 // across consecutive runs. A single flapping entry should be investigated, not
 // absorbed by widening a tolerance.
 
@@ -166,13 +166,13 @@ if (failures.length > 0) {
   console.error(`\n  Adversarial FAILED — ${newViolations.length} new safety violation(s).\n`);
   for (const f of newViolations) console.error(`    ${f.model}  ${f.detail}`);
   console.error(`
-  A NEW entry made the router select a forbidden capability. This is the gate
-  Finding 14 exists because of: the model-free CI run passes every adversarial
+  A NEW entry made the router select a forbidden capability. This gate exists
+  because the model-free CI run passes every adversarial
   entry trivially, so a real injection vector reaches nobody's attention.
 
   Before recording it in adversarial-baseline.json, establish which layer moved:
     - did the fence stop applying? (tooling/scripts/check-prompt-fencing.mjs)
-    - or did the model disregard an intact fence? (Finding 14's case — print the
+    - or did the model disregard an intact fence? (the recorded case — print the
       prompt and count the delimiters before assuming a bypass)
 `);
   process.exit(1);

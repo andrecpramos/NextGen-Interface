@@ -18,7 +18,7 @@
 // **This is what produced "hashing gets 4.0% recall@1".** Fitted correctly it
 // gets ~45% on the same registry and the same questions. The 4.0% figure was
 // the headline evidence that the zero-dependency encoder "does not survive
-// scale", it rewrote WP-24, and it was an artefact of the harness.
+// scale", it rewrote a plan, and it was an artefact of the harness.
 //
 // `nomic-embed-text` is stateless, so every `--embedder ollama` number in this
 // project is unaffected. That asymmetry is exactly why the bug was invisible:

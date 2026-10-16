@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// WP-12's golden-set gate. Two checks that a plain `git diff` cannot do:
+// The golden-set gate. Two checks that a plain `git diff` cannot do:
 //
 //   REGRESSION — compare a fresh scorecard's accuracy gates against the
-//   committed baseline within a tolerance. NOT exact equality: WP-01 Finding 10
-//   showed two identical 8B runs at temperature 0 flipping 7 of 200 entries, and
+//   committed baseline within a tolerance. NOT exact equality: two identical 8B
+//   runs were measured at temperature 0 flipping 7 of 200 entries, and
 //   a 20-entry bucket cannot resolve a 95% target better than +/-5%. Exact
 //   comparison flaps; no comparison catches nothing.
 //
 //   STALENESS — a committed scorecard whose config.thresholds no longer match
 //   the live profile in config.ts is asserting a configuration that does not
-//   exist. One was found in exactly that state during WP-01: committed,
+//   exist. One was found in exactly that state once: committed,
 //   plausible, describing a tauFloor the code had already abandoned. It went
 //   stale within hours, which is why this is a gate and not a review item.
 //
@@ -93,7 +93,7 @@ const current = load(currentPath);
 // it with `|| true`: if it crashed or never ran, the file left in place was the committed one,
 // every delta was zero, and this gate printed OK on 2026-10-02 without one question having been
 // routed — on both paths, `--baseline` in CI and `--baseline-ref HEAD` in /gates. The same
-// failure as the same-path case above, by another route (lessons.md L6, its fifth instance).
+// failure as the same-path case above, by another route.
 // Every scorecard is stamped with when it was generated; the baseline's stamp on the current file
 // means nothing was measured.
 if (!current.generatedAt || current.generatedAt === baseline.generatedAt) {

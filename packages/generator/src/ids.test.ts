@@ -15,9 +15,9 @@ const route = (path: string, feature: string | null = null): DiscoveredRoute => 
 });
 
 /**
- * WP-30's verdict, the mechanical one: 17.6% of the spike's ids failed
+ * The first spike's mechanical failure: 17.6% of its ids failed
  * `core-capability`'s `id-format` rule because it fell back to a lowercased
- * component name — `settingspage`, `matchhubpage` — whenever no label existed.
+ * component name — `settingspage`, `gradebookpage` — whenever no label existed.
  * There is no fallback here, so these tests are about the *only* path.
  */
 describe('synthesiseId', () => {

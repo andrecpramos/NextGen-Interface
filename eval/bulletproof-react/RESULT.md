@@ -1,8 +1,8 @@
 # `nextgen calibrate`, run on an app nobody here wrote
 
-**2026-09-12 · WP-41.** The app is
+**2026-09-12.** The app is
 [bulletproof-react](https://github.com/alan2207/bulletproof-react) (MIT), the same public
-application WP-41 used to test `init`/`build`/`doctor`. 8 screens, one audience, 3
+application used to test `init`/`build`/`doctor`. 8 screens, one audience, 3
 declared boundaries.
 
 ```bash
@@ -32,7 +32,7 @@ is the loop closing: the command writes a file, the next build uses it, and the 
 changes.
 
 **Rule 16 held.** `git status` in the clone shows exactly what it showed before: one
-untracked `nextgen/` folder from WP-41's original run, and no modified file. This run
+untracked `nextgen/` folder from the original `init` run, and no modified file. This run
 wrote to a kit folder outside the clone entirely.
 
 ## The result is not good, and the command says so
@@ -70,5 +70,5 @@ The honest reading of `out-of-scope refused: 0.0%` is that **this golden set's 9
 turns do not resemble the app's 3 declared boundaries closely enough for similarity to
 connect them** — the boundaries are generic ("Acting outside this application", "Changing
 records for you", "Questions about anything else"). That is a finding about declaring
-boundaries well, and it matches what D-5 already records: out-of-scope detection is this
+boundaries well, and it matches the limit README states: out-of-scope detection is this
 system's weakest edge, and it is disclosed rather than papered over.

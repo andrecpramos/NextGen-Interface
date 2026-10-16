@@ -4,7 +4,7 @@
 
 ```bash
 pnpm preview                  # builds the widget, then serves the bench
-pnpm preview -- --app family  # by name, once there is more than one fixture app
+pnpm preview -- --app school  # by name, once there is more than one fixture app
 PORT=5000 pnpm preview
 ```
 
@@ -48,7 +48,7 @@ what the router recorded.
 The description column is the useful one. It is the largest part of what stage 2 embeds,
 so when two screens score within a hair of each other, that is almost always where the
 cause is — and the fix belongs in the declaration, **never in a threshold**
-([Rule 14](../.MDFiles/PLAN.md), [lessons L1](../.claude/docs/lessons.md)).
+([Rule 14](../docs/RULES.md)).
 
 ## Linking to a turn
 

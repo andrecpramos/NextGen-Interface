@@ -22,7 +22,7 @@ import { calibrate } from './calibrate.ts';
 import { adapterVersion, doctor } from './doctor.ts';
 
 /**
- * WP-41: the kit, run the way an adopter runs it, on apps it was not written for.
+ * The kit, run the way an adopter runs it, on apps it was not written for.
  *
  * Two fixtures in two different shapes: a route array with a role table and
  * translations (tiny-app), and a data router with a paths table and no roles
@@ -154,7 +154,7 @@ describe('init → build → doctor, end to end', () => {
     await build(kit);
     const thresholds = JSON.parse(readFileSync(join(kit, 'bundle', 'thresholds.hashing.json'), 'utf8'));
     expect(thresholds.calibrated).toBe(false);
-    // The script tag reads `.thresholds` — the shape WP-29's load() expects.
+    // The script tag reads `.thresholds` — the shape the script tag's load() expects.
     expect(thresholds.thresholds.tauHigh).toBeTypeOf('number');
     // Refusal is the one claim nothing has measured for this app, so a limit must clear a floor of its own
     // until a calibration decides otherwise (Thresholds.boundaryFloor) — and the file says so.
@@ -241,7 +241,7 @@ describe('init → build → doctor, end to end', () => {
     expect(doctor(kit).text).toMatch(/data-nextgen-role="PUBLIC"/);
   }, 60_000);
 
-  it('counts rules read from the app\'s own controls, and doctor says so (ADR-020, WP-54)', async () => {
+  it('counts rules read from the app\'s own controls, and doctor says so (ADR-020)', async () => {
     // tiny-app's notifications page declares `required` on its email input —
     // a real constraint, read rather than guessed.
     const kit = kitFolder();
@@ -251,7 +251,7 @@ describe('init → build → doctor, end to end', () => {
     expect(doctor(kit).text).toMatch(/Rules read from validation schemas and control attributes: [1-9]\d*\n/);
   }, 60_000);
 
-  it('reports the inferred tier too, and writes review/INFERRED.md whether or not anything shipped (ADR-020, WP-55)', async () => {
+  it('reports the inferred tier too, and writes review/INFERRED.md whether or not anything shipped (ADR-020)', async () => {
     const kit = kitFolder();
     init(TINY, kit);
     const record = await build(kit);
@@ -264,7 +264,7 @@ describe('init → build → doctor, end to end', () => {
   }, 60_000);
 
   it('rebuilds the script tag when embed\'s source is newer than its compiled dist', async () => {
-    // Reproduces the exact failure found running the kit against the pilot app:
+    // Reproduces the exact failure found running the kit against a real app:
     // `dist/nextgen.js` survived a later `embed/src` change untouched because
     // the old check only asked whether a bundle existed, not whether it was
     // current. `doctor` reported a clean build while `NextGen.start` did not
@@ -374,7 +374,7 @@ describe('calibrate', () => {
   }, 120_000);
 
   it('offers no way to calibrate from the generator\'s own examples', () => {
-    // Measured on the pilot app: calibrating on the generator's examples wrongly
+    // Measured on a real app: calibrating on the generator's examples wrongly
     // refused 7 real requests in 105, against 1 for the default profile. A
     // command that offered it would offer a worse outcome than doing nothing,
     // wrapped in something that looks like diligence. This asserts the absence.
@@ -384,7 +384,7 @@ describe('calibrate', () => {
   });
 });
 
-describe('stage 3 (WP-52, ADR-017)', () => {
+describe('stage 3 (ADR-017)', () => {
   it('is off by default: no stage3 field, no doctor mention, thresholds unchanged', async () => {
     const kit = kitFolder();
     init(TINY, kit);

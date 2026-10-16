@@ -11,7 +11,7 @@ import type { DiscoveredRoute, GeneratorConfig, RoleName } from './types.ts';
 /**
  * Route and role discovery, from the application's own route table.
  *
- * The WP-30 spike did this with regular expressions and said so: "good enough
+ * The first spike did this with regular expressions and said so: "good enough
  * for a spike; a real parser would use the TS AST". This is that parser. The
  * difference is not tidiness — a regex cannot tell a route registered inside
  * `import.meta.env.DEV ? [...] : []` from one registered unconditionally, and
@@ -94,9 +94,9 @@ interface RoleEnv {
 /**
  * Is this arrow function exactly `(...xs) => [...xs]`?
  *
- * `readRoles` in the pilot target is such a helper. Treating *any* call as
+ * `readRoles` in the fixture app is such a helper. Treating *any* call as
  * "its string arguments are the roles" would misread something like
- * `except(APP_ROLES, 'PLAYER')` as granting the one role it removes — a role
+ * `except(APP_ROLES, 'STUDENT')` as granting the one role it removes — a role
  * mis-assignment, which is the one error this generator may not make. So the
  * helper's body is checked rather than its name.
  */
@@ -135,8 +135,8 @@ function identityHelpers(constants: Map<string, ts.Expression>): Set<string> {
  * evaluated with certainty.
  *
  * `null` is not an error — it is the safe answer, and the caller turns it into
- * a recorded skip. The spike behaved the same way and WP-30's verdict called
- * that disposition out as the right one.
+ * a recorded skip. The first spike behaved the same way, and that
+ * disposition was judged the right one.
  */
 function evaluateRoles(
   expression: ts.Expression,
@@ -321,7 +321,7 @@ function joinPath(parent: string, child: string): string {
 /**
  * Is this route entry registered only in a development build?
  *
- * The pilot target spreads such routes in behind `import.meta.env.DEV ? [...]
+ * Apps commonly spread such routes in behind `import.meta.env.DEV ? [...]
  * : []`. That is a structural fact, visible in the AST — unlike the "this is a
  * legacy duplicate" judgement, which lives in prose and is handled elsewhere.
  */
@@ -369,8 +369,8 @@ function isRouteElement(node: ts.Node): node is ts.JsxElement | ts.JsxSelfClosin
  * Route entries, in either of React Router's two dialects.
  *
  * A route config is an array of objects; the older and still entirely current
- * JSX form is `<Route path element />` nested inside `<Routes>`. The pilot
- * target uses the first and the smoke-test app uses the second, and an adapter
+ * JSX form is `<Route path element />` nested inside `<Routes>`. Real apps
+ * use both, and an adapter
  * that only read one of them would be an adapter for one application.
  */
 function routeObjectsIn(node: ts.Node): RouteObject[] {
@@ -427,8 +427,8 @@ type CollectContext = Parameters<typeof collect>[2];
 /**
  * A spread of routes from another module: followed, or reported — never silently dropped.
  *
- * The pilot app's route table ends `...workspaces`, and before this the routes it named were simply not
- * there, with nothing in `SKIPPED.md` to say so (WP-28's "under-discovery no skip report can mention").
+ * A real app's route table ended `...workspaces`, and before this the routes it named were simply not
+ * there, with nothing in `SKIPPED.md` to say so: under-discovery no skip report can mention.
  * An imported array of routes is read in the module that declares it, with *that* module's imports. A
  * computed one (`...workspaces.flatMap(…)`), one that is not an array literal, and any inside a nested
  * route — where a parent's path and guard would have to be carried in, and a guess there is a role leak
@@ -503,7 +503,7 @@ function followSpreads(root: ts.Node, source: ts.SourceFile, sourceFile: string,
 }
 
 /**
- * The roles an application names, when it has no permissions module to read (WP-43).
+ * The roles an application names, when it has no permissions module to read.
  *
  * `readRoleModel` answers `[PUBLIC]` for an app with no permissions file, and for a
  * three-page marketing site that is right: one audience, named for who it serves.
@@ -535,7 +535,7 @@ function rolesFromRouteTable(source: ts.SourceFile, declared: RoleModel): RoleMo
   return found.size > 0 ? { allRoles: [...found].sort(), namedSets: declared.namedSets } : declared;
 }
 
-/** A route discovery found but could not read — reported, never silently dropped (WP-28). */
+/** A route discovery found but could not read — reported, never silently dropped. */
 export interface UnreadableRoute {
   readonly path: string;
   readonly detail: string;
@@ -547,7 +547,7 @@ export interface UnreadableRoute {
 type Aliases = ReadonlyMap<string, string>;
 
 /**
- * The path aliases the application's own tsconfig declares (WP-28).
+ * The path aliases the application's own tsconfig declares.
  *
  * A code-split app imports its pages and its path table through aliases like
  * `@/config/paths`. Without them discovery cannot follow the import. Read from
@@ -714,7 +714,7 @@ function stringScope(source: ts.SourceFile, sourceFile: string, aliases: Aliases
 
 /**
  * A route path written as data rather than a literal — `paths.app.users.path`
- * (WP-28). Followed through module constants and one level of named import.
+ * — followed through module constants and one level of named import.
  * `null` when it cannot be, which the caller reports instead of dropping.
  */
 function evaluateString(expression: ts.Expression, scope: StringScope): string | null {
@@ -791,7 +791,7 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
   if (!opening) return null;
   const tag = opening.tagName;
   const name = ts.isIdentifier(tag) ? tag.text : tag.getText();
-  // `<ProtectedRoute><WellnessFormPage /></ProtectedRoute>`: the page is the guard's one child. Two
+  // `<ProtectedRoute><FeedbackFormPage /></ProtectedRoute>`: the page is the guard's one child. Two
   // children, or a wrapper not named as a guard (a layout shell, whose children are read through it
   // later), is not guessed at. Who may reach the page is read from the outer element's props, and
   // stays that way.
@@ -808,7 +808,7 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
 }
 
 /**
- * The roles a guard *wrapper* route imposes on everything beneath it (WP-43).
+ * The roles a guard *wrapper* route imposes on everything beneath it.
  *
  * `<Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>` is a route with
  * no path of its own whose element is a guard component. Its children inherit
@@ -886,7 +886,7 @@ function collect(
     const pathExpression = properties.get('path');
     const segment = pathExpression ? evaluateString(pathExpression, context.scope) : '';
     if (segment === null) {
-      // WP-28: an unreadable path used to become '' and the route vanished with
+      // An unreadable path used to become '' and the route vanished with
       // no trace — under-discovery no skip report could mention, because nothing
       // knew the route existed. Now it is reported, the expression quoted.
       const nested = children ? childRoutesOf(children, node).length : 0;
@@ -934,7 +934,7 @@ function collect(
     if (segment === '*' || segment.includes('*')) continue;
 
     // `lazy: () => import('./routes/users')` — the data-router spelling a
-    // code-split app uses for every page (WP-28). Its module is the page.
+    // code-split app uses for every page. Its module is the page.
     const lazyExpression = properties.get('lazy') ?? properties.get('loadComponent') ?? lazyComponentProperty(properties.get('component'));
     const hasElement =
       properties.has('element') || properties.has('Component') || (properties.has('component') && !lazyComponentProperty(properties.get('component')));
@@ -969,7 +969,7 @@ function collect(
     let roles: readonly RoleName[] | null;
     let roleKey: string | null = null;
     if (!rolesExpression) {
-      // WP-43. A third shape, found on an app we do not own: the guard is a
+      // A third shape, found on an app we do not own: the guard is a
       // PARENT route whose element carries the roles, and the guarded routes are
       // its children.
       //

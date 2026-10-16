@@ -46,7 +46,7 @@ In this repo it is one of two things, whichever your change touches:
   `eval/frameworks/<app>/golden-set.jsonl` (at least 20, some with `"route": null`) — and
   every capability the generator produces still carries **at least three examples** (Rule 10).
 
-The registries under `eval/frameworks/family/generated/` are committed derived artefacts.
+The registries under `eval/frameworks/school/generated/` are committed derived artefacts.
 If your change alters what the generator emits, or what the encoder is fed, regenerate them
 **in the same commit**. `check-derived-artefacts.mjs` fails on a stale one and does not fix
 it; this order is the one that reproduces the committed files (apart from a `generatedAt`
@@ -54,7 +54,7 @@ timestamp):
 
 ```bash
 node --experimental-strip-types packages/generator/src/cli.ts \
-  eval/frameworks/family/generator.config.json --no-model   # emit the registries
+  eval/frameworks/school/generator.config.json --no-model   # emit the registries
 pnpm router:calibrate                                        # only if the encoder's input changed
 node --experimental-strip-types eval/frameworks/rebuild-indexes.mjs
 pnpm eval:calibrate                                          # Rule 14: sweep thresholds, never hand-tune

@@ -9,7 +9,7 @@ import { detectApp } from './detect.ts';
  * Which language a Next.js app speaks, when its `<html lang>` is not written down.
  *
  * Found on a real next-intl app: `<html lang={locale}>` is decided per request, so there was no literal
- * to read, and the kit took the first language *alphabetically* — English — for a Portuguese federation
+ * to read, and the kit took the first language *alphabetically* — English — for a Portuguese organisation
  * whose routing file says `defaultLocale: 'pt'` in so many words. Every description was then written in
  * the wrong language, and it was reported as a guess to confirm. The app had already said.
  */

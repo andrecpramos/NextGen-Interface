@@ -14,7 +14,7 @@ Read-only. Produces a ranked gap list, and updates
 Rules are stated in more places than the rule register. Search all of them:
 
 ```bash
-sed -n "/^## 2/,/^## 3/p" PLAN.md   # this repo: rules live in PLAN.md §2
+cat docs/RULES.md                    # this repo: the numbered rules
 cat .claude/sdlc.config.json 2>/dev/null
 ls .claude/decisions/ 2>/dev/null
 cat CLAUDE.md README.md CONTRIBUTING.md 2>/dev/null

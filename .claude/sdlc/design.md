@@ -14,18 +14,15 @@ expensive to reverse.
 | Capability registry schema | The registry contract | [architecture.md](../docs/architecture.md) |
 | Sequence diagrams | Turn flows, incl. failure paths | this document |
 | Navigation graph | Routes, params, guards | generated from registry |
-| UX specs | The assistant surface — historical, see the note in that file | [ui-guidelines.md](../docs/ui-guidelines.md) |
+| UX specs | The assistant surface | [ui-guidelines.md](../docs/ui-guidelines.md) |
 | ADRs | Binding decisions + rationale | [decisions/](../decisions/) |
 
-## Entity model and write-action sequence — removed
+## Write actions — not yet specified
 
-The entity model of the earlier finance app (accounts, transactions, budgets) and the
-sequence for a confirmed write action (dispatcher, action engine, database) were removed on
-2026-09-20. That app, its database and its dispatcher were deleted with ADR-018, and nothing
-in this repository holds them. `TurnTrace` is described in
-[architecture.md](../docs/architecture.md). The write-with-confirmation flow returns with
-WP-48 (PLAN.md §7.5) and is not specified until then. **Its one durable design note stands:**
-a confirmation shows the *parsed parameters*, not the utterance, because that is where a
+Nothing ships a `write` or `destructive` capability, so the write-with-confirmation flow
+is not specified (Rule 5 is dormant). `TurnTrace` is described in
+[architecture.md](../docs/architecture.md). **One design note stands for when it is:** a
+confirmation shows the *parsed parameters*, not the utterance, because that is where a
 misheard "twelve" for "twenty" is caught.
 
 ## Sequence — degradation when the model is unavailable
@@ -33,7 +30,7 @@ misheard "twelve" for "twenty" is caught.
 ```
 Utterance ─▶ stage1 miss ─▶ stage2 → best 0.52, margin 0.04 (ambiguous)
           ─▶ stage3 → model not downloaded / load failed / timeout
-          ─▶ FALLBACK: Clarify with stage-2 top-3 as tappable options
+          ─▶ FALLBACK: Clarify — "Are you looking for X?" or "Do you mean X, or Y?"
           ─▶ Trace: decidedAt=embedding, llmError=<reason>
 ```
 

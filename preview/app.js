@@ -35,17 +35,17 @@ const params = new URLSearchParams(location.search);
 const pt = (lang ?? '').startsWith('pt');
 const companion = params.has('companion')
   ? {
-      name: pt ? 'Assistente do clube' : 'Club assistant',
+      name: pt ? 'Assistente da escola' : 'School assistant',
       ask: async ({ text, files }) => {
         await new Promise((resolve) => setTimeout(resolve, 600));
         const got = files.length > 0 ? ` (${files.map((file) => file.name).join(', ')})` : '';
         return pt
-          ? `[demonstração] O assistente do clube responderia aqui a «${text}»${got}.`
-          : `[demo] The club's own assistant would answer "${text}"${got} here.`;
+          ? `[demonstração] O assistente da escola responderia aqui a «${text}»${got}.`
+          : `[demo] The school's own assistant would answer "${text}"${got} here.`;
       },
-      open: () => console.info('[bench] the club assistant would open here'),
+      open: () => console.info('[bench] the school assistant would open here'),
       tour: (route) => {
-        console.info(`[bench] the club tour would start on ${route}`);
+        console.info(`[bench] the school tour would start on ${route}`);
         return true;
       },
     }

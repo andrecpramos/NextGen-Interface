@@ -90,12 +90,12 @@ Never edit an accepted ADR and never delete one.
 3. Leave the old one's content untouched. The record of a wrong decision and why
    it was reversed is more valuable than the decision was
 4. Update the index in `.claude/decisions/README.md`
-5. Update any rule in `PLAN.md` §2 that cited the old ADR
+5. Update any rule in `docs/RULES.md` that cited the old ADR
 
 ## After writing
 
 - Add it to the index table
-- If it creates or changes a rule, update `PLAN.md` §2 and
+- If it creates or changes a rule, update `docs/RULES.md` and
   `.claude/docs/critical-infrastructure.md`
 - Tell the user it needs their acceptance. **You do not accept ADRs** — status
   stays `Proposed` until they say otherwise.

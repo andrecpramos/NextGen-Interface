@@ -4,7 +4,7 @@
 // never carried across. That rule has been applied by two separate scripts —
 // `core-intent/eval/calibrate.js` for the reference app and
 // `eval/frameworks/calibrate-registries.mjs` for the generated role registries —
-// and a third was about to be written for the drop-in kit (WP-41). Two copies of
+// and a third was about to be written for the drop-in kit. Two copies of
 // a calibration sweep is how Rule 14 drifts: the copies diverge, and the one
 // nobody re-reads becomes wrong silently, because a threshold that is merely
 // suboptimal still produces plausible numbers.
@@ -133,8 +133,8 @@ export async function scoreTurns(
 /**
  * Split 40/60 **by destination, not by entry**.
  *
- * Otherwise a threshold tuned on "o que é o centro clínico" is validated on
- * "para que serve o centro clínico" — the same question twice, and a held-out
+ * Otherwise a threshold tuned on "o que é a pauta de avaliação" is validated on
+ * "para que serve a pauta de avaliação" — the same question twice, and a held-out
  * number that means nothing. Entries with no destination (the out-of-scope ones)
  * fall back to a stable hash of the id, so the split is deterministic.
  */

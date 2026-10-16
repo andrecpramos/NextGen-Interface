@@ -1,4 +1,4 @@
-// WP-24: "Browser model-free rate matches the Node figure."
+// "Browser model-free rate matches the Node figure."
 //
 // Two paths to the same registry:
 //
@@ -13,7 +13,7 @@
 // than comparing two summary percentages that could match by coincidence.
 //
 // The query encoder still has to be fitted to the same corpus in both cases —
-// that is lessons.md L10, and it is the one thing shipping vectors does NOT
+// a re-fitted encoder silently changes every score, and it is the one thing shipping vectors does NOT
 // remove. A browser bundle ships the fitted vocabulary or refits it locally;
 // this measures the vectors, which is the part that was in question.
 //
@@ -46,7 +46,7 @@ const server = new Map();
 const browser = new Map();
 
 for (const role of roles) {
-  // One embedder per registry, both paths. L10.
+  // One embedder per registry, both paths.
   const serverEmbedder = makeEmbedder('hashing');
   server.set(role, {
     registry: await loadRegistry(join(GEN, `registry.${role}.json`), serverEmbedder),

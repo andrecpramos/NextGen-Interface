@@ -27,7 +27,7 @@
 //   model produces, and must be justified in the source:
 //       // rule2-ok: <why this number is never shown to a user>
 //
-// WHAT THIS DOES NOT CHECK, AND WHERE THAT GAP CLOSED (ADR-019, WP-53)
+// WHAT THIS DOES NOT CHECK, AND WHERE THAT GAP CLOSED (ADR-019)
 //   Arithmetic performed on model output by our own code — still open, still needs a
 //   render path this static check cannot see.
 //

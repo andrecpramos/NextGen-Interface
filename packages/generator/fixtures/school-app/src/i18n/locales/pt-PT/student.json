@@ -1,0 +1,8 @@
+{
+  "announcements": {
+    "title": "Anúncios",
+    "subtitle": "Mensagens da escola",
+    "empty": { "title": "Sem anúncios" }
+  },
+  "grades": { "title": "As minhas avaliações" }
+}

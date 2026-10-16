@@ -16,7 +16,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
  * dist/nextgen.js in parallel and two writers to one file is a flaky test.
  */
 
-const GEN = fileURLToPath(new URL('../../../eval/frameworks/family/generated/', import.meta.url));
+const GEN = fileURLToPath(new URL('../../../eval/frameworks/school/generated/', import.meta.url));
 const ROLE = 'PARENT';
 let code = '';
 
@@ -56,7 +56,7 @@ function page(
   const dom = new JSDOM(`<!doctype html><html lang="${options.lang ?? 'pt-PT'}"><head><title>t</title></head><body>${options.body ?? ''}</body></html>`, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
-    url: 'https://clube.test/my/children/7',
+    url: 'https://escola.test/my/children/7',
     virtualConsole,
   });
   const { window } = dom;
@@ -200,10 +200,10 @@ describe('the script tag starts itself from its own attributes', () => {
   });
 
   it('serves a user with several roles from each role’s registry, merged, with no index to fetch', async () => {
-    const { window, fetched } = page({ 'data-nextgen-role': 'COACH PARENT', 'data-nextgen-base': '/nextgen' });
+    const { window, fetched } = page({ 'data-nextgen-role': 'TEACHER PARENT', 'data-nextgen-base': '/nextgen' });
     await settle(() => window.document.querySelector('[data-nextgen]') !== null);
     expect(window.document.querySelector('[data-nextgen]')).not.toBeNull();
-    expect([...fetched].sort()).toEqual(['/nextgen/registry.COACH.json', '/nextgen/registry.PARENT.json', '/nextgen/thresholds.hashing.json']);
+    expect([...fetched].sort()).toEqual(['/nextgen/registry.PARENT.json', '/nextgen/registry.TEACHER.json', '/nextgen/thresholds.hashing.json']);
   });
 
   it('speaks Portuguese on a Portuguese page and English on any other, fetching nothing more for it', async () => {
@@ -220,12 +220,12 @@ describe('the script tag starts itself from its own attributes', () => {
 
   it('hides the app’s own launchers named by data-nextgen-hide while it runs', async () => {
     const { window } = page(
-      { 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-hide': '#club-chat, .tour-prompt' },
-      { body: '<button id="club-chat">Chat</button><div class="tour-prompt">Take the tour</div><button id="keep">Keep</button>' },
+      { 'data-nextgen-role': ROLE, 'data-nextgen-base': '/nextgen', 'data-nextgen-hide': '#school-chat, .tour-prompt' },
+      { body: '<button id="school-chat">Chat</button><div class="tour-prompt">Take the tour</div><button id="keep">Keep</button>' },
     );
     await settle(() => window.document.querySelector('[data-nextgen]') !== null);
     const shown = (selector: string) => window.getComputedStyle(window.document.querySelector(selector)!).display !== 'none';
-    expect(shown('#club-chat')).toBe(false);
+    expect(shown('#school-chat')).toBe(false);
     expect(shown('.tour-prompt')).toBe(false);
     expect(shown('#keep')).toBe(true);
   });

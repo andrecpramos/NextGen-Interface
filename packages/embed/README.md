@@ -1,6 +1,6 @@
 # @nextgen/embed
 
-**The script tag (Ladder C3, PLAN.md WP-29).** This is one file that routes turns on a page
+**The script tag.** This is one file that routes turns on a page
 with no build step, no module system, and no network call per turn.
 
 ```bash
@@ -62,7 +62,7 @@ window.addEventListener('nextgen:error', (event) => {
 ```
 
 A 404 says whether the files are served there, and that a server started before the endpoint
-existed must be restarted — the Pilot-A integration lost an hour to exactly that, in silence.
+existed must be restarted — the first real integration lost an hour to exactly that, in silence.
 
 **A single-page app with token auth** has no server-rendered HTML to write the role into, and
 the widget's own `fetch` would carry no `Authorization` header. Load `nextgen.js` without
@@ -79,7 +79,7 @@ const assistant = await NextGen.start('/api/v1/assistant/navigation-bundle', rol
 });
 assistant.open();                     // the corner panel — bind it to the app's launcher or ⌘K
 assistant.open({ expanded: true });   // full screen, the app's navigation still in view
-assistant.ask('abrir o plantel');     // resolves to what was shown
+assistant.ask('abrir as turmas');     // resolves to what was shown
 assistant.close();
 assistant.destroy();                  // on sign-out
 ```
@@ -97,7 +97,7 @@ window.addEventListener('nextgen:navigate', (event) => {
 ```
 
 Modified clicks (a new tab, a new window) are always left to the browser. The chat box on
-its own (WP-41) is `mount(target, assistant)`; that and `start` are this package's source API,
+its own is `mount(target, assistant)`; that and `start` are this package's source API,
 exercised by its tests. An adopter receives only the script tag: the package is not installable
 and there is no ES-module build (ADR-021).
 
@@ -199,7 +199,7 @@ already has an assistant of its own, so a state can be linked to.
   translation that lacks a description shows none rather than another language's. A page in a language
   the app does not ship gets English where the app has it. `<html lang>` is followed live; an app that
   switches language without touching it calls `handle.setLanguage('pt-PT')`.
-- **Guide.** When the registry declares steps for the screen the user lands on (WP-27),
+- **Guide.** When the registry declares steps for the screen the user lands on,
   the orb walks them through it one step at a time, highlighting the field. The text is
   always shown, including when an anchor cannot be trusted (`anchor.ts` refuses rather
   than mispoints). ⚠️ The generated fixture registries declare no steps yet, so the
@@ -218,7 +218,7 @@ already has an assistant of its own, so a state can be linked to.
   question. Any framework, any app: it reads the page, not the source. `act: 'point' | 'off'` limits it.
 - **Travelling.** When a turn resolves to a destination the browser moves **at once** — never
   after the answer has been read aloud, never after an animation: "Opening Calendar" followed by
-  nothing reads as broken (Pilot-A field report, P1-1). The panel stays open beside the new page
+  nothing reads as broken. The panel stays open beside the new page
   (back in its corner if it was expanded), and the conversation carries on there; a screen with
   guided steps makes the panel give way to its guide. After a full page load, a short note in
   `sessionStorage` lets the next page announce where the user landed. Closing the panel while
@@ -281,18 +281,18 @@ the one entry point, and nothing either had is lost.
 ```js
 NextGen.start(base, role, {
   companion: {
-    name: 'Assistente do clube',
+    name: 'Assistente da escola',
     // What this assistant cannot place: a question that matches no screen, a topic the registry puts
     // outside the app, and anything attached. Resolve to plain text, or null to leave the turn here.
-    ask: ({ text, files, route }) => clubChat.answer(text, files, route),
-    open: () => clubChat.open(),          // a header button opens it whole: history, new chat, all of it
+    ask: ({ text, files, route }) => schoolChat.answer(text, files, route),
+    open: () => schoolChat.open(),          // a header button opens it whole: history, new chat, all of it
     tour: (route) => tutorial.start(route), // "tutorial" / "visita guiada" starts it
-    hide: ['#club-chat-button', '[data-tour-prompt]'], // its launchers, while this one runs
+    hide: ['#school-chat-button', '[data-tour-prompt]'], // its launchers, while this one runs
   },
 });
 ```
 
-Its answer appears in the conversation under its own name ("Answered by Assistente do clube"), with a
+Its answer appears in the conversation under its own name ("Answered by Assistente da escola"), with a
 Copy — this router did not decide it and cannot explain it (Rule 9). A declared limit on **acting** (a
 payment, changing a record) is never handed over; it stays refused. If it declines, fails or says nothing,
 this assistant answers as it would have without it.
@@ -336,8 +336,8 @@ composer, the corner controls, the guide), not on every message. Without `backdr
 ## The chat box
 
 - **`present.ts`** is pure. It turns a turn into what to say, and whether to move:
-  - It moves only for an executed `navigate` turn. It does not move for "what is X?"
-    (WP-36), or to where the user already is.
+  - It moves only for an executed `navigate` turn. It does not move for "what is X?",
+    or to where the user already is.
   - It never performs a `read`, `write` or `destructive` capability, because a script
     tag has no dispatcher.
   - It fills a route's `:param` only from the page the user is on. Otherwise it explains
@@ -352,14 +352,14 @@ composer, the corner controls, the guide), not on every message. Without `backdr
   and found one real defect ([eval/a11y/RESULT.md](../../eval/a11y/RESULT.md)): focus
   fell to the document body when an answer replaced the link the user was standing on.
   **Automated checks pass; no screen reader has been used on it yet
-  ([the NVDA pass](../../eval/a11y/NVDA-CHECKLIST.md), PLAN.md WP-45).**
+  ([the NVDA pass](../../eval/a11y/NVDA-CHECKLIST.md)).**
 
 ## The router underneath
 
 - **`create(bundle)`** takes a registry, its shipped index and its thresholds. It returns
   `route(utterance, context)`, `steps(capabilityId, root)` and the capability count. It
-  fits **one** query encoder for that one registry, never a shared one
-  ([L10](../../.claude/docs/lessons.md)).
+  fits **one** query encoder for that one registry, never a shared one — a re-fitted
+  encoder silently changes every score.
 - **`load(basePath, role, { fetch })`** fetches `registry.<role>.json`, `index.<role>.json` and
   `thresholds.hashing.json` from the page's own origin — through the caller's `fetch` when one is
   given, so a token can go with it — then calls `create`.
@@ -372,7 +372,7 @@ composer, the corner controls, the guide), not on every message. Without `backdr
 
 It is stages 1 and 2 of the router only. A script tag has no stage-3 transport, so a turn
 that would need a model degrades to a clarifying question and never to a guess. `steps()`
-uses the guided-step resolver in `src/anchor.ts` (WP-27). That resolver would rather not
+uses the guided-step resolver in `src/anchor.ts`. That resolver would rather not
 highlight anything than point at the wrong field.
 
 ## How it is tested
@@ -394,7 +394,8 @@ the launcher, the open screen and an answered screen, as well as the chat box.
 
 **That test found two defects in the package's browser entry**, and neither could load in a
 page: a `node:*` import reached through `core-inference`, and `process.env` read at module
-scope. See [lessons.md L11](../../.claude/docs/lessons.md).
+scope. A browser-facing artefact is run with only a browser's globals, not only checked for
+existence.
 
 ## Status
 

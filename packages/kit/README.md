@@ -1,11 +1,11 @@
 # @nextgen/kit
 
-**The drop-in kit (PLAN.md WP-41).** One command reads an application, writes everything
+**The drop-in kit.** One command reads an application, writes everything
 into a folder of its own, and explains in plain words what it could and could not read.
 
 This package is **source, not something an adopter installs** ([ADR-021](../../.claude/decisions/ADR-021.md)).
 It is bundled into `adapter/scan.mjs`, the one file an adopter runs; this page is for
-working on it. An adopter's path in is [GETTING-STARTED.md](../../.MDFiles/GETTING-STARTED.md),
+working on it. An adopter's path in is [GETTING-STARTED.md](../../docs/GETTING-STARTED.md),
 and the document their coding agent reads first is [adapter/AGENTS.md](../../adapter/AGENTS.md).
 
 ```bash
@@ -131,7 +131,7 @@ offering a worse outcome than doing nothing, wrapped in something that looks lik
 The sweep itself is `@nextgen/core-intent/calibrate`, shared with this repository's own
 calibration script so that Rule 14 has exactly one implementation.
 
-## Turn on model-backed answers (stage 3, WP-52, ADR-017)
+## Turn on model-backed answers (stage 3, ADR-017)
 
 Out of the box, a question the router cannot settle from the registry gets a clarifying
 question back — never wrong, but it can read like a menu. `--stage3 <path>` changes that:
@@ -153,7 +153,7 @@ require a signed-in user.
 
 The request asks only for what the turn reads (the choice and a confidence, plus a written
 answer only when the visitor asked what something is), and says `think: false`. Pass that on
-to a reasoning model. On qwen3:14b over the family fixture, 8 of the 9 turns that reached
+to a reasoning model. On qwen3:14b over the reference fixture, 8 of the 9 turns that reached
 stage 3 used to end in a clarifying question after ~5 s. Now all 9 are decided in ~0.9 s.
 
 **What stays true whether or not you turn this on:**
@@ -166,7 +166,7 @@ stage 3 used to end in a clarifying question after ~5 s. Now all 9 are decided i
   question. It never crashes the assistant and never guesses.
 - **This tool cannot use a model to write descriptions at all.** `build --model` is refused:
   there is no client for one in the bundle and the tool reaches no network, so descriptions
-  come from the app's own labels (ADR-018 D-6, ADR-021). Stage 3 is about what happens to a
+  come from the app's own labels (ADR-018, ADR-021). Stage 3 is about what happens to a
   visitor's *question*, at *their* browsing time, on *your* server.
 
 ## Which apps it reads
