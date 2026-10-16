@@ -171,6 +171,17 @@ export function validateRegistry(registry: RegistryFile): ValidationResult {
     }
   }
 
+  // What a screen lets a visitor do (ADR-042): the same shape as `opens`, and only on a screen.
+  for (const cap of registry.capabilities) {
+    const actions = (cap as { actions?: unknown }).actions;
+    if (actions === undefined) continue;
+    if (cap.kind === 'unsupported' || !cap.route) {
+      err(cap.id, 'actions-misplaced', `"${cap.id}" declares "actions" but is not a screen — only a screen has controls`);
+    } else if (!Array.isArray(actions) || actions.length > 20 || actions.some((name) => typeof name !== 'string' || name.trim() === '' || name.length > 80)) {
+      err(cap.id, 'actions-shape', `"${cap.id}" actions must be at most 20 control names of at most 80 characters`);
+    }
+  }
+
   return summarise(issues);
 }
 

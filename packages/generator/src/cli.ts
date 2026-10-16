@@ -30,10 +30,11 @@ function normalise(raw: CliConfig, configFile: string): CliConfig {
   const { config, problem } = normaliseConfig(raw);
   if (problem) {
     console.error(`  ${configFile}`);
-    console.error(`  missing required field(s): ${problem.missing.join(', ')}`);
+    if (problem.missing.length > 0) console.error(`  missing required field(s): ${problem.missing.join(', ')}`);
     for (const field of problem.missing) {
       console.error(`    ${field.padEnd(11)} ${REQUIRED_FIELD_HELP[field] ?? ''}`);
     }
+    for (const message of problem.invalid ?? []) console.error(`  ${message}`);
     process.exit(2);
   }
   return config;

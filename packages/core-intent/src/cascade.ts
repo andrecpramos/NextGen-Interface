@@ -1,7 +1,7 @@
 import type { LlmRuntime } from '@nextgen/core-inference';
-import { isChangeRequest, isExplanationRequest } from './action.ts';
+import { controlFor, isChangeRequest, isExplanationRequest } from './action.ts';
 import { isMashing } from './mashing.ts';
-import { stage1, stage2, stage3 } from './stages.ts';
+import { catalogueFor, stage1, stage2, stage3 } from './stages.ts';
 import { resolveSlots } from './slots.ts';
 import { validateClaims } from './validate-claims.ts';
 import {
@@ -137,6 +137,9 @@ export async function route(
     // acts itself (`write`, `destructive`) keeps its own confirmation path (ADR-004).
     if (trace.changeRequest && (cap.kind === 'navigate' || cap.kind === 'read')) {
       trace.notes.push('a request to change something — its screen is offered, not opened (Rule 20)');
+      // ADR-042: and the control there that does it, when one answers the request — named, never pressed.
+      trace.control = controlFor(utterance, cap);
+      if (trace.control) trace.notes.push(`done there with "${trace.control}"`);
       return finish(OUTCOME.OUT_OF_SCOPE);
     }
 
@@ -228,7 +231,9 @@ export async function route(
   try {
     // A written answer only when one was asked for: "what is X", "how do I Y". Anything else is
     // answered by the destination, and prose would only be waited for (see `Stage3Options.prose`).
-    s3 = await stage3(utterance, s2.candidates, registry, ctx, { runtime: runtime!, model, prose: trace.explanationRequest });
+    // ADR-043: the model chooses from the role's whole application, in stage 2's order — not from the
+    // five screens that happened to share the most words with the request.
+    s3 = await stage3(utterance, catalogueFor(s2.all, registry, thresholds.topK), registry, ctx, { runtime: runtime!, model, prose: trace.explanationRequest });
   } catch (err) {
     // Model unavailable is a normal case, not an exception path. Degrade to a
     // clarify built from what stage 2 already knows (sdlc/design.md).

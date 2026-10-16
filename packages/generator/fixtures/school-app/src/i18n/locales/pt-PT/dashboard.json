@@ -1,4 +1,4 @@
 {
-  "home": { "title": "Início" },
+  "home": { "title": "Início", "excuseAbsence": "Justificar falta" },
   "teacher": { "title": "Painel do professor", "loading": "A carregar…" }
 }

@@ -34,7 +34,7 @@ const REDIRECT_COMPONENTS = new Set(['Navigate', 'Redirect']);
 /** Elements that carry no meaning of their own for this judgement. */
 const TRANSPARENT_COMPONENTS = new Set(['Fragment', 'React.Fragment', 'Suspense']);
 
-function parse(file: string): ts.SourceFile {
+export function parse(file: string): ts.SourceFile {
   return ts.createSourceFile(
     file,
     readFileSync(file, 'utf8'),
@@ -44,7 +44,7 @@ function parse(file: string): ts.SourceFile {
   );
 }
 
-function tagNameOf(node: ts.Node): string | null {
+export function tagNameOf(node: ts.Node): string | null {
   if (ts.isJsxElement(node)) return node.openingElement.tagName.getText();
   if (ts.isJsxSelfClosingElement(node)) return node.tagName.getText();
   if (ts.isJsxFragment(node)) return 'Fragment';
@@ -166,7 +166,7 @@ type KeyOf = (node: ts.Node, keyOnly?: boolean) => string | null;
  * bind their own `t` keep their own namespaces. A bare `t` bound nowhere in the file (a
  * prop, an import) takes the page's first namespace, as it always did.
  */
-function translationCalls(
+export function translationCalls(
   source: ts.SourceFile,
   props: ReadonlyMap<string, string> = new Map(),
 ): { namespace: string | null; keyOf: KeyOf; fromProps: ReadonlySet<string> } {
@@ -413,14 +413,14 @@ function headings(source: ts.Node): string[] {
 const CONTROL_TAGS = new Set(['input', 'select', 'textarea', 'button']);
 
 /** A JSX element's attributes, if it has any. */
-function attributesOf(node: ts.Node): ts.JsxAttributes | null {
+export function attributesOf(node: ts.Node): ts.JsxAttributes | null {
   if (ts.isJsxElement(node)) return node.openingElement.attributes;
   if (ts.isJsxSelfClosingElement(node)) return node.attributes;
   return null;
 }
 
 /** A string-literal attribute's value — `name="x"` or `name={'x'}`. */
-function literalAttr(attributes: ts.JsxAttributes, name: string): string | null {
+export function literalAttr(attributes: ts.JsxAttributes, name: string): string | null {
   for (const attribute of attributes.properties) {
     if (!ts.isJsxAttribute(attribute) || attribute.name.getText() !== name) continue;
     const value = attribute.initializer;
@@ -471,7 +471,7 @@ function showsState(call: ts.CallExpression): boolean {
 }
 
 /** A handler that does nothing but show something: every statement in it is `showsState`. */
-function onlyShows(handler: ts.Expression): boolean {
+export function onlyShows(handler: ts.Expression): boolean {
   if (ts.isIdentifier(handler)) return /^(open|show|toggle|handleOpen|handleShow)[A-Z]?\w*$/.test(handler.text);
   if (!ts.isArrowFunction(handler) && !ts.isFunctionExpression(handler)) return false;
   const body = handler.body;
@@ -749,7 +749,7 @@ function titleKeysFromProps(source: ts.SourceFile, keyOf: KeyOf, fromProps: Read
 export type ImportResolver = (specifier: string, fromFile: string) => string | null;
 
 /** A design system or shared UI kit: a wrapper page's words are never in its buttons. */
-const SHARED_UI = /[\\/](?:ui|design-system|primitives)[\\/]/i;
+export const SHARED_UI = /[\\/](?:ui|design-system|primitives)[\\/]/i;
 
 /**
  * A screen, read through the components it renders when its own file says nothing.
@@ -788,7 +788,7 @@ export const EMPTY_FACTS: PageFacts = {
 };
 
 /** The component `name` declared at the top level of a file — `function X() {}` or `const X = () => …` — or null. */
-function localComponent(source: ts.SourceFile, name: string): ts.Node | null {
+export function localComponent(source: ts.SourceFile, name: string): ts.Node | null {
   for (const statement of source.statements) {
     if (ts.isFunctionDeclaration(statement) && statement.name?.text === name) return statement;
     if (!ts.isVariableStatement(statement)) continue;
@@ -868,7 +868,7 @@ function readThrough(file: string, source: ts.SourceFile, root: ts.Node, own: Pa
 }
 
 /** The components a file imports: local name -> the module, and the name it is exported under there. */
-function importedComponents(source: ts.SourceFile): Map<string, { specifier: string; name: string }> {
+export function importedComponents(source: ts.SourceFile): Map<string, { specifier: string; name: string }> {
   const out = new Map<string, { specifier: string; name: string }>();
   for (const statement of source.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
@@ -889,7 +889,7 @@ function importedComponents(source: ts.SourceFile): Map<string, { specifier: str
  * The file that defines an imported component, through one barrel when the import names one:
  * `import { TutorialsSettingsPanel } from '@/features/tutorial'` is an `index.ts` re-exporting it.
  */
-function componentFile(resolved: string | null, name: string, resolveImport: ImportResolver): string | null {
+export function componentFile(resolved: string | null, name: string, resolveImport: ImportResolver): string | null {
   if (!resolved || !/[\\/]index\.[jt]sx?$/.test(resolved)) return resolved;
   const barrel = parse(resolved);
   for (const statement of barrel.statements) {

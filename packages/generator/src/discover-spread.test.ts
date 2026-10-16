@@ -108,7 +108,8 @@ describe('a spread that cannot be followed', () => {
         "import { workspaces } from './workspaces'",
         'export const routes = [',
         "  { path: '/a', element: <A /> },",
-        '  ...workspaces.flatMap((workspace) => workspace.routes),',
+        // Routes a function builds at run time: no reading of the source can say which.
+        '  ...workspaces.flatMap((workspace) => workspace.routesFor(currentUser)),',
         ']',
       ].join('\n'),
       'workspaces.tsx': 'export const workspaces = []',

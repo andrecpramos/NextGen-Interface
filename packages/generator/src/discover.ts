@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import ts from 'typescript';
 
 import { discoverNextRoutes, discoverNuxtRoutes, discoverRemixRoutes, discoverSvelteKitRoutes } from './filesystem.ts';
+import { navPlacements } from './labels.ts';
 import { findWorkspace, type Workspace } from './workspace.ts';
 
 import type { DiscoveredRoute, GeneratorConfig, RoleName } from './types.ts';
@@ -85,14 +86,42 @@ function leadingComment(source: ts.SourceFile, node: ts.Node): string | null {
 
 // ------------------------------------------------------- evaluating role sets --
 
+/**
+ * The names a role expression can see, and how to read what each stands for.
+ *
+ * A role set is read in the module that declares it: `SPORT_ROUTE_ROLES.x` in a
+ * route file of a sibling package is followed through that file's import into
+ * the module that declares the set, and evaluated there, with that module's own
+ * constants and helpers.
+ */
 interface RoleEnv {
-  readonly constants: Map<string, ts.Expression>;
-  /** Helpers proven to be `(...xs) => [...xs]`, and therefore safe to inline. */
-  readonly identityHelpers: ReadonlySet<string>;
+  /** Tells the same name apart in two modules, for the cycle check. */
+  readonly key: string;
+  /** The expression `name` stands for here, and the scope to read it in — or null. */
+  lookup(name: string): { readonly expression: ts.Expression; readonly env: RoleEnv } | null;
+  /** Is `name` a helper proven to be `(...xs) => [...xs]`, and therefore safe to inline? */
+  isIdentityHelper(name: string): boolean;
 }
 
+/** A scope made of one file's constants, and nothing it imports. */
+function constantsEnv(constants: Map<string, ts.Expression>, key = ''): RoleEnv {
+  const helpers = identityHelpers(constants);
+  const env: RoleEnv = {
+    key,
+    lookup: (name) => {
+      const expression = constants.get(name);
+      return expression ? { expression, env } : null;
+    },
+    isIdentityHelper: (name) => helpers.has(name),
+  };
+  return env;
+}
+
+/** No names at all: only literals can be read. */
+const LITERAL_ENV: RoleEnv = constantsEnv(new Map());
+
 /**
- * Is this arrow function exactly `(...xs) => [...xs]`?
+ * Is this function exactly `(...xs) => [...xs]`?
  *
  * `readRoles` in the fixture app is such a helper. Treating *any* call as
  * "its string arguments are the roles" would misread something like
@@ -100,9 +129,10 @@ interface RoleEnv {
  * mis-assignment, which is the one error this generator may not make. So the
  * helper's body is checked rather than its name.
  */
-function isIdentitySpread(expression: ts.Expression): boolean {
-  const fn = unwrap(expression);
-  if (!ts.isArrowFunction(fn)) return false;
+function isIdentitySpread(expression: ts.Expression | ts.FunctionDeclaration): boolean {
+  const fn = ts.isFunctionDeclaration(expression) ? expression : unwrap(expression);
+  if (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn) && !ts.isFunctionDeclaration(fn)) return false;
+  if (!fn.body) return false;
   const [parameter] = fn.parameters;
   if (!parameter?.dotDotDotToken || !ts.isIdentifier(parameter.name)) return false;
   const body = ts.isBlock(fn.body)
@@ -164,20 +194,28 @@ function evaluateRoles(
   }
 
   if (ts.isIdentifier(node)) {
-    if (seen.has(node.text)) return null; // a cycle proves nothing
-    const target = env.constants.get(node.text);
+    const key = `${env.key}#${node.text}`;
+    if (seen.has(key)) return null; // a cycle proves nothing
+    // `function make(roles) { return [{ …, roles }] }`: the parameter, not the module's `roles`.
+    if (isShadowed(node)) return null;
+    const target = env.lookup(node.text);
     if (!target) return null;
-    return evaluateRoles(target, env, new Set([...seen, node.text]));
+    return evaluateRoles(target.expression, target.env, new Set([...seen, key]));
   }
 
   if (ts.isPropertyAccessExpression(node)) {
     const object = evaluateObject(node.expression, env, seen);
-    const value = object?.get(node.name.text);
-    return value ? evaluateRoles(value, env, new Set([...seen, node.name.text])) : null;
+    const value = object?.properties.get(node.name.text);
+    if (!value || !object) return null;
+    // One key per property written, so a cycle through two modules' tables — `R = { a: [...S.b] }`,
+    // `S = { b: [...R.a] }` — comes back to a key already seen, and proves nothing.
+    const key = `${object.env.key}@${value.pos}`;
+    if (seen.has(key)) return null;
+    return evaluateRoles(value, object.env, new Set([...seen, key]));
   }
 
   if (ts.isCallExpression(node)) {
-    if (!ts.isIdentifier(node.expression) || !env.identityHelpers.has(node.expression.text)) return null;
+    if (!ts.isIdentifier(node.expression) || isShadowed(node.expression) || !env.isIdentityHelper(node.expression.text)) return null;
     const out: string[] = [];
     for (const argument of node.arguments) {
       const value = evaluateRoles(argument, env, seen);
@@ -194,15 +232,62 @@ function evaluateObject(
   expression: ts.Expression,
   env: RoleEnv,
   seen: ReadonlySet<string>,
-): Map<string, ts.Expression> | null {
+): { readonly properties: Map<string, ts.Expression>; readonly env: RoleEnv } | null {
   const node = unwrap(expression);
-  if (ts.isObjectLiteralExpression(node)) return objectProperties(node);
+  if (ts.isObjectLiteralExpression(node)) return { properties: objectProperties(node), env };
   if (ts.isIdentifier(node)) {
-    if (seen.has(node.text)) return null;
-    const target = env.constants.get(node.text);
-    return target ? evaluateObject(target, env, new Set([...seen, node.text])) : null;
+    const key = `${env.key}#${node.text}`;
+    if (seen.has(key) || isShadowed(node)) return null;
+    const target = env.lookup(node.text);
+    return target ? evaluateObject(target.expression, target.env, new Set([...seen, key])) : null;
   }
   return null;
+}
+
+/**
+ * Is this name declared between where it is written and its module — a parameter of a function it
+ * sits in, or a local of a block or function around it? Then it does not read the module-level name
+ * of the same spelling, which is all `lookup` can find: `const roles = [ALL]` at the top of a file
+ * says nothing about `function make(roles) { return [{ …, roles }] }`.
+ */
+function isShadowed(identifier: ts.Identifier): boolean {
+  const name = identifier.text;
+  const binds = (binding: ts.BindingName): boolean =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : binding.elements.some((element) => !ts.isOmittedExpression(element) && binds(element.name));
+  const declares = (statement: ts.Node): boolean =>
+    (ts.isVariableStatement(statement) && statement.declarationList.declarations.some((declaration) => binds(declaration.name))) ||
+    ((ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isEnumDeclaration(statement)) &&
+      statement.name?.text === name);
+  /** A `var` anywhere in a function body belongs to the whole function. */
+  const hoists = (node: ts.Node): boolean => {
+    if (ts.isFunctionLike(node) || ts.isClassLike(node)) return false;
+    if (ts.isVariableDeclarationList(node) && !(node.flags & ts.NodeFlags.BlockScoped) && node.declarations.some((d) => binds(d.name))) return true;
+    return ts.forEachChild(node, hoists) === true;
+  };
+  for (let node: ts.Node | undefined = identifier.parent; node && !ts.isSourceFile(node); node = node.parent) {
+    if (ts.isFunctionLike(node)) {
+      if (node.parameters.some((parameter) => binds(parameter.name))) return true;
+      if (ts.isFunctionExpression(node) && node.name?.text === name) return true;
+      const body = (node as ts.FunctionLikeDeclaration).body;
+      if (body && ts.forEachChild(body, hoists) === true) return true;
+    }
+    if (ts.isClassExpression(node) && node.name?.text === name) return true;
+    if (ts.isBlock(node) || ts.isModuleBlock(node) || ts.isCaseClause(node) || ts.isDefaultClause(node)) {
+      if (node.statements.some(declares)) return true;
+    }
+    if (
+      (ts.isForStatement(node) || ts.isForInStatement(node) || ts.isForOfStatement(node)) &&
+      node.initializer &&
+      ts.isVariableDeclarationList(node.initializer) &&
+      node.initializer.declarations.some((declaration) => binds(declaration.name))
+    ) {
+      return true;
+    }
+    if (ts.isCatchClause(node) && node.variableDeclaration && binds(node.variableDeclaration.name)) return true;
+  }
+  return false;
 }
 
 function objectProperties(node: ts.ObjectLiteralExpression): Map<string, ts.Expression> {
@@ -231,7 +316,7 @@ export interface RoleModel {
  * still has to mean something there: it means every visitor gets the same
  * registry, and that registry is named for the single audience it serves.
  */
-const SINGLE_AUDIENCE = 'PUBLIC';
+export const SINGLE_AUDIENCE = 'PUBLIC';
 
 export function readRoleModel(config: GeneratorConfig): RoleModel {
   const permissions = config.permissionsFile ? resolve(config.appRoot, config.permissionsFile) : null;
@@ -240,21 +325,54 @@ export function readRoleModel(config: GeneratorConfig): RoleModel {
   }
   const source = parse(permissions);
   const constants = moduleConstants(source);
-  const env: RoleEnv = { constants, identityHelpers: identityHelpers(constants) };
+  const env = constantsEnv(constants, permissions);
 
   const all = constants.get(config.allRolesExport);
   const allRoles = all ? evaluateRoles(all, env) : null;
 
   const namedSets = new Map<string, readonly RoleName[] | null>();
   const roleSets = constants.get(config.roleSetExport);
-  const properties = roleSets ? evaluateObject(roleSets, env, new Set()) : null;
-  if (properties) {
-    for (const [key, expression] of properties) {
-      namedSets.set(key, evaluateRoles(expression, env));
+  const object = roleSets ? evaluateObject(roleSets, env, new Set()) : null;
+  if (object) {
+    for (const [key, expression] of object.properties) {
+      namedSets.set(key, evaluateRoles(expression, object.env));
     }
   }
 
   return { allRoles: allRoles && allRoles.length > 0 ? allRoles : [SINGLE_AUDIENCE], namedSets };
+}
+
+/**
+ * What a page's own `hasCapability(roles, ...CAPABILITY_ROLES.trainingManage)` means (ADR-042): the role
+ * list an expression names, read the way the route table's role sets are — through the page's imports and
+ * re-exports, into the app's permissions module or a pack's own (`FOOTBALL_CAPABILITY_ROLES`) — and with
+ * the same rule: a list that cannot be evaluated with certainty is absent, never guessed.
+ */
+export interface RoleScope {
+  readonly allRoles: readonly RoleName[];
+  /**
+   * The roles `expression`, written in `file`, lists — `TEAM_SCOPE_ROLES`, `CAPABILITY_ROLES.x`, a spread
+   * of either — or null when it is not a list of this application's roles that can be read.
+   */
+  listAt(file: string, expression: ts.Expression): readonly RoleName[] | null;
+}
+
+export function readRoleScope(config: GeneratorConfig): RoleScope {
+  const { allRoles } = readRoleModel(config);
+  const known = new Set(allRoles);
+  const modules = createModules(readAliases(config.appRoot));
+  return {
+    allRoles,
+    listAt(file, expression) {
+      if (allRoles.length === 1 && allRoles[0] === SINGLE_AUDIENCE) return null;
+      const node = ts.isSpreadElement(expression) ? expression.expression : expression;
+      // A string is a role named as a literal, read by the caller; here, only a list another module holds.
+      if (ts.isStringLiteralLike(node)) return null;
+      const roles = evaluateRoles(node, modules.roleEnv(file));
+      // A list of anything but the app's roles — locales, statuses — is not who may do something.
+      return roles && roles.length > 0 && roles.every((role) => known.has(role)) ? [...new Set(roles)] : null;
+    },
+  };
 }
 
 // --------------------------------------------------------------- route tables --
@@ -273,8 +391,10 @@ function componentSources(source: ts.SourceFile, sourceFile: string, aliases: Al
     if (file) out.set(name, file);
   };
 
+  // A constant only when it loads a page and does nothing else to it: `const Users = requireAdmin(() =>
+  // import('./Users'))` names no page here (see `lazyComponentProperty`, and `collect`).
   for (const [name, expression] of moduleConstants(source)) {
-    record(name, importSpecifierOf(expression));
+    if (lazyComponentProperty(expression)) record(name, importSpecifierOf(expression));
   }
 
   for (const statement of source.statements) {
@@ -398,12 +518,20 @@ function routeObjectsIn(node: ts.Node): RouteObject[] {
 }
 
 interface RouteSpread {
-  readonly spread: ts.SpreadElement;
+  /** `...x` in an array of routes, or a route's `children` given as anything but an array written out. */
+  readonly node: ts.SpreadElement | ts.PropertyAssignment;
+  /** The routes it stands for: `x`, or the `children` value. */
+  readonly expression: ts.Expression;
   /** Inside a route's own `children`: there a parent's path and guard apply, and are not carried in. */
   readonly nested: boolean;
 }
 
-/** `...x` inside an array that holds route objects — `[{ path: '/a', … }, ...extraRoutes]`. */
+/**
+ * `...x` inside an array that holds route objects — `[{ path: '/a', … }, ...extraRoutes]` — or inside
+ * a route's `children`, which holds routes whatever else it holds: `children: [...adminRoutes]`. And a
+ * route's `children` that is not an array written out at all — `children: adminRoutes`,
+ * `children: extra.filter((r) => r.admin)` — which is nested routes in the same way.
+ */
 function routeSpreads(root: ts.Node): RouteSpread[] {
   const out: RouteSpread[] = [];
   const isRoute = (element: ts.Node): boolean => {
@@ -411,9 +539,22 @@ function routeSpreads(root: ts.Node): RouteSpread[] {
     const properties = objectProperties(element);
     return properties.has('path') || properties.has('children') || properties.has('index');
   };
+  const isChildren = (array: ts.Node): boolean => {
+    let holder = array.parent;
+    while (holder && (ts.isParenthesizedExpression(holder) || ts.isAsExpression(holder) || ts.isSatisfiesExpression(holder))) holder = holder.parent;
+    return !!holder && ts.isPropertyAssignment(holder) && keyOf(holder.name) === 'children';
+  };
+  /** `{ element: <Layout />, children: x }`: `children` beside another key a route has. */
+  const isRouteChildren = (property: ts.PropertyAssignment): boolean =>
+    keyOf(property.name) === 'children' &&
+    ts.isObjectLiteralExpression(property.parent) &&
+    [...objectProperties(property.parent).keys()].some((key) => key !== 'children' && ROUTE_KEYS.has(key));
   const visit = (node: ts.Node, nested: boolean): void => {
-    if (ts.isArrayLiteralExpression(node) && node.elements.some(isRoute)) {
-      for (const element of node.elements) if (ts.isSpreadElement(element)) out.push({ spread: element, nested });
+    if (ts.isArrayLiteralExpression(node) && (node.elements.some(isRoute) || isChildren(node))) {
+      for (const element of node.elements) if (ts.isSpreadElement(element)) out.push({ node: element, expression: element.expression, nested });
+    }
+    if (ts.isPropertyAssignment(node) && isRouteChildren(node) && !ts.isArrayLiteralExpression(unwrap(node.initializer))) {
+      out.push({ node, expression: node.initializer, nested: true });
     }
     const inChildren = ts.isPropertyAssignment(node) && node.name.getText() === 'children';
     ts.forEachChild(node, (child) => visit(child, nested || inChildren));
@@ -425,80 +566,94 @@ function routeSpreads(root: ts.Node): RouteSpread[] {
 type CollectContext = Parameters<typeof collect>[2];
 
 /**
+ * Route entries written out in a spread expression itself — `...(DEV ? [{ path: '/dev', … }] : [])`.
+ * An object inside a callback (`.map((route) => ({ ...route, path: … }))`) is a template applied to
+ * routes from elsewhere, not a route, so it does not count.
+ */
+function routesWrittenIn(expression: ts.Expression): RouteObject[] {
+  return routeObjectsIn(expression).filter((route) => {
+    for (let node = route.node.parent; node && node !== expression; node = node.parent) {
+      if (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) return false;
+    }
+    return true;
+  });
+}
+
+/**
  * A spread of routes from another module: followed, or reported — never silently dropped.
  *
  * A real app's route table ended `...workspaces`, and before this the routes it named were simply not
  * there, with nothing in `SKIPPED.md` to say so: under-discovery no skip report can mention.
- * An imported array of routes is read in the module that declares it, with *that* module's imports. A
- * computed one (`...workspaces.flatMap(…)`), one that is not an array literal, and any inside a nested
- * route — where a parent's path and guard would have to be carried in, and a guess there is a role leak
- * (Rule 17) — are reported with the expression quoted.
+ * An array of routes from another module is read in the module that declares it, with *that* module's
+ * imports — also when it is built, as a composition root builds one from installed workspaces:
+ *
+ *   ...workspaces.flatMap((workspace) => workspace.routes).filter(…).map(({ element: Page, ...route }) => …)
+ *
+ * (`followArray` says which steps are followed). A spread that cannot be followed, and any inside a
+ * nested route — where a parent's path and guard would have to be carried in, and a guess there is a role
+ * leak (Rule 17) — is reported with the expression quoted.
  */
 function followSpreads(root: ts.Node, source: ts.SourceFile, sourceFile: string, context: CollectContext, seen: Set<string>): void {
-  const local = moduleConstants(source);
-  const imported = new Map<string, { file: string; name: string }>();
-  for (const statement of source.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
-    const file = resolveSpecifierFile(statement.moduleSpecifier.text, sourceFile, context.aliases);
-    const clause = statement.importClause;
-    if (!file || !clause) continue;
-    if (clause.name) imported.set(clause.name.text, { file, name: 'default' });
-    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-      for (const element of clause.namedBindings.elements) imported.set(element.name.text, { file, name: (element.propertyName ?? element.name).text });
-    }
+  const module = context.modules.scope(sourceFile);
+  const spreads = routeSpreads(root);
+  // What is spread under a nested route is recorded before anything is followed: a `.filter` over the
+  // same routes elsewhere is what keeps them apart, and it cannot be read (see `followArray`).
+  if (module) {
+    for (const { expression, nested } of spreads) if (nested) guard(expression, module, context.modules, context.guarded);
   }
-
-  for (const { spread, nested } of routeSpreads(root)) {
+  for (const { node: spread, expression: spreadExpression, nested } of spreads) {
     const quoted = spread.getText(source).replace(/\s+/g, ' ').slice(0, 90);
+    const given = ts.isSpreadElement(spread) ? 'routes spread into the route table' : 'a nested route\'s children, not written out';
     const report = (why: string): void => {
-      context.unreadable.push({ path: quoted, detail: `routes spread into the route table (${why}) — none of them are declared` });
+      context.unreadable.push({ path: quoted, detail: `${given} (${why}) — none of them are declared` });
     };
-    const expression = unwrap(spread.expression);
-    if (!ts.isIdentifier(expression)) {
-      // `...(import.meta.env.DEV ? [{ path: '/dev', … }] : [])`: the routes are written out right here and
-      // the whole file is already read for them. Only an expression with none in it is opaque.
-      if (routeObjectsIn(expression).length === 0) report('a computed expression cannot be read');
-      continue;
-    }
+    const expression = unwrap(spreadExpression);
+    // `...(import.meta.env.DEV ? [{ path: '/dev', … }] : [])`: the routes are written out right here and
+    // the whole file is already read for them.
+    if (!ts.isIdentifier(expression) && routesWrittenIn(expression).length > 0) continue;
     if (nested) {
       report('inside a nested route, whose path and guard would apply');
       continue;
     }
-    const own = local.get(expression.text);
-    if (own) {
-      // Declared in this file: the whole file is read for route objects already.
-      if (!ts.isArrayLiteralExpression(unwrap(own))) report(`${expression.text} is not an array of routes written out`);
+    const followed = module ? followArray(expression, module, context.modules, seen, context.guarded) : { problem: 'its file cannot be read' };
+    if ('problem' in followed) {
+      report(followed.problem);
       continue;
     }
-    const target = imported.get(expression.text);
-    if (!target) {
-      report(`${expression.text} is not imported from a file the scanner can read`);
+    collectFollowed(followed.entries, { ...context, devOnly: context.devOnly === true || isDevGuarded(spread) }, seen);
+  }
+}
+
+/** Followed route entries, each read in the module that declares it — its imports, its role sets. */
+function collectFollowed(entries: readonly Located[], context: CollectContext, seen: Set<string>): void {
+  const contexts = new Map<string, CollectContext>();
+  const contextFor = (module: ModuleScope): CollectContext => {
+    let found = contexts.get(module.file);
+    if (!found) {
+      found = {
+        ...context,
+        source: module.source,
+        sourceFile: module.file,
+        components: componentSources(module.source, module.file, context.aliases),
+        scope: stringScope(module.source, module.file, context.aliases),
+      };
+      contexts.set(module.file, found);
+    }
+    return found;
+  };
+  for (const entry of entries) {
+    const object = objectAt(entry, context.modules, new Set());
+    if (!object) {
+      context.unreadable.push({
+        path: entry.node.getText(entry.module.source).replace(/\s+/g, ' ').slice(0, 90),
+        detail: 'an entry spread into the route table is not a route written out — it is not declared',
+      });
       continue;
     }
-    const key = `${target.file}#${target.name}`;
-    if (seen.has(key)) continue; // already followed: a cycle proves nothing
-    seen.add(key);
-    let child: ts.SourceFile | null = null;
-    try {
-      child = parse(target.file);
-    } catch {
-      child = null;
-    }
-    const declared = child ? moduleConstants(child).get(target.name) : undefined;
-    const array = declared ? unwrap(declared) : undefined;
-    if (!child || !array || !ts.isArrayLiteralExpression(array)) {
-      report(`${expression.text} is not an array of routes written out`);
-      continue;
-    }
-    const childContext: CollectContext = {
-      ...context,
-      source: child,
-      sourceFile: target.file,
-      components: componentSources(child, target.file, context.aliases),
-      scope: stringScope(child, target.file, context.aliases),
-    };
-    collect(routeObjectsIn(array), '', childContext);
-    followSpreads(array, child, target.file, childContext, seen);
+    const properties = objectProperties(object.node);
+    const own = contextFor(object.module);
+    collect([{ node: object.node, properties, children: properties.get('children') ?? null }], '', own);
+    followSpreads(object.node, object.module.source, object.module.file, own, seen);
   }
 }
 
@@ -524,7 +679,7 @@ function rolesFromRouteTable(source: ts.SourceFile, declared: RoleModel): RoleMo
       const value = node.initializer;
       const expression = value && ts.isJsxExpression(value) ? value.expression : undefined;
       const roles = expression
-        ? evaluateRoles(expression, { constants: new Map(), identityHelpers: new Set() })
+        ? evaluateRoles(expression, LITERAL_ENV)
         : null;
       for (const role of roles ?? []) found.add(role);
     }
@@ -562,6 +717,22 @@ function readAliases(appRoot: string): Aliases {
   const workspace = findWorkspace(appRoot, resolveComponentFile);
   if (workspace) WORKSPACES.set(aliases, workspace);
   return aliases;
+}
+
+/**
+ * The project an app root sits in: the nearest folder at or above it with a package.json, a few levels
+ * up at most. Never `node_modules` — specifiers resolve only through relative paths, the app's aliases
+ * and the workspace's own packages — so widening the root to it reads only the adopter's code.
+ */
+function projectRoot(appRoot: string): string | null {
+  let dir = resolve(appRoot);
+  for (let depth = 0; depth < 5; depth++) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
 }
 
 /** The workspace an alias set belongs to (see `readAliases`). */
@@ -634,6 +805,618 @@ function resolveSpecifierFile(specifier: string | null | undefined, fromFile: st
   return WORKSPACES.get(aliases)?.resolve(specifier) ?? null;
 }
 
+// ------------------------------------------------------------- module scopes --
+
+/** What one source file declares, imports and re-exports, by name. */
+interface ModuleScope {
+  readonly file: string;
+  readonly source: ts.SourceFile;
+  readonly constants: Map<string, ts.Expression>;
+  readonly functions: Map<string, ts.FunctionDeclaration>;
+  /** Local name -> the file it is imported from and the name it has there (`default` for a default import). */
+  readonly imports: Map<string, { readonly file: string; readonly name: string }>;
+  /** `export { a as b }` and `export { a as b } from './x'`: exported name -> where it is declared. */
+  readonly exports: Map<string, { readonly file: string; readonly name: string }>;
+  /** `export * from './x'`. */
+  readonly stars: readonly string[];
+  readonly defaultExport: ts.Expression | ts.FunctionDeclaration | null;
+}
+
+/** A name, followed to its declaration: the value and the module it is written in. */
+interface Binding {
+  readonly value: ts.Expression | ts.FunctionDeclaration;
+  readonly module: ModuleScope;
+}
+
+interface Modules {
+  /** The file, read once; null when it cannot be read. */
+  scope(file: string): ModuleScope | null;
+  /** What `name` stands for inside `module`: its own declaration, or an import followed through re-exports. */
+  lookup(module: ModuleScope, name: string): Binding | null;
+  /** What `file` exports as `name` (`default` for its default export), followed to its declaration. */
+  exported(file: string, name: string): Binding | null;
+  /** The role scope of a file: its constants, and the role sets and helpers it imports. */
+  roleEnv(file: string): RoleEnv;
+}
+
+function readScope(file: string, source: ts.SourceFile, aliases: Aliases): ModuleScope {
+  const functions = new Map<string, ts.FunctionDeclaration>();
+  const imports = new Map<string, { file: string; name: string }>();
+  const exports = new Map<string, { file: string; name: string }>();
+  const stars: string[] = [];
+  let defaultExport: ts.Expression | ts.FunctionDeclaration | null = null;
+  for (const statement of source.statements) {
+    if (ts.isFunctionDeclaration(statement)) {
+      if (statement.name) functions.set(statement.name.text, statement);
+      const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) ?? [] : [];
+      if (modifiers.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) defaultExport = statement;
+    } else if (ts.isImportDeclaration(statement) && ts.isStringLiteralLike(statement.moduleSpecifier)) {
+      const from = resolveSpecifierFile(statement.moduleSpecifier.text, file, aliases);
+      const clause = statement.importClause;
+      if (!from || !clause) continue;
+      if (clause.name) imports.set(clause.name.text, { file: from, name: 'default' });
+      if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+        for (const element of clause.namedBindings.elements) {
+          imports.set(element.name.text, { file: from, name: (element.propertyName ?? element.name).text });
+        }
+      }
+    } else if (ts.isExportDeclaration(statement)) {
+      const specifier = statement.moduleSpecifier && ts.isStringLiteralLike(statement.moduleSpecifier) ? statement.moduleSpecifier.text : null;
+      const from = specifier === null ? file : resolveSpecifierFile(specifier, file, aliases);
+      if (!from) continue;
+      const clause = statement.exportClause;
+      if (!clause) {
+        if (specifier !== null) stars.push(from);
+      } else if (ts.isNamedExports(clause)) {
+        for (const element of clause.elements) {
+          exports.set(element.name.text, { file: from, name: (element.propertyName ?? element.name).text });
+        }
+      }
+    } else if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
+      defaultExport = statement.expression;
+    }
+  }
+  return { file, source, constants: moduleConstants(source), functions, imports, exports, stars, defaultExport };
+}
+
+/** `read`: files already parsed, kept so that a node read from one is the same node read from the other. */
+function createModules(aliases: Aliases, read: ReadonlyMap<string, ts.SourceFile> = new Map()): Modules {
+  const scopes = new Map<string, ModuleScope | null>([...read].map(([file, source]) => [file, readScope(file, source, aliases)]));
+  const envs = new Map<string, RoleEnv>();
+
+  const scope = (file: string): ModuleScope | null => {
+    if (scopes.has(file)) return scopes.get(file)!;
+    let read: ModuleScope | null = null;
+    try {
+      read = readScope(file, parse(file), aliases);
+    } catch {
+      read = null;
+    }
+    scopes.set(file, read);
+    return read;
+  };
+
+  const local = (module: ModuleScope, name: string, seen: Set<string>): Binding | null => {
+    const constant = module.constants.get(name);
+    if (constant) return { value: constant, module };
+    const fn = module.functions.get(name);
+    if (fn) return { value: fn, module };
+    const imported = module.imports.get(name);
+    return imported ? exported(imported.file, imported.name, seen) : null;
+  };
+
+  const exported = (file: string, name: string, seen: Set<string>): Binding | null => {
+    const key = `${file}#${name}`;
+    if (seen.has(key)) return null; // a cycle proves nothing
+    seen.add(key);
+    const module = scope(file);
+    if (!module) return null;
+    if (name === 'default') {
+      const value = module.defaultExport;
+      if (!value) return null;
+      return !ts.isFunctionDeclaration(value) && ts.isIdentifier(unwrap(value))
+        ? local(module, (unwrap(value) as ts.Identifier).text, seen)
+        : { value, module };
+    }
+    const forwarded = module.exports.get(name);
+    if (forwarded) {
+      return forwarded.file === file ? local(module, forwarded.name, seen) : exported(forwarded.file, forwarded.name, seen);
+    }
+    const constant = module.constants.get(name);
+    if (constant) return { value: constant, module };
+    const fn = module.functions.get(name);
+    if (fn) return { value: fn, module };
+    for (const star of module.stars) {
+      const found = exported(star, name, seen);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const modules: Modules = {
+    scope,
+    lookup: (module, name) => local(module, name, new Set()),
+    exported: (file, name) => exported(file, name, new Set()),
+    roleEnv(file) {
+      const cached = envs.get(file);
+      if (cached) return cached;
+      const module = scope(file);
+      if (!module) return LITERAL_ENV;
+      const env: RoleEnv = {
+        key: file,
+        lookup: (name) => {
+          const binding = modules.lookup(module, name);
+          return binding && !ts.isFunctionDeclaration(binding.value)
+            ? { expression: binding.value, env: modules.roleEnv(binding.module.file) }
+            : null;
+        },
+        isIdentityHelper: (name) => {
+          const binding = modules.lookup(module, name);
+          return binding !== null && isIdentitySpread(binding.value);
+        },
+      };
+      envs.set(file, env);
+      return env;
+    },
+  };
+  return modules;
+}
+
+// ---------------------------------------------------- composed route tables --
+
+/** An expression in the module it is written in. */
+interface Located {
+  readonly node: ts.Expression;
+  readonly module: ModuleScope;
+}
+
+type Followed = { readonly entries: readonly Located[] } | { readonly problem: string };
+
+/** `({ ... }) => <expr>` or `function (...) { return <expr> }`: the one expression it returns, or null. */
+function returnedExpression(fn: ts.SignatureDeclaration): ts.Expression | null {
+  const body = (fn as ts.FunctionLikeDeclaration).body;
+  if (!body) return null;
+  if (!ts.isBlock(body)) return unwrap(body);
+  const [only] = body.statements;
+  return body.statements.length === 1 && only && ts.isReturnStatement(only) && only.expression ? unwrap(only.expression) : null;
+}
+
+/** A property key written as a name or a string. */
+function keyOf(name: ts.PropertyName | ts.BindingName | undefined): string | null {
+  if (!name) return null;
+  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : null;
+}
+
+/** Properties of an object literal, `{ routes }` shorthand included (its value is the name itself). */
+function propertiesWithShorthand(node: ts.ObjectLiteralExpression): Map<string, ts.Expression> {
+  const out = objectProperties(node);
+  for (const property of node.properties) {
+    if (ts.isShorthandPropertyAssignment(property)) out.set(property.name.text, property.name);
+  }
+  return out;
+}
+
+/**
+ * `(w) => w.routes`, `(w) => w['routes']` or `({ routes }) => routes`: the one property the
+ * callback reads from its argument, or null when it does anything else.
+ */
+function projectedProperty(callback: ts.Expression | undefined): string | null {
+  const fn = callback ? unwrap(callback) : undefined;
+  if (!fn || (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) || fn.parameters.length !== 1) return null;
+  const parameter = fn.parameters[0]!.name;
+  const body = returnedExpression(fn);
+  if (!body) return null;
+  if (ts.isIdentifier(parameter)) {
+    if (ts.isPropertyAccessExpression(body) && ts.isIdentifier(body.expression) && body.expression.text === parameter.text) {
+      return body.name.text;
+    }
+    if (
+      ts.isElementAccessExpression(body) &&
+      ts.isIdentifier(body.expression) &&
+      body.expression.text === parameter.text &&
+      ts.isStringLiteralLike(body.argumentExpression)
+    ) {
+      return body.argumentExpression.text;
+    }
+    return null;
+  }
+  if (ts.isObjectBindingPattern(parameter) && parameter.elements.length === 1) {
+    const [element] = parameter.elements;
+    if (!element || element.dotDotDotToken || element.initializer || !ts.isIdentifier(element.name)) return null;
+    return ts.isIdentifier(body) && body.text === element.name.text ? keyOf(element.propertyName ?? element.name) : null;
+  }
+  return null;
+}
+
+/**
+ * The keys this file reads from a route entry. A `.map` over routes may rewrite any other key — a
+ * licence tag, a nav placement — but one that changed one of these would make the route read here
+ * a different route from the one the application registers.
+ */
+const ROUTE_KEYS = new Set([
+  'path', 'index', 'children', 'element', 'Component', 'component', 'lazy', 'loadComponent', 'loadChildren',
+  'roles', 'redirect', 'redirectTo', 'data', 'meta',
+]);
+const COMPONENT_KEYS = new Set(['element', 'Component', 'component']);
+
+/**
+ * Why a `.map` callback over route entries cannot be looked through, or null when it can.
+ *
+ * It can when every route keeps its path, its page and its guard:
+ *
+ *   .map(({ element: Page, module, ...route }) => ({ ...route, element: <Page />, module }))
+ *
+ * carries the rest of each route through, and puts the page it took out back as an element.
+ * A callback that drops `roles` — `({ roles, ...route }) => route` — would turn a guarded route
+ * into an open one, so it is refused, as is one that writes any route key of its own.
+ */
+function reshapesRoutes(callback: ts.Expression | undefined): string | null {
+  const fn = callback ? unwrap(callback) : undefined;
+  if (!fn || (!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn))) return 'its callback is not written out';
+  if (fn.parameters.length !== 1) return 'its callback does not take one route at a time';
+  const parameter = fn.parameters[0]!.name;
+  const body = returnedExpression(fn);
+  if (!body || !ts.isObjectLiteralExpression(body)) return 'its callback does not return a route written out';
+
+  const taken = new Map<string, string>(); // route key -> the local name it was destructured into
+  let rest: string | null = null;
+  let whole: string | null = null;
+  if (ts.isIdentifier(parameter)) {
+    rest = parameter.text;
+    whole = parameter.text;
+  } else if (ts.isObjectBindingPattern(parameter)) {
+    for (const element of parameter.elements) {
+      if (!ts.isIdentifier(element.name)) return 'its callback destructures a route in a way that cannot be read';
+      if (element.dotDotDotToken) {
+        rest = element.name.text;
+        continue;
+      }
+      const key = keyOf(element.propertyName ?? element.name);
+      if (key === null) return 'its callback destructures a computed key';
+      if (element.initializer && ROUTE_KEYS.has(key)) return `its callback gives each route's ${key} a default`;
+      taken.set(key, element.name.text);
+    }
+  } else {
+    return 'its callback destructures a route in a way that cannot be read';
+  }
+  if (rest === null) return 'its callback does not carry the rest of each route through';
+
+  let carried = false;
+  const written = new Map<string, ts.Expression>();
+  for (const property of body.properties) {
+    if (ts.isSpreadAssignment(property)) {
+      const spread = unwrap(property.expression);
+      if (ts.isIdentifier(spread) && spread.text === rest) {
+        carried = true;
+        continue;
+      }
+      return 'its callback spreads something other than the route into it';
+    }
+    if (ts.isShorthandPropertyAssignment(property)) {
+      written.set(property.name.text, property.name);
+      continue;
+    }
+    const key = ts.isPropertyAssignment(property) ? keyOf(property.name) : null;
+    if (key === null) return 'its callback writes a key that cannot be read';
+    written.set(key, (property as ts.PropertyAssignment).initializer);
+  }
+  if (!carried) return 'its callback does not carry the rest of each route through';
+
+  const components = new Set([...taken].filter(([key]) => COMPONENT_KEYS.has(key)).map(([, name]) => name));
+  const passesThrough = (key: string, value: ts.Expression): boolean => {
+    const node = unwrap(value);
+    if (ts.isIdentifier(node)) return taken.get(key) === node.text;
+    if (ts.isPropertyAccessExpression(node)) {
+      return whole !== null && ts.isIdentifier(node.expression) && node.expression.text === whole && node.name.text === key;
+    }
+    // `element: <Page />`, where `Page` is the route's own element, taken out above.
+    if (COMPONENT_KEYS.has(key) && ts.isJsxSelfClosingElement(node) && node.attributes.properties.length === 0) {
+      return ts.isIdentifier(node.tagName) && components.has(node.tagName.text);
+    }
+    return false;
+  };
+  for (const [key, value] of written) {
+    if (ROUTE_KEYS.has(key) && !passesThrough(key, value)) return `its callback rewrites each route's ${key}`;
+  }
+  for (const key of taken.keys()) {
+    if (ROUTE_KEYS.has(key) && !written.has(key)) return `its callback drops each route's ${key}`;
+  }
+  return null;
+}
+
+/** An entry followed to the object literal it stands for, when it is one. */
+function objectAt(entry: Located, modules: Modules, seen: Set<string>): { readonly node: ts.ObjectLiteralExpression; readonly module: ModuleScope } | null {
+  const node = unwrap(entry.node);
+  if (ts.isObjectLiteralExpression(node)) return { node, module: entry.module };
+  if (!ts.isIdentifier(node)) return null;
+  const key = `${entry.module.file}#${node.text}`;
+  if (seen.has(key)) return null;
+  seen.add(key);
+  const binding = modules.lookup(entry.module, node.text);
+  return binding && !ts.isFunctionDeclaration(binding.value) ? objectAt({ node: binding.value, module: binding.module }, modules, seen) : null;
+}
+
+/**
+ * The entries of an array of routes that is built rather than written out (see `followSpreads`).
+ *
+ * Followed: an array literal, spreads in it, a name (through imports and re-exports, to the module
+ * that declares it), and the array methods a composition root uses — `.flatMap((w) => w.routes)` over
+ * workspace objects, `.map((w) => w.routes)` then `.flat()`, a `.map` that keeps every route's path,
+ * page and guard, and `.filter`. A filter only removes entries; it never changes a route's path or
+ * guard, so looking through it can offer a screen the filter set aside for another table (a fullscreen
+ * route, say), never a screen to a role its guard refuses — unless the routes it sets aside are spread
+ * under a nested route, whose guard is then what the filter keeps them behind:
+ *
+ *   [{ element: <ProtectedRoute allowedRoles={['ADMIN']} />, children: [...extra.filter((r) => r.admin)] },
+ *    ...extra.filter((r) => !r.admin)]
+ *
+ * So a filter over routes that are also spread under a nested route (`guarded`) is a problem. Anything
+ * else is a problem, quoted.
+ */
+function followArray(
+  expression: ts.Expression,
+  module: ModuleScope,
+  modules: Modules,
+  seen: Set<string>,
+  guarded: Guarded | null = null,
+): Followed {
+  const node = unwrap(expression);
+
+  if (ts.isArrayLiteralExpression(node)) {
+    const entries: Located[] = [];
+    for (const element of node.elements) {
+      if (ts.isOmittedExpression(element)) continue;
+      if (!ts.isSpreadElement(element)) {
+        entries.push({ node: element, module });
+        continue;
+      }
+      const inner = followArray(element.expression, module, modules, seen, guarded);
+      if ('problem' in inner) {
+        // `...(import.meta.env.DEV ? [{ path: '/dev', … }] : [])`: the routes are written out right there.
+        const written = routesWrittenIn(element.expression);
+        if (written.length === 0) return inner;
+        entries.push(...written.map((route) => ({ node: route.node as ts.Expression, module })));
+        continue;
+      }
+      entries.push(...inner.entries);
+    }
+    return { entries };
+  }
+
+  if (ts.isIdentifier(node)) {
+    const key = `${module.file}#${node.text}`;
+    if (seen.has(key)) return { entries: [] }; // already followed: a cycle proves nothing
+    seen.add(key);
+    if (isShadowed(node)) return { problem: `${node.text} is a local name the scanner does not follow` };
+    const binding = modules.lookup(module, node.text);
+    if (!binding || ts.isFunctionDeclaration(binding.value)) {
+      return { problem: `${node.text} is not declared in, or imported from, a file the scanner can read` };
+    }
+    return followArray(binding.value, binding.module, modules, seen, guarded);
+  }
+
+  if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+    const method = node.expression.name.text;
+    if (!['flatMap', 'map', 'filter', 'flat'].includes(method)) return { problem: `.${method}(…) is not a step the scanner can follow` };
+    const base = followArray(node.expression.expression, module, modules, seen, guarded);
+    if ('problem' in base) return base;
+    if (method === 'filter') {
+      return guarded && isGuarded(node.expression.expression, base.entries, module, modules, guarded)
+        ? { problem: '.filter(…) over routes also spread under a nested route, whose guard the filter may be all that keeps them behind' }
+        : base;
+    }
+
+    const flatten = (entries: readonly Located[]): Followed => {
+      const out: Located[] = [];
+      for (const entry of entries) {
+        const inner = followArray(entry.node, entry.module, modules, seen, guarded);
+        if ('problem' in inner) return inner;
+        out.push(...inner.entries);
+      }
+      return { entries: out };
+    };
+    if (method === 'flat') {
+      const [depth] = node.arguments;
+      if (depth && !(ts.isNumericLiteral(depth) && depth.text === '1')) return { problem: '.flat() deeper than one level' };
+      return flatten(base.entries);
+    }
+
+    const [callback] = node.arguments;
+    const property = projectedProperty(callback);
+    if (property !== null) {
+      // `.flatMap((w) => w.routes)`, or `.map((w) => w.routes)` for a later `.flat()`: each entry's own
+      // array, read in the module that declares the entry.
+      const projected: Located[] = [];
+      for (const entry of base.entries) {
+        const object = objectAt(entry, modules, new Set());
+        const value = object ? propertiesWithShorthand(object.node).get(property) : undefined;
+        if (!object || !value) return { problem: `an entry has no ${property} the scanner can read` };
+        projected.push({ node: value, module: object.module });
+      }
+      return method === 'flatMap' ? flatten(projected) : { entries: projected };
+    }
+    if (method === 'flatMap') return { problem: 'its .flatMap callback does more than read one property of each entry' };
+    const reshaped = reshapesRoutes(callback);
+    return reshaped === null ? base : { problem: `.map(…) — ${reshaped}` };
+  }
+
+  return { problem: 'a computed expression cannot be read' };
+}
+
+/** Route arrays spread under a nested route: the route entries they hold, and the declarations they are read from. */
+interface Guarded {
+  readonly entries: Set<ts.Node>;
+  readonly sources: Set<string>;
+}
+
+/** The route object an entry stands for, or the entry itself when it is not one the scanner can find. */
+function entryNode(entry: Located, modules: Modules): ts.Node {
+  return objectAt(entry, modules, new Set())?.node ?? entry.node;
+}
+
+/**
+ * The declarations a route array is read from — every name followed, through imports, spreads,
+ * conditionals and the array methods called on it — keyed by where each is declared. Also for an array
+ * the scanner cannot follow to its entries: `[...extra.filter(a).sort(by)]` is still read from `extra`.
+ */
+function routeSources(expression: ts.Expression, module: ModuleScope, modules: Modules, out = new Set<string>()): Set<string> {
+  const node = unwrap(expression);
+  if (ts.isArrayLiteralExpression(node)) {
+    for (const element of node.elements) {
+      if (ts.isSpreadElement(element)) routeSources(element.expression, module, modules, out);
+    }
+  } else if (ts.isIdentifier(node)) {
+    if (isShadowed(node)) return out;
+    const binding = modules.lookup(module, node.text);
+    if (!binding || ts.isFunctionDeclaration(binding.value)) return out;
+    const key = `${binding.module.file}@${binding.value.pos}`;
+    if (out.has(key)) return out;
+    out.add(key);
+    routeSources(binding.value, binding.module, modules, out);
+  } else if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+    routeSources(node.expression.expression, module, modules, out);
+  } else if (ts.isConditionalExpression(node)) {
+    routeSources(node.whenTrue, module, modules, out);
+    routeSources(node.whenFalse, module, modules, out);
+  }
+  return out;
+}
+
+/** Record a route array spread under a nested route (see `followArray`). */
+function guard(expression: ts.Expression, module: ModuleScope, modules: Modules, guarded: Guarded): void {
+  routeSources(expression, module, modules, guarded.sources);
+  const followed = followArray(expression, module, modules, new Set());
+  if ('entries' in followed) for (const entry of followed.entries) guarded.entries.add(entryNode(entry, modules));
+}
+
+/** Are any of the routes a `.filter` chooses among also spread under a nested route? */
+function isGuarded(base: ts.Expression, entries: readonly Located[], module: ModuleScope, modules: Modules, guarded: Guarded): boolean {
+  if (guarded.entries.size === 0 && guarded.sources.size === 0) return false;
+  if (entries.some((entry) => guarded.entries.has(entryNode(entry, modules)))) return true;
+  for (const source of routeSources(base, module, modules)) if (guarded.sources.has(source)) return true;
+  return false;
+}
+
+/**
+ * The page a route takes from a helper spread into it — `...page(() => import('./Users'))` — and
+ * whether the spread leaves its guard in doubt.
+ *
+ * The helper is read where it is declared (`function page(load) { return { element: lazy(load), … } }`).
+ * Only a lazy import the helper puts into the route's element is taken as its page: an import it uses
+ * for anything else (data, a loader) is not a screen. A helper that cannot be read, that has a member
+ * that cannot be read, that writes the route's guard from anything but its own argument, or that writes
+ * any other route key of its own (an element that is not that lazy page, a path, children) could be
+ * granting or narrowing roles — so its route's roles are in doubt, unless the route names them after it.
+ */
+function spreadHelper(
+  expression: ts.Expression,
+  file: string,
+  modules: Modules,
+): { readonly properties: Map<string, ts.Expression>; readonly rolesInDoubt: boolean } | null {
+  const call = unwrap(expression);
+  if (!ts.isCallExpression(call) || !ts.isIdentifier(call.expression) || isShadowed(call.expression)) return null;
+  const module = modules.scope(file);
+  const binding = module ? modules.lookup(module, call.expression.text) : null;
+  if (!binding) return null;
+  const fn = ts.isFunctionDeclaration(binding.value) ? binding.value : unwrap(binding.value);
+  if (!ts.isFunctionDeclaration(fn) && !ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) return null;
+  const parameters = fn.parameters.map((p) => (ts.isIdentifier(p.name) && !p.dotDotDotToken ? p.name.text : null));
+  const returned = returnedExpression(fn);
+  if (!returned || !ts.isObjectLiteralExpression(returned)) return null;
+
+  /** The argument a parameter named here was given at the call. */
+  const argumentFor = (value: ts.Expression): ts.Expression | undefined => {
+    const node = unwrap(value);
+    const index = ts.isIdentifier(node) ? parameters.indexOf(node.text) : -1;
+    return index >= 0 ? call.arguments[index] : undefined;
+  };
+
+  const properties = new Map<string, ts.Expression>();
+  let rolesInDoubt = false;
+  for (const property of returned.properties) {
+    // A spread, a method, a getter (`get roles() { … }`) or a computed key (`[K]: …`) could write
+    // any route key, `roles` and `element` included.
+    if (!ts.isPropertyAssignment(property) && !ts.isShorthandPropertyAssignment(property)) {
+      rolesInDoubt = true;
+      continue;
+    }
+    const key = keyOf(property.name);
+    if (key === null) {
+      rolesInDoubt = true;
+      continue;
+    }
+    const value = ts.isPropertyAssignment(property) ? property.initializer : property.name;
+    if (COMPONENT_KEYS.has(key)) {
+      // `element: lazy(load)` or `element: load`, where `load` is the helper's own parameter. An element
+      // of the helper's own — `element: requireAdmin(load)`, `element: <Guard />` — may be a guard.
+      const node = unwrap(value);
+      const fed = ts.isCallExpression(node) && isLazyWrapper(node.expression) && node.arguments.length === 1
+        ? argumentFor(node.arguments[0]!)
+        : argumentFor(node);
+      const loader = fed ? lazyComponentProperty(fed) : undefined;
+      if (loader) properties.set('lazy', loader);
+      else rolesInDoubt = true;
+    } else if (key === 'roles' || key === 'data' || key === 'meta') {
+      const passed = argumentFor(value);
+      if (passed) properties.set(key, passed);
+      else rolesInDoubt = true;
+    } else if (ROUTE_KEYS.has(key)) {
+      // A path, children, loader or redirect of the helper's own: not the route read here.
+      rolesInDoubt = true;
+    }
+  }
+  return { properties, rolesInDoubt };
+}
+
+/**
+ * The keys of a route entry as the application reads them: what is written, plus what a helper
+ * spread into it contributes (see `spreadHelper`), in source order — a later key wins, as in
+ * JavaScript. `rolesInDoubt` when something that may carry a guard — a spread not read, a computed
+ * key, a getter — comes after the last `roles`. `guardInDoubt` when there is any such thing at all:
+ * a `roles` written after it settles the route's own roles, but not the element it may have put
+ * around the routes beneath it.
+ */
+function entryProperties(
+  node: ts.ObjectLiteralExpression,
+  file: string,
+  modules: Modules,
+): { readonly properties: Map<string, ts.Expression>; readonly rolesInDoubt: boolean; readonly guardInDoubt: boolean } {
+  const properties = new Map<string, ts.Expression>();
+  let rolesInDoubt = false;
+  let guardInDoubt = false;
+  const doubt = (): void => {
+    rolesInDoubt = true;
+    guardInDoubt = true;
+  };
+  for (const property of node.properties) {
+    if (ts.isPropertyAssignment(property)) {
+      const key = keyOf(property.name);
+      if (key === null) {
+        doubt(); // `[K]: ['ADMIN']` could be `roles`, or `element`
+        continue;
+      }
+      properties.set(key, property.initializer);
+      if (key === 'roles') rolesInDoubt = false;
+    } else if (ts.isShorthandPropertyAssignment(property)) {
+      if (property.name.text !== 'roles') continue;
+      properties.set('roles', property.name);
+      rolesInDoubt = false;
+    } else if (ts.isSpreadAssignment(property)) {
+      const helper = spreadHelper(property.expression, file, modules);
+      if (!helper) {
+        doubt();
+        continue;
+      }
+      for (const [key, value] of helper.properties) properties.set(key, value);
+      if (helper.rolesInDoubt) doubt();
+      else if (helper.properties.has('roles')) rolesInDoubt = false;
+    } else {
+      doubt(); // a method or an accessor: `get roles() { … }`
+    }
+  }
+  return { properties, rolesInDoubt, guardInDoubt };
+}
+
 /**
  * `element: <Navigate to="/x" />` written straight into a route table: where it sends the
  * user — the literal target, or a template's known prefix — or null for a real page.
@@ -665,9 +1448,12 @@ function elementRedirect(expression: ts.Expression | undefined): string | null {
  */
 export function importResolver(appRoot: string): (specifier: string, fromFile: string) => string | null {
   const aliases = readAliases(appRoot);
-  // The application, and the packages of the workspace it sits in: the generator reads the adopter's
-  // code and nothing else.
-  const roots = [resolve(appRoot), ...(WORKSPACES.get(aliases)?.roots ?? [])];
+  // The application, the project it sits in, and the packages of the workspace around it: the
+  // generator reads the adopter's code and nothing else. The project matters for a framework whose
+  // routes are a folder of the app — Next.js reads `src/app`, and imports `@/components/…` from beside
+  // it; with only `appRoot` here, every component of a Next.js app was refused (2026-10-16).
+  const project = projectRoot(appRoot);
+  const roots = [resolve(appRoot), ...(project ? [project] : []), ...(WORKSPACES.get(aliases)?.roots ?? [])];
   return (specifier, fromFile) => {
     const file = resolveSpecifierFile(specifier, fromFile, aliases);
     return file && roots.some((root) => resolve(file).startsWith(root)) ? file : null;
@@ -739,18 +1525,130 @@ function evaluateString(expression: ts.Expression, scope: StringScope): string |
   return ts.isStringLiteralLike(leaf) ? leaf.text : null;
 }
 
-/** `routes/app/users.tsx` -> `Users`; an `index` file takes its folder's name. */
+/** What the module that writes `identifier` imports it as — `{ from: 'react', name: 'lazy' }` — or null. */
+function importOf(identifier: ts.Identifier): { readonly from: string; readonly name: string } | null {
+  if (isShadowed(identifier)) return null;
+  for (const statement of identifier.getSourceFile().statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteralLike(statement.moduleSpecifier)) continue;
+    const clause = statement.importClause;
+    if (!clause || clause.isTypeOnly) continue;
+    const from = statement.moduleSpecifier.text;
+    if (clause.name?.text === identifier.text) return { from, name: 'default' };
+    const bindings = clause.namedBindings;
+    if (bindings && ts.isNamespaceImport(bindings) && bindings.name.text === identifier.text) return { from, name: '*' };
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        if (!element.isTypeOnly && element.name.text === identifier.text) return { from, name: (element.propertyName ?? element.name).text };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * React's `lazy` (imported from `react`, or `React.lazy` through its default or namespace import) and
+ * Vue's `defineAsyncComponent` (imported from `vue`): the calls that only make a loader a page. Any
+ * other wrapper — `requireAdmin(() => import('./X'))`, `withRole('ADMIN')(…)`, a `lazy` of the app's
+ * own — may be a guard, and a guard read as the page it wraps would offer that page to every role.
+ */
+function isLazyWrapper(callee: ts.Expression): boolean {
+  const node = unwrap(callee);
+  if (ts.isIdentifier(node)) {
+    const imported = importOf(node);
+    return (imported?.from === 'react' && imported.name === 'lazy') || (imported?.from === 'vue' && imported.name === 'defineAsyncComponent');
+  }
+  if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.name.text === 'lazy') {
+    const imported = importOf(node.expression);
+    return imported?.from === 'react' && (imported.name === 'default' || imported.name === '*');
+  }
+  return false;
+}
+
+/** `import('./X')`, with the specifier written out. */
+function isImportCall(node: ts.Node): node is ts.CallExpression {
+  return ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && !!node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]);
+}
+
+/**
+ * A `.then` callback that only picks the page out of the module: `(m) => m.X`, `(m) => ({ default: m.X })`,
+ * `({ X }) => ({ default: X })` or `({ X: Y }) => ({ default: Y })` (`Component` in place of `default`,
+ * as React Router's `lazy` writes it). Anything else — `(m) => ({ default: requireAdmin(m.default) })` —
+ * does something to the page, and may guard it.
+ */
+function picksExport(callback: ts.Expression): boolean {
+  const fn = unwrap(callback);
+  if ((!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) || fn.parameters.length !== 1) return false;
+  const parameter = fn.parameters[0]!;
+  if (parameter.dotDotDotToken || parameter.initializer) return false;
+  let body = returnedExpression(fn);
+  if (body && ts.isObjectLiteralExpression(body)) {
+    const [only] = body.properties;
+    if (body.properties.length !== 1 || !only || !ts.isPropertyAssignment(only) || !['default', 'Component'].includes(keyOf(only.name) ?? '')) return false;
+    body = unwrap(only.initializer);
+  }
+  if (!body) return false;
+  const name = parameter.name;
+  if (ts.isIdentifier(name)) {
+    return ts.isPropertyAccessExpression(body) && ts.isIdentifier(body.expression) && body.expression.text === name.text;
+  }
+  if (!ts.isObjectBindingPattern(name) || name.elements.length !== 1) return false;
+  const [element] = name.elements;
+  return !!element && !element.dotDotDotToken && !element.initializer && ts.isIdentifier(element.name) && ts.isIdentifier(body) && body.text === element.name.text;
+}
+
+/**
+ * `() => import('./X')`, or `() => import('./X').then(…)` whose callback only picks the page out
+ * (`picksExport`): a loader that does nothing to the page it loads. `() => import('./X').then((m) =>
+ * ({ default: requireAdmin(m.default) }))` or `() => withGuard(import('./X'))` is not one — its page is
+ * left unread, as a guard that cannot be read leaves a route.
+ */
+function isPlainLoader(loader: ts.Expression): boolean {
+  const fn = unwrap(loader);
+  if ((!ts.isArrowFunction(fn) && !ts.isFunctionExpression(fn)) || fn.parameters.length > 0) return false;
+  const body = returnedExpression(fn);
+  if (!body) return false;
+  if (isImportCall(body)) return true;
+  return (
+    ts.isCallExpression(body) &&
+    ts.isPropertyAccessExpression(body.expression) &&
+    body.expression.name.text === 'then' &&
+    isImportCall(unwrap(body.expression.expression)) &&
+    body.arguments.length === 1 &&
+    picksExport(body.arguments[0]!)
+  );
+}
+
 /**
  * `component: () => import("@/views/Home")` (Vue Router) and `loadComponent: () => import(...)`
- * (Angular) are the lazy page, spelled differently. A `component` that is a plain identifier is
- * the eager page, and is read like `element`.
+ * (Angular) are the lazy page, spelled differently, and so is `lazy(() => import("./Page"))` (see
+ * `isLazyWrapper`) written into `component`, `Component` or `element` — each only when its loader is
+ * plain (`isPlainLoader`). A `component` that is a plain identifier is the eager page, and is read like
+ * `element`.
  */
 function lazyComponentProperty(expression: ts.Expression | undefined): ts.Expression | undefined {
   if (!expression) return undefined;
   const node = unwrap(expression);
-  return (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && importSpecifierOf(node) !== null ? node : undefined;
+  if ((ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && isPlainLoader(node)) return node;
+  if (ts.isCallExpression(node) && isLazyWrapper(node.expression) && node.arguments.length === 1) {
+    const [loader] = node.arguments;
+    const inner = loader ? unwrap(loader) : undefined;
+    if (inner && isPlainLoader(inner)) return inner;
+  }
+  return undefined;
 }
 
+/**
+ * Is `name`, where the route is written, bound to a call that loads a page and is not a lazy page itself —
+ * `requireAdmin(() => import('./X'))`, or `lazy` around a loader that wraps what it loads?
+ */
+function wrapsLoadedPage(name: string, context: CollectContext): boolean {
+  const module = context.modules.scope(context.sourceFile);
+  const binding = module ? context.modules.lookup(module, name) : null;
+  if (!binding || ts.isFunctionDeclaration(binding.value)) return false;
+  return ts.isCallExpression(unwrap(binding.value)) && importSpecifierOf(binding.value) !== null && !lazyComponentProperty(binding.value);
+}
+
+/** `routes/app/users.tsx` -> `Users`; an `index` file takes its folder's name. */
 function lazyComponentName(file: string): string {
   const parts = file.split(/[\\/]/);
   let base = (parts.pop() ?? '').replace(/\.(?:[jt]sx?|vue|svelte)$/, '').replace(/\.component$/, '');
@@ -759,6 +1657,91 @@ function lazyComponentName(file: string): string {
     .split(/[-_]/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join('');
+}
+
+/**
+ * `import('./wrappers').then(({ UsersRoute }) => ({ default: UsersRoute }))`, or
+ * `.then((m) => ({ default: m.UsersRoute }))`: the named export a lazy loader makes the page, or null.
+ */
+function lazyNamedExport(loader: ts.Expression): string | null {
+  let found: string | null = null;
+  const visit = (node: ts.Node): void => {
+    if (found !== null) return;
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'then' &&
+      ts.isCallExpression(node.expression.expression) &&
+      node.expression.expression.expression.kind === ts.SyntaxKind.ImportKeyword
+    ) {
+      const callback = node.arguments[0] ? unwrap(node.arguments[0]) : undefined;
+      if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) && callback.parameters.length === 1) {
+        const body = returnedExpression(callback);
+        const value = body && ts.isObjectLiteralExpression(body) ? objectProperties(body).get('default') : undefined;
+        const parameter = callback.parameters[0]!.name;
+        const named = value ? unwrap(value) : undefined;
+        if (named && ts.isIdentifier(parameter) && ts.isPropertyAccessExpression(named)) {
+          if (ts.isIdentifier(named.expression) && named.expression.text === parameter.text) found = named.name.text;
+        } else if (named && ts.isObjectBindingPattern(parameter) && ts.isIdentifier(named)) {
+          for (const element of parameter.elements) {
+            if (!element.dotDotDotToken && ts.isIdentifier(element.name) && element.name.text === named.text) {
+              found = keyOf(element.propertyName ?? element.name);
+            }
+          }
+        }
+      }
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(loader);
+  return found;
+}
+
+/**
+ * The page a module's named export stands for.
+ *
+ * A thin wrapper — `export function ChildMedicalRoute() { return <ChildRedirect suffix="medical" /> }`,
+ * a route-shaped adapter around one component — is the component it renders: read in that component's
+ * own file, as it was when the route table wrote `<ChildRedirect suffix="medical" />` itself. Any other
+ * export is read where it is declared: on its own when that file declares no other component, and by
+ * name when it shares the file with others.
+ */
+function namedExportPage(
+  file: string,
+  name: string,
+  modules: Modules,
+): { readonly component: string; readonly file: string | null; readonly declaredIn?: string } {
+  const binding = modules.exported(file, name);
+  if (!binding) return { component: name, file };
+  const fn = ts.isFunctionDeclaration(binding.value) ? binding.value : unwrap(binding.value);
+  const rendered = ts.isFunctionDeclaration(fn) || ts.isArrowFunction(fn) || ts.isFunctionExpression(fn) ? returnedExpression(fn) : null;
+  const tag = rendered && ts.isJsxSelfClosingElement(rendered)
+    ? rendered.tagName
+    : rendered && ts.isJsxElement(rendered) && rendered.children.every((child) => ts.isJsxText(child) && child.containsOnlyTriviaWhiteSpaces)
+      ? rendered.openingElement.tagName
+      : null;
+  const imported = tag && ts.isIdentifier(tag) ? binding.module.imports.get(tag.text) : undefined;
+  if (imported && tag && ts.isIdentifier(tag)) {
+    const target = imported.name === 'default' ? imported.file : (modules.exported(imported.file, imported.name)?.module.file ?? imported.file);
+    return { component: tag.text, file: target };
+  }
+  const components = [
+    ...binding.module.functions.keys(),
+    ...[...binding.module.constants].filter(([, value]) => {
+      const node = unwrap(value);
+      return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+    }).map(([key]) => key),
+  ].filter((key) => /^[A-Z]/.test(key));
+  const value = binding.value;
+  const declared = ts.isFunctionDeclaration(value)
+    ? (value.name?.text ?? name)
+    : ts.isVariableDeclaration(value.parent) && ts.isIdentifier(value.parent.name)
+      ? value.parent.name.text
+      : name;
+  return components.length > 1
+    ? { component: declared, file: null, declaredIn: binding.module.file }
+    : { component: declared, file: binding.module.file };
 }
 
 /** Nested routes, skipping the element that owns them. */
@@ -822,7 +1805,7 @@ function elementComponent(expression: ts.Expression | undefined): string | null 
  */
 const ROLE_PROPS = ['allowedRoles', 'roles', 'requiredRoles', 'anyOfRoles'] as const;
 
-function guardRoles(properties: Map<string, ts.Expression>): readonly RoleName[] | null | undefined {
+function guardRoles(properties: Map<string, ts.Expression>, env: RoleEnv): readonly RoleName[] | null | undefined {
   // Angular `data: { roles: [...] }` and Vue Router `meta: { roles: [...] }`. A `canActivate`
   // or `beforeEnter` guard is code: authentication is not a role, and a computed check is not read.
   for (const holder of ['data', 'meta']) {
@@ -831,7 +1814,7 @@ function guardRoles(properties: Map<string, ts.Expression>): readonly RoleName[]
     if (!object || !ts.isObjectLiteralExpression(object)) continue;
     const roles = objectProperties(object).get('roles');
     if (!roles) continue;
-    const evaluated = evaluateRoles(roles, { constants: new Map(), identityHelpers: new Set() });
+    const evaluated = evaluateRoles(roles, env);
     return evaluated && evaluated.length > 0 ? evaluated : null;
   }
   const element = properties.get('element') ?? properties.get('Component');
@@ -850,7 +1833,7 @@ function guardRoles(properties: Map<string, ts.Expression>): readonly RoleName[]
   for (const name of ROLE_PROPS) {
     const expression = attributes.get(name);
     if (!expression) continue;
-    const evaluated = evaluateRoles(expression, { constants: new Map(), identityHelpers: new Set() });
+    const evaluated = evaluateRoles(expression, env);
     return evaluated && evaluated.length > 0 ? evaluated : null;
   }
   return undefined;
@@ -867,6 +1850,32 @@ function narrow(
   return parent.filter((role) => child.includes(role));
 }
 
+/** `ROLES.x`, or `[...ROLES.x]`: the role-set access a route's `roles` is written as, or null. */
+function roleSetAccess(expression: ts.Expression): (ts.PropertyAccessExpression & { name: ts.Identifier }) | null {
+  let node = unwrap(expression);
+  if (ts.isArrayLiteralExpression(node) && node.elements.length === 1 && ts.isSpreadElement(node.elements[0]!)) {
+    node = unwrap(node.elements[0].expression);
+  }
+  return ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.name)
+    ? (node as ts.PropertyAccessExpression & { name: ts.Identifier })
+    : null;
+}
+
+/**
+ * Does `object` name the configured role table — the `roleSetExport` of the configured permissions
+ * file, followed there through imports and re-exports, under whatever name? A name that cannot be
+ * followed (an import from a module the scanner cannot read), a table of the route's own module, or
+ * another module's table of the same name is not that table, whatever it is called.
+ */
+function isConfiguredRoleSet(object: ts.Expression, context: CollectContext): boolean {
+  const node = unwrap(object);
+  if (!ts.isIdentifier(node) || isShadowed(node) || !context.permissionsFile) return false;
+  const module = context.modules.scope(context.sourceFile);
+  const binding = module ? context.modules.lookup(module, node.text) : null;
+  if (!binding || resolve(binding.module.file) !== resolve(context.permissionsFile)) return false;
+  return binding.module.constants.get(context.roleSetExport) === binding.value;
+}
+
 function collect(
   entries: readonly RouteObject[],
   parentPath: string,
@@ -875,14 +1884,32 @@ function collect(
     sourceFile: string;
     components: Map<string, string>;
     roles: RoleModel;
+    /** The configured name of the role table, e.g. `ROUTE_ROLES`. */
+    roleSetExport: string;
+    /** The configured permissions file, which declares that table; null when there is none. */
+    permissionsFile: string | null;
+    /** Route arrays also spread under a nested route (see `followSpreads`). */
+    guarded: Guarded;
     aliases: Aliases;
     scope: StringScope;
+    modules: Modules;
+    /** Route entries already read, so one reached twice — written out, and followed — is read once. */
+    collected: Set<ts.Node>;
+    /** Every route here is registered only in a development build: the spread that brought them in is. */
+    devOnly?: boolean;
     unreadable: UnreadableRoute[];
     out: DiscoveredRoute[];
   },
   inherited?: readonly RoleName[] | null,
 ): void {
-  for (const { node, properties, children } of entries) {
+  for (const entry of entries) {
+    const { node, children } = entry;
+    if (context.collected.has(node)) continue;
+    context.collected.add(node);
+    const { properties, rolesInDoubt, guardInDoubt } = ts.isObjectLiteralExpression(node)
+      ? entryProperties(node, context.sourceFile, context.modules)
+      : { properties: entry.properties, rolesInDoubt: false, guardInDoubt: false };
+    const env = context.modules.roleEnv(context.sourceFile);
     const pathExpression = properties.get('path');
     const segment = pathExpression ? evaluateString(pathExpression, context.scope) : '';
     if (segment === null) {
@@ -901,7 +1928,30 @@ function collect(
     // What this route's own element imposes, narrowed by whatever it inherited.
     // A guard route usually has no path and no children of its own beyond the
     // ones it protects, so this is computed before the destination checks below.
-    const here = narrow(inherited, guardRoles(properties));
+    // Something spread into the entry that could not be read may have put a guard
+    // there: then no route beneath it is offered on a guess (`{ ...adminLayout(), children }`).
+    // The route itself is settled by a `roles` written after it (`rolesInDoubt`, below).
+    const guard = narrow(inherited, guardRoles(properties, env));
+
+    // The route's own `roles`, read where it is written: `ROLES.x` and `[...ROLES.x]` follow `ROLES`
+    // through this file's import to the module that declares it, whichever module that is.
+    const rolesExpression = properties.get('roles');
+    const accessed = rolesExpression ? roleSetAccess(rolesExpression) : null;
+    let written: readonly RoleName[] | null | undefined;
+    if (rolesExpression) {
+      written = evaluateRoles(rolesExpression, env);
+      if (written === null && accessed && isConfiguredRoleSet(accessed.expression, context)) {
+        // The configured role table, by key, as the permissions file declares it. Only for that
+        // table: a pack's own `SPORT_ROLES.x`, or its own `ROUTE_ROLES.x`, is never answered with the
+        // core table's `x`.
+        const named = context.roles.namedSets.get(accessed.name.text);
+        if (named !== undefined) written = named;
+      }
+    }
+    // What reaches the routes beneath: every guard above and on this route, its own `roles` included —
+    // where a route's roles gate its element, they gate the outlet its children render in. A `roles`
+    // that cannot be read leaves them unresolved, like any guard that cannot be read.
+    const here = guardInDoubt ? null : narrow(guard, written);
 
     if (children) {
       collect(childRoutesOf(children, node), path, context, here);
@@ -933,11 +1983,40 @@ function collect(
     // A catch-all is the app's own 404, not a place anyone asks to go.
     if (segment === '*' || segment.includes('*')) continue;
 
+    // `redirect: true`: the route table itself says this entry only sends the user on. Its element
+    // works out where at run time, so there is no screen here to offer — reported, like any skip.
+    const redirect = properties.get('redirect');
+    if (redirect && unwrap(redirect).kind === ts.SyntaxKind.TrueKeyword) {
+      if (pathExpression || properties.has('index')) {
+        context.unreadable.push({
+          path,
+          reason: 'declared-redirect',
+          detail: 'the route table marks it `redirect: true` — it only sends the user on, and is not a screen of its own',
+        });
+      }
+      continue;
+    }
+
     // `lazy: () => import('./routes/users')` — the data-router spelling a
     // code-split app uses for every page. Its module is the page.
-    const lazyExpression = properties.get('lazy') ?? properties.get('loadComponent') ?? lazyComponentProperty(properties.get('component'));
-    const hasElement =
-      properties.has('element') || properties.has('Component') || (properties.has('component') && !lazyComponentProperty(properties.get('component')));
+    // A route a helper spread into it gave its page (`...page(() => import('./X'))`) arrives here
+    // as `lazy`, too (see `spreadHelper`).
+    // `lazy: () => import('./routes/users')` and `loadComponent` only when the loader does nothing to
+    // the page it loads (`isPlainLoader`): one that does may be guarding it, and is reported.
+    const declaredLoader = properties.get('lazy') ?? properties.get('loadComponent');
+    if (declaredLoader && !isPlainLoader(declaredLoader)) {
+      context.unreadable.push({
+        path,
+        detail: `its lazy loader does more than import the page, so the page is not read: ${declaredLoader.getText(context.source).replace(/\s+/g, ' ').slice(0, 120)}`,
+      });
+      continue;
+    }
+    const lazyExpression =
+      declaredLoader ??
+      lazyComponentProperty(properties.get('component')) ??
+      lazyComponentProperty(properties.get('Component')) ??
+      lazyComponentProperty(properties.get('element'));
+    const hasElement = [...COMPONENT_KEYS].some((key) => properties.has(key) && !lazyComponentProperty(properties.get(key)));
 
     // A redirect entry (`redirect`, Vue Router; `redirectTo`, Angular) declares no page of its own.
     if (!hasElement && !lazyExpression && (properties.has('redirect') || properties.has('redirectTo'))) continue;
@@ -953,22 +2032,36 @@ function collect(
 
     let component: string | null;
     let componentFile: string | null;
+    let declaredIn: string | undefined;
     if (hasElement) {
       component = elementComponent(properties.get('element') ?? properties.get('Component') ?? properties.get('component'));
+      // `const Users = requireAdmin(() => import('./Users'))`: a page loaded and wrapped in something —
+      // which may be a guard — is not read as the page (as `lazyComponentProperty` does not read it inline).
+      if (component && wrapsLoadedPage(component, context)) component = null;
       componentFile = component ? (context.components.get(component) ?? null) : null;
     } else {
-      componentFile = resolveSpecifierFile(importSpecifierOf(lazyExpression!), context.sourceFile, context.aliases);
-      if (!componentFile) {
+      const loaded = resolveSpecifierFile(importSpecifierOf(lazyExpression!), context.sourceFile, context.aliases);
+      if (!loaded) {
         context.unreadable.push({ path, detail: `lazy import could not be resolved: ${lazyExpression!.getText(context.source).slice(0, 120)}` });
         continue;
       }
-      component = lazyComponentName(componentFile);
+      // `.then(({ UsersRoute }) => ({ default: UsersRoute }))`: one export of the module is the page, not the module.
+      const named = lazyNamedExport(lazyExpression!);
+      const page = named !== null ? namedExportPage(loaded, named, context.modules) : null;
+      componentFile = page ? page.file : loaded;
+      component = page ? page.component : lazyComponentName(loaded);
+      declaredIn = page?.declaredIn;
     }
+    const placements = navPlacements(properties.get('nav'));
 
-    const rolesExpression = properties.get('roles');
     let roles: readonly RoleName[] | null;
     let roleKey: string | null = null;
-    if (!rolesExpression) {
+    if (rolesInDoubt || guard === null) {
+      // Something spread into the entry after its last `roles` could set them, or a guard above it (or
+      // something that may have put one there) cannot be read: its own `roles` cannot widen what that
+      // guard allows, and what it allows is not known. Not guessed.
+      roles = null;
+    } else if (!rolesExpression) {
       // A third shape, found on an app we do not own: the guard is a
       // PARENT route whose element carries the roles, and the guarded routes are
       // its children.
@@ -980,15 +2073,11 @@ function collect(
       // one registry, every user, no skip reported. Rule 17 is a security
       // property and that was a leak, so an inherited guard is read here, and an
       // inherited guard that cannot be read is `null` like any other.
-      roles = here === undefined ? context.roles.allRoles : here;
+      roles = guard === undefined ? context.roles.allRoles : guard;
     } else {
-      const accessed = unwrap(rolesExpression);
-      roleKey = ts.isPropertyAccessExpression(accessed) ? accessed.name.text : null;
-      const named = roleKey !== null ? context.roles.namedSets.get(roleKey) : undefined;
-      roles = named !== undefined ? named : evaluateRoles(rolesExpression, {
-        constants: new Map(),
-        identityHelpers: new Set(),
-      });
+      // Its own `roles`, and no more than every guard above it allows.
+      roleKey = accessed?.name.text ?? null;
+      roles = narrow(guard, written) ?? null;
     }
 
     const redirectTo = hasElement ? elementRedirect(properties.get('element')) : null;
@@ -998,9 +2087,11 @@ function collect(
       componentFile,
       feature: featureOf(componentFile),
       ...(hasElement && component && !componentFile ? { routedIn: context.sourceFile } : {}),
+      ...(declaredIn ? { routedIn: declaredIn } : {}),
       roles: roles && roles.length > 0 ? [...new Set(roles)] : roles === null ? null : [],
       roleKey,
-      devOnly: isDevGuarded(node),
+      ...(placements ? { navPlacements: placements } : {}),
+      devOnly: context.devOnly === true || isDevGuarded(node),
       comment: leadingComment(context.source, node),
       ...(redirectTo !== null ? { redirectTo } : {}),
     });
@@ -1102,23 +2193,39 @@ function discoverByRouter(config: GeneratorConfig): {
   const source = parse(routesFile);
   const roles = rolesFromRouteTable(source, readRoleModel(config));
   const aliases = readAliases(config.appRoot);
-  const out: DiscoveredRoute[] = [];
-  const unreadable: UnreadableRoute[] = [];
+  const modules = createModules(aliases, new Map([[routesFile, source]]));
 
-  const context: CollectContext = {
-    source,
-    sourceFile: routesFile,
-    components: componentSources(source, routesFile, aliases),
-    roles,
-    aliases,
-    scope: stringScope(source, routesFile, aliases),
-    unreadable,
-    out,
+  const read = (guarded: Guarded): { out: DiscoveredRoute[]; unreadable: UnreadableRoute[] } => {
+    const out: DiscoveredRoute[] = [];
+    const unreadable: UnreadableRoute[] = [];
+    const context: CollectContext = {
+      source,
+      sourceFile: routesFile,
+      components: componentSources(source, routesFile, aliases),
+      roles,
+      roleSetExport: config.roleSetExport,
+      permissionsFile: config.permissionsFile ? resolve(config.appRoot, config.permissionsFile) : null,
+      guarded,
+      aliases,
+      scope: stringScope(source, routesFile, aliases),
+      modules,
+      collected: new Set(),
+      unreadable,
+      out,
+    };
+    collect(routeObjectsIn(source), '', context);
+    followSpreads(source, source, routesFile, context, new Set());
+    return { out, unreadable };
   };
-  collect(routeObjectsIn(source), '', context);
-  followSpreads(source, source, routesFile, context, new Set());
+  // A route array spread under a nested route may be found only in a module followed after a `.filter`
+  // over the same routes was looked through. Read again, knowing every one, before any filter is trusted.
+  const guarded: Guarded = { entries: new Set(), sources: new Set() };
+  let found = read(guarded);
+  if (guarded.entries.size > 0 || guarded.sources.size > 0) {
+    found = read({ entries: new Set(guarded.entries), sources: new Set(guarded.sources) });
+  }
 
-  return { routes: out, roles, unreadable };
+  return { routes: found.out, roles, unreadable: found.unreadable };
 }
 
 /** Resolve a component import to a file on disk, trying the usual extensions. */

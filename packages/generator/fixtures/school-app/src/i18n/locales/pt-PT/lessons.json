@@ -1,3 +1,4 @@
 {
-  "overview": { "title": "Resumo das aulas" }
+  "overview": { "title": "Resumo das aulas" },
+  "actions": { "newSupportClass": "Nova aula de apoio", "cancelSupportClass": "Cancelar aula de apoio" }
 }

@@ -320,14 +320,45 @@ const derivedWords = (language: string | undefined) =>
  * nothing worth showing. No filler sentence: a translation with nothing to say says nothing (ADR-030).
  */
 export function showsSentence(language: string | undefined, title: string, copy: readonly string[]): string | null {
-  const shown = copy
+  const candidates = copy
     // "No announcements." is the page saying it is empty. Filtered here, where it is only shown, and not
     // in `worthShowing`, whose examples are embedded (a change there moves calibrated scores, Rule 14).
     .filter((text) => text.trim().toLowerCase() !== title.trim().toLowerCase() && worthShowing(text) && !/^no \S+( \S+)?[.!]?$/i.test(text.trim()))
-    .slice(0, 4)
-    .map((text) => clip(text));
-  // What the page says may already end a sentence ("Monthly plans from thirty euros."): one full stop, not two.
+    .filter(fitToShow);
+  // ADR-042: a sentence the page writes about itself first — a subtitle under its heading — is the answer
+  // to "what is this", served whole rather than as the first item of a list of labels. Only the first: a
+  // sentence further down describes one section, and the sections' names say more (a one-page site).
+  const [first] = candidates;
+  if (first && isSentence(first)) return clip(first, 200).replace(/[.!…]*$/, '.');
+  // Each item loses a full stop of its own: "Dados do atleta., Disponível" read as broken.
+  const shown = candidates.slice(0, 4).map((text) => clip(text).replace(/[.!?]+$/, ''));
   return shown.length > 0 ? `${derivedWords(language).shows} ${shown.join(', ').replace(/[.!?…]+$/, '')}.` : null;
+}
+
+/** A sentence the page wrote: four words or more, ending as a sentence does, short enough to be a subtitle. */
+function isSentence(text: string): boolean {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  return flat.length <= 200 && flat.split(' ').length >= 4 && /[.!]$/.test(flat) && !/\.\.\.$|…$/.test(flat);
+}
+
+/**
+ * What the page renders that a visitor should not be read as "what this screen shows" (ADR-042, from a
+ * real app): a field's placeholder ("Pesquisar táticas..."), a state ("Jogo não encontrado.", "Clip ainda
+ * não está pronto", "A processar reconstrução"), a form's "(opcional)" or a "(cópia)", a column with a unit
+ * ("X (m)", "VAM (m/s)"), a number or range ("≥ 80%", "60–79"), and a code too short to read ("Pos").
+ * Display only, like the empty-state filter above.
+ */
+function fitToShow(text: string): boolean {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (/(\.\.\.|…)$/.test(flat)) return false;
+  if (/não encontrad|not found|ainda não|not (yet )?ready|não está disponível|not available|unavailable|foi cancelad|was cancel|a processar|a preparar|processing|preparing/i.test(flat)) return false;
+  if (/\((opcional|optional|cópia|copy)\)/i.test(flat) || /^\(.*\)$/.test(flat)) return false;
+  if (/\([^)]*\b(m|s|m\/s|km|km\/h|kg|cm|min|h|%|bpm)\)/i.test(flat)) return false;
+  const letters = (flat.match(/\p{L}/gu) ?? []).length;
+  if (letters < 4 || letters < flat.replace(/\s/g, '').length / 2) return false;
+  // A fragment an expression interrupted — "Match &" {type}, "Treinos de" {team} — ends mid-phrase.
+  if (/[&+–—:,-]$|\s(and|or|of|the|for|with|to|e|ou|de|da|do|das|dos|para|com|a|o)$/i.test(flat)) return false;
+  return true;
 }
 
 /** How a user asks to see something, per language: the verb before a page's own label in a derived example. */

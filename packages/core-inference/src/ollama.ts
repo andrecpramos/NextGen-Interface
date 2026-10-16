@@ -76,7 +76,16 @@ export class OllamaLlmRuntime implements LlmRuntime {
           format: request.schema,
           // Ollama accepts `think` on every model, reasoning or not, so it is sent only when asked.
           ...(request.think !== undefined ? { think: request.think } : {}),
-          options:{ temperature: 0, num_predict: request.maxTokens ?? 200 },
+          options: {
+            temperature: 0,
+            num_predict: request.maxTokens ?? 200,
+            // Never less than the request says it needs: past `num_ctx`, Ollama drops the front of the
+            // prompt without a word (`CompletionRequest.contextTokens`). Rounded up to a whole 1024 so
+            // turns of similar size share one loaded context instead of reloading the model.
+            ...(request.contextTokens !== undefined
+              ? { num_ctx: Math.max(2048, Math.ceil((request.contextTokens + (request.maxTokens ?? 200)) / 1024) * 1024) }
+              : {}),
+          },
           messages: [
             { role: 'system', content: request.system },
             {

@@ -184,6 +184,17 @@ export interface Capability {
    * start what it opens; any other control it only points at. Never embedded: it changes no score.
    */
   readonly opens?: readonly string[];
+  /**
+   * The names of controls on this screen that **do** something — "Cancelar sessão", "Publish plan",
+   * "Export PDF" — in any of the app's languages (ADR-042). Read from the page's source and the app's own
+   * components it renders; a control under a condition about who may use it is left out, never guessed.
+   *
+   * What the screen lets a visitor do, not only what it shows: a request to do one of these is a request
+   * the application handles, so it is matched (part of `capabilityDocument`), listed in stage 3's catalogue,
+   * and named when the visitor is told where to do it. The widget never presses one (Rule 20): it only
+   * points at it.
+   */
+  readonly actions?: readonly string[];
 }
 
 /** What a visitor reads about a capability, in one language (ADR-030). Any field absent falls back. */

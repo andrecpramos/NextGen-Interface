@@ -33,13 +33,18 @@ on the full app: **56 screens across 10 roles**, roles found automatically, the 
 reaching only its own `/my/*` screens.
 
 Things to check on a monorepo: `explanationSource` paths now begin `../../packages/…`; and translations
-that live in a package rather than the app are read only if `localesDir` points at them. A route table
+that live in a package rather than the app are read only if `localesDir` lists their folder (it takes a list, one
+folder per package, merged key by key with the first listed winning). A route table
 that ends `...adminRoutes` is followed into the module that declares the array (with that module's own
-imports) when the array is written out; a *computed* spread — such as `...workspaces.flatMap(…)`,
-which assembles routes from installed plugins — cannot be read statically, and is now **listed in
-`SKIPPED.md` with the expression quoted**. Before, it vanished without a word. Screens
-contributed by plugin workspaces are exactly what that line stands for: this scan does not have them,
-and `doctor` should not be read as covering them. **Always copy the whole
+imports). So is a *computed* spread built from arrays the source writes out — such as
+`...workspaces.flatMap((w) => w.routes).filter(…).map(…)`, which assembles routes from installed
+workspaces: each workspace's routes are read in their own module, a page given by a helper spread
+(`...page(() => import('./X'))`) is that import, a role set from a pack's own table (`PACK_ROLES.x`) is
+read through its import, and an entry marked `redirect: true` is skipped as no screen. A spread that
+calls code to make its routes, a `.map` that changes a route's path or guard, or a `.filter` over routes
+that are also spread under a guarded parent (the filter may be all that keeps a guarded screen out of
+the open table) still cannot be read statically and is **listed in `SKIPPED.md` with the expression quoted** — before, it vanished without a
+word — and `doctor` should not be read as covering those screens. **Always copy the whole
 repository when rehearsing** — copying only the app folder makes every sibling package vanish and
 reproduces the 0-screen failure for a reason that is your setup, not the scanner.
 
@@ -67,6 +72,8 @@ drops its route and reports it**, because a guard nobody can parse is not an abs
 |---|---|
 | A permissions module the route table resolves against | yes |
 | On a parent route's element, inherited by children (`allowedRoles`, `roles`, `requiredRoles`, `anyOfRoles`) | yes |
+| On a parent route's own `roles`, which its children never exceed | yes |
+| On a JSX route's spread props — `<Route {...guard}>` | **no** (known limitation) |
 | **Inside the page component** — `<Authorization allowedRoles={[ROLES.ADMIN]}>` wrapping the body | **no** |
 
 The third shape is invisible to route discovery. The route table is not lying; it simply says
@@ -97,6 +104,32 @@ wrong and much quieter.
 A role named anywhere on a route now joins the application's audience. When you review the
 output, check both directions: no screen reaching a role that should not see it, **and** every
 role having a registry with screens in it.
+
+### Controls only some roles may use
+
+What a screen lets a visitor do — "Cancelar aula", "Publicar", "Aprovar inscrição" — is read from its
+controls, in the page and the app's own components it renders (ADR-042). On a real app almost every
+control that changes data is behind a condition: `{canWrite && <Button>…}`, with `canWrite =
+hasCapability(roles, ...CAPABILITY_ROLES.communicationManage)`. Those conditions are read against the
+permissions module (and a pack's own), and a control goes only into the registries of the roles they let
+through — a parent is never told to press "Aprovar".
+
+A condition about who that the scan **cannot** read drops the control: a flag from a hook (`const {
+canDelete } = usePermissions()`), a `<Can>` whose rule is not a role list. **Read `review/CONTROLS.md`**:
+every screen's controls with the roles in brackets, and at the end every control left out. Check both
+directions, as for screens — a control listed for a role that does not have it, and one missing that the
+role uses every day. The first is a Rule 17 defect; the second is a request the assistant will not place.
+
+Two things the list will show, both deliberate. A control only the item's author may use ("Delete
+Article" under `article.author.username === user.username`) is left out: a registry has no way to say
+"its author only". And in Vue, Svelte and Angular no role is evaluated at all — the templates are read as
+text — so there every control under a condition about who is left out. Rehearsed on three implementations
+of the same app (Svelte, Vue, Angular), all three came out the same.
+
+A word that merely starts like a permission flag is not one. Until 2026-10-16 the scan read `can…`
+case-insensitively, so `status === 'CANCELLED'` looked like `canX` and dropped every control behind it — on
+one real app, attendance and "Reopen" for every role. If `CONTROLS.md` leaves out controls whose
+condition is about an item's state, that is a defect to report, not a setting.
 
 ### Never serve the review output
 
@@ -213,6 +246,14 @@ of 141 screens were in that position.
 
 If the descriptions come back vague, the fix is usually in the app (give the page a doc
 comment) or in the title, not in the prompt.
+
+**A Next.js app's components were never read** until 2026-10-16. Its routes are `src/app`, its
+components `src/components`, imported as `@/components/…`, and the scan accepted only files inside the
+routes folder — so a page that delegates to a component (most of them: a login page is a shell around
+`<LoginForm />`) was described from its own few words, and none of its buttons were read. Rehearsed on
+a real next-intl app, screens with something to do went from 0 to 4 of 12. The scan now reads the
+whole project the routes folder sits in (up to its `package.json`), and still nothing outside it. If an
+app's descriptions look thin and its pages import from a sibling folder, this is the first thing to check.
 
 **What the visitor is shown under a screen's name** is the first sentence of its explanation, and
 with no model that sentence used to be a template in English with a route in it ("Entrar is a
@@ -355,6 +396,34 @@ real ones beat two hundred invented ones.
 
 ---
 
+## 5b · An app that moves on, and a model that reads half the question
+
+Two failures found when the tool had lived in a real app for a few weeks. Both were silent.
+
+### The config the app has outgrown
+
+One real app moved its pages into new packages. `nextgen.config.json` still listed the old locale
+folders — which still existed, emptied of everything the pages used — so the build said *"6 locale folders
+merged"* and every title, heading and control of the moved pages resolved to nothing: screens named after
+their components, controls not read, 53% of the keys the pages use (1,264 of 2,387) found nowhere.
+
+The build now warns when a fifth or more of the keys the pages use resolve in no folder listed, and names
+their namespaces. **After the app is restructured, rebuild and read the warnings** — and if one names a
+namespace, find the folder that holds it and put it in `localesDir`.
+
+### The model must be given room for the whole question
+
+Stage 3 shows the model every screen of the visitor's role (ADR-043): several thousand tokens on a real app.
+**Ollama's default context is 2,048 tokens, and past it Ollama cuts the front of the prompt without a
+word** — the instructions and half the screens go, and the model still answers, from what is left.
+Measured on a real app: right screens fell from 88% to 37%, and "what's the weather on Saturday" was sent to
+an unrelated screen. The request carries `contextTokens`; the proxy must give the model at least that
+(Ollama `options.num_ctx`) and accept a body of at least 128 KB. If answers look random after turning
+stage 3 on, check this first: Ollama's response reports `prompt_eval_count`, and a value stuck at 2,048 or
+4,096 is a cut prompt.
+
+---
+
 ## 6 · What to tell the developer to expect
 
 Set this expectation before they see it, not after.
@@ -370,7 +439,12 @@ Set this expectation before they see it, not after.
   triggered. The claim was withdrawn rather than restated. **The product is a better way to
   navigate; a cheaper one is not claimed.**
 - **It performs no actions.** It moves between screens and shows links. It does not save, send
-  or delete anything.
+  or delete anything. Asked to, it says where that is done and with which control — "That's done in
+  Lessons. Use “Cancel lesson” there." — never that the app cannot (ADR-042).
+- **With a model, it understands requests that name no screen** ("o Tiago vai faltar amanhã"), because
+  the model sees the whole role's app (ADR-043). On a real app that took right screens from 67% to 87% of
+  indirect questions and wrong moves from 16 to 3 of 67, at about two seconds more per question that
+  reaches the model.
 - **Every screen it can reach stays reachable without it.** That one is not negotiable.
 
 ---

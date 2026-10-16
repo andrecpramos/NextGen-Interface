@@ -109,6 +109,23 @@ export interface Words {
   readonly limitHelpHere: string;
   /** Beneath "I can't do that for you", when the screen where it is handled is the one they are on (Rule 20). */
   readonly limitHandledHere: string;
+  /**
+   * A request to change something the app does (Rule 20, ADR-042): where it is done, not that the assistant
+   * cannot — "That's done in Training sessions." The screen follows as a link; nothing moves.
+   */
+  readonly doneIn: (title: string) => string;
+  /** …and on the screen they are on: "It's done on this screen." */
+  readonly doneHere: string;
+  /** …with the control that does it, when one answers the request: "Use “Cancel session” there." */
+  readonly doneWith: (control: string) => string;
+  /** …when none does. Either way it says, once, that the assistant changes nothing itself. */
+  readonly doneThere: string;
+  /** On the screen already, with the control: "Use “Cancel session”." */
+  readonly doneHereWith: (control: string) => string;
+  /** On the screen already, with no control to name: only that the assistant changes nothing itself. */
+  readonly doneSelf: string;
+  /** When the router was not sure where: "That's done here:", above one or two screens. */
+  readonly doneInOneOf: string;
   /** Keyboard mashing (ADR-039): not understood, and where to begin. */
   readonly mashed: string;
   readonly limitFallback: string;
@@ -237,6 +254,13 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     limitDoHere: 'Do it here:',
     limitHelpHere: 'Try here:',
     limitHandledHere: 'It’s handled on this screen.',
+    doneIn: (title) => `That’s done in ${title}.`,
+    doneHere: 'It’s done on this screen.',
+    doneWith: (control) => `Use “${control}” there. I don’t change anything for you.`,
+    doneThere: 'Open it and do it there. I don’t change anything for you.',
+    doneHereWith: (control) => `Use “${control}”. I don’t change anything for you.`,
+    doneSelf: 'I don’t change anything for you.',
+    doneInOneOf: 'That’s done here:',
     mashed: 'I didn’t catch that. Tell me where you want to go, or start here:',
     limitFallback: 'I can take you to any screen in this app.',
     limitNext: 'Ask me where to find something else.',
@@ -335,6 +359,13 @@ export const WORDS: Readonly<Record<'en' | 'pt', Words>> = {
     limitDoHere: 'Faça-o aqui:',
     limitHelpHere: 'Veja aqui:',
     limitHandledHere: 'É tratado neste ecrã.',
+    doneIn: (title) => `Isso faz-se em ${title}.`,
+    doneHere: 'Faz-se neste ecrã.',
+    doneWith: (control) => `Use «${control}» lá. Eu não altero nada por si.`,
+    doneThere: 'Abra-o e faça-o lá. Eu não altero nada por si.',
+    doneHereWith: (control) => `Use «${control}». Eu não altero nada por si.`,
+    doneSelf: 'Eu não altero nada por si.',
+    doneInOneOf: 'Isso faz-se aqui:',
     mashed: 'Não percebi. Diga-me para onde quer ir, ou comece aqui:',
     limitFallback: 'Posso levá-lo a qualquer ecrã desta aplicação.',
     limitNext: 'Pergunte-me onde encontrar outra coisa.',
@@ -803,12 +834,15 @@ export function present(
   // before it ever reached this trace. `trace.prose` wins when present; the declared
   // text is the fallback it has always been.
   if (trace.outcome === 'out_of_scope' || capability?.kind === 'unsupported') {
-    // Rule 20 (ADR-041): asked to change something, the assistant says it cannot do it for them, and
-    // offers the screen where it is handled — a link the visitor takes, never a move.
+    // Rule 20 (ADR-041): asked to change something, the assistant offers the screen where it is handled —
+    // a link the visitor takes, never a move. ADR-042: and it says *where it is done*, with the control
+    // that does it when the router found one, never "I can't do that": the app can, and a visitor reads
+    // "I can't" as "this app can't". That the assistant changes nothing itself is said once, beneath.
     if (trace.changeRequest && capability && capability.kind !== 'unsupported') {
+      const control = trace.control ?? null;
       const route = fillParams(capability.route, currentPath, patterns, hints);
       if (route && isSamePlace(route, currentPath)) {
-        return { tone: 'limit', title: words.limitDoTitle, body: words.limitHandledHere, destination: null, choices: [] };
+        return { tone: 'explain', title: words.doneHere, body: control ? words.doneHereWith(control) : words.doneSelf, destination: null, choices: [] };
       }
       const detail = gist(capability.explanation);
       const list = route ? null : listFor(capability, registry, currentPath, patterns, hints);
@@ -817,7 +851,13 @@ export function present(
         : list
           ? { label: list.capability.title, route: list.route, detail: words.fromList(capability.title) }
           : null;
-      return { tone: 'limit', title: words.limitDoTitle, body: place ? words.limitHelpHere : null, destination: null, choices: place ? [place] : [] };
+      return {
+        tone: 'explain',
+        title: words.doneIn(capability.title),
+        body: control ? words.doneWith(control) : words.doneThere,
+        destination: null,
+        choices: place ? [place] : [],
+      };
     }
     const refusal = capability?.kind === 'unsupported' ? (capability as { refusal?: string }).refusal : undefined;
     const said = trace.prose ?? refusal ?? words.limitFallback;
@@ -920,9 +960,9 @@ export function present(
     // The adopter asked for fewer questions (ADR-027): a plain leader is taken, not asked about. A lone
     // weak match is still asked — "eager" moves on a leader, never on the only straw there is.
     // Rule 20 (ADR-041): a request to change something is never followed, even by "eager", and is asked as
-    // what it is — the assistant cannot do it; this is where it is handled.
+    // what it is — where it is done (ADR-042), one or two screens, nothing moved.
     if (trace.changeRequest) {
-      return { tone: 'limit', title: words.limitDoTitle, body: words.limitHelpHere, destination: null, choices: !second || leads ? [first] : [first, second] };
+      return { tone: 'choose', title: words.doneInOneOf, body: null, destination: null, choices: !second || leads ? [first] : [first, second] };
     }
     if (decide === 'eager' && leads && !trace.prose) {
       return { tone: 'go', title: words.going(first.label), body: null, destination: first.route, choices: [] };

@@ -1,4 +1,4 @@
 {
-  "home": { "title": "Home" },
+  "home": { "title": "Home", "excuseAbsence": "Excuse an absence" },
   "teacher": { "title": "Teacher dashboard", "loading": "Loading…" }
 }

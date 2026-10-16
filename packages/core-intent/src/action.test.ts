@@ -5,7 +5,37 @@ import {
   isExplanationRequest,
   actionSignalApplies,
   actionVocabularyOf,
+  controlFor,
 } from './action.ts';
+
+/**
+ * ADR-042. Told where a change is made, the visitor is also told with what: the control on that screen
+ * the request names — by what it does ("cancela" is "Cancelar sessão") or by what it is about. Model-free,
+ * and silent when nothing on the screen answers the request: a wrong control is worse than none.
+ */
+describe('controlFor — the control a request to do something names', () => {
+  const sessions = { actions: ['Cancelar sessão', 'Cancel session', 'Concluir sessão'], opens: ['Nova sessão'] };
+
+  it('finds it by what it does, in the language it was asked in', () => {
+    expect(controlFor('cancela o treino de amanhã', sessions)).toBe('Cancelar sessão');
+    expect(controlFor('please cancel tomorrow’s training', sessions)).toBe('Cancel session');
+  });
+
+  it('prefers what it does over what it shares a word with', () => {
+    const notes = { actions: ['Exportar CSV', 'Editar', 'Eliminar'], opens: ['Nova nota'] };
+    expect(controlFor('apaga a nota que escrevi sobre o João', notes)).toBe('Eliminar');
+  });
+
+  it('knows that publishing is how a message is sent', () => {
+    expect(controlFor('envia um email aos pais dos sub-15', { actions: ['Publicar'], opens: ['Nova campanha'] })).toBe('Publicar');
+  });
+
+  it('names nothing when nothing on the screen answers the request', () => {
+    expect(controlFor('o que é isto', sessions)).toBeNull();
+    expect(controlFor('cancela o treino', {})).toBeNull();
+    expect(controlFor('muda o capitão', { actions: ['Exportar CSV'] })).toBeNull();
+  });
+});
 
 /**
  * ADR-015's action signal, and the guard that decides when it means anything.
@@ -116,6 +146,27 @@ describe('actionVocabularyOf — what the application says it does', () => {
   it('is empty for an application that only shows things', () => {
     const v = actionVocabularyOf([{ title: 'Calendário', description: 'Ver o calendário de treinos.' }]);
     expect(v.size).toBe(0);
+  });
+
+  // "Marcar como lida", "Marcar todos presentes": marking something, not booking it — on a control or in a request.
+  it('never takes "marcar como" or "marcar todos" for booking', () => {
+    expect(actionVocabularyOf([{ actions: ['Marcar todas como lidas', 'Marcar todos presentes', 'Marcar como concluída'] }]).has('book')).toBe(false);
+    expect(actionVocabularyOf([{ actions: ['Marcar consulta'] }]).has('book')).toBe(true);
+    expect(isActionRequest('marca como lida')).toBe(false);
+  });
+
+  // "Transferir JSON", "transferir o PDF": in Portuguese a file is downloaded with the same verb money is moved with.
+  it('never takes downloading a file for moving money', () => {
+    expect(actionVocabularyOf([{ actions: ['Transferir JSON', 'Transferir o PDF', 'Transferir dados'] }]).has('pay')).toBe(false);
+    expect(actionVocabularyOf([{ actions: ['Transferir para o fornecedor'] }]).has('pay')).toBe(true);
+  });
+
+  // ADR-042: what a screen's controls do is what the application does, whatever its title says.
+  it('reads what the screens’ controls do, and what they open', () => {
+    const v = actionVocabularyOf([
+      { title: 'Comunicações', description: 'Campanhas e anúncios.', actions: ['Publicar'], opens: ['Nova campanha'] },
+    ]);
+    expect(v.has('send')).toBe(true);
   });
 });
 

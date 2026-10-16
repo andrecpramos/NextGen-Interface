@@ -298,9 +298,15 @@ export interface TurnTrace {
    * The visitor asked the assistant to change something that exists, or to do a job for them
    * (`isChangeRequest`, Rule 20, ADR-041). Such a turn is never executed as navigation: it ends
    * `out_of_scope` with `capabilityId` naming the screen where it is handled, which the widget offers
-   * as a link beneath "I can't do that for you".
+   * as a link: "that is done in X" (ADR-042).
    */
   changeRequest: boolean;
+  /**
+   * For a change request settled on a screen, the control there that does it — "Cancelar sessão" — when
+   * one of the screen's `actions` or `opens` answers the request (`controlFor`, ADR-042); otherwise null.
+   * Named to the visitor, never pressed.
+   */
+  control?: string | null;
   /**
    * Keyboard mashing, not a question (`isMashing`, ADR-039): the turn ends `clarify` before stage 1, with
    * no candidates and no model call, and is not something to learn from or hand to anyone.

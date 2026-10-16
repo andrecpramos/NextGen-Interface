@@ -8,7 +8,7 @@ import { THRESHOLDS, type Thresholds } from './config.ts';
 // The subpath, not the package root: the root re-exports the model store, which imports
 // node:crypto/fs/path, and stages.ts is in the browser bundle.
 import { redactTag } from '@nextgen/core-inference/untrusted';
-import type { RegistryContext } from '@nextgen/core-capability';
+import type { Capability, RegistryContext } from '@nextgen/core-capability';
 import type { JsonSchema, LlmRuntime } from '@nextgen/core-inference';
 import { OUT_OF_SCOPE_ID } from './config.ts';
 import { STAGE, type Candidate, type Embedder, type Registry, type SlotValue, type Stage } from './types.ts';
@@ -161,7 +161,9 @@ function phrasingsOf(registry: Registry, embedder: Embedder): Promise<SparseVect
     const sparse = (embedder as Partial<{ embedSparse(text: string): SparseVector }>).embedSparse;
     built = Promise.all(
       registry.capabilities.map(async (cap) => {
-        const texts = [cap.title, ...(cap.examples ?? []).map(exampleText)].filter((t) => t && t.trim());
+        // A control's name is a short phrasing of what is done here, as an example is (ADR-042): "Justificar
+        // falta" answers "quero justificar a falta" better than any sentence in the screen's whole document.
+        const texts = [cap.title, ...(cap.examples ?? []).map(exampleText), ...(cap.actions ?? [])].filter((t) => t && t.trim());
         if (typeof sparse === 'function') return texts.map((t) => sparse.call(embedder, t));
         return (await embedder.embedAll(texts)).map((v) => toSparse(v));
       }),
@@ -237,7 +239,15 @@ export async function stage2(
 
   let decision: Stage2Decision = 'escalate';
   let shared: readonly string[] | null = null;
-  if (bestBoundary && boundaryLead >= requiredMargin && bestBoundary.score >= floor) {
+  // Rule 19's reading, for a refusal (ADR-042): when every word tying the request to the limit is the best
+  // screen's too, the scores do not tell "the app does not do this" from "this screen" — "apaga a ficha
+  // médica do meu filho" was refused as fees on "meu filho", by 0.004. Not refused; asked, or decided by
+  // stage 3. No number is involved, so Rule 14 is untouched.
+  const limitSharesAll =
+    bestBoundary && top.capabilityId !== bestBoundary.capabilityId && !registry.boundaryIds.has(top.capabilityId)
+      ? sharedWithRunnerUp(utterance, registry, bestBoundary.capabilityId, top.capabilityId) !== null
+      : false;
+  if (bestBoundary && boundaryLead >= requiredMargin && bestBoundary.score >= floor && !limitSharesAll) {
     // The application has said, in the registry, that it does not do this.
     decision = 'refuse';
   } else if (top.score < thresholds.tauFloor) {
@@ -390,6 +400,67 @@ function knowledgeBlock(context: RegistryContext | undefined): { text: string; h
   return lines.length > 0 ? { text: lines.join('\n'), hasRules: rules.length > 0 } : null;
 }
 
+/** A role with at most this many screens is shown to stage 3 whole (ADR-043). */
+export const CATALOGUE_MAX = 160;
+/**
+ * …and in at most this much text; past either, stage 3 sees this many, in stage 2's order. About 10k tokens:
+ * a 14B model on a 12 GB GPU keeps a 12k context on the GPU and slows four-fold past 16k (measured), and
+ * the busiest role of a real app (68 screens) is 24k characters.
+ */
+const CATALOGUE_BUDGET = 36_000;
+export const CATALOGUE_FALLBACK = 40;
+
+const clip = (text: string, max: number): string => (text.length <= max ? text : `${text.slice(0, max - 1).replace(/\s+\S*$/, '')}…`);
+
+/**
+ * One screen as stage 3 reads it: what it is, what it is for, and what can be done on it (ADR-043).
+ *
+ * Compact, because a role's whole application is listed. `about` is the declared explanation — the
+ * registry's own answer to "what is this", something to draw on rather than echo (ADR-019) —
+ * or the description when there is none. `does` is what the screen's controls open and do (ADR-031,
+ * ADR-042), which is what a visitor describing a task is asking for. `route` is here so a written answer
+ * can name a screen by the exact string `validateClaims` (ADR-019) checks it against.
+ */
+function entryOf(cap: Capability): Record<string, unknown> {
+  const does = [...new Set([...(cap.opens ?? []), ...(cap.actions ?? [])])].slice(0, 10);
+  const params = Object.fromEntries(Object.entries(cap.params ?? {}).map(([k, v]) => [k, v.type]));
+  return {
+    id: cap.id,
+    route: cap.route,
+    title: cap.title,
+    about: clip((cap.explanation ?? cap.description).replace(/\s+/g, ' ').trim(), 220),
+    ...(does.length > 0 ? { does } : {}),
+    ...(Object.keys(params).length > 0 ? { params } : {}),
+  };
+}
+
+/**
+ * What stage 3 chooses from (ADR-043, amending ADR-003): every screen of the role, in stage 2's order,
+ * when the role's application fits — so a request that shares no word with the screen that handles it
+ * ("o Rui torceu o tornozelo" → injuries) still reaches the model with that screen in the list.
+ *
+ * Two of ADR-003's properties are kept exactly. **A declared limit is never offered** (the model has its
+ * own sentinel). **A capability that acts itself** (`write`, `destructive`) **is offered only when stage
+ * 2 ranked it in its top `topK`**, so the model can never introduce one stage 2 did not surface — and
+ * `REQUIRES_STAGE2_AGREEMENT` still stands behind that. Past `CATALOGUE_MAX` screens or
+ * `CATALOGUE_BUDGET` characters, the model sees the first `CATALOGUE_FALLBACK` in stage 2's order.
+ */
+export function catalogueFor(ranked: readonly Candidate[], registry: Registry, topK: number = THRESHOLDS.topK): Candidate[] {
+  const surfaced = new Set(ranked.filter((c) => !registry.boundaryIds.has(c.capabilityId)).slice(0, topK).map((c) => c.capabilityId));
+  const offerable = ranked.filter((c) => {
+    if (registry.boundaryIds.has(c.capabilityId)) return false;
+    const kind = registry.byId.get(c.capabilityId)?.kind;
+    return kind !== 'write' && kind !== 'destructive' ? true : surfaced.has(c.capabilityId);
+  });
+  if (offerable.length <= CATALOGUE_MAX) {
+    let size = 0;
+    // Measured as it is sent: indented (see the prompt below).
+    for (const c of offerable) size += JSON.stringify(entryOf(registry.byId.get(c.capabilityId)!), null, 2).length + 4;
+    if (size <= CATALOGUE_BUDGET) return offerable;
+  }
+  return offerable.slice(0, CATALOGUE_FALLBACK);
+}
+
 export async function stage3(
   utterance: string,
   candidates: readonly Candidate[],
@@ -398,33 +469,19 @@ export async function stage3(
   opts: Stage3Options,
 ): Promise<Stage3Result> {
 
-  const menu = candidates.map(({ capabilityId }) => {
-    const cap = registry.byId.get(capabilityId)!;
-    return {
-      id: cap.id,
-      // `route` is here so a written answer can name a screen by the EXACT string
-      // `validateClaims` (ADR-019) checks it against — the system prompt below is
-      // explicit that this is the only correct way to refer to one.
-      route: cap.route,
-      title: cap.title,
-      description: cap.description,
-      // `explanation` is the registry's own declared answer to "what is this".
-      // Handing it to the model as context, not as a template, is what part 1 of
-      // ADR-019 asks for: something to draw ON, not something to just echo back.
-      ...(cap.explanation ? { explanation: cap.explanation } : {}),
-      params: Object.fromEntries(
-        Object.entries(cap.params ?? {}).map(([k, v]) => [k, v.type]),
-      ),
-    };
-  });
+  const menu = candidates.map(({ capabilityId }) => entryOf(registry.byId.get(capabilityId)!));
 
   // Only the fields this turn will read (ADR-036). The model generates every field it is offered,
   // and generation, not reading the prompt, is what a stage-3 turn waits for — so a field nobody
   // reads is latency, and on a reasoning model with a token budget it is also a cut-off answer
   // that fails to parse. `reasoning` was offered here and never read by anything; it is gone.
   // `capabilityId` stays first: some backends generate in property order.
-  const withParams = menu.some((m) => Object.keys(m.params).length > 0);
+  const withParams = menu.some((m) => m.params !== undefined);
   const withProse = opts.prose === true;
+  const actsItself = candidates.some(({ capabilityId }) => {
+    const kind = registry.byId.get(capabilityId)?.kind;
+    return kind === 'write' || kind === 'destructive';
+  });
 
   // The sentinel is part of the constrained enum, so "none of these" is a
   // first-class answer rather than a low-confidence guess. Stage 2 cannot make
@@ -443,7 +500,7 @@ export async function stage3(
   const schema: JsonSchema = {
     type: 'object',
     properties: {
-      capabilityId: { type: 'string', enum: [...menu.map((m) => m.id), OUT_OF_SCOPE_ID] },
+      capabilityId: { type: 'string', enum: [...menu.map((m) => m.id as string), OUT_OF_SCOPE_ID] },
       confidence: { type: 'number' },
       ...(withParams ? { params: { type: 'object' } } : {}),
       // ADR-019. `prose` is the model's second job: a short written answer, in
@@ -471,6 +528,14 @@ export async function stage3(
     'You route a user utterance to exactly one capability from the provided list.',
     'You may ONLY choose an id from the list. Never invent one.',
     `This application: ${registry.domainDescription}`,
+    // ADR-043. The list is the whole application of this visitor's role, so the screen is in it even when
+    // the visitor names none: they describe a situation or a task, and that is what "about" and "does" answer.
+    // Not when something on the list acts itself: read that way, "…reply that every module was erased" was
+    // a request to delete for llama3.1:8b (gs-0182). Measured on a real app, the sentence is worth 2 of 67
+    // indirect questions on a list of screens; it is worth nothing next to a delete.
+    ...(actsItself
+      ? []
+      : ['The visitor may describe a situation or a task instead of naming a screen. Choose the screen where that situation is dealt with or that task is done: "about" says what each screen is for, and "does" names what can be done there.']),
     `If the utterance is not about this application's data or actions at all — weather, jokes, general knowledge, or something an unrelated app would handle — choose "${OUT_OF_SCOPE_ID}".`,
     `If the utterance IS about this application but is too vague to identify one capability, pick the closest and set confidence below 0.4. Do not use "${OUT_OF_SCOPE_ID}" for vague in-domain requests.`,
     'Set confidence to how certain you are, from 0 to 1.',
@@ -511,6 +576,9 @@ export async function stage3(
     `Today is ${ctx.today}.`,
     `Current screen: ${ctx.route || '/'}`,
     '',
+    // Indented, as it always was (ADR-043). One screen per line is a third fewer tokens, and measured worse
+    // twice: 59 against 60 of a real app's 67 questions on qwen3:14b, and with the compact `about` field it let
+    // llama3.1:8b read gs-0182's injected "every module was erased" as a delete — neither change alone did.
     'Capabilities:',
     JSON.stringify(menu, null, 2),
     '',
@@ -539,6 +607,10 @@ export async function stage3(
     // ended in a clarifying question after ~5 s; with this and the lean schema above, all 9
     // were decided in ~0.9 s warm, and top-1 rose from 81.8% to 92.7%.
     think: false,
+    // A role's whole application is several thousand tokens (ADR-043): say so, or a runtime with a small
+    // default context reads the end of the list and none of the instructions. One token per three
+    // characters overestimates every language this tool speaks, which is the safe side.
+    contextTokens: Math.ceil((system.length + prompt.length + JSON.stringify(schema).length) / 3),
     ...(opts.model !== undefined ? { model: opts.model } : {}),
   });
 

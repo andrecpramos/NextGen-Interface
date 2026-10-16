@@ -47,12 +47,18 @@ export function capabilityDocument(cap: Capability): string {
     s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const seen = flatten(`${cap.title ?? ''} ${cap.description ?? ''}`);
   const novel = (cap.triggers ?? []).filter((t) => !seen.includes(flatten(t)));
+  // What the screen lets a visitor do (ADR-042) is what a request to do it says: "cancela o treino" has
+  // nothing in common with "Treino · Sessões" but the control "Cancelar sessão". Same rule as triggers —
+  // a name the title or description already carries adds weight, not signal. A capability with no
+  // `actions` produces exactly the document it always did, so hand-written registries do not move.
+  const doable = (cap.actions ?? []).filter((a) => !seen.includes(flatten(a)));
 
   return [
     cap.title,
     cap.description,
     ...novel,
     ...(cap.examples ?? []).map(exampleText),
+    ...doable,
   ].join('. ');
 }
 
