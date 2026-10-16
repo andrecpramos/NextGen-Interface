@@ -1,3 +1,3 @@
-nextgen-adapter af6d9d102805-ff1e7fe28541
+nextgen-adapter e0fc260bf815-5929486e44fb
 Identifies scan.mjs and runtime/ (nextgen.js and its types), the files an adopter copies. It changes
 exactly when any of them does. `node scan.mjs doctor` prints it: quote it when you report a problem.

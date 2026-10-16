@@ -109,9 +109,26 @@ finds the workspace by walking *up* from the folder you gave it, so:
 - if `doctor` says "no permissions module" and the app has one in another package, set
   `permissionsFile`, `roleSetExport` and `allRolesExport` in `nextgen.config.json` (the path may begin
   `../../packages/…`);
-- a route table that ends in a **computed** spread (`...plugins.flatMap(p => p.routes)`) cannot be read
-  statically. It is listed in `review/SKIPPED.md` with the expression quoted — tell the developer those
-  screens are not covered, and do not present the count as the whole app.
+- if each package keeps its own translations, list every folder: `"localesDir": ["../../packages/i18n/src/i18n",
+  "../../packages/billing/src/i18n"]`, each relative to `appRoot`, each holding `<lang>/<namespace>.json` or
+  `<lang>.json`. They merge per namespace and key; the first folder listed wins a key two of them define, and
+  `build` prints how many did. A folder of entries one package adds to another's namespaces goes last, so the
+  owner's copy wins. Screens titled with a component's English name ("Session Detail") usually mean a folder
+  is missing from this list;
+- a route table that ends in a **computed** spread is followed when it is built from arrays the source
+  writes out: `...plugins.flatMap(p => p.routes)`, `.map(p => p.routes).flat()`, a `.filter`, and a
+  `.map` that keeps every route's path, page and guard. One that calls code to make its routes
+  (`...plugins.flatMap(p => p.routesFor(user))`), a `.map` that changes a route's path or guard, or a
+  `.filter` over routes that are also spread under a nested (guarded) route, cannot be read statically. Nor
+  can a route's `children` given as anything but an array written out (`children: adminRoutes`). Each is
+  listed in `review/SKIPPED.md` with the expression quoted — tell the developer those screens are not
+  covered, and do not present the count as the whole app;
+- a lazy page is read only through React's `lazy` (imported from `react`), Vue's `defineAsyncComponent`
+  (from `vue`), or a bare `() => import(…)`, and only when the loader does nothing to the page but pick
+  an export (`.then((m) => ({ default: m.X }))`). A page wrapped in anything else — `requireAdmin(…)`, a
+  `lazy` of the app's own — may be guarded, and is left out as "no component";
+- known limitation: a JSX route that spreads its props, `<Route {...guard}>`, is not read for the guard
+  those props may carry. Ask the developer whether the app guards routes that way.
 
 `FIELD-NOTES.md` §1 has the detail.
 
@@ -650,11 +667,19 @@ Only if the developer said yes to ASK 8. Two steps: run a proxy, then rebuild po
 it. The order matters — `build` records the path as it starts to serve `bundle/`, but the
 proxy itself can go live anytime before real traffic reaches it.
 
-**1. Run a proxy.** It receives `{ system, prompt, schema, model, think }` as JSON and must answer
-with JSON matching `schema` — nothing more. `think: false` means "don't reason first": pass it to
-the model (Ollama's `think`). A reasoning model (qwen3, deepseek-r1) that ignores it spends its
+**1. Run a proxy.** It receives `{ system, prompt, schema, model, think, contextTokens }` as JSON and
+must answer with JSON matching `schema` — nothing more. `think: false` means "don't reason first": pass
+it to the model (Ollama's `think`). A reasoning model (qwen3, deepseek-r1) that ignores it spends its
 token budget reasoning, and its answer is cut off before the JSON closes. Pass `schema` as it
-is: it asks only for the fields this turn reads, and the proxy should not add any. It decides which model to call and how; this
+is: it asks only for the fields this turn reads, and the proxy should not add any.
+
+**`contextTokens` is not optional in practice.** The model is shown every screen of the visitor's role
+(ADR-043) — several thousand tokens on a real app — and `contextTokens` is how many it needs to read all
+of it. Give the model at least that much context (Ollama: `options.num_ctx`). Ollama's default is 2048,
+and past it Ollama silently drops the *front* of the prompt — the instructions and half the screens —
+and the model still answers, from what is left: measured on a 130-screen app, right screens fell from
+88% to 37% and "what's the weather" was sent to an unrelated screen. The request body is tens of
+kilobytes for the same reason; accept at least 128 KB. It decides which model to call and how; this
 tool never assumes a provider. The reference below is Express, with rate limiting, because
 an unauthenticated endpoint that calls a model is something anyone loading the page can
 spend money or GPU time against:
@@ -678,17 +703,18 @@ function allowed(ip) {
   return bucket.count <= LIMIT;
 }
 
-app.post('/nextgen/stage3', express.json({ limit: '32kb' }), async (req, res) => {
+app.post('/nextgen/stage3', express.json({ limit: '128kb' }), async (req, res) => {
   if (!allowed(req.ip)) return res.status(429).json({ error: 'rate limited' });
 
-  const { system, prompt, schema, model, think } = req.body ?? {};
+  const { system, prompt, schema, model, think, contextTokens } = req.body ?? {};
   if (typeof system !== 'string' || typeof prompt !== 'string' || !schema) {
     return res.status(400).json({ error: 'malformed request' });
   }
 
   // Call whatever model this app's developer chose. This is the one line that is theirs
-  // to fill in — the shape of the call depends entirely on the provider.
-  const answer = await callTheirModel({ system, prompt, schema, model, think });
+  // to fill in — the shape of the call depends entirely on the provider. With Ollama, pass
+  // `options: { num_ctx: contextTokens + 256 }` (rounded up), or the prompt is cut from the front.
+  const answer = await callTheirModel({ system, prompt, schema, model, think, contextTokens });
 
   res.json(answer); // must match `schema` — nothing wrapping it, no envelope
 });
